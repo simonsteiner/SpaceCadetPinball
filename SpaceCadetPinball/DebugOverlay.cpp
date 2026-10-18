@@ -260,21 +260,21 @@ void DebugOverlay::DrawBallDepthSteps()
 	auto& edgeMan = *TTableLayer::edge_manager;
 	SDL_SetRenderDrawColor(winmain::Renderer, 200, 100, 0, 255);
 
-	for (auto ball : pb::MainTable->BallList)
-	{
-		auto visualCount = loader::query_visual_states(ball->GroupIndex);
-		for (auto index = 0; index < visualCount; ++index)
-		{
-			auto depthPt = reinterpret_cast<vector3*>(loader::query_float_attribute(ball->GroupIndex, index, 501));
-			auto pt = proj::xform_to_2d(*depthPt);
+	// Draws the depth steps of the first ball only
+	if (pb::MainTable->BallList.empty())
+		return;
 
-			// Snap X coordinate to edge box sides
-			auto x1 = proj::xform_to_2d(vector2{edgeMan.MinX, depthPt->Y}).X;
-			auto x2 = proj::xform_to_2d(vector2{edgeMan.MaxBoxX * edgeMan.AdvanceX + edgeMan.MinX, depthPt->Y}).X;
-			auto ff =  proj::xform_to_2d(vector2{ edgeMan.MaxBoxX * edgeMan.AdvanceX + edgeMan.MinX, depthPt->Y });
-			SDL_RenderDrawLine(winmain::Renderer, x1, pt.Y, x2, pt.Y);
-		}
-		break;
+	auto ball = pb::MainTable->BallList.front();
+	auto visualCount = loader::query_visual_states(ball->GroupIndex);
+	for (auto index = 0; index < visualCount; ++index)
+	{
+		auto depthPt = reinterpret_cast<vector3*>(loader::query_float_attribute(ball->GroupIndex, index, 501));
+		auto pt = proj::xform_to_2d(*depthPt);
+
+		// Snap X coordinate to edge box sides
+		auto x1 = proj::xform_to_2d(vector2{edgeMan.MinX, depthPt->Y}).X;
+		auto x2 = proj::xform_to_2d(vector2{edgeMan.MaxBoxX * edgeMan.AdvanceX + edgeMan.MinX, depthPt->Y}).X;
+		SDL_RenderDrawLine(winmain::Renderer, x1, pt.Y, x2, pt.Y);
 	}
 }
 

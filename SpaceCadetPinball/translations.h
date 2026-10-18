@@ -298,7 +298,7 @@ struct TextArray
 	}
 
 private:
-	LPCSTR Store[static_cast<int>(Msg::Max )][static_cast<int>(Lang::Max)]{ nullptr };
+	LPCSTR Store[static_cast<int>(Msg::Max )][static_cast<int>(Lang::Max)]{};
 
 	void Set(Msg msgId, Lang langId, LPCSTR value)
 	{

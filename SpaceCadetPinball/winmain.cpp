@@ -1011,11 +1011,11 @@ int winmain::event_handler(const SDL_Event* event)
 				auto pltPtr = &plt[10]; // first 10 entries are system colors hardcoded in display_palette()
 				for (int i1 = 0, i2 = 0; i1 < 256 - 10; ++i1, i2 += 8)
 				{
-					unsigned char blue = i2, redGreen = i2;
+					auto blue = static_cast<unsigned char>(i2), redGreen = static_cast<unsigned char>(i2);
 					if (i2 > 255)
 					{
 						blue = 255;
-						redGreen = i1;
+						redGreen = static_cast<unsigned char>(i1);
 					}
 
 					*pltPtr++ = ColorRgba{blue, redGreen, redGreen, 0};
@@ -1463,7 +1463,7 @@ void winmain::RenderFrameTimeDialog()
 			average /= static_cast<float>(gfrDisplay.size());
 			dev /= static_cast<float>(gfrDisplay.size());
 			char overlay[64];
-			sprintf(overlay, "avg %.3fms, dev %.3fms", average, dev);
+			snprintf(overlay, sizeof overlay, "avg %.3fms, dev %.3fms", average, dev);
 
 			auto region = ImGui::GetContentRegionAvail();
 			ImGui::PlotLines("Lines", gfrDisplay.data(), static_cast<int>(gfrDisplay.size()),

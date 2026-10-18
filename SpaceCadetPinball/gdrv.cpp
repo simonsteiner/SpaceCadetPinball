@@ -146,7 +146,7 @@ void gdrv_bitmap8::BlitToTexture()
 	assertm(Texture, "Updating null texture");
 	int pitch = 0;
 	ColorRgba* lockedPixels;
-	auto result = SDL_LockTexture
+	[[maybe_unused]] auto result = SDL_LockTexture
 	(
 		Texture,
 		nullptr,
