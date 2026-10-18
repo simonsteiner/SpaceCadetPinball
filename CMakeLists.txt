@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.24)
 project(SpaceCadetPinball)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin)
@@ -15,7 +17,8 @@ else()
     set(SCP_VENDORED_SDL_DEFAULT OFF)
 endif()
 option(SCP_VENDORED_SDL "Build SDL2 and SDL2_mixer from pinned sources instead of using installed packages" ${SCP_VENDORED_SDL_DEFAULT})
-option(SCP_WARNINGS "Compile the game with extra warnings (-Wall -Wextra, or /W4 with MSVC)" OFF)
+option(SCP_WARNINGS "Compile the game with extra warnings (-Wall -Wextra, or /W4 with MSVC) and treat them as errors" OFF)
+option(SCP_SANITIZERS "Build the game with AddressSanitizer and UndefinedBehaviorSanitizer (GCC and Clang)" OFF)
 
 # Link mingw libs static
 if(MINGW)
@@ -216,6 +219,12 @@ set(SOURCE_FILES
         SpaceCadetPinball/winmain.h
         SpaceCadetPinball/zdrv.cpp
         SpaceCadetPinball/zdrv.h
+        SpaceCadetPinball/DebugOverlay.cpp
+        SpaceCadetPinball/DebugOverlay.h
+        )
+
+# Vendored ImGui, a separate library so that it gets neither the game's precompiled header nor its warnings
+set(IMGUI_SOURCE_FILES
         SpaceCadetPinball/imconfig.h
         SpaceCadetPinball/imgui_internal.h
         SpaceCadetPinball/imgui.cpp
@@ -233,8 +242,6 @@ set(SOURCE_FILES
         SpaceCadetPinball/imstb_textedit.h
         SpaceCadetPinball/imstb_rectpack.h
         SpaceCadetPinball/imstb_truetype.h
-        SpaceCadetPinball/DebugOverlay.cpp
-        SpaceCadetPinball/DebugOverlay.h
         )
 
 # On Windows, include resource file with the icon
@@ -243,35 +250,44 @@ if(WIN32)
     list(APPEND SOURCE_FILES SpaceCadetPinball/SpaceCadetPinball.rc)
 endif(WIN32)
 
-add_executable(SpaceCadetPinball ${SOURCE_FILES})
+add_library(imgui STATIC ${IMGUI_SOURCE_FILES})
+target_link_libraries(imgui PUBLIC ${SDL_LIBRARIES})
 
-# Skip pch on foreign code
-set_source_files_properties(
-        SpaceCadetPinball/imgui.cpp
-        SpaceCadetPinball/imgui_sdl.cpp
-        SpaceCadetPinball/imgui_draw.cpp
-        SpaceCadetPinball/imgui_widgets.cpp
-        SpaceCadetPinball/imgui_tables.cpp
-        SpaceCadetPinball/imgui_demo.cpp
-        SpaceCadetPinball/imgui_impl_sdl.cpp
-        SpaceCadetPinball/imgui_impl_sdlrenderer.cpp
-        PROPERTIES SKIP_PRECOMPILE_HEADERS 1
-)
+add_executable(SpaceCadetPinball ${SOURCE_FILES})
 
 target_precompile_headers(SpaceCadetPinball
         PUBLIC
         SpaceCadetPinball/pch.h
         )
 
-target_link_libraries(SpaceCadetPinball ${SDL_LIBRARIES})
+target_link_libraries(SpaceCadetPinball imgui ${SDL_LIBRARIES})
 
-# Only the game target gets the extra warnings, not vendored SDL
+# Read sources as UTF-8 and keep string literals in UTF-8; MSVC otherwise uses the system code page
+if(MSVC)
+    target_compile_options(SpaceCadetPinball PRIVATE /utf-8)
+    target_compile_options(imgui PRIVATE /utf-8)
+endif()
+
+# Only the game target gets the extra warnings, not vendored SDL and ImGui.
+# Unused parameters are allowed: overrides and callbacks have the signatures their interfaces set.
 if(SCP_WARNINGS)
     if(MSVC)
-        target_compile_options(SpaceCadetPinball PRIVATE /W4)
+        target_compile_options(SpaceCadetPinball PRIVATE /W4 /wd4100)
     else()
-        target_compile_options(SpaceCadetPinball PRIVATE -Wall -Wextra)
+        target_compile_options(SpaceCadetPinball PRIVATE -Wall -Wextra -Wno-unused-parameter)
     endif()
+    set_target_properties(SpaceCadetPinball PROPERTIES COMPILE_WARNING_AS_ERROR ON)
+endif()
+
+if(SCP_SANITIZERS)
+    if(MSVC)
+        message(FATAL_ERROR "SCP_SANITIZERS needs GCC or Clang")
+    endif()
+    set(SCP_SANITIZER_FLAGS -fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer)
+    foreach(target SpaceCadetPinball imgui)
+        target_compile_options(${target} PRIVATE ${SCP_SANITIZER_FLAGS})
+        target_link_options(${target} PRIVATE ${SCP_SANITIZER_FLAGS})
+    endforeach()
 endif()
 
 # On Windows with installed SDL packages, copy DLL to output
