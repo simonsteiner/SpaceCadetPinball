@@ -10,15 +10,17 @@ cmake --preset linux  # configure (presets: linux, linux-debug, linux-vendored, 
 cmake --build --preset linux  # build; the executable lands in bin/ in the source tree
 cmake --preset linux-vendored && cmake --build --preset linux-vendored  # build with SDL fetched from source, as the Windows and macOS presets do
 ./bin/SpaceCadetPinball -noaudio  # run; needs game data, see docs/setup.md
+tools/check-replays.sh ../replays ../gamedata  # play back recorded sessions and report any that play differently
 ```
 
-There are no automated tests or linters yet. A change is checked by building it and playing it with real game data. The `Build` workflow (`.github/workflows/Build.yml`) builds every preset except `linux-debug` and `windows-x86-xp` on each pull request, with `SCP_WARNINGS=ON`.
+There are no automated tests or linters yet. A change is checked by building it and playing it with real game data. Before a change that could affect play, record sessions with `-record` and check them with `tools/check-replays.sh` afterwards (`docs/replays.md`). The `Build` workflow (`.github/workflows/Build.yml`) builds every preset except `linux-debug` and `windows-x86-xp` on each pull request, with `SCP_WARNINGS=ON`.
 
 ## Conventions
 
 ### Game code
 
 - **Table rules live only in `SpaceCadetPinball/control.cpp`.** Its `component_info` tables bind components to rule handlers by group name; mission, rank and light logic belongs there, not in component classes.
+- **Outside input reaches the table only through `pb` functions that open a `replay::Scope`.** A new entry point that changes table state from outside `pb::frame` needs one, or replays diverge (`docs/replays.md`).
 - **Events between components are `Message(MessageCode, float)` calls.** Add a `MessageCode` value for a new event instead of a new cross-component method.
 - **Text shown on the table goes through `pb::get_rc_string(Msg::...)`.** Its translations live in `SpaceCadetPinball/translations.cpp`; never pass a literal to a text box.
 - **Settings live only in `optionsStruct` (`SpaceCadetPinball/options.h`).** Add new ones there and clamp them in `options.cpp`, not as globals elsewhere.
@@ -53,6 +55,7 @@ There are no automated tests or linters yet. A change is checked by building it 
 - `README.md` — what the project is, the quickstart, provenance.
 - `docs/setup.md` — building on each platform, where the game looks for data, command-line flags, troubleshooting.
 - `docs/deployment.md` — producing release builds and where the version number lives.
+- `docs/replays.md` — recording and checking sessions, and the replay file format.
 - `docs/reference/` — DAT file format and dumps of the original DAT and PDB; read before touching `loader.cpp` or `partman.cpp`.
 - `docs/plan/` — dated work plans; read the latest before starting modernization work.
 - `GLOSSARY.md` — game and data terms.

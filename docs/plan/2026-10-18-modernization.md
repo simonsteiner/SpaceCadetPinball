@@ -1,6 +1,6 @@
 # Modernization plan
 
-Date: 2026-10-18. Status: Phase 0 done; Phase 1 steps 1 and 2 done.
+Date: 2026-10-18. Status: Phase 0 done; Phase 1 steps 1 to 3 done.
 
 The goal is to bring this fork of k4zmu2a/SpaceCadetPinball up to a current toolchain and a better presentation without changing how the game plays. Phases 1, 2 and 4 are the recommended path. Phase 3 stays parked unless there is a specific reason for it.
 
@@ -39,7 +39,13 @@ Gameplay must stay byte-for-byte equivalent. Each step is its own pull request.
    - `windows-x86-xp` isn't built: no runner image has the `v141_xp` toolset, and installing it on every run would be slow. This stays open together with the decision on keeping XP.
    - Warnings don't fail the build yet. With `SCP_WARNINGS=ON`, the game code gets about 165 warnings with GCC, 161 with MSVC and about 610 with Apple Clang (a universal build compiles everything twice). Most are unused parameters (`-Wunused-parameter`, MSVC C4100); the rest are the bidi and `fread` warnings from step 1 and a handful of unused variables, conversions and one unreachable-code warning. Step 4 fixes them and makes warnings errors.
    - `windows-latest` already has Visual Studio 2026, so the workflow runs the `windows-*` presets, which use the Visual Studio 2022 generator, on `windows-2022`. Retarget the presets when that image is retired.
-3. **Determinism harness:** record inputs and the random seed for a session, replay them headless at a fixed update rate and compare the score and ball state per frame. Run locally with game data before and after every behaviour-sensitive change. A synthetic DAT for CI can come later.
+3. Done: **Determinism harness.** `-record <file>` writes a replay: each frame's time step and the score and ball state after it, plus every command that reaches the table from outside (input after key binding, new game, pause, cheats and so on). `-replay <file>` plays it back headless and stops at the first frame that differs. `tools/check-replays.sh` checks a folder of replays. Details and the format are in `docs/replays.md`.
+   - Replays record the actual time step of every frame instead of forcing a fixed rate, so recording doesn't change how the game plays. While recording, the only differences are the file output and a call to `srand(1)`, which is the seed the C library starts with anyway. Playback takes the same steps from the file.
+   - This explains the demo variation from step 1: physics advances by the wall-clock time each frame took, so no two runs take the same steps. The random numbers are the same every run, because `rand()` is never seeded.
+   - To make input replayable, `pb::InputDown` and `pb::InputUp` were split. Their table half is now `pb::GameInputDown` and `pb::GameInputUp`, which take already-resolved bindings. Normal play runs the same code in the same order.
+   - Verified with GCC 15 against the Phase 0 data: a 30-second demo, a 40-second game with flippers, plunger, nudge, pause and new game sent through XTest, and a cheat session (`hidden test`, extra balls, the random score cheat) all match in every frame (3563, 5662 and 3196 frames). The Debug build matches recordings from the Release build. Deleting the plunger press from a recording makes playback fail at the frame where the ball should appear. These three recordings are in `../replays/`.
+   - Not tested: two or more players, Full Tilt data, and replays across compilers. Floating-point results may differ between GCC, MSVC and Apple Clang, so compare recordings only with builds from the same compiler.
+   - A synthetic DAT that would let CI play replays can come later.
 4. **C++20:** raise the standard, fix new warnings, and enable AddressSanitizer and UBSan in a debug preset. Run the harness under sanitizers.
 5. **SDL3:** port window, renderer, input, audio and timing to SDL3 and SDL3_mixer, and move ImGui to a current release with its SDL3 backends. Drop `imgui_sdl.cpp`. Check SDL3_mixer's MIDI support on every platform before starting.
 6. **Tooling:** `.clang-format` matching the current style, applied once in its own commit, and `clang-tidy` in CI on changed files.

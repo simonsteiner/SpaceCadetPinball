@@ -107,6 +107,8 @@ Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake 3.2
 | `-sw` | use the SDL software renderer instead of trying the hardware renderer first |
 | `-reset` | reset all options to their defaults |
 | `-quick` | skip loading sound effects and music |
+| `-record <file>` | record the session to a replay file; see [replays.md](replays.md) |
+| `-replay <file>` | play a replay back headless, check every frame, and exit; status 1 if play differs |
 
 ## Troubleshooting
 
