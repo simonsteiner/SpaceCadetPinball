@@ -77,7 +77,8 @@ Prior art: alula's port (<https://github.com/alula/SpaceCadetPinball>, played at
 - **Main loop:** the `while` loop in `winmain` becomes a callback for `emscripten_set_main_loop_arg`. Full screen and the Exit menu item are disabled.
 - **Music:** Emscripten's SDL_mixer has no MIDI backend. The port renders `PINBALL.MID` with TinySoundFont (`tsf.h`/`tml.h`, MIT) through `Mix_HookMusic`. Its embedded `gm.sf2` is a conversion of the Roland/Microsoft GS Wavetable set and must not be copied; use a freely licensed SoundFont, ideally fetched separately from the main bundle. A smaller option is to render the theme to OGG once on the player's side.
 - **Audio unlock:** music is on by default here too, and the browser starts audio only after a user gesture.
-- **Game data:** it preloads the game files into the bundle and hosts them. Point 2 above exists to avoid exactly that.
+- **Update rate:** it defaults to 60 updates per second under `__EMSCRIPTEN__`, because the game stutters at the desktop default of 120.
+- **Game data:** it preloads the game files into the bundle and hosts them. Its `gh-pages` branch, which holds only the build output (`index.html`, `.js`, `.wasm`, `CNAME`), commits that bundle as `SpaceCadetPinball.data`. Point 2 above exists to avoid exactly that, and point 3 must deploy from a CI artifact that never contains the data.
 
 ## Role of REA
 
