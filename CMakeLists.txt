@@ -15,6 +15,7 @@ else()
     set(SCP_VENDORED_SDL_DEFAULT OFF)
 endif()
 option(SCP_VENDORED_SDL "Build SDL2 and SDL2_mixer from pinned sources instead of using installed packages" ${SCP_VENDORED_SDL_DEFAULT})
+option(SCP_WARNINGS "Compile the game with extra warnings (-Wall -Wextra, or /W4 with MSVC)" OFF)
 
 # Link mingw libs static
 if(MINGW)
@@ -262,6 +263,15 @@ target_precompile_headers(SpaceCadetPinball
         )
 
 target_link_libraries(SpaceCadetPinball ${SDL_LIBRARIES})
+
+# Only the game target gets the extra warnings, not vendored SDL
+if(SCP_WARNINGS)
+    if(MSVC)
+        target_compile_options(SpaceCadetPinball PRIVATE /W4)
+    else()
+        target_compile_options(SpaceCadetPinball PRIVATE -Wall -Wextra)
+    endif()
+endif()
 
 # On Windows with installed SDL packages, copy DLL to output
 if(WIN32 AND NOT SCP_VENDORED_SDL)
