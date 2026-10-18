@@ -6,14 +6,14 @@ Domain terms are in `GLOSSARY.md`; dated work plans are in `docs/plan/` (the new
 ## Commands
 
 ```bash
-cmake --preset linux  # configure (presets: linux, linux-debug, linux-vendored, windows-x64, windows-x86, windows-x86-xp, mingw, macos); linux needs SDL2 and SDL2_mixer dev packages
+cmake --preset linux  # configure (presets: linux, linux-debug, linux-sanitize, linux-vendored, windows-x64, windows-x86, windows-x86-xp, mingw, macos); linux needs SDL2 and SDL2_mixer dev packages
 cmake --build --preset linux  # build; the executable lands in bin/ in the source tree
 cmake --preset linux-vendored && cmake --build --preset linux-vendored  # build with SDL fetched from source, as the Windows and macOS presets do
 ./bin/SpaceCadetPinball -noaudio  # run; needs game data, see docs/setup.md
 tools/check-replays.sh ../replays ../gamedata  # play back recorded sessions and report any that play differently
 ```
 
-There are no automated tests or linters yet. A change is checked by building it and playing it with real game data. Before a change that could affect play, record sessions with `-record` and check them with `tools/check-replays.sh` afterwards (`docs/replays.md`). The `Build` workflow (`.github/workflows/Build.yml`) builds every preset except `linux-debug` and `windows-x86-xp` on each pull request, with `SCP_WARNINGS=ON`.
+There are no automated tests or linters yet. A change is checked by building it and playing it with real game data. Before a change that could affect play, record sessions with `-record` and check them with `tools/check-replays.sh` afterwards (`docs/replays.md`). The `Build` workflow (`.github/workflows/Build.yml`) builds every preset except `linux-debug`, `linux-sanitize` and `windows-x86-xp` on each pull request, with `SCP_WARNINGS=ON`, which makes warnings errors. After a change to memory handling, run the replays with a `linux-sanitize` build (AddressSanitizer and UBSan).
 
 ## Conventions
 
@@ -26,10 +26,11 @@ There are no automated tests or linters yet. A change is checked by building it 
 - **Settings live only in `optionsStruct` (`SpaceCadetPinball/options.h`).** Add new ones there and clamp them in `options.cpp`, not as globals elsewhere.
 - **Open files with `fopenu`, not `fopen`.** It handles UTF-8 paths on Windows (`SpaceCadetPinball/pch.h`).
 - **Every game `.cpp` starts with `#include "pch.h"`.** It is the shared precompiled header; only vendored ImGui files and the generated `EmbeddedData.cpp` skip it.
+- **The game compiles without warnings.** CI builds with `SCP_WARNINGS=ON`, which treats warnings as errors with GCC, Clang and MSVC. Fix a new warning instead of silencing it; a variable used only in `assertm` gets `[[maybe_unused]]`, because Release builds drop the assert.
 
 ### Build
 
-- **Source files are listed by hand in `CMakeLists.txt`.** Add each new `.cpp` and `.h` to `SOURCE_FILES`; there is no glob.
+- **Source files are listed by hand in `CMakeLists.txt`.** Add each new `.cpp` and `.h` to `SOURCE_FILES`; there is no glob. Vendored ImGui is listed in `IMGUI_SOURCE_FILES` and builds as the separate `imgui` library, without the game's precompiled header and warnings.
 - **SDL comes from `SCP_VENDORED_SDL`.** `ON` (Windows, macOS, `mingw`, `linux-vendored`) fetches the SDL2 and SDL2_mixer versions pinned in `CMakeLists.txt` and links them statically. `OFF` (the Linux default) uses the system packages. Keep both paths working, because distribution packagers use the system one. To bump SDL, change the URL and the `URL_HASH` together.
 
 ### Git

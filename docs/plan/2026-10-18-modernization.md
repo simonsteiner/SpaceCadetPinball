@@ -1,6 +1,6 @@
 # Modernization plan
 
-Date: 2026-10-18. Status: Phase 0 done; Phase 1 steps 1 to 3 done.
+Date: 2026-10-18. Status: Phase 0 done; Phase 1 steps 1 to 4 done.
 
 The goal is to bring this fork of k4zmu2a/SpaceCadetPinball up to a current toolchain and a better presentation without changing how the game plays. Phases 1, 2 and 4 are the recommended path. Phase 3 stays parked unless there is a specific reason for it.
 
@@ -46,7 +46,15 @@ Gameplay must stay byte-for-byte equivalent. Each step is its own pull request.
    - Verified with GCC 15 against the Phase 0 data: a 30-second demo, a 40-second game with flippers, plunger, nudge, pause and new game sent through XTest, and a cheat session (`hidden test`, extra balls, the random score cheat) all match in every frame (3563, 5662 and 3196 frames). The Debug build matches recordings from the Release build. Deleting the plunger press from a recording makes playback fail at the frame where the ball should appear. These three recordings are in `../replays/`.
    - Not tested: two or more players, Full Tilt data, and replays across compilers. Floating-point results may differ between GCC, MSVC and Apple Clang, so compare recordings only with builds from the same compiler.
    - A synthetic DAT that would let CI play replays can come later.
-4. **C++20:** raise the standard, fix new warnings, and enable AddressSanitizer and UBSan in a debug preset. Run the harness under sanitizers.
+4. Done: **C++20.** The game builds as C++20 (`CMAKE_CXX_STANDARD 20`, no compiler extensions). The switch itself brought no new warnings with GCC 15, and the code doesn't use C++20 features yet. `SCP_WARNINGS=ON` now makes warnings errors (CMake's `COMPILE_WARNING_AS_ERROR`), so every CI build is warning-free. The new `linux-sanitize` preset (`SCP_SANITIZERS=ON`) adds AddressSanitizer and UBSan.
+   - Unused parameters are switched off (`-Wno-unused-parameter`, MSVC `/wd4100`) instead of fixed. They were 149 of the 189 warnings in a GCC Release build, nearly all in the rule handlers in `control.cpp`, timer callbacks and overrides such as `Message` and `Collision`, whose signatures are fixed. Renaming them would touch about 40 files for no gain and make upstream merges worse.
+   - The rest is fixed in the code. Variables read only in `assertm` are `[[maybe_unused]]`, so the calls stay. Narrowing conversions that MSVC flagged are explicit casts with the same result. `sprintf` and an unterminated `strncpy` became `snprintf`. The bidi marks in `translations.cpp` are `\u200E` and `\u200F` escapes. The debug overlay's one-pass loop over the balls became a check for the first ball.
+   - Short reads are now errors. `partman::load_records` rejects a truncated DAT file instead of loading uninitialised data; a partly read entry is deleted, not passed to `GroupData::AddEntry`, which would parse it. The sound loader and the MDS converter check their reads too. Complete files load exactly as before.
+   - MSVC now gets `/utf-8`. Without a BOM it read `translations.cpp` in the system code page, and the `\u` escapes need a UTF-8 execution charset.
+   - Vendored ImGui builds as its own static library, `imgui`, so it gets neither the game's precompiled header nor its warning flags. That replaced the `SKIP_PRECOMPILE_HEADERS` list. Apple Clang's 140 `-Wnontrivial-memcall` warnings in ImGui are all instantiated from ImGui's own files and no longer count.
+   - Verified with GCC 15: `linux` (Release) and `linux-sanitize` build without warnings, and the three replays in `../replays/` match in both. Under the sanitizers, replay playback reports nothing, including leaks, and a 20-second windowed demo is clean with vendored SDL and with `-noaudio`. With the system SDL_mixer and music on, the sanitized game crashes on exit: `Mix_Quit` unloads FluidSynth while one of its threads still runs. That happens in FluidSynth, not the game. With FluidSynth preloaded, the exit is clean except for leaks inside FluidSynth, libinstpatch and GLib. `docs/setup.md` has the workaround.
+   - MSVC and Apple Clang were only checked through CI. The fixes cover every warning from them in the last `main` run.
+   - `windows-x86-xp` uses the VS 2017 `v141_xp` toolset, whose C++20 support is incomplete. It is still unbuilt (see step 2), and C++20 adds a reason to drop it.
 5. **SDL3:** port window, renderer, input, audio and timing to SDL3 and SDL3_mixer, and move ImGui to a current release with its SDL3 backends. Drop `imgui_sdl.cpp`. Check SDL3_mixer's MIDI support on every platform before starting.
 6. **Tooling:** `.clang-format` matching the current style, applied once in its own commit, and `clang-tidy` in CI on changed files.
 

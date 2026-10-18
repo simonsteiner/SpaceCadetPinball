@@ -20,7 +20,7 @@ In each folder it tries `CADET.DAT`, then `PINBALL.DAT`, then `DEMO.DAT`, in upp
 
 ## Build
 
-The project uses C++11, CMake 3.24 or newer, and `SDL2` and `SDL2_mixer`. `CMakePresets.json` has one preset per platform. Configure and build with the same preset name:
+The project uses C++20, CMake 3.24 or newer, and `SDL2` and `SDL2_mixer`. `CMakePresets.json` has one preset per platform. Configure and build with the same preset name:
 
 ```bash
 cmake --preset <preset>
@@ -33,17 +33,20 @@ Each preset builds in `build/<preset>/`. The executable is written to `bin/` in 
 | --- | --- | --- |
 | `linux` | Linux | system packages, Release |
 | `linux-debug` | Linux | system packages, Debug |
+| `linux-sanitize` | Linux | system packages, Debug with AddressSanitizer and UBSan |
 | `linux-vendored` | Linux | built from source |
 | `windows-x64`, `windows-x86` | Windows, Visual Studio 2022 | built from source |
 | `windows-x86-xp` | Windows, Visual Studio 2022 with the `v141_xp` toolset | built from source |
 | `mingw` | Linux, cross-compiling to Windows x64 | built from source |
 | `macos` | macOS, universal `arm64` and `x86_64` | built from source |
 
-The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL2 2.32.10 and SDL2_mixer 2.8.1 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity and the platform's native MIDI. Its other codecs and FluidSynth are left out. When it is `OFF` (the default on Linux), CMake uses the installed `SDL2` and `SDL2_mixer` development packages. CI builds every preset except `linux-debug` and `windows-x86-xp` on each pull request. The GitHub runners have no `v141_xp` toolset, so the XP preset has never been built.
+The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL2 2.32.10 and SDL2_mixer 2.8.1 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity and the platform's native MIDI. Its other codecs and FluidSynth are left out. When it is `OFF` (the default on Linux), CMake uses the installed `SDL2` and `SDL2_mixer` development packages. CI builds every preset except `linux-debug`, `linux-sanitize` and `windows-x86-xp` on each pull request. The GitHub runners have no `v141_xp` toolset, so the XP preset has never been built.
 
 Plain `cmake -S . -B build` without a preset still works and follows the same defaults.
 
-Add `-DSCP_WARNINGS=ON` to the configure command to build the game with extra warnings: `-Wall -Wextra`, or `/W4` with MSVC. It applies only to the game, not to SDL, and is off by default. CI turns it on, but warnings don't fail the build yet.
+Add `-DSCP_WARNINGS=ON` to the configure command to build the game with extra warnings, `-Wall -Wextra` or `/W4` with MSVC, and treat them as errors. Unused parameters are allowed, because overrides and callbacks keep the signatures their interfaces set. The option applies only to the game, not to SDL or ImGui, and is off by default, so a newer compiler with new warnings doesn't break a packager's build. CI turns it on. To see the warnings without failing the build, add `--compile-no-warning-as-error` to the configure command.
+
+`SCP_SANITIZERS=ON`, which the `linux-sanitize` preset sets, builds the game and ImGui with AddressSanitizer and UndefinedBehaviorSanitizer. It needs GCC or Clang. Run the replays with this build after a change to memory handling (`tools/check-replays.sh`, see `docs/replays.md`). The window, renderer and sound effects are clean too, but music isn't: with the system SDL_mixer, `Mix_Quit` unloads FluidSynth while one of its threads is still running, and the game crashes on exit under ASan. Use `-noaudio` for a windowed run, or preload FluidSynth to keep it loaded: `LD_PRELOAD="$(gcc -print-file-name=libasan.so) /usr/lib/x86_64-linux-gnu/libfluidsynth.so.3"`. LeakSanitizer then reports leaks inside FluidSynth, libinstpatch and GLib; none are in the game.
 
 ### Linux
 
