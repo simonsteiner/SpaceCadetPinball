@@ -288,10 +288,8 @@ void DatFile::Finalize()
 		assertm(groupIndex < 0, "DatFile: pbmsg_ft is already in .dat");
 
 		// Load 3DPB font into dat to simplify pipeline
-		auto rcData = reinterpret_cast<MsgFont*>(ImFontAtlas::DecompressCompressedBase85Data(
-			EmbeddedData::PB_MSGFT_bin_compressed_data_base85));
-		AddMsgFont(rcData, "pbmsg_ft");
-		IM_FREE(rcData);
+		auto rcData = EmbeddedData::DecompressBase85(EmbeddedData::PB_MSGFT_bin_compressed_data_base85);
+		AddMsgFont(reinterpret_cast<MsgFont*>(rcData.data()), "pbmsg_ft");
 
 		// PINBALL2.MID is an alternative font provided in 3DPB data
 		// Scaled down because it is too large for top text box

@@ -372,11 +372,12 @@ void render::SpriteViewer(bool* show)
 	static float scale = 1.0f;
 	auto uv_min = ImVec2(0.0f, 0.0f); // Top-left
 	auto uv_max = ImVec2(1.0f, 1.0f); // Lower-right
-	auto tint_col = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // No tint
-	auto border_col = ImVec4(1.0f, 1.0f, 1.0f, 0.5f); // 50% opaque white
 
 	if (ImGui::Begin("Sprite viewer", show, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_MenuBar))
 	{
+		// Images get a 50% opaque white border
+		ImGui::PushStyleVar(ImGuiStyleVar_ImageBorderSize, 1.0f);
+		ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(1.0f, 1.0f, 1.0f, 0.5f));
 		if (ImGui::BeginMenuBar())
 		{
 			ImGui::SliderFloat("Sprite scale", &scale, 0.1f, 10.0f, "scale = %.3f");
@@ -425,8 +426,8 @@ void render::SpriteViewer(bool* show)
 					else
 						ImGui::SameLine();
 
-					ImGui::Image(bmp->Texture, ImVec2(bmp->Width * scale, bmp->Height * scale),
-					             uv_min, uv_max, tint_col, border_col);
+					ImGui::Image(reinterpret_cast<ImTextureID>(bmp->Texture),
+					             ImVec2(bmp->Width * scale, bmp->Height * scale), uv_min, uv_max);
 				}
 			}
 
@@ -443,11 +444,13 @@ void render::SpriteViewer(bool* show)
 						same = true;
 					else
 						ImGui::SameLine();
-					ImGui::Image(zMap->Texture, ImVec2(zMap->Width * scale, zMap->Height * scale),
-					             uv_min, uv_max, tint_col, border_col);
+					ImGui::Image(reinterpret_cast<ImTextureID>(zMap->Texture),
+					             ImVec2(zMap->Width * scale, zMap->Height * scale), uv_min, uv_max);
 				}
 			}
 		}
+		ImGui::PopStyleColor();
+		ImGui::PopStyleVar();
 	}
 	ImGui::End();
 }

@@ -107,7 +107,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	printf("Command line: %s\n", lpCmdLine);
 	printf("Compiled with: SDL %d.%d.%d;", SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL);
 	printf(" SDL_mixer %d.%d.%d;", SDL_MIXER_MAJOR_VERSION, SDL_MIXER_MINOR_VERSION, SDL_MIXER_PATCHLEVEL);
-	printf(" ImGui %s %s\n", IMGUI_VERSION, ImGuiRender);
+	printf(" ImGui %s\n", IMGUI_VERSION);
 
 	const auto args = SplitArgs(lpCmdLine);
 	auto recordPath = GetArgValue(args, "-record");
@@ -192,14 +192,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 	{
 		// Load SDL Game Controller definitions from DB
-		unsigned decompressedSize{};
-		const auto controllerDb = ImFontAtlas::DecompressCompressedStbData(
-			EmbeddedData::SDL_GameControllerDB_compressed_data,
-			EmbeddedData::SDL_GameControllerDB_compressed_size,
-			decompressedSize);
-		auto rw = SDL_RWFromMem(controllerDb, decompressedSize);
+		auto controllerDb = EmbeddedData::DecompressStb(EmbeddedData::SDL_GameControllerDB_compressed_data);
+		auto rw = SDL_RWFromMem(controllerDb.data(), static_cast<int>(controllerDb.size()));
 		const auto added = SDL_GameControllerAddMappingsFromRW(rw, 1);
-		IM_FREE(controllerDb);
 		if (added < 0)
 		{
 			printf("Could not load game controller DB.\nSDL Error: %s\n", SDL_GetError());
@@ -233,8 +228,6 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		if (!Options.FontFileName.V.empty())
 		{
-			ImVector<ImWchar> ranges;
-			translations::GetGlyphRange(&ranges);
 			ImFontConfig fontConfig{};
 
 			// ToDo: further tweak font options, maybe try imgui_freetype
@@ -249,16 +242,15 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			{
 				fclose(fileHandle);
 
-				// ToDo: Bind font size to UI scale
-				if (io.Fonts->AddFontFromFileTTF(fileName, 13.f, &fontConfig, ranges.Data))
+				// ImGui loads glyphs as text needs them, so no glyph ranges are passed
+				if (io.Fonts->AddFontFromFileTTF(fileName, 13.f, &fontConfig))
 					fontLoaded = true;
 			}
 
 			if (!fontLoaded)
 				printf("Failed to load font: %s, using embedded font.\n", fileName);
-			io.Fonts->Build();
 		}
-		ImGui_Render_Init(renderer);
+		ImGui_ImplSDLRenderer2_Init(renderer);
 		ImGui::StyleColorsDark();
 
 		ImGui_ImplSDL2_InitForSDLRenderer(window, Renderer);
@@ -363,7 +355,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		Sound::Close();
 		pb::uninit();
 
-		ImGui_Render_Shutdown();
+		ImGui_ImplSDLRenderer2_Shutdown();
 		ImGui_ImplSDL2_Shutdown();
 		ImGui::DestroyContext();
 	}
@@ -468,7 +460,7 @@ void winmain::MainLoop()
 				if (Options.HideCursor && CursorIdleCounter <= 0)
 					ImGui::SetMouseCursor(ImGuiMouseCursor_None);
 				ImGui_ImplSDL2_NewFrame();
-				ImGui_Render_NewFrame();
+				ImGui_ImplSDLRenderer2_NewFrame();
 				ImGui::NewFrame();
 				RenderUi();
 
@@ -479,7 +471,7 @@ void winmain::MainLoop()
 				render::PresentVScreen();
 
 				ImGui::Render();
-				ImGui_Render_RenderDrawData(ImGui::GetDrawData());
+				ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), Renderer);
 
 				SDL_RenderPresent(Renderer);
 				frameCounter++;
@@ -701,7 +693,7 @@ void winmain::RenderUi()
 				if (ImGui::DragFloat("UI Scale", &Options.UIScale.V, 0.005f, 0.8f, 5,
 				                     "%.2f", ImGuiSliderFlags_AlwaysClamp))
 				{
-					ImIO->FontGlobalScale = Options.UIScale;
+					ImGui::GetStyle().FontScaleMain = Options.UIScale;
 				}
 				ImGui::Separator();
 

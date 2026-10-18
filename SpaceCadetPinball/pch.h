@@ -46,28 +46,11 @@ constexpr int MIX_INIT_MID_Proxy =
 	MIX_INIT_FLUIDSYNTH;
 #endif
 
-//https://github.com/ocornut/imgui 59b63defe5421642fb0cdcfd1fa850fc85a13791 + patches
+// https://github.com/ocornut/imgui v1.93.0, unmodified
 #include "imgui.h"
 #include "imgui_internal.h"
-#include "imgui_impl_sdl.h"
-
-// imgui_impl_sdlrenderer is faster and more accurate, but it requires newer SDL.
-#if SDL_VERSION_ATLEAST(2, 0, 17)
-#include "imgui_impl_sdlrenderer.h"
-constexpr const char* ImGuiRender = "HW";
-inline void ImGui_Render_Init(SDL_Renderer* renderer) { ImGui_ImplSDLRenderer_Init(renderer); }
-inline void ImGui_Render_Shutdown() { ImGui_ImplSDLRenderer_Shutdown(); }
-inline void ImGui_Render_NewFrame() { ImGui_ImplSDLRenderer_NewFrame(); }
-inline void ImGui_Render_RenderDrawData(ImDrawData* draw_data) { ImGui_ImplSDLRenderer_RenderDrawData(draw_data); }
-#else
-//https://github.com/Tyyppi77/imgui_sdl 01deb04b102b6a1c15c7fdec1977a2c96a885e6f + patches
-#include "imgui_sdl.h"
-constexpr const char* ImGuiRender = "SW";
-inline void ImGui_Render_Init(SDL_Renderer* renderer) { ImGuiSDL::Initialize(renderer, 0, 0); }
-inline void ImGui_Render_Shutdown() { ImGuiSDL::Deinitialize(); }
-inline void ImGui_Render_NewFrame() { }
-inline void ImGui_Render_RenderDrawData(ImDrawData* draw_data) { ImGuiSDL::Render(draw_data); }
-#endif
+#include "imgui_impl_sdl2.h"
+#include "imgui_impl_sdlrenderer2.h"
 
 
 typedef char* LPSTR;

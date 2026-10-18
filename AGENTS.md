@@ -45,7 +45,7 @@ There are no automated tests or linters yet. A change is checked by building it 
 
 ## Gotchas
 
-- **Vendored code is ImGui.** `imgui*.cpp`, `imgui*.h`, `imstb_*.h` and `imconfig.h` in `SpaceCadetPinball/` are third-party; upgrade them as a set rather than editing them. `imgui_sdl.cpp` is also third-party: an older ImGui SDL renderer that is still compiled in.
+- **Vendored code is ImGui.** `imgui*.cpp`, `imgui*.h`, `imstb_*.h` and `imconfig.h` in `SpaceCadetPinball/` are third-party; upgrade them as a set rather than editing them. The ImGui files are unmodified upstream releases with only `imconfig.h` set up, so an upgrade is a copy of the new release's files.
 - **The game can't run without game data,** so it can't be play-tested in CI. Use `-noaudio` on machines without a sound device.
 - **The main loop prints any pending SDL error as `SDL Error: ...`.** Errors that SDL or SDL_mixer set internally and recovered from show up too, such as `Couldn't open timidity.cfg`; such a line doesn't mean anything failed.
 - **Only the `macos` preset is universal.** It sets `CMAKE_OSX_ARCHITECTURES` to `arm64;x86_64`; a build without the preset targets the host architecture.

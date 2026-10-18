@@ -98,6 +98,7 @@ set(SOURCE_FILES
         SpaceCadetPinball/control.h
         SpaceCadetPinball/EmbeddedData.cpp
         SpaceCadetPinball/EmbeddedData.h
+        SpaceCadetPinball/EmbeddedDataDecompress.cpp
         SpaceCadetPinball/font_selection.cpp
         SpaceCadetPinball/font_selection.h
         SpaceCadetPinball/fullscrn.cpp
@@ -229,16 +230,14 @@ set(IMGUI_SOURCE_FILES
         SpaceCadetPinball/imgui_internal.h
         SpaceCadetPinball/imgui.cpp
         SpaceCadetPinball/imgui.h
-        SpaceCadetPinball/imgui_sdl.cpp
-        SpaceCadetPinball/imgui_sdl.h
         SpaceCadetPinball/imgui_draw.cpp
         SpaceCadetPinball/imgui_widgets.cpp
         SpaceCadetPinball/imgui_tables.cpp
         SpaceCadetPinball/imgui_demo.cpp
-        SpaceCadetPinball/imgui_impl_sdl.cpp
-        SpaceCadetPinball/imgui_impl_sdl.h
-        SpaceCadetPinball/imgui_impl_sdlrenderer.h
-        SpaceCadetPinball/imgui_impl_sdlrenderer.cpp
+        SpaceCadetPinball/imgui_impl_sdl2.cpp
+        SpaceCadetPinball/imgui_impl_sdl2.h
+        SpaceCadetPinball/imgui_impl_sdlrenderer2.cpp
+        SpaceCadetPinball/imgui_impl_sdlrenderer2.h
         SpaceCadetPinball/imstb_textedit.h
         SpaceCadetPinball/imstb_rectpack.h
         SpaceCadetPinball/imstb_truetype.h

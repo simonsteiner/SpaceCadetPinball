@@ -20,7 +20,7 @@ In each folder it tries `CADET.DAT`, then `PINBALL.DAT`, then `DEMO.DAT`, in upp
 
 ## Build
 
-The project uses C++20, CMake 3.24 or newer, and `SDL2` and `SDL2_mixer`. `CMakePresets.json` has one preset per platform. Configure and build with the same preset name:
+The project uses C++20, CMake 3.24 or newer, and `SDL2` (2.0.17 or newer) and `SDL2_mixer`. `CMakePresets.json` has one preset per platform. Configure and build with the same preset name:
 
 ```bash
 cmake --preset <preset>

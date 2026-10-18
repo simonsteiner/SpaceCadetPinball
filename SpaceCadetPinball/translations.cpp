@@ -77,23 +77,6 @@ const char* translations::GetTranslation(Msg id)
 	return text;
 }
 
-void translations::GetGlyphRange(ImVector<ImWchar>* ranges)
-{
-	ImFontGlyphRangesBuilder builder;
-
-	for (int i = 0; i < (int)Msg::Max; i++)
-	{
-		const char* translation = GetTranslation((Msg)i);
-		if (translation)
-		{
-			builder.AddText(translation);
-		}
-	}
-
-	builder.AddRanges(ImGui::GetIO().Fonts->GetGlyphRangesDefault());
-	builder.BuildRanges(ranges);
-}
-
 const TextArray translations::Translations =
 {
 	{

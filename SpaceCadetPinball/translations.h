@@ -323,7 +323,6 @@ public:
 	static const char* GetTranslation(Msg id);
 	static void SetCurrentLanguage(const char* short_name);
 	static const LanguageInfo* GetCurrentLanguage();
-	static void GetGlyphRange(ImVector<ImWchar>* ranges);
 
 private:
 	static const TextArray Translations;
