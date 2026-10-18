@@ -23,9 +23,6 @@ if(MINGW)
 endif()
 
 if(APPLE)
-    set(MACOSX_RPATH)
-    set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
-    set(CMAKE_INSTALL_RPATH "@executable_path/../Frameworks")
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.11")
 endif()
 
@@ -43,6 +40,8 @@ if(SCP_VENDORED_SDL)
     set(SDL2_DISABLE_SDL2MAIN ON)
     set(SDL2_DISABLE_INSTALL ON)
     set(SDL2_DISABLE_UNINSTALL ON)
+    # Off, or SDL raises its minimum CMake version below 3.10 and compiles through ccache when installed
+    set(SDL_CCACHE OFF)
 
     # The game only plays WAV sounds and MIDI music: Timidity, plus native MIDI on Windows and macOS
     set(SDL2MIXER_INSTALL OFF)
