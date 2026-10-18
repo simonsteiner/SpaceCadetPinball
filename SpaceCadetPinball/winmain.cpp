@@ -8,9 +8,12 @@
 #include "options.h"
 #include "pb.h"
 #include "render.h"
+#include "replay.h"
 #include "Sound.h"
 #include "translations.h"
 #include "font_selection.h"
+
+#include <new>
 
 constexpr const char* winmain::Version;
 
@@ -52,6 +55,50 @@ winmain::DurationMs winmain::SpinThreshold = DurationMs(0.005);
 WelfordState winmain::SleepState{};
 int winmain::CursorIdleCounter = 0;
 
+// Splits the command line at spaces and tabs; double quotes keep an argument with spaces together
+static std::vector<std::string> SplitArgs(LPCSTR cmdLine)
+{
+	std::vector<std::string> args;
+	std::string arg;
+	bool quoted = false, inArg = false;
+	for (auto ch = cmdLine; *ch; ch++)
+	{
+		if (*ch == '"')
+		{
+			quoted = !quoted;
+			inArg = true;
+		}
+		else if ((*ch == ' ' || *ch == '\t') && !quoted)
+		{
+			if (inArg)
+				args.push_back(arg);
+			arg.clear();
+			inArg = false;
+		}
+		else
+		{
+			arg += *ch;
+			inArg = true;
+		}
+	}
+	if (inArg)
+		args.push_back(arg);
+	return args;
+}
+
+// Matches whole arguments, so a flag inside a file name doesn't count
+static bool HasArg(const std::vector<std::string>& args, LPCSTR flag)
+{
+	return std::find(args.begin(), args.end(), flag) != args.end();
+}
+
+// Returns the argument after flag, or an empty string
+static std::string GetArgValue(const std::vector<std::string>& args, LPCSTR flag)
+{
+	auto arg = std::find(args.begin(), args.end(), flag);
+	return arg != args.end() && ++arg != args.end() ? *arg : std::string();
+}
+
 int winmain::WinMain(LPCSTR lpCmdLine)
 {
 	std::set_new_handler(memalloc_failure);
@@ -62,6 +109,17 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	printf(" SDL_mixer %d.%d.%d;", SDL_MIXER_MAJOR_VERSION, SDL_MIXER_MINOR_VERSION, SDL_MIXER_PATCHLEVEL);
 	printf(" ImGui %s %s\n", IMGUI_VERSION, ImGuiRender);
 
+	const auto args = SplitArgs(lpCmdLine);
+	auto recordPath = GetArgValue(args, "-record");
+	auto replayPath = GetArgValue(args, "-replay");
+	if (!replayPath.empty())
+	{
+		if (!replay::StartPlayback(replayPath))
+			return 1;
+		// Playback is headless; the SDL_VIDEODRIVER environment variable still takes precedence
+		SDL_SetHint(SDL_HINT_VIDEODRIVER, "dummy");
+	}
+
 	// SDL init
 	SDL_SetMainReady();
 	if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO |
@@ -71,7 +129,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		return 1;
 	}
 
-	pb::quickFlag = strstr(lpCmdLine, "-quick") != nullptr;
+	pb::quickFlag = HasArg(args, "-quick");
 
 	// SDL window
 	SDL_Window* window = SDL_CreateWindow
@@ -90,7 +148,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 	// If HW fails, fallback to SW SDL renderer.
 	SDL_Renderer* renderer = nullptr;
-	auto swOffset = strstr(lpCmdLine, "-sw") != nullptr ? 1 : 0;
+	auto swOffset = HasArg(args, "-sw") || replay::IsPlaying() ? 1 : 0;
 	for (int i = swOffset; i < 2 && !renderer; i++)
 	{
 		Renderer = renderer = SDL_CreateRenderer
@@ -115,7 +173,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	auto basePath = SDL_GetBasePath();
 
 	// SDL mixer init
-	bool mixOpened = false, noAudio = strstr(lpCmdLine, "-noaudio") != nullptr;
+	bool mixOpened = false, noAudio = HasArg(args, "-noaudio") || replay::IsPlaying();
 	if (!noAudio)
 	{
 		if ((Mix_Init(MIX_INIT_MID_Proxy) & MIX_INIT_MID_Proxy) == 0)
@@ -149,7 +207,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		}
 	}
 
-	auto resetAllOptions = strstr(lpCmdLine, "-reset") != nullptr;
+	auto resetAllOptions = HasArg(args, "-reset");
 	do
 	{
 		restart = false;
@@ -164,6 +222,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		// First option initialization step: just load settings from .ini. Needs ImGui context.
 		options::InitPrimary();
+		// Playback may override options that affect play, so it must not save them
+		if (replay::IsPlaying())
+			io.IniFilename = nullptr;
 		if (resetAllOptions)
 		{
 			resetAllOptions = false;
@@ -218,6 +279,22 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		// Second step: run updates that depend on .DAT file selection
 		options::InitSecondary();
 
+		if (replay::IsPlaying())
+		{
+			if (!replay::CheckDatFile())
+				return 1;
+			fullscrn::SetResolution(replay::Resolution());
+		}
+		else if (!recordPath.empty())
+		{
+			// Only the first run records; a restart from the options ends the recording
+			if (!replay::StartRecording(recordPath))
+				return 1;
+			recordPath.clear();
+		}
+		if (replay::IsRecording() || replay::IsPlaying())
+			srand(replay::Seed());
+
 		Sound::Init(mixOpened, Options.SoundChannels, Options.Sounds, Options.SoundVolume);
 		if (!mixOpened)
 			Options.Sounds = false;
@@ -246,7 +323,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		pb::reset_table();
 		pb::firsttime_setup();
 
-		if (strstr(lpCmdLine, "-fullscreen"))
+		if (HasArg(args, "-fullscreen"))
 		{
 			Options.FullScreen = true;
 		}
@@ -256,17 +333,32 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			auto resInfo = &fullscrn::resolution_array[fullscrn::GetResolution()];
 			SDL_SetWindowSize(MainWindow, resInfo->TableWidth, resInfo->TableHeight);
 		}
-		SDL_ShowWindow(window);
-		fullscrn::set_screen_mode(Options.FullScreen);
-
-		if (strstr(lpCmdLine, "-demo"))
-			pb::toggle_demo();
+		if (replay::IsPlaying())
+		{
+			// The recording holds the command that started the game
+			while (replay::PlayStep())
+			{
+			}
+			if (replay::PlaybackFailed())
+				return_value = 1;
+		}
 		else
-			pb::replay_level(false);
+		{
+			SDL_ShowWindow(window);
+			fullscrn::set_screen_mode(Options.FullScreen);
 
-		MainLoop();
+			if (HasArg(args, "-demo"))
+				pb::toggle_demo();
+			else
+				pb::replay_level(false);
 
-		options::uninit();
+			MainLoop();
+		}
+		auto played = replay::IsPlaying();
+		replay::Stop();
+
+		if (!played)
+			options::uninit();
 		midi::music_shutdown();
 		Sound::Close();
 		pb::uninit();
@@ -940,7 +1032,7 @@ int winmain::event_handler(const SDL_Event* event)
 			pb::frame(10);
 			break;
 		case SDLK_F10:
-			single_step ^= true;
+			pb::toggle_single_step();
 			if (!single_step)
 				no_time_loss = true;
 			break;

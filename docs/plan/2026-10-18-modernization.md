@@ -1,6 +1,6 @@
 # Modernization plan
 
-Date: 2026-10-18. Status: Phase 0 done; Phase 1 not started.
+Date: 2026-10-18. Status: Phase 0 done; Phase 1 steps 1 to 3 done.
 
 The goal is to bring this fork of k4zmu2a/SpaceCadetPinball up to a current toolchain and a better presentation without changing how the game plays. Phases 1, 2 and 4 are the recommended path. Phase 3 stays parked unless there is a specific reason for it.
 
@@ -9,7 +9,7 @@ The goal is to bring this fork of k4zmu2a/SpaceCadetPinball up to a current tool
 - About 83k lines of C++, of which about 27k are game code; the rest is vendored ImGui and embedded data. Targets C++11, CMake 3.0, SDL2 and SDL2_mixer, and ImGui 1.89-era (with both the SDL renderer backend and the older custom `imgui_sdl.cpp`).
 - Rendering is software: sprites from the DAT file are composed with their depth maps into an 8-bit palettised frame, uploaded to one SDL texture and scaled with nearest-neighbour filtering. The native table area is 600×416.
 - Physics and drawing already run at separate rates (`UpdatesPerSecond` and `FramesPerSecond` in `options.cpp`).
-- Windows needs SDL copied into `Libs/` by hand. macOS release builds download SDL frameworks. CI is one manually triggered macOS job that checks out `master` on the retired `macos-12` runner.
+- Windows needed SDL copied into `Libs/` by hand, and macOS release builds downloaded SDL frameworks (both replaced in Phase 1 step 1). CI was one manually triggered macOS job that checked out `master` on the retired `macos-12` runner (replaced in Phase 1 step 2).
 - There are no automated tests.
 - Branches: `master` mirrors upstream; all fork work lands on `main` through pull requests.
 
@@ -30,9 +30,22 @@ The DAT, sound and music files are Microsoft's. They are never committed, never 
 
 Gameplay must stay byte-for-byte equivalent. Each step is its own pull request.
 
-1. **Build:** CMake 3.24+ with `CMakePresets.json` (Linux, Windows MSVC, MinGW cross, macOS), SDL fetched with `FetchContent` (or vcpkg in manifest mode) so no hand-copied `Libs/`. This replaces `CMakeSettings.json` and most of `BuildForWindows.ps1`.
-2. **CI:** a pull request workflow that builds the presets on Linux, Windows and macOS with warnings enabled. Fix `ReleaseBuilds.yml` (current macOS runner, check out the triggering ref instead of `master`).
-3. **Determinism harness:** record inputs and the random seed for a session, replay them headless at a fixed update rate and compare the score and ball state per frame. Run locally with game data before and after every behaviour-sensitive change. A synthetic DAT for CI can come later.
+1. Done: **Build.** CMake 3.24+ with `CMakePresets.json` (`linux`, `linux-debug`, `linux-vendored`, `windows-x64`, `windows-x86`, `windows-x86-xp`, `mingw`, `macos`). With `SCP_VENDORED_SDL=ON`, the default on Windows and macOS, SDL2 2.32.10 and SDL2_mixer 2.8.1 come from `FetchContent` with pinned hashes and are linked statically. Linux keeps the system packages by default for distribution packagers. `CMakeSettings.json` is gone; `BuildForWindows.ps1` and `build-mac-app.sh` just build presets, and `Libs/` is no longer used.
+   - Verified locally (GCC 15.2, CMake 4.2.3): `linux` and `linux-vendored` build and run the demo against the Phase 0 game data. The `mingw` preset's SDL and game code also built and linked with llvm-mingw (clang, libc++) instead of the GCC MinGW it names, but only after force-including `<functional>` and `<new>`, which `control.cpp` and `winmain.cpp` use without including. The release scripts and the `windows-*` and `macos` presets are untested; step 2 must build them. Apple's libc++ may hit the same missing includes.
+   - Warnings: the CMake deprecation warning is gone. Plain `cmake -S . -B build` still gives the baseline's 23 `-Wbidi-chars` warnings. The `linux` preset is a Release build, which adds 11 `-Wunused-result` warnings on `fread` calls (glibc fortify only checks at `-O1` and up). `linux-vendored` adds one more warning inside SDL itself.
+   - The demo is not reproducible between runs: with the same binary, it sometimes plays and sometimes waits at "Awaiting Deployment" for over 20 seconds. Untouched `main` behaves the same way. Step 3 needs to account for this.
+2. Done: **CI.** `.github/workflows/Build.yml` runs on every pull request, on pushes to `main` and on demand. It builds `linux`, `linux-vendored` and `mingw` on Ubuntu 24.04, `windows-x64` and `windows-x86` on `windows-2022`, and `macos` on `macos-26`, each with the new `SCP_WARNINGS=ON` option (`-Wall -Wextra`, `/W4` with MSVC, for the game target only). All six pass in about two minutes each. `ReleaseBuilds.yml` now runs on `macos-26` and builds the triggering ref. Actions are pinned by SHA, the token is read-only and no game data is involved.
+   - `control.h` and `winmain.cpp` now include `<functional>` and `<new>` themselves, instead of relying on libstdc++ to pull them in. The `macos` preset builds with Apple's libc++ without any force-includes. CI's `mingw` build uses GCC and libstdc++, so the llvm-mingw build from step 1 hasn't been retried.
+   - `windows-x86-xp` isn't built: no runner image has the `v141_xp` toolset, and installing it on every run would be slow. This stays open together with the decision on keeping XP.
+   - Warnings don't fail the build yet. With `SCP_WARNINGS=ON`, the game code gets about 165 warnings with GCC, 161 with MSVC and about 470 with Apple Clang (a universal build compiles everything twice). Most are unused parameters (`-Wunused-parameter`, MSVC C4100); the rest are the bidi and `fread` warnings from step 1 and a handful of unused variables, conversions and one unreachable-code warning. Step 4 fixes them and makes warnings errors.
+   - `windows-latest` already has Visual Studio 2026, so the workflow runs the `windows-*` presets, which use the Visual Studio 2022 generator, on `windows-2022`. Retarget the presets when that image is retired.
+3. Done: **Determinism harness.** `-record <file>` writes a replay: each frame's time step and the score and ball state after it, plus every command that reaches the table from outside (input after key binding, new game, pause, cheats and so on). `-replay <file>` plays it back headless and stops at the first frame that differs. `tools/check-replays.sh` checks a folder of replays. Details and the format are in `docs/replays.md`.
+   - Replays record the actual time step of every frame instead of forcing a fixed rate, so recording doesn't change how the game plays. While recording, the only differences are the file output and a call to `srand(1)`, which is the seed the C library starts with anyway. Playback takes the same steps from the file.
+   - This explains the demo variation from step 1: physics advances by the wall-clock time each frame took, so no two runs take the same steps. The random numbers are the same every run, because `rand()` is never seeded.
+   - To make input replayable, `pb::InputDown` and `pb::InputUp` were split. Their table half is now `pb::GameInputDown` and `pb::GameInputUp`, which take already-resolved bindings. Normal play runs the same code in the same order.
+   - Verified with GCC 15 against the Phase 0 data: a 30-second demo, a 40-second game with flippers, plunger, nudge, pause and new game sent through XTest, and a cheat session (`hidden test`, extra balls, the random score cheat) all match in every frame (3563, 5662 and 3196 frames). The Debug build matches recordings from the Release build. Deleting the plunger press from a recording makes playback fail at the frame where the ball should appear. These three recordings are in `../replays/`.
+   - Not tested: two or more players, Full Tilt data, and replays across compilers. Floating-point results may differ between GCC, MSVC and Apple Clang, so compare recordings only with builds from the same compiler.
+   - A synthetic DAT that would let CI play replays can come later.
 4. **C++20:** raise the standard, fix new warnings, and enable AddressSanitizer and UBSan in a debug preset. Run the harness under sanitizers.
 5. **SDL3:** port window, renderer, input, audio and timing to SDL3 and SDL3_mixer, and move ImGui to a current release with its SDL3 backends. Drop `imgui_sdl.cpp`. Check SDL3_mixer's MIDI support on every platform before starting.
 6. **Tooling:** `.clang-format` matching the current style, applied once in its own commit, and `clang-tidy` in CI on changed files.
@@ -76,7 +89,7 @@ REA is not a dependency of the game. Use it to settle questions about the origin
 
 ## Open decisions
 
-- vcpkg or `FetchContent` for dependencies.
+- Decided: `FetchContent` for dependencies, not vcpkg (universal macOS builds, no extra tool, SDL3 and Emscripten are a tag change).
 - Whether to keep the Windows XP (`v141_xp`) and 32-bit builds.
 - Whether Phase 2 includes upscaled art.
 - Whether a native Android or iOS target matters, which would affect the Phase 2 input work.

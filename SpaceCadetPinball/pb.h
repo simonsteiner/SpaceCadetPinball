@@ -4,6 +4,7 @@
 class TEdgeSegment;
 struct ray_type;
 struct GameInput;
+enum class GameBindings;
 class TPinballTable;
 class DatFile;
 class TBall;
@@ -68,9 +69,14 @@ public:
 	static void frame(float dtMilliSec);
 	static void timed_frame(float timeDelta);
 	static void pause_continue();
+	// Cheat-mode F10: freezes the table or lets it run again, without pausing the game
+	static void toggle_single_step();
 	static void loose_focus();
 	static void InputUp(GameInput input);
 	static void InputDown(GameInput input);
+	// The part of InputUp and InputDown that acts on the table, also called by replay playback
+	static void GameInputUp(const std::vector<GameBindings>& bindings);
+	static void GameInputDown(GameInput input, const std::vector<GameBindings>& bindings);
 	static void launch_ball();
 	static void end_game();
 	static void high_scores();

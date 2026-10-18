@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 class TCollisionComponent;
 class TBall;
 enum class MessageCode;

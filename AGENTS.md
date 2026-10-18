@@ -6,19 +6,21 @@ Domain terms are in `GLOSSARY.md`; dated work plans are in `docs/plan/` (the new
 ## Commands
 
 ```bash
-cmake -S . -B build -G Ninja  # configure (Linux/macOS); needs SDL2 and SDL2_mixer dev packages
-cmake --build build  # build; the executable lands in bin/ in the source tree
-cmake -S . -B build-mingw -DCMAKE_TOOLCHAIN_FILE=mingwcc.cmake  # configure a Windows cross-build from Linux
+cmake --preset linux  # configure (presets: linux, linux-debug, linux-vendored, windows-x64, windows-x86, windows-x86-xp, mingw, macos); linux needs SDL2 and SDL2_mixer dev packages
+cmake --build --preset linux  # build; the executable lands in bin/ in the source tree
+cmake --preset linux-vendored && cmake --build --preset linux-vendored  # build with SDL fetched from source, as the Windows and macOS presets do
 ./bin/SpaceCadetPinball -noaudio  # run; needs game data, see docs/setup.md
+tools/check-replays.sh ../replays ../gamedata  # play back recorded sessions and report any that play differently
 ```
 
-There are no automated tests or linters yet. A change is checked by building it and playing it with real game data.
+There are no automated tests or linters yet. A change is checked by building it and playing it with real game data. Before a change that could affect play, record sessions with `-record` and check them with `tools/check-replays.sh` afterwards (`docs/replays.md`). The `Build` workflow (`.github/workflows/Build.yml`) builds every preset except `linux-debug` and `windows-x86-xp` on each pull request, with `SCP_WARNINGS=ON`.
 
 ## Conventions
 
 ### Game code
 
 - **Table rules live only in `SpaceCadetPinball/control.cpp`.** Its `component_info` tables bind components to rule handlers by group name; mission, rank and light logic belongs there, not in component classes.
+- **Outside input reaches the table only through `pb` functions that open a `replay::Scope`.** A new entry point that changes table state from outside `pb::frame` needs one, or replays diverge (`docs/replays.md`).
 - **Events between components are `Message(MessageCode, float)` calls.** Add a `MessageCode` value for a new event instead of a new cross-component method.
 - **Text shown on the table goes through `pb::get_rc_string(Msg::...)`.** Its translations live in `SpaceCadetPinball/translations.cpp`; never pass a literal to a text box.
 - **Settings live only in `optionsStruct` (`SpaceCadetPinball/options.h`).** Add new ones there and clamp them in `options.cpp`, not as globals elsewhere.
@@ -28,6 +30,7 @@ There are no automated tests or linters yet. A change is checked by building it 
 ### Build
 
 - **Source files are listed by hand in `CMakeLists.txt`.** Add each new `.cpp` and `.h` to `SOURCE_FILES`; there is no glob.
+- **SDL comes from `SCP_VENDORED_SDL`.** `ON` (Windows, macOS, `mingw`, `linux-vendored`) fetches the SDL2 and SDL2_mixer versions pinned in `CMakeLists.txt` and links them statically. `OFF` (the Linux default) uses the system packages. Keep both paths working, because distribution packagers use the system one. To bump SDL, change the URL and the `URL_HASH` together.
 
 ### Git
 
@@ -44,13 +47,15 @@ There are no automated tests or linters yet. A change is checked by building it 
 - **Vendored code is ImGui.** `imgui*.cpp`, `imgui*.h`, `imstb_*.h` and `imconfig.h` in `SpaceCadetPinball/` are third-party; upgrade them as a set rather than editing them. `imgui_sdl.cpp` is also third-party: an older ImGui SDL renderer that is still compiled in.
 - **The game can't run without game data,** so it can't be play-tested in CI. Use `-noaudio` on machines without a sound device.
 - **The main loop prints any pending SDL error as `SDL Error: ...`.** Errors that SDL or SDL_mixer set internally and recovered from show up too, such as `Couldn't open timidity.cfg`; such a line doesn't mean anything failed.
-- **macOS builds are universal.** `CMakeLists.txt` hard-codes `CMAKE_OSX_ARCHITECTURES` to `arm64;x86_64`, which overrides `-D`.
+- **Only the `macos` preset is universal.** It sets `CMAKE_OSX_ARCHITECTURES` to `arm64;x86_64`; a build without the preset targets the host architecture.
+- **Vendored SDL needs network on the first configure.** FetchContent downloads into `build/<preset>/_deps/`; later configures reuse it.
 
 ## Docs
 
 - `README.md` — what the project is, the quickstart, provenance.
 - `docs/setup.md` — building on each platform, where the game looks for data, command-line flags, troubleshooting.
 - `docs/deployment.md` — producing release builds and where the version number lives.
+- `docs/replays.md` — recording and checking sessions, and the replay file format.
 - `docs/reference/` — DAT file format and dumps of the original DAT and PDB; read before touching `loader.cpp` or `partman.cpp`.
 - `docs/plan/` — dated work plans; read the latest before starting modernization work.
 - `GLOSSARY.md` — game and data terms.

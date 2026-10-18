@@ -12,14 +12,14 @@ The version appears in three places. Update all three together:
 
 ## Windows
 
-Run `BuildForWindows.ps1` from a Developer Command Prompt for Visual Studio, with the SDL packages in `Libs/` (see [setup.md](setup.md#windows)). It writes three zips to `bin/`, each with the executable plus `SDL2.dll` and `SDL2_mixer.dll`:
+Run `BuildForWindows.ps1` from the repository root on Windows with Visual Studio 2022 installed. It builds the `windows-x86`, `windows-x64` and `windows-x86-xp` presets in turn (see [setup.md](setup.md#build)) and writes three zips to `bin/`. SDL is linked statically, so each zip holds only `SpaceCadetPinball.exe`:
 
 - `SpaceCadetPinballx86Win.zip`
 - `SpaceCadetPinballx64Win.zip`
-- `SpaceCadetPinballx86WinXP.zip`, which needs the `v141_xp` MSVC toolset
+- `SpaceCadetPinballx86WinXP.zip`, which needs the `v141_xp` MSVC toolset. Whether SDL 2.32 still builds and runs with it is unverified.
 
 ## macOS
 
-Run `bash build-mac-app.sh` on a Mac. It downloads checksum-pinned SDL frameworks, builds a universal (`arm64` and `x86_64`) binary, and writes `SpaceCadetPinball-<version>-mac.dmg`.
+Run `bash build-mac-app.sh` on a Mac. It builds the `macos` preset, which downloads checksum-pinned SDL sources and links them statically into a universal (`arm64` and `x86_64`) binary, and writes `SpaceCadetPinball-<version>-mac.dmg`.
 
-The `Make Release Builds` GitHub workflow (`.github/workflows/ReleaseBuilds.yml`) runs the same script when triggered manually and uploads the DMG as the `mac-build` artifact. It checks out `master` and runs on `macos-12`.
+The `Make Release Builds` GitHub workflow (`.github/workflows/ReleaseBuilds.yml`) runs the same script on a `macos-26` runner when triggered manually. It builds the branch it was triggered on and uploads the DMG as the `mac-build` artifact. It hasn't been run since the switch to presets, but the `Build` workflow builds the same `macos` preset on every pull request.

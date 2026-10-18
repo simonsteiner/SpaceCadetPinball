@@ -7,6 +7,7 @@
 #include "high_score.h"
 #include "proj.h"
 #include "render.h"
+#include "replay.h"
 #include "loader.h"
 #include "midi.h"
 #include "nudge.h"
@@ -242,6 +243,8 @@ void pb::mode_change(GameModes mode)
 
 void pb::toggle_demo()
 {
+	// Starting the demo reads the player count from the options, so the recording keeps it
+	replay::Scope replayScope("t %d", options::Options.Players.V);
 	if (demo_mode)
 	{
 		demo_mode = false;
@@ -258,6 +261,7 @@ void pb::toggle_demo()
 
 void pb::replay_level(bool demoMode)
 {
+	replay::Scope replayScope("n %d %d", demoMode, options::Options.Players.V);
 	demo_mode = demoMode;
 	mode_change(GameModes::InGame);
 	if (options::Options.Music)
@@ -269,6 +273,7 @@ void pb::ballset(float dx, float dy)
 {
 	// dx and dy are normalized to window, ideally in [-1, 1]
 	static constexpr float sensitivity = 7000;
+	replay::Scope replayScope("m %a %a", dx, dy);
 
 	for (auto ball : MainTable->BallList)
 	{
@@ -288,6 +293,7 @@ void pb::frame(float dtMilliSec)
 		dtMilliSec = 100;
 	if (dtMilliSec <= 0)
 		return;
+	replay::Scope replayScope(dtMilliSec);
 
 	if (FullTiltMode && !demo_mode)
 	{
@@ -485,6 +491,7 @@ void pb::timed_frame(float timeDelta)
 
 void pb::pause_continue()
 {
+	replay::Scope replayScope("p");
 	winmain::single_step ^= true;
 	InfoTextBox->Clear();
 	MissTextBox->Clear();
@@ -522,8 +529,15 @@ void pb::pause_continue()
 	}
 }
 
+void pb::toggle_single_step()
+{
+	replay::Scope replayScope("s");
+	winmain::single_step ^= true;
+}
+
 void pb::loose_focus()
 {
+	replay::Scope replayScope("l");
 	if (MainTable)
 		MainTable->Message(MessageCode::LooseFocus, time_now);
 }
@@ -534,6 +548,12 @@ void pb::InputUp(GameInput input)
 		return;
 
 	const auto bindings = options::MapGameInput(input);
+	replay::RecordInput(false, input, bindings);
+	GameInputUp(bindings);
+}
+
+void pb::GameInputUp(const std::vector<GameBindings>& bindings)
+{
 	for (const auto binding : bindings)
 	{
 		switch (binding)
@@ -578,6 +598,12 @@ void pb::InputDown(GameInput input)
 	if (game_mode != GameModes::InGame || winmain::single_step || demo_mode)
 		return;
 
+	replay::RecordInput(true, input, bindings);
+	GameInputDown(input, bindings);
+}
+
+void pb::GameInputDown(GameInput input, const std::vector<GameBindings>& bindings)
+{
 	if (CreditsActive)
 		MissTextBox->Clear(true);
 	CreditsActive = false;
@@ -654,6 +680,7 @@ void pb::InputDown(GameInput input)
 
 void pb::launch_ball()
 {
+	replay::Scope replayScope("b");
 	MainTable->Plunger->Message(MessageCode::PlungerLaunchBall, 0.0f);
 }
 
@@ -747,6 +774,7 @@ bool pb::chk_highscore()
 
 void pb::PushCheat(const std::string& cheat)
 {
+	replay::Scope replayScope("c %s", cheat.c_str());
 	for (auto ch : cheat)
 		control::pbctrl_bdoor_controller(ch);
 }
