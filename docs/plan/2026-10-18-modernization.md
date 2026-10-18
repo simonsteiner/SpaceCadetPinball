@@ -19,7 +19,7 @@ The DAT, sound and music files are Microsoft's. They are never committed, never 
 
 ## Phase 0: baseline and hygiene
 
-1. Restructure the docs (this pull request): one home per kind of doc, `AGENTS.md`, `GLOSSARY.md`.
+1. Done: the docs are restructured into one home per kind of doc, plus `AGENTS.md` and `GLOSSARY.md`.
 2. Done: `.gitignore` excludes the game data in any letter case: `*.DAT`, `*.WAV`, `*.MID`, `*.EXE`, `*.7z`, `table.bmp` and `wavemix.inf`.
 3. Done: `main` is the fork's default branch on GitHub.
 4. Done: a local Linux build (SDL2 dev packages, Ninja) and the original game extracted from `../assets/3DPinballforWindows.7z` to `../gamedata/`. The archive's `Pinball.exe` uses the BCJ2 filter, which `py7zr` can't decode. Use 7-Zip or libarchive (`bsdtar`).
