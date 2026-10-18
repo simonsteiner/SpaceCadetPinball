@@ -2,14 +2,45 @@
 
 # SpaceCadetPinball
 
-## Summary
+Reverse engineering of `3D Pinball for Windows - Space Cadet`, the pinball game bundled with Windows, as a cross-platform C++ port on SDL2.
+It runs on desktop Windows, Linux and macOS and plays the original data files from either the Windows or the Full Tilt! Pinball release.
 
-Reverse engineering of `3D Pinball for Windows - Space Cadet`, a game bundled with Windows.
+This is [simonsteiner's fork](https://github.com/simonsteiner/SpaceCadetPinball) of [k4zmu2a/SpaceCadetPinball](https://github.com/k4zmu2a/SpaceCadetPinball). Work happens on `main`; `master` tracks upstream. See the [modernization plan](docs/plan/2026-10-18-modernization.md).
 
-## How to play
+## Quickstart
 
-Place compiled executable into a folder containing original game resources (not included).\
-Supports data files from Windows and Full Tilt versions of the game.
+```bash
+sudo apt install cmake build-essential ninja-build libsdl2-dev libsdl2-mixer-dev
+cmake -S . -B build -G Ninja && cmake --build build
+cp -r /path/to/original-game/. bin/  # PINBALL.DAT with its .WAV and .MID files
+./bin/SpaceCadetPinball
+```
+
+The game data is not included. Other platforms, data search paths and troubleshooting are in [docs/setup.md](docs/setup.md).
+
+## Docs
+
+* [docs/setup.md](docs/setup.md): building on each platform, game data, command-line options, troubleshooting
+* [docs/deployment.md](docs/deployment.md): producing release builds
+* [docs/reference/](docs/reference/): DAT file format, DAT and PDB dumps, per-function decompilation status sheet
+* [docs/plan/](docs/plan/): dated work plans
+* [GLOSSARY.md](GLOSSARY.md): game and data terms
+* [CONTRIBUTING.md](CONTRIBUTING.md): upstream's issue and pull request policy
+* [AGENTS.md](AGENTS.md): rules for coding agents
+
+## Source
+
+* `pinball.exe` from `Windows XP` (SHA-1 `2A5B525E0F631BB6107639E2A69DF15986FB0D05`) and its public PDB
+* `CADET.EXE` 32bit version from `Full Tilt! Pinball` (SHA-1 `3F7B5699074B83FD713657CD94671F2156DBEDC4`)
+
+## Tools used
+
+`Ghidra`, `Ida`, `Visual Studio`
+
+## What was done
+
+* All structures were populated, globals and locals named.
+* All subs were decompiled, C pseudo code was converted to compilable C++. Loose (namespace?) subs were assigned to classes.
 
 ## Known source ports
 
@@ -32,78 +63,7 @@ Supports data files from Windows and Full Tilt versions of the game.
 
 Platforms covered by this project: desktop Windows, Linux and macOS.
 
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-
-## Source
-
-* `pinball.exe` from `Windows XP` (SHA-1 `2A5B525E0F631BB6107639E2A69DF15986FB0D05`) and its public PDB
-* `CADET.EXE` 32bit version from `Full Tilt! Pinball` (SHA-1 `3F7B5699074B83FD713657CD94671F2156DBEDC4`)
-
-## Tools used
-
-`Ghidra`, `Ida`, `Visual Studio`
-
-## What was done
-
-* All structures were populated, globals and locals named.
-* All subs were decompiled, C pseudo code was converted to compilable C++. Loose (namespace?) subs were assigned to classes.
-
-## Compiling
-
-Project uses `C++11` and depends on `SDL2` libs.
-
-### On Windows
-
-Download and unpack devel packages for `SDL2` and `SDL2_mixer`.\
-Set paths to them in `CMakeLists.txt`, see suggested placement in `/Libs`.\
-Compile with Visual Studio; tested with 2019.
-
-### On Linux
-
-Install devel packages for `SDL2` and `SDL2_mixer`.\
-Compile with CMake; tested with GCC 10, Clang 11.\
-To cross-compile for Windows, install a 64-bit version of mingw and its `SDL2` and `SDL2_mixer` distributions, then use the `mingwcc.cmake` toolchain.
-
-[![Packaging status](https://repology.org/badge/tiny-repos/spacecadetpinball.svg)](https://repology.org/project/spacecadetpinball/versions) 
-
-Some distributions provide a package in their repository. You can use those for easier dependency management and updates.
-
-This project is available as Flatpak on [Flathub](https://flathub.org/apps/details/com.github.k4zmu2a.spacecadetpinball).
-
-### On macOS
-
-Install XCode (or at least Xcode Command Line Tools with `xcode-select --install`) and CMake.
-
-**HomeBrew**
-
-You can easily install the build artifact by using `brew`.
-
-```sh
-brew tap draftbrew/tap
-brew install --no-quarantine space-cadet-pinball
-```
-
-Be aware that the flag `--no-quarantime` will disable macOS's Gatekeeper during installation.
-
-**Manual compilation:**
-
-* **Homebrew**: Install the `SDL2`, `SDL2_mixer` homebrew packages.
-* **MacPorts**: Install the `libSDL2`, `libSDL2_mixer` macports packages.
-
-Compile with CMake. Ensure that `CMAKE_OSX_ARCHITECTURES` variable is set for either `x86_64` Apple Intel or `arm64` for Apple Silicon.
-
-Tested with: macOS Big Sur (Intel) with Xcode 13 & macOS Montery Beta (Apple Silicon) with Xcode 13.
-
-**Automated compilation:**
-
-Run the `build-mac-app.sh` script from the root of the repository. The app will be available in a DMG file named `SpaceCadetPinball-<version>-mac.dmg`.
-
-Tested with: macOS Ventura (Apple Silicon) with Xcode Command Line Tools 14 & macOS Big Sur on GitHub Runner (Intel) with XCode 13.
+[![Packaging status](https://repology.org/badge/tiny-repos/spacecadetpinball.svg)](https://repology.org/project/spacecadetpinball/versions)
 
 ## Plans
 
