@@ -59,6 +59,13 @@ Porting the logic to TypeScript/WebGL or Rust would re-create what the decompila
 2. The player supplies the game data through a file picker. It is kept in IndexedDB and never uploaded.
 3. Publish the build without data to GitHub Pages from CI.
 
+Prior art: alula's port (<https://github.com/alula/SpaceCadetPinball>, played at <https://pinball.alula.me>) is five commits on a September 2021 upstream, so only its approach carries over, not its code:
+
+- **Main loop:** the `while` loop in `winmain` becomes a callback for `emscripten_set_main_loop_arg`. Full screen and the Exit menu item are disabled.
+- **Music:** Emscripten's SDL_mixer has no MIDI backend. The port renders `PINBALL.MID` with TinySoundFont (`tsf.h`/`tml.h`, MIT) through `Mix_HookMusic`. Its embedded `gm.sf2` is a conversion of the Roland/Microsoft GS Wavetable set and must not be copied; use a freely licensed SoundFont, ideally fetched separately from the main bundle. A smaller option is to render the theme to OGG once on the player's side.
+- **Audio unlock:** music is on by default here too, and the browser starts audio only after a user gesture.
+- **Game data:** it preloads the game files into the bundle and hosts them. Point 2 above exists to avoid exactly that.
+
 ## Role of REA
 
 REA is not a dependency of the game. Use it to settle questions about the original's behaviour: a suspected decompilation bug, a physics quirk the harness reveals, or Full Tilt-only features (an open item in upstream's plans).

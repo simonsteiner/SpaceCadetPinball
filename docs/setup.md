@@ -84,6 +84,7 @@ Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake.
 
 ## Troubleshooting
 
-- **No background music on Linux:** MIDI playback needs a SoundFont. Point `SDL_SOUNDFONT` at one before launching, for example `export SDL_SOUNDFONT=/usr/share/sounds/sf2/FluidR3_GM.sf2` (Debian and Ubuntu) or `/usr/share/soundfonts/FluidR3_GM.sf2` (Fedora).
+- **No background music:** music is on by default (the original game had it off), but a saved `Music=0` in `imgui_pb.ini` from an earlier run keeps it off. Turn it on with F6 or Options → Music.
+- **Still no music on Linux:** SDL_mixer plays MIDI through FluidSynth, which needs a SoundFont. Debian and Ubuntu builds find `/usr/share/sounds/sf2/FluidR3_GM.sf2` (package `fluid-soundfont-gm`) on their own. Elsewhere, point `SDL_SOUNDFONTS` at one before launching, for example `export SDL_SOUNDFONTS=/usr/share/soundfonts/FluidR3_GM.sf2` (Fedora).
 - **"Could not create renderer" or a black window:** try `-sw`.
 - **"Could not load game data":** no data file was found. The message lists the folders searched; see [Game data](#game-data). When a file is found, the console prints `Loading game from: <path>`.
