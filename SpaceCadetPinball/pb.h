@@ -69,6 +69,8 @@ public:
 	static void frame(float dtMilliSec);
 	static void timed_frame(float timeDelta);
 	static void pause_continue();
+	// Cheat-mode F10: freezes the table or lets it run again, without pausing the game
+	static void toggle_single_step();
 	static void loose_focus();
 	static void InputUp(GameInput input);
 	static void InputDown(GameInput input);

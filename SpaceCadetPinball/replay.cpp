@@ -234,9 +234,17 @@ bool replay::PlayStep()
 			pb::ballset(dx, dy);
 		}
 		else if (key == "t")
+		{
+			// Recordings from before the player count was added use the current options
+			int players = 0;
+			if (sscanf(rest.c_str(), "%d", &players) == 1)
+				options::Options.Players = players;
 			pb::toggle_demo();
+		}
 		else if (key == "p")
 			pb::pause_continue();
+		else if (key == "s")
+			pb::toggle_single_step();
 		else if (key == "l")
 			pb::loose_focus();
 		else if (key == "b")

@@ -52,7 +52,7 @@ Everything that reaches the table from outside goes through a handful of `pb` fu
 
 - each `pb::frame` call with its time step, followed by the state after it
 - table input after the key bindings are resolved (`pb::GameInputDown`, `pb::GameInputUp`), so a replay doesn't depend on the player's key bindings
-- new game, demo toggle, pause, focus loss, ball launch, cheats and mouse ball control (the cheat-mode drag)
+- new game, demo toggle, pause, focus loss, ball launch, cheats, the cheat-mode F10 freeze and mouse ball control (the cheat-mode drag)
 
 The time step comes from the wall clock, so it differs from frame to frame and from run to run. That is why the demo plays out differently between runs, and why a replay records each step instead of assuming a fixed rate. The game's random numbers come from `rand()`, which is never seeded, so it always starts at 1; a replay records that seed and applies it before the table loads.
 
@@ -79,8 +79,9 @@ start
 | `d <type> <value> <bindings>` | input pressed: `InputTypes`, key or button, comma-separated `GameBindings` (`-` for none) |
 | `u <type> <value> <bindings>` | input released |
 | `n <demo> <players>` | `pb::replay_level`: new game, or demo if `demo` is 1 |
-| `t` | `pb::toggle_demo` |
+| `t <players>` | `pb::toggle_demo` with the player count from the options; older recordings have a bare `t` and use the current options |
 | `p` | `pb::pause_continue` |
+| `s` | `pb::toggle_single_step` (cheat-mode F10) |
 | `l` | `pb::loose_focus` |
 | `b` | `pb::launch_ball` |
 | `m <dx> <dy>` | `pb::ballset` |

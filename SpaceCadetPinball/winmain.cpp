@@ -1000,7 +1000,7 @@ int winmain::event_handler(const SDL_Event* event)
 			pb::frame(10);
 			break;
 		case SDLK_F10:
-			single_step ^= true;
+			pb::toggle_single_step();
 			if (!single_step)
 				no_time_loss = true;
 			break;

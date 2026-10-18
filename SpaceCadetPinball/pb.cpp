@@ -243,7 +243,8 @@ void pb::mode_change(GameModes mode)
 
 void pb::toggle_demo()
 {
-	replay::Scope replayScope("t");
+	// Starting the demo reads the player count from the options, so the recording keeps it
+	replay::Scope replayScope("t %d", options::Options.Players.V);
 	if (demo_mode)
 	{
 		demo_mode = false;
@@ -526,6 +527,12 @@ void pb::pause_continue()
 			midi::music_play();
 		Sound::Activate();
 	}
+}
+
+void pb::toggle_single_step()
+{
+	replay::Scope replayScope("s");
+	winmain::single_step ^= true;
 }
 
 void pb::loose_focus()
