@@ -11,6 +11,7 @@ cmake --build --preset linux  # build; the executable lands in bin/ in the sourc
 cmake --preset linux-vendored && cmake --build --preset linux-vendored  # build with SDL fetched from source, as the Windows and macOS presets do
 ./bin/SpaceCadetPinball -noaudio  # run; needs game data, see docs/setup.md
 tools/check-replays.sh ../replays ../gamedata  # play back recorded sessions and report any that play differently
+lefthook install  # optional Git hooks from lefthook.yml: game-data guard, source-list and commit-message checks, build and replays before push
 ```
 
 There are no automated tests or linters yet. A change is checked by building it and playing it with real game data. Before a change that could affect play, record sessions with `-record` and check them with `tools/check-replays.sh` afterwards (`docs/replays.md`). The `Build` workflow (`.github/workflows/Build.yml`) builds every preset except `linux-debug` and `windows-x86-xp` on each pull request, with `SCP_WARNINGS=ON`.
@@ -53,7 +54,7 @@ There are no automated tests or linters yet. A change is checked by building it 
 ## Docs
 
 - `README.md` — what the project is, the quickstart, provenance.
-- `docs/setup.md` — building on each platform, where the game looks for data, command-line flags, troubleshooting.
+- `docs/setup.md` — building on each platform, Git hooks, where the game looks for data, command-line flags, troubleshooting.
 - `docs/deployment.md` — producing release builds and where the version number lives.
 - `docs/replays.md` — recording and checking sessions, and the replay file format.
 - `docs/reference/` — DAT file format and dumps of the original DAT and PDB; read before touching `loader.cpp` or `partman.cpp`.

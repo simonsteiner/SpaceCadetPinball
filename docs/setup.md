@@ -97,6 +97,18 @@ Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake 3.2
 - **Tested upstream with:** the earlier framework-based script on macOS Ventura (Apple Silicon) with Command Line Tools 14 and on a GitHub Intel runner with Xcode 13; manual builds on macOS Big Sur (Intel) and Monterey beta (Apple Silicon) with Xcode 13. CI builds the `macos` preset on a `macos-26` runner, but nobody has run the resulting app yet.
 - **Prebuilt:** `brew tap draftbrew/tap && brew install --no-quarantine space-cadet-pinball`. `--no-quarantine` bypasses Gatekeeper for this install.
 
+## Git hooks
+
+`lefthook.yml` defines Git hooks that catch mistakes before CI does. They are optional. Install [lefthook](https://lefthook.dev/install/) (for example `brew install lefthook`, `go install github.com/evilmartians/lefthook/v2@latest` or `pipx install lefthook`), then run `lefthook install` once in the repository.
+
+| Hook | Checks |
+| --- | --- |
+| `pre-commit` | no staged game data, even with `git add -f`; no trailing whitespace or conflict markers in the staged changes; every staged `.cpp` and `.h` in `SpaceCadetPinball/` is listed in `CMakeLists.txt`, and every game `.cpp` starts with `#include "pch.h"` |
+| `commit-msg` | the header is a [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) of at most 72 characters; merges, reverts and fixups pass |
+| `pre-push` | on Linux, when the push changes code or build files: builds the `linux` preset with `SCP_WARNINGS=ON` in `build/pre-push/`, then plays back the replays in `../replays` against `../gamedata` if both exist (`SCP_REPLAYS_DIR` and `SCP_GAMEDATA_DIR` override the paths) |
+
+The first `pre-push` build compiles the whole game; later ones are incremental. It writes `bin/SpaceCadetPinball` like every preset. The scripts are in `tools/hooks/`. Skip the hooks once with `LEFTHOOK=0` or `--no-verify`. Personal changes go in `lefthook-local.yml`, which Git ignores.
+
 ## Command-line options
 
 | Flag | Effect |
