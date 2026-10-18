@@ -55,17 +55,48 @@ winmain::DurationMs winmain::SpinThreshold = DurationMs(0.005);
 WelfordState winmain::SleepState{};
 int winmain::CursorIdleCounter = 0;
 
-// Returns the word after flag in the command line, or the text between quotes if it starts with one
-static std::string GetArgValue(LPCSTR cmdLine, LPCSTR flag)
+// Splits the command line at spaces and tabs; double quotes keep an argument with spaces together
+static std::vector<std::string> SplitArgs(LPCSTR cmdLine)
 {
-	auto pos = strstr(cmdLine, flag);
-	if (!pos)
-		return {};
-	pos += strlen(flag);
-	while (*pos == ' ')
-		pos++;
-	auto end = *pos == '"' ? strchr(++pos, '"') : strchr(pos, ' ');
-	return end ? std::string(pos, end) : std::string(pos);
+	std::vector<std::string> args;
+	std::string arg;
+	bool quoted = false, inArg = false;
+	for (auto ch = cmdLine; *ch; ch++)
+	{
+		if (*ch == '"')
+		{
+			quoted = !quoted;
+			inArg = true;
+		}
+		else if ((*ch == ' ' || *ch == '\t') && !quoted)
+		{
+			if (inArg)
+				args.push_back(arg);
+			arg.clear();
+			inArg = false;
+		}
+		else
+		{
+			arg += *ch;
+			inArg = true;
+		}
+	}
+	if (inArg)
+		args.push_back(arg);
+	return args;
+}
+
+// Matches whole arguments, so a flag inside a file name doesn't count
+static bool HasArg(const std::vector<std::string>& args, LPCSTR flag)
+{
+	return std::find(args.begin(), args.end(), flag) != args.end();
+}
+
+// Returns the argument after flag, or an empty string
+static std::string GetArgValue(const std::vector<std::string>& args, LPCSTR flag)
+{
+	auto arg = std::find(args.begin(), args.end(), flag);
+	return arg != args.end() && ++arg != args.end() ? *arg : std::string();
 }
 
 int winmain::WinMain(LPCSTR lpCmdLine)
@@ -78,8 +109,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	printf(" SDL_mixer %d.%d.%d;", SDL_MIXER_MAJOR_VERSION, SDL_MIXER_MINOR_VERSION, SDL_MIXER_PATCHLEVEL);
 	printf(" ImGui %s %s\n", IMGUI_VERSION, ImGuiRender);
 
-	auto recordPath = GetArgValue(lpCmdLine, "-record");
-	auto replayPath = GetArgValue(lpCmdLine, "-replay");
+	const auto args = SplitArgs(lpCmdLine);
+	auto recordPath = GetArgValue(args, "-record");
+	auto replayPath = GetArgValue(args, "-replay");
 	if (!replayPath.empty())
 	{
 		if (!replay::StartPlayback(replayPath))
@@ -97,7 +129,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		return 1;
 	}
 
-	pb::quickFlag = strstr(lpCmdLine, "-quick") != nullptr;
+	pb::quickFlag = HasArg(args, "-quick");
 
 	// SDL window
 	SDL_Window* window = SDL_CreateWindow
@@ -116,7 +148,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 	// If HW fails, fallback to SW SDL renderer.
 	SDL_Renderer* renderer = nullptr;
-	auto swOffset = strstr(lpCmdLine, "-sw") != nullptr || replay::IsPlaying() ? 1 : 0;
+	auto swOffset = HasArg(args, "-sw") || replay::IsPlaying() ? 1 : 0;
 	for (int i = swOffset; i < 2 && !renderer; i++)
 	{
 		Renderer = renderer = SDL_CreateRenderer
@@ -141,7 +173,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	auto basePath = SDL_GetBasePath();
 
 	// SDL mixer init
-	bool mixOpened = false, noAudio = strstr(lpCmdLine, "-noaudio") != nullptr || replay::IsPlaying();
+	bool mixOpened = false, noAudio = HasArg(args, "-noaudio") || replay::IsPlaying();
 	if (!noAudio)
 	{
 		if ((Mix_Init(MIX_INIT_MID_Proxy) & MIX_INIT_MID_Proxy) == 0)
@@ -175,7 +207,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		}
 	}
 
-	auto resetAllOptions = strstr(lpCmdLine, "-reset") != nullptr;
+	auto resetAllOptions = HasArg(args, "-reset");
 	do
 	{
 		restart = false;
@@ -291,7 +323,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		pb::reset_table();
 		pb::firsttime_setup();
 
-		if (strstr(lpCmdLine, "-fullscreen"))
+		if (HasArg(args, "-fullscreen"))
 		{
 			Options.FullScreen = true;
 		}
@@ -315,7 +347,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			SDL_ShowWindow(window);
 			fullscrn::set_screen_mode(Options.FullScreen);
 
-			if (strstr(lpCmdLine, "-demo"))
+			if (HasArg(args, "-demo"))
 				pb::toggle_demo();
 			else
 				pb::replay_level(false);
