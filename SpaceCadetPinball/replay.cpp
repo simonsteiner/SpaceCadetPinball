@@ -40,6 +40,14 @@ namespace
 		rest = line.substr(space + 1);
 		return line.substr(0, space);
 	}
+
+	// Reads a whole decimal number; returns false if the text holds anything else
+	bool ParseNumber(const std::string& text, long long& value)
+	{
+		char* end;
+		value = std::strtoll(text.c_str(), &end, 10);
+		return !text.empty() && *end == '\0';
+	}
 }
 
 FILE *replay::Output = nullptr, *replay::Input = nullptr;
@@ -120,12 +128,19 @@ bool replay::StartPlayback(const std::string& path)
 	while (ReadLine(Input, line) && line != "start")
 	{
 		auto key = SplitFirst(line, rest);
+		long long value = 0;
 		if (key == "dat")
 			HeaderDatFile = rest;
+		else if ((key == "seed" || key == "resolution") && !ParseNumber(rest, value))
+		{
+			printf("Replay file has a header line this build can't read: %s\n", line.c_str());
+			Stop();
+			return false;
+		}
 		else if (key == "seed")
-			HeaderSeed = static_cast<unsigned>(std::stoul(rest));
+			HeaderSeed = static_cast<unsigned>(value);
 		else if (key == "resolution")
-			HeaderResolution = std::stoi(rest);
+			HeaderResolution = static_cast<int>(value);
 	}
 	if (line != "start")
 	{
