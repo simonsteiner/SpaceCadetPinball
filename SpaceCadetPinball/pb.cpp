@@ -162,7 +162,7 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 			{
 				if (i == 1)
 					std::transform(fileName.begin(), fileName.end(), fileName.begin(),
-					               [](unsigned char c) { return std::tolower(c); });
+					               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
 				auto datFilePath = make_path_name(fileName);
 				auto datFile = fopenu(datFilePath.c_str(), "r");

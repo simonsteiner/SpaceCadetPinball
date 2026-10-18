@@ -157,7 +157,7 @@ int loader::get_sound_id(int groupIndex)
 				{
 					if (i == 1)
 						std::transform(fileName.begin(), fileName.end(), fileName.begin(),
-						               [](unsigned char c) { return std::toupper(c); });
+						               [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
 
 					filePath = pb::make_path_name(fileName);
 					auto file = fopenu(filePath.c_str(), "rb");

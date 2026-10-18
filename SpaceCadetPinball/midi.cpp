@@ -141,7 +141,7 @@ Mix_Music* midi::load_track_sub(std::string fileName, bool isMidi)
 	{
 		if (i == 1)
 			std::transform(fileName.begin(), fileName.end(), fileName.begin(),
-			               [](unsigned char c) { return std::tolower(c); });
+			               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 		if (isMidi)
 		{
 			auto filePath = pb::make_path_name(fileName);
