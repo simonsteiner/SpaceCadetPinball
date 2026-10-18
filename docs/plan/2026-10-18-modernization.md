@@ -1,6 +1,6 @@
 # Modernization plan
 
-Date: 2026-10-18. Status: proposed.
+Date: 2026-10-18. Status: Phase 0 done; Phase 1 not started.
 
 The goal is to bring this fork of k4zmu2a/SpaceCadetPinball up to a current toolchain and a better presentation without changing how the game plays. Phases 1, 2 and 4 are the recommended path. Phase 3 stays parked unless there is a specific reason for it.
 
@@ -19,12 +19,12 @@ The DAT, sound and music files are Microsoft's. They are never committed, never 
 
 ## Phase 0: baseline and hygiene
 
-1. Restructure the docs (this pull request): one home per kind of doc, `AGENTS.md`, `GLOSSARY.md`.
-2. Ignore game data in `.gitignore` (`*.DAT`, `*.dat`, `*.WAV`, `*.MID`, case variants), since it is not ignored today.
-3. Make `main` the fork's default branch on GitHub.
-4. Set up a local Linux build (SDL2 dev packages, Ninja, 7-Zip) and extract the original game from `../assets/3DPinballforWindows.7z` to a folder outside the repository.
-5. Build and run the unchanged code; record the startup log, a screenshot and a short play session as the baseline.
-6. Check the `pinball.exe` in the archive against the SHA-1 in `README.md`. If it matches, it is the reference binary for REA comparisons.
+1. Done: the docs are restructured into one home per kind of doc, plus `AGENTS.md` and `GLOSSARY.md`.
+2. Done: `.gitignore` excludes the game data in any letter case: `*.DAT`, `*.WAV`, `*.MID`, `*.EXE`, `*.7z`, `table.bmp` and `wavemix.inf`.
+3. Done: `main` is the fork's default branch on GitHub.
+4. Done: a local Linux build (SDL2 dev packages, Ninja) and the original game extracted from `../assets/3DPinballforWindows.7z` to `../gamedata/`. The archive's `Pinball.exe` uses the BCJ2 filter, which `py7zr` can't decode. Use 7-Zip or libarchive (`bsdtar`).
+5. Done: the unchanged code builds with GCC 15 and CMake 4.2 (one CMake deprecation warning, 23 `-Wbidi-chars` warnings in `translations.cpp`, no errors) and runs under WSLg. The startup log, screenshots, a 25-second demo session and a summary are in `../baseline/`.
+6. Done: the archive's `Pinball.exe` matches the SHA-1 in `README.md` (`2A5B525E…0D05`), so it is the reference binary for REA comparisons.
 
 ## Phase 1: codebase modernization
 
