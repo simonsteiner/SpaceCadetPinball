@@ -26,9 +26,7 @@ jobs:
           - { preset: linux-vendored, os: ubuntu-24.04 }
           - { preset: mingw, os: ubuntu-24.04 }
           # windows-latest has Visual Studio 2026; the presets use the Visual Studio 2022 generator.
-          # windows-x86-xp is left out: no runner image has the v141_xp toolset.
           - { preset: windows-x64, os: windows-2022 }
-          - { preset: windows-x86, os: windows-2022 }
           - { preset: macos, os: macos-26 }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

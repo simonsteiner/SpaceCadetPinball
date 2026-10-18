@@ -12,11 +12,7 @@ The version appears in three places. Update all three together:
 
 ## Windows
 
-Run `BuildForWindows.ps1` from the repository root on Windows with Visual Studio 2022 installed. It builds the `windows-x86`, `windows-x64` and `windows-x86-xp` presets in turn (see [setup.md](setup.md#build)) and writes three zips to `bin/`. SDL is linked statically, so each zip holds only `SpaceCadetPinball.exe`:
-
-- `SpaceCadetPinballx86Win.zip`
-- `SpaceCadetPinballx64Win.zip`
-- `SpaceCadetPinballx86WinXP.zip`, which needs the `v141_xp` MSVC toolset. Whether SDL 2.32 still builds and runs with it is unverified.
+Run `BuildForWindows.ps1` from the repository root on Windows with Visual Studio 2022 installed. It builds the `windows-x64` preset (see [setup.md](setup.md#build)) and writes `bin/SpaceCadetPinballx64Win.zip`. SDL is linked statically, so the zip holds only `SpaceCadetPinball.exe`. There are no 32-bit or Windows XP builds.
 
 ## macOS
 

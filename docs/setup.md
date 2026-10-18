@@ -35,12 +35,11 @@ Each preset builds in `build/<preset>/`. The executable is written to `bin/` in 
 | `linux-debug` | Linux | system packages, Debug |
 | `linux-sanitize` | Linux | system packages, Debug with AddressSanitizer and UBSan |
 | `linux-vendored` | Linux | built from source |
-| `windows-x64`, `windows-x86` | Windows, Visual Studio 2022 | built from source |
-| `windows-x86-xp` | Windows, Visual Studio 2022 with the `v141_xp` toolset | built from source |
+| `windows-x64` | Windows, Visual Studio 2022 | built from source |
 | `mingw` | Linux, cross-compiling to Windows x64 | built from source |
 | `macos` | macOS, universal `arm64` and `x86_64` | built from source |
 
-The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL2 2.32.10 and SDL2_mixer 2.8.1 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity and the platform's native MIDI. Its other codecs and FluidSynth are left out. When it is `OFF` (the default on Linux), CMake uses the installed `SDL2` and `SDL2_mixer` development packages. CI builds every preset except `linux-debug`, `linux-sanitize` and `windows-x86-xp` on each pull request. The GitHub runners have no `v141_xp` toolset, so the XP preset has never been built.
+The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL2 2.32.10 and SDL2_mixer 2.8.1 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity and the platform's native MIDI. Its other codecs and FluidSynth are left out. When it is `OFF` (the default on Linux), CMake uses the installed `SDL2` and `SDL2_mixer` development packages. CI builds every preset except `linux-debug` and `linux-sanitize` on each pull request. Windows builds are 64-bit only; the 32-bit and Windows XP builds were dropped with the move to C++20.
 
 Plain `cmake -S . -B build` without a preset still works and follows the same defaults.
 
