@@ -1,20 +1,16 @@
-#Run this script from Developer Command Prompt for VS *
-$artefacts = ".\bin\Release\SpaceCadetPinball.exe", ".\bin\Release\SDL2.dll", ".\bin\Release\SDL2_mixer.dll"
+#Run this script from the repository root with CMake 3.24+ and Visual Studio 2022 installed
+#Each preset fetches SDL and links it statically, so the zips only hold the executable
+$builds = [ordered]@{
+    "windows-x86"    = "SpaceCadetPinballx86Win.zip"
+    "windows-x64"    = "SpaceCadetPinballx64Win.zip"
+    #requires the v141_xp MSVC toolset
+    "windows-x86-xp" = "SpaceCadetPinballx86WinXP.zip"
+}
 
-#X86 build
-Remove-Item -Path .\build\CMakeCache.txt -ErrorAction SilentlyContinue
-cmake -S . -B build -A Win32 -DCMAKE_WIN32_EXECUTABLE:BOOL=1
-cmake --build build --config Release
-Compress-Archive -Path $artefacts -DestinationPath ".\bin\SpaceCadetPinballx86Win.zip" -Force
-
-#X64 build
-Remove-Item -Path .\build\CMakeCache.txt
-cmake -S . -B build -A x64 -DCMAKE_WIN32_EXECUTABLE:BOOL=1
-cmake --build build --config Release
-Compress-Archive -Path $artefacts -DestinationPath ".\bin\SpaceCadetPinballx64Win.zip" -Force
-
-#86 XP build, requires special XP MSVC toolset
-Remove-Item -Path .\build\CMakeCache.txt
-cmake -S . -B build -A Win32 -DCMAKE_WIN32_EXECUTABLE:BOOL=1 -T v141_xp
-cmake --build build --config Release
-Compress-Archive -Path $artefacts -DestinationPath ".\bin\SpaceCadetPinballx86WinXP.zip" -Force
+foreach ($preset in $builds.Keys) {
+    cmake --preset $preset
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    cmake --build --preset $preset
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    Compress-Archive -Path ".\bin\Release\SpaceCadetPinball.exe" -DestinationPath ".\bin\$($builds[$preset])" -Force
+}

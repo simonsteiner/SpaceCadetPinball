@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0...3.5)
+cmake_minimum_required(VERSION 3.24)
 project(SpaceCadetPinball)
 
 set(CMAKE_CXX_STANDARD 11)
@@ -8,11 +8,13 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/CMakeModules")
 
-# On Windows, set paths to SDL-devel packages here
-if(WIN32)
-   list(APPEND SDL2_PATH "${CMAKE_CURRENT_LIST_DIR}/Libs/SDL2")
-   list(APPEND SDL2_MIXER_PATH "${CMAKE_CURRENT_LIST_DIR}/Libs/SDL2_mixer")
+# Windows and macOS have no standard SDL packages, so build SDL from source there by default
+if(WIN32 OR APPLE)
+    set(SCP_VENDORED_SDL_DEFAULT ON)
+else()
+    set(SCP_VENDORED_SDL_DEFAULT OFF)
 endif()
+option(SCP_VENDORED_SDL "Build SDL2 and SDL2_mixer from pinned sources instead of using installed packages" ${SCP_VENDORED_SDL_DEFAULT})
 
 # Link mingw libs static
 if(MINGW)
@@ -24,22 +26,67 @@ if(APPLE)
     set(CMAKE_BUILD_WITH_INSTALL_RPATH true)
     set(CMAKE_INSTALL_RPATH "@executable_path/../Frameworks")
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.11")
-    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64")
-    list(APPEND SDL2_PATH "${CMAKE_CURRENT_LIST_DIR}/Libs")
-    list(APPEND SDL2_MIXER_PATH "${CMAKE_CURRENT_LIST_DIR}/Libs")
 endif()
 
-# SDL2main is not needed
-set(SDL2_BUILDING_LIBRARY ON)
+if(SCP_VENDORED_SDL)
+    include(FetchContent)
 
-find_package(SDL2 REQUIRED)
-FIND_PACKAGE(SDL2_mixer REQUIRED)
+    # Let option() in SDL2, which declares an older CMake version, honour the variables below
+    set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 
-include_directories(${SDL2_INCLUDE_DIR} ${SDL2_MIXER_INCLUDE_DIR})
-get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
-foreach(dir ${dirs})
-  message(STATUS "Include dir='${dir}'")
-endforeach()
+    # Static libraries, nothing installed, no SDL2main
+    set(BUILD_SHARED_LIBS OFF)
+    set(SDL_SHARED OFF)
+    set(SDL_STATIC ON)
+    set(SDL_TEST OFF)
+    set(SDL2_DISABLE_SDL2MAIN ON)
+    set(SDL2_DISABLE_INSTALL ON)
+    set(SDL2_DISABLE_UNINSTALL ON)
+
+    # The game only plays WAV sounds and MIDI music: Timidity, plus native MIDI on Windows and macOS
+    set(SDL2MIXER_INSTALL OFF)
+    set(SDL2MIXER_SAMPLES OFF)
+    set(SDL2MIXER_VENDORED OFF)
+    set(SDL2MIXER_CMD OFF)
+    set(SDL2MIXER_FLAC OFF)
+    set(SDL2MIXER_GME OFF)
+    set(SDL2MIXER_MOD OFF)
+    set(SDL2MIXER_MP3 OFF)
+    set(SDL2MIXER_OPUS OFF)
+    set(SDL2MIXER_VORBIS OFF CACHE STRING "Enable OGG Vorbis music")
+    set(SDL2MIXER_WAVPACK OFF)
+    set(SDL2MIXER_WAVE ON)
+    set(SDL2MIXER_MIDI ON)
+    set(SDL2MIXER_MIDI_FLUIDSYNTH OFF)
+    set(SDL2MIXER_MIDI_TIMIDITY ON)
+    set(SDL2MIXER_MIDI_NATIVE ON)
+
+    FetchContent_Declare(SDL2
+            URL https://github.com/libsdl-org/SDL/releases/download/release-2.32.10/SDL2-2.32.10.tar.gz
+            URL_HASH SHA256=5f5993c530f084535c65a6879e9b26ad441169b3e25d789d83287040a9ca5165
+            )
+    FetchContent_Declare(SDL2_mixer
+            URL https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.8.1/SDL2_mixer-2.8.1.tar.gz
+            URL_HASH SHA256=cb760211b056bfe44f4a1e180cc7cb201137e4d1572f2002cc1be728efd22660
+            )
+    FetchContent_MakeAvailable(SDL2 SDL2_mixer)
+
+    set(SDL_LIBRARIES SDL2_mixer::SDL2_mixer-static SDL2::SDL2-static)
+else()
+    # SDL2main is not needed
+    set(SDL2_BUILDING_LIBRARY ON)
+
+    find_package(SDL2 REQUIRED)
+    FIND_PACKAGE(SDL2_mixer REQUIRED)
+
+    include_directories(${SDL2_INCLUDE_DIR} ${SDL2_MIXER_INCLUDE_DIR})
+    get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
+    foreach(dir ${dirs})
+      message(STATUS "Include dir='${dir}'")
+    endforeach()
+
+    set(SDL_LIBRARIES ${SDL2_LIBRARY} ${SDL2_MIXER_LIBRARY})
+endif()
 
 
 
@@ -209,17 +256,15 @@ set_source_files_properties(
         PROPERTIES SKIP_PRECOMPILE_HEADERS 1
 )
 
-if(${CMAKE_VERSION} VERSION_GREATER "3.16.0" OR ${CMAKE_VERSION} VERSION_EQUAL "3.16.0")
-    target_precompile_headers(SpaceCadetPinball
-            PUBLIC
-            SpaceCadetPinball/pch.h
-            )
-endif()
+target_precompile_headers(SpaceCadetPinball
+        PUBLIC
+        SpaceCadetPinball/pch.h
+        )
 
-target_link_libraries(SpaceCadetPinball ${SDL2_LIBRARY} ${SDL2_MIXER_LIBRARY})
+target_link_libraries(SpaceCadetPinball ${SDL_LIBRARIES})
 
-# On Windows, copy DLL to output
-if(WIN32)
+# On Windows with installed SDL packages, copy DLL to output
+if(WIN32 AND NOT SCP_VENDORED_SDL)
     list(GET SDL2_LIBRARY -1 SDL2_DLL_PATH)
     list(GET SDL2_MIXER_LIBRARY -1 SDL2_MIXER_DLL_PATH)
     get_filename_component(SDL2_DLL_PATH ${SDL2_DLL_PATH} DIRECTORY)

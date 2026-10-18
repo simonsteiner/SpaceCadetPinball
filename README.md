@@ -11,7 +11,7 @@ This is [simonsteiner's fork](https://github.com/simonsteiner/SpaceCadetPinball)
 
 ```bash
 sudo apt install cmake build-essential ninja-build libsdl2-dev libsdl2-mixer-dev
-cmake -S . -B build -G Ninja && cmake --build build
+cmake --preset linux && cmake --build --preset linux
 cp -r /path/to/original-game/. bin/  # PINBALL.DAT with its .WAV and .MID files
 ./bin/SpaceCadetPinball
 ```

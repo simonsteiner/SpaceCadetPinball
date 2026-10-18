@@ -6,9 +6,9 @@ Domain terms are in `GLOSSARY.md`; dated work plans are in `docs/plan/` (the new
 ## Commands
 
 ```bash
-cmake -S . -B build -G Ninja  # configure (Linux/macOS); needs SDL2 and SDL2_mixer dev packages
-cmake --build build  # build; the executable lands in bin/ in the source tree
-cmake -S . -B build-mingw -DCMAKE_TOOLCHAIN_FILE=mingwcc.cmake  # configure a Windows cross-build from Linux
+cmake --preset linux  # configure (presets: linux, linux-debug, linux-vendored, windows-x64, windows-x86, windows-x86-xp, mingw, macos); linux needs SDL2 and SDL2_mixer dev packages
+cmake --build --preset linux  # build; the executable lands in bin/ in the source tree
+cmake --preset linux-vendored && cmake --build --preset linux-vendored  # build with SDL fetched from source, as the Windows and macOS presets do
 ./bin/SpaceCadetPinball -noaudio  # run; needs game data, see docs/setup.md
 ```
 
@@ -28,6 +28,7 @@ There are no automated tests or linters yet. A change is checked by building it 
 ### Build
 
 - **Source files are listed by hand in `CMakeLists.txt`.** Add each new `.cpp` and `.h` to `SOURCE_FILES`; there is no glob.
+- **SDL comes from `SCP_VENDORED_SDL`.** `ON` (Windows, macOS, `mingw`, `linux-vendored`) fetches the SDL2 and SDL2_mixer versions pinned in `CMakeLists.txt` and links them statically. `OFF` (the Linux default) uses the system packages. Keep both paths working, because distribution packagers use the system one. To bump SDL, change the URL and the `URL_HASH` together.
 
 ### Git
 
@@ -44,7 +45,8 @@ There are no automated tests or linters yet. A change is checked by building it 
 - **Vendored code is ImGui.** `imgui*.cpp`, `imgui*.h`, `imstb_*.h` and `imconfig.h` in `SpaceCadetPinball/` are third-party; upgrade them as a set rather than editing them. `imgui_sdl.cpp` is also third-party: an older ImGui SDL renderer that is still compiled in.
 - **The game can't run without game data,** so it can't be play-tested in CI. Use `-noaudio` on machines without a sound device.
 - **The main loop prints any pending SDL error as `SDL Error: ...`.** Errors that SDL or SDL_mixer set internally and recovered from show up too, such as `Couldn't open timidity.cfg`; such a line doesn't mean anything failed.
-- **macOS builds are universal.** `CMakeLists.txt` hard-codes `CMAKE_OSX_ARCHITECTURES` to `arm64;x86_64`, which overrides `-D`.
+- **Only the `macos` preset is universal.** It sets `CMAKE_OSX_ARCHITECTURES` to `arm64;x86_64`; a build without the preset targets the host architecture.
+- **Vendored SDL needs network on the first configure.** FetchContent downloads into `build/<preset>/_deps/`; later configures reuse it.
 
 ## Docs
 

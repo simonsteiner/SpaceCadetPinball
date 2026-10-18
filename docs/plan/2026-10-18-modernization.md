@@ -1,6 +1,6 @@
 # Modernization plan
 
-Date: 2026-10-18. Status: Phase 0 done; Phase 1 not started.
+Date: 2026-10-18. Status: Phase 0 done; Phase 1 step 1 done.
 
 The goal is to bring this fork of k4zmu2a/SpaceCadetPinball up to a current toolchain and a better presentation without changing how the game plays. Phases 1, 2 and 4 are the recommended path. Phase 3 stays parked unless there is a specific reason for it.
 
@@ -9,7 +9,7 @@ The goal is to bring this fork of k4zmu2a/SpaceCadetPinball up to a current tool
 - About 83k lines of C++, of which about 27k are game code; the rest is vendored ImGui and embedded data. Targets C++11, CMake 3.0, SDL2 and SDL2_mixer, and ImGui 1.89-era (with both the SDL renderer backend and the older custom `imgui_sdl.cpp`).
 - Rendering is software: sprites from the DAT file are composed with their depth maps into an 8-bit palettised frame, uploaded to one SDL texture and scaled with nearest-neighbour filtering. The native table area is 600×416.
 - Physics and drawing already run at separate rates (`UpdatesPerSecond` and `FramesPerSecond` in `options.cpp`).
-- Windows needs SDL copied into `Libs/` by hand. macOS release builds download SDL frameworks. CI is one manually triggered macOS job that checks out `master` on the retired `macos-12` runner.
+- Windows needed SDL copied into `Libs/` by hand, and macOS release builds downloaded SDL frameworks (both replaced in Phase 1 step 1). CI is one manually triggered macOS job that checks out `master` on the retired `macos-12` runner.
 - There are no automated tests.
 - Branches: `master` mirrors upstream; all fork work lands on `main` through pull requests.
 
@@ -30,7 +30,10 @@ The DAT, sound and music files are Microsoft's. They are never committed, never 
 
 Gameplay must stay byte-for-byte equivalent. Each step is its own pull request.
 
-1. **Build:** CMake 3.24+ with `CMakePresets.json` (Linux, Windows MSVC, MinGW cross, macOS), SDL fetched with `FetchContent` (or vcpkg in manifest mode) so no hand-copied `Libs/`. This replaces `CMakeSettings.json` and most of `BuildForWindows.ps1`.
+1. Done: **Build.** CMake 3.24+ with `CMakePresets.json` (`linux`, `linux-debug`, `linux-vendored`, `windows-x64`, `windows-x86`, `windows-x86-xp`, `mingw`, `macos`). With `SCP_VENDORED_SDL=ON`, the default on Windows and macOS, SDL2 2.32.10 and SDL2_mixer 2.8.1 come from `FetchContent` with pinned hashes and are linked statically. Linux keeps the system packages by default for distribution packagers. `CMakeSettings.json` is gone; `BuildForWindows.ps1` and `build-mac-app.sh` just build presets, and `Libs/` is no longer used.
+   - Verified locally (GCC 15.2, CMake 4.2.3): `linux` and `linux-vendored` build and run the demo against the Phase 0 game data. The `mingw` preset's SDL and game code also built and linked with llvm-mingw (clang, libc++) instead of the GCC MinGW it names, but only after force-including `<functional>` and `<new>`, which `control.cpp` and `winmain.cpp` use without including. The release scripts and the `windows-*` and `macos` presets are untested; step 2 must build them. Apple's libc++ may hit the same missing includes.
+   - Warnings: the CMake deprecation warning is gone. Plain `cmake -S . -B build` still gives the baseline's 23 `-Wbidi-chars` warnings. The `linux` preset is a Release build, which adds 11 `-Wunused-result` warnings on `fread` calls (glibc fortify only checks at `-O1` and up). `linux-vendored` adds one more warning inside SDL itself.
+   - The demo is not reproducible between runs: with the same binary, it sometimes plays and sometimes waits at "Awaiting Deployment" for over 20 seconds. Untouched `main` behaves the same way. Step 3 needs to account for this.
 2. **CI:** a pull request workflow that builds the presets on Linux, Windows and macOS with warnings enabled. Fix `ReleaseBuilds.yml` (current macOS runner, check out the triggering ref instead of `master`).
 3. **Determinism harness:** record inputs and the random seed for a session, replay them headless at a fixed update rate and compare the score and ball state per frame. Run locally with game data before and after every behaviour-sensitive change. A synthetic DAT for CI can come later.
 4. **C++20:** raise the standard, fix new warnings, and enable AddressSanitizer and UBSan in a debug preset. Run the harness under sanitizers.
@@ -76,7 +79,7 @@ REA is not a dependency of the game. Use it to settle questions about the origin
 
 ## Open decisions
 
-- vcpkg or `FetchContent` for dependencies.
+- Decided: `FetchContent` for dependencies, not vcpkg (universal macOS builds, no extra tool, SDL3 and Emscripten are a tag change).
 - Whether to keep the Windows XP (`v141_xp`) and 32-bit builds.
 - Whether Phase 2 includes upscaled art.
 - Whether a native Android or iOS target matters, which would affect the Phase 2 input work.
