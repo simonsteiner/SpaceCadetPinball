@@ -121,7 +121,7 @@ optionsStruct options::Options
 		},
 	},
 	{"Sounds", true},
-	{"Music", false},
+	{"Music", true},
 	{"FullScreen", false},
 	{"Players", 1},
 	{"Screen Resolution", -1},
