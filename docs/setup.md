@@ -20,7 +20,7 @@ In each folder it tries `CADET.DAT`, then `PINBALL.DAT`, then `DEMO.DAT`, in upp
 
 ## Build
 
-The project uses C++11, CMake and the `SDL2` and `SDL2_mixer` development packages. The executable is written to `bin/` in the source tree.
+The project uses C++11, CMake and the `SDL2` and `SDL2_mixer` development packages. The executable is written to `bin/` in the source tree (`bin/<Config>/`, such as `bin/Release/`, with Visual Studio).
 
 ### Linux
 

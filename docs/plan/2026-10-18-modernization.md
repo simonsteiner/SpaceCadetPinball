@@ -6,7 +6,7 @@ The goal is to bring this fork of k4zmu2a/SpaceCadetPinball up to a current tool
 
 ## Starting point
 
-- About 66k lines of C++ including vendored ImGui. Targets C++11, CMake 3.0, SDL2 and SDL2_mixer, and ImGui 1.89-era (with both the SDL renderer backend and the older custom `imgui_sdl.cpp`).
+- About 83k lines of C++, of which about 27k are game code; the rest is vendored ImGui and embedded data. Targets C++11, CMake 3.0, SDL2 and SDL2_mixer, and ImGui 1.89-era (with both the SDL renderer backend and the older custom `imgui_sdl.cpp`).
 - Rendering is software: sprites from the DAT file are composed with their depth maps into an 8-bit palettised frame, uploaded to one SDL texture and scaled with nearest-neighbour filtering. The native table area is 600×416.
 - Physics and drawing already run at separate rates (`UpdatesPerSecond` and `FramesPerSecond` in `options.cpp`).
 - Windows needs SDL copied into `Libs/` by hand. macOS release builds download SDL frameworks. CI is one manually triggered macOS job that checks out `master` on the retired `macos-12` runner.
