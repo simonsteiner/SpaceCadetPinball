@@ -13,11 +13,6 @@ pre-commit:
     sources:
       run: tools/hooks/check-sources.sh {staged_files}
 
-commit-msg:
-  commands:
-    conventional-commit:
-      run: tools/hooks/commit-msg.sh {1}
-
 pre-push:
   commands:
     build-and-replays:

@@ -11,7 +11,7 @@ cmake --build --preset linux  # build; the executable lands in bin/ in the sourc
 cmake --preset linux-vendored && cmake --build --preset linux-vendored  # build with SDL fetched from source, as the Windows and macOS presets do
 ./bin/SpaceCadetPinball -noaudio  # run; needs game data, see docs/setup.md
 tools/check-replays.sh ../replays ../gamedata  # play back recorded sessions and report any that play differently
-lefthook install  # optional Git hooks from lefthook.yml: game-data guard, source-list and commit-message checks, build and replays before push
+lefthook install  # optional Git hooks from lefthook.yml: game-data guard and source-list checks, build and replays before push
 ```
 
 There are no automated tests or linters yet. A change is checked by building it and playing it with real game data. Before a change that could affect play, record sessions with `-record` and check them with `tools/check-replays.sh` afterwards (`docs/replays.md`). The `Build` workflow (`.github/workflows/Build.yml`) builds every preset except `linux-debug` and `windows-x86-xp` on each pull request, with `SCP_WARNINGS=ON`.
