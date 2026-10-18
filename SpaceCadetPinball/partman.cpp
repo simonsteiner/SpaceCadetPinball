@@ -20,8 +20,8 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 	if (fileHandle == nullptr)
 		return nullptr;
 
-	fread(&header, 1, sizeof header, fileHandle);
-	if (strcmp("PARTOUT(4.0)RESOURCE", header.FileSignature) != 0)
+	if (fread(&header, 1, sizeof header, fileHandle) != sizeof header ||
+		strcmp("PARTOUT(4.0)RESOURCE", header.FileSignature) != 0)
 	{
 		fclose(fileHandle);
 		return nullptr;
@@ -46,37 +46,43 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 			delete datFile;
 			return nullptr;
 		}
-		fread(unknownBuf, 1, header.Unknown, fileHandle);
+		auto unknownRead = fread(unknownBuf, 1, header.Unknown, fileHandle) == header.Unknown;
 		delete[] unknownBuf;
+		if (!unknownRead)
+		{
+			fclose(fileHandle);
+			delete datFile;
+			return nullptr;
+		}
 	}
 
 	datFile->Groups.reserve(header.NumberOfGroups);
 	bool abort = false;
 	for (auto groupIndex = 0; !abort && groupIndex < header.NumberOfGroups; ++groupIndex)
 	{
-		auto entryCount = LRead<uint8_t>(fileHandle);
+		auto entryCount = LRead<uint8_t>(fileHandle, abort);
 		auto groupData = new GroupData(groupIndex);
 		groupData->ReserveEntries(entryCount);
 
 		for (auto entryIndex = 0; entryIndex < entryCount; ++entryIndex)
 		{
 			auto entryData = new EntryData();
-			auto entryType = static_cast<FieldTypes>(LRead<uint8_t>(fileHandle));
+			auto entryType = static_cast<FieldTypes>(LRead<uint8_t>(fileHandle, abort));
 			entryData->EntryType = entryType;
 
 			int fixedSize = _field_size[static_cast<int>(entryType)];
-			size_t fieldSize = fixedSize >= 0 ? fixedSize : LRead<uint32_t>(fileHandle);
+			size_t fieldSize = fixedSize >= 0 ? fixedSize : LRead<uint32_t>(fileHandle, abort);
 			entryData->FieldSize = static_cast<int>(fieldSize);
 
 			if (entryType == FieldTypes::Bitmap8bit)
 			{
-				fread(&bmpHeader, 1, sizeof(dat8BitBmpHeader), fileHandle);
+				Read(fileHandle, &bmpHeader, sizeof(dat8BitBmpHeader), abort);
 				assertm(bmpHeader.Size + sizeof(dat8BitBmpHeader) == fieldSize, "partman: Wrong bitmap field size");
 				assertm(bmpHeader.Resolution <= 2, "partman: bitmap resolution out of bounds");
 
 				auto bmp = new gdrv_bitmap8(bmpHeader);
 				entryData->Buffer = reinterpret_cast<char*>(bmp);
-				fread(bmp->IndexedBmpPtr, 1, bmpHeader.Size, fileHandle);
+				Read(fileHandle, bmp->IndexedBmpPtr, bmpHeader.Size, abort);
 			}
 			else if (entryType == FieldTypes::Bitmap16bit)
 			{
@@ -84,7 +90,7 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 				auto zMapResolution = 0u;
 				if (fullTiltMode)
 				{
-					zMapResolution = LRead<uint8_t>(fileHandle);
+					zMapResolution = LRead<uint8_t>(fileHandle, abort);
 					fieldSize--;
 
 					// -1 means universal resolution, maybe. FT demo .006 is the only known user.	
@@ -94,7 +100,7 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 					assertm(zMapResolution <= 2, "partman: zMap resolution out of bounds");
 				}
 
-				fread(&zMapHeader, 1, sizeof(dat16BitBmpHeader), fileHandle);
+				Read(fileHandle, &zMapHeader, sizeof(dat16BitBmpHeader), abort);
 				auto length = fieldSize - sizeof(dat16BitBmpHeader);
 
 				zmap_header_type* zMap;
@@ -102,7 +108,7 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 				{
 					zMap = new zmap_header_type(zMapHeader.Width, zMapHeader.Height, zMapHeader.Stride);
 					zMap->Resolution = zMapResolution;
-					fread(zMap->ZPtr1, 1, length, fileHandle);
+					Read(fileHandle, zMap->ZPtr1, length, abort);
 				}
 				else
 				{
@@ -121,9 +127,15 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 					abort = true;
 					break;
 				}
-				fread(entryBuffer, 1, fieldSize, fileHandle);
+				Read(fileHandle, entryBuffer, fieldSize, abort);
 			}
 
+			if (abort)
+			{
+				// AddEntry would parse the partly read buffer
+				delete entryData;
+				break;
+			}
 			groupData->AddEntry(entryData);
 		}
 
@@ -131,7 +143,7 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 	}
 
 	fclose(fileHandle);
-	if (datFile->Groups.size() == header.NumberOfGroups)
+	if (!abort && datFile->Groups.size() == header.NumberOfGroups)
 	{
 		datFile->Finalize();
 		return datFile;

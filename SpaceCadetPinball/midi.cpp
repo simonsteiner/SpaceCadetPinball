@@ -249,7 +249,8 @@ std::vector<uint8_t>* midi::MdsToMidi(std::string file)
 	auto buffer = new uint8_t[fileSize];
 	auto fileBuf = reinterpret_cast<riff_header*>(buffer);
 	fseek(fileHandle, 0, SEEK_SET);
-	fread(fileBuf, 1, fileSize, fileHandle);
+	// A short read leaves a shorter file, which the checks below reject
+	fileSize = static_cast<uint32_t>(fread(fileBuf, 1, fileSize, fileHandle));
 	fclose(fileHandle);
 
 	int returnCode = 0;
