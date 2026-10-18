@@ -1,6 +1,6 @@
 # Modernization plan
 
-Date: 2026-10-18. Status: Phase 0 done; Phase 1 steps 1 to 4 done.
+Date: 2026-10-18. Status: Phase 0 done; Phase 1 steps 1 to 4 done. Decisions of 2026-10-19 are under [Open decisions](#open-decisions).
 
 The goal is to bring this fork of k4zmu2a/SpaceCadetPinball up to a current toolchain and a better presentation without changing how the game plays. Phases 1, 2 and 4 are the recommended path. Phase 3 stays parked unless there is a specific reason for it.
 
@@ -36,7 +36,7 @@ Gameplay must stay byte-for-byte equivalent. Each step is its own pull request.
    - The demo is not reproducible between runs: with the same binary, it sometimes plays and sometimes waits at "Awaiting Deployment" for over 20 seconds. Untouched `main` behaves the same way. Step 3 needs to account for this.
 2. Done: **CI.** `.github/workflows/Build.yml` runs on every pull request, on pushes to `main` and on demand. It builds `linux`, `linux-vendored` and `mingw` on Ubuntu 24.04, `windows-x64` and `windows-x86` on `windows-2022`, and `macos` on `macos-26`, each with the new `SCP_WARNINGS=ON` option (`-Wall -Wextra`, `/W4` with MSVC, for the game target only). All six pass in about two minutes each. `ReleaseBuilds.yml` now runs on `macos-26` and builds the triggering ref. Actions are pinned by SHA, the token is read-only and no game data is involved.
    - `control.h` and `winmain.cpp` now include `<functional>` and `<new>` themselves, instead of relying on libstdc++ to pull them in. The `macos` preset builds with Apple's libc++ without any force-includes. CI's `mingw` build uses GCC and libstdc++, so the llvm-mingw build from step 1 hasn't been retried.
-   - `windows-x86-xp` isn't built: no runner image has the `v141_xp` toolset, and installing it on every run would be slow. This stays open together with the decision on keeping XP.
+   - `windows-x86-xp` was never built: no runner image has the `v141_xp` toolset. The 32-bit and XP presets were removed on 2026-10-19, so CI now builds five presets.
    - Warnings don't fail the build yet. With `SCP_WARNINGS=ON`, the game code gets about 165 warnings with GCC, 161 with MSVC and about 470 with Apple Clang (a universal build compiles everything twice). Most are unused parameters (`-Wunused-parameter`, MSVC C4100); the rest are the bidi and `fread` warnings from step 1 and a handful of unused variables, conversions and one unreachable-code warning. Step 4 fixes them and makes warnings errors.
    - `windows-latest` already has Visual Studio 2026, so the workflow runs the `windows-*` presets, which use the Visual Studio 2022 generator, on `windows-2022`. Retarget the presets when that image is retired.
 3. Done: **Determinism harness.** `-record <file>` writes a replay: each frame's time step and the score and ball state after it, plus every command that reaches the table from outside (input after key binding, new game, pause, cheats and so on). `-replay <file>` plays it back headless and stops at the first frame that differs. `tools/check-replays.sh` checks a folder of replays. Details and the format are in `docs/replays.md`.
@@ -54,9 +54,12 @@ Gameplay must stay byte-for-byte equivalent. Each step is its own pull request.
    - Vendored ImGui builds as its own static library, `imgui`, so it gets neither the game's precompiled header nor its warning flags. That replaced the `SKIP_PRECOMPILE_HEADERS` list. Apple Clang's 140 `-Wnontrivial-memcall` warnings in ImGui are all instantiated from ImGui's own files and no longer count.
    - Verified with GCC 15: `linux` (Release) and `linux-sanitize` build without warnings, and the three replays in `../replays/` match in both. Under the sanitizers, replay playback reports nothing, including leaks, and a 20-second windowed demo is clean with vendored SDL and with `-noaudio`. With the system SDL_mixer and music on, the sanitized game crashes on exit: `Mix_Quit` unloads FluidSynth while one of its threads still runs. That happens in FluidSynth, not the game. With FluidSynth preloaded, the exit is clean except for leaks inside FluidSynth, libinstpatch and GLib. `docs/setup.md` has the workaround.
    - MSVC and Apple Clang were only checked through CI. The fixes cover every warning from them in the last `main` run.
-   - `windows-x86-xp` uses the VS 2017 `v141_xp` toolset, whose C++20 support is incomplete. It is still unbuilt (see step 2), and C++20 adds a reason to drop it.
+   - The `windows-x86-xp` preset used the VS 2017 `v141_xp` toolset, whose C++20 support is incomplete. It and `windows-x86` are gone; Windows builds are 64-bit only.
 5. **SDL3:** port window, renderer, input, audio and timing to SDL3 and SDL3_mixer, and move ImGui to a current release with its SDL3 backends. Drop `imgui_sdl.cpp`. Check SDL3_mixer's MIDI support on every platform before starting.
-6. **Tooling:** `.clang-format` matching the current style, applied once in its own commit, and `clang-tidy` in CI on changed files.
+6. **Tooling:** a `.clang-format` as close to the current style as possible, and `clang-tidy` in CI on changed files.
+   - The code is never reformatted as a whole. It already follows one Visual Studio style (tabs, braces on their own line), and even a tuned config rewrites about 1,600 lines in 114 of 124 game files, not counting `translations.cpp`. That would make every upstream merge conflict.
+   - Only changed lines get formatted: `git clang-format --staged` in the lefthook `pre-commit` hook, and `git clang-format --diff` against the base branch in CI. The version is pinned through `uvx --from clang-format==<version>`, so nobody installs it by hand.
+   - A starting config: `BasedOnStyle: Microsoft`, `UseTab: ForContinuationAndIndentation`, `TabWidth: 4`, `ColumnLimit: 120`, `IndentCaseLabels: false`, `MaxEmptyLinesToKeep: 2`, and `SortIncludes: Never`, because `pch.h` must stay first. `translations.cpp` is excluded.
 
 Done when all presets build in CI and the determinism harness passes against the Phase 0 baseline.
 
@@ -65,10 +68,13 @@ Done when all presets build in CI and the determinism harness passes against the
 1. Integer scaling with an optional "fit" mode, HiDPI-correct window sizing, and proper full screen on modern displays.
 2. Widescreen layout: use the space beside the table for the score panel or artwork instead of black bars.
 3. Optional post-processing (CRT, xBR-style upscaling) using SDL3's GPU API, off by default.
-4. Gamepad support through the SDL3 gamepad API, including rumble on flipper and bumper hits. Touch controls for tablets.
+4. Gamepad support through the SDL3 gamepad API, including rumble on flipper and bumper hits. Touch controls, which the web build on tablets needs too.
 5. High-refresh rendering: decide whether to interpolate ball and flipper positions between physics updates or simply raise both rates. Interpolation must not change the physics.
-
-Truly high-resolution art does not exist. Higher-resolution sprites (redrawn or upscaled) would also need matching depth maps, so they are out of scope unless chosen explicitly.
+6. **Upscaled art with a toggle back to the original.** An option in `optionsStruct` switches between the upscaled sprites and the original ones at any time, including during a game.
+   - Upscaled art is derived from Microsoft's sprites, so it gets the same treatment as the game data: never committed, never uploaded as a CI artifact, never hosted. It is produced on the player's machine from their own DAT file. The default is an algorithmic pixel-art upscaler with a permissive licence, such as MMPX, xBR or ScaleFX (MIT); GPL code like xBRZ can't be used under this project's MIT licence. The result may be cached next to the options file. A folder of player-supplied upscaled sprites, for example from a local AI upscaler, can override it.
+   - Sprites are composed with depth maps, so each upscaled sprite needs a depth map at the same scale. Scale the depth maps with nearest-neighbour, which keeps the depth steps exact. The frame becomes larger than 600×416 (2× or 4×), which ties in with item 1.
+   - Rendering only. Collision, physics and table rules keep the original coordinates, and replays must match with the toggle in either position.
+   - Sprites are 8-bit palette indices. Upscaling the indices keeps the palette pipeline unchanged; upscaling colours gives smoother edges but needs a true-colour frame. Check first how lights and flashing are drawn (sprite swaps or palette changes), then pick the approach that keeps them correct.
 
 ## Phase 3 (parked): rewrite in a new stack
 
@@ -99,6 +105,10 @@ REA is not a dependency of the game. Use it to settle questions about the origin
 ## Open decisions
 
 - Decided: `FetchContent` for dependencies, not vcpkg (universal macOS builds, no extra tool, SDL3 and Emscripten are a tag change).
-- Whether to keep the Windows XP (`v141_xp`) and 32-bit builds.
-- Whether Phase 2 includes upscaled art.
-- Whether a native Android or iOS target matters, which would affect the Phase 2 input work.
+- Decided 2026-10-19: the Windows XP (`v141_xp`) and 32-bit builds are dropped. Windows builds are 64-bit only.
+- Decided 2026-10-19: Phase 2 includes upscaled art, generated on the player's machine, with a toggle back to the original (Phase 2 item 6).
+- Deferred 2026-10-19: native Android and iOS targets. Phase 2 input work covers gamepads and touch for the web build, not mobile packaging.
+
+## Working order
+
+From 2026-10-19 the remaining work runs as a stack of pull requests, one per step, each based on the one before: Phase 1 steps 5 and 6, then Phase 2, then Phase 4. Each pull request keeps CI green and the replays matching. A step that would change gameplay stops and asks first.
