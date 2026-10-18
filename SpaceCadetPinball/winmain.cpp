@@ -12,6 +12,8 @@
 #include "translations.h"
 #include "font_selection.h"
 
+#include <new>
+
 constexpr const char* winmain::Version;
 
 SDL_Window* winmain::MainWindow = nullptr;
