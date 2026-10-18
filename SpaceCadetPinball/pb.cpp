@@ -534,6 +534,11 @@ void pb::InputUp(GameInput input)
 		return;
 
 	const auto bindings = options::MapGameInput(input);
+	GameInputUp(bindings);
+}
+
+void pb::GameInputUp(const std::vector<GameBindings>& bindings)
+{
 	for (const auto binding : bindings)
 	{
 		switch (binding)
@@ -578,6 +583,11 @@ void pb::InputDown(GameInput input)
 	if (game_mode != GameModes::InGame || winmain::single_step || demo_mode)
 		return;
 
+	GameInputDown(input, bindings);
+}
+
+void pb::GameInputDown(GameInput input, const std::vector<GameBindings>& bindings)
+{
 	if (CreditsActive)
 		MissTextBox->Clear(true);
 	CreditsActive = false;
