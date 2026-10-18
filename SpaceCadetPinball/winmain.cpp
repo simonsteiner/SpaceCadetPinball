@@ -222,8 +222,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		if (!mixOpened)
 			Options.Sounds = false;
 
-		if (!midi::music_init(mixOpened, Options.MusicVolume))
-			Options.Music = false;
+		// Keep Options.Music as saved: playback is a no-op without a loaded track,
+		// and clearing it here would persist Music=0 after a -noaudio or -quick run.
+		midi::music_init(mixOpened, Options.MusicVolume);
 
 		if (pb::init())
 		{
