@@ -39,9 +39,11 @@ Each preset builds in `build/<preset>/`. The executable is written to `bin/` in 
 | `mingw` | Linux, cross-compiling to Windows x64 | built from source |
 | `macos` | macOS, universal `arm64` and `x86_64` | built from source |
 
-The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL2 2.32.10 and SDL2_mixer 2.8.1 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity and the platform's native MIDI. Its other codecs and FluidSynth are left out. When it is `OFF` (the default on Linux), CMake uses the installed `SDL2` and `SDL2_mixer` development packages. The `windows-*` and `macos` presets have only been checked by reading so far; CI (plan Phase 1 step 2) will build them.
+The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL2 2.32.10 and SDL2_mixer 2.8.1 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity and the platform's native MIDI. Its other codecs and FluidSynth are left out. When it is `OFF` (the default on Linux), CMake uses the installed `SDL2` and `SDL2_mixer` development packages. CI builds every preset except `linux-debug` and `windows-x86-xp` on each pull request. The GitHub runners have no `v141_xp` toolset, so the XP preset has never been built.
 
 Plain `cmake -S . -B build` without a preset still works and follows the same defaults.
+
+Add `-DSCP_WARNINGS=ON` to the configure command to build the game with extra warnings: `-Wall -Wextra`, or `/W4` with MSVC. It applies only to the game, not to SDL, and is off by default. CI turns it on, but warnings don't fail the build yet.
 
 ### Linux
 
@@ -92,7 +94,7 @@ Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake 3.2
 
 - **Packaged app:** run `bash build-mac-app.sh` from the repository root. It builds the `macos` preset and produces `SpaceCadetPinball-<version>-mac.dmg`. See [deployment.md](deployment.md).
 - **Manual build:** `cmake --preset macos && cmake --build --preset macos` builds a universal binary with SDL linked statically. To use SDL from Homebrew (`sdl2`, `sdl2_mixer`) or MacPorts (`libsdl2`, `libsdl2_mixer`) instead, configure without the preset and pass `-DSCP_VENDORED_SDL=OFF`. That build targets only the host architecture unless `CMAKE_OSX_ARCHITECTURES` is set.
-- **Tested upstream with:** the earlier framework-based script on macOS Ventura (Apple Silicon) with Command Line Tools 14 and on a GitHub Intel runner with Xcode 13; manual builds on macOS Big Sur (Intel) and Monterey beta (Apple Silicon) with Xcode 13. The `macos` preset itself is untested.
+- **Tested upstream with:** the earlier framework-based script on macOS Ventura (Apple Silicon) with Command Line Tools 14 and on a GitHub Intel runner with Xcode 13; manual builds on macOS Big Sur (Intel) and Monterey beta (Apple Silicon) with Xcode 13. CI builds the `macos` preset on a `macos-26` runner, but nobody has run the resulting app yet.
 - **Prebuilt:** `brew tap draftbrew/tap && brew install --no-quarantine space-cadet-pinball`. `--no-quarantine` bypasses Gatekeeper for this install.
 
 ## Command-line options

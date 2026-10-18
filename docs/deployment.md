@@ -22,4 +22,4 @@ Run `BuildForWindows.ps1` from the repository root on Windows with Visual Studio
 
 Run `bash build-mac-app.sh` on a Mac. It builds the `macos` preset, which downloads checksum-pinned SDL sources and links them statically into a universal (`arm64` and `x86_64`) binary, and writes `SpaceCadetPinball-<version>-mac.dmg`.
 
-The `Make Release Builds` GitHub workflow (`.github/workflows/ReleaseBuilds.yml`) runs the same script when triggered manually and uploads the DMG as the `mac-build` artifact. It checks out `master` and runs on the retired `macos-12` runner with Xcode 13, and it hasn't been run since the switch to presets; plan Phase 1 step 2 replaces it.
+The `Make Release Builds` GitHub workflow (`.github/workflows/ReleaseBuilds.yml`) runs the same script on a `macos-26` runner when triggered manually. It builds the branch it was triggered on and uploads the DMG as the `mac-build` artifact. It hasn't been run since the switch to presets, but the `Build` workflow builds the same `macos` preset on every pull request.

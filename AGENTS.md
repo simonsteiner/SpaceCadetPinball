@@ -12,7 +12,7 @@ cmake --preset linux-vendored && cmake --build --preset linux-vendored  # build 
 ./bin/SpaceCadetPinball -noaudio  # run; needs game data, see docs/setup.md
 ```
 
-There are no automated tests or linters yet. A change is checked by building it and playing it with real game data.
+There are no automated tests or linters yet. A change is checked by building it and playing it with real game data. The `Build` workflow (`.github/workflows/Build.yml`) builds every preset except `linux-debug` and `windows-x86-xp` on each pull request, with `SCP_WARNINGS=ON`.
 
 ## Conventions
 
