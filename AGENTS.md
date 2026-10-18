@@ -35,7 +35,7 @@ There are no automated tests or linters yet. A change is checked by building it 
 
 ## Hard constraints
 
-- **Never commit game data.** `*.DAT`, `*.WAV` and `*.MID` files from the original game are Microsoft's and `.gitignore` does not yet exclude them; check `git status` before committing.
+- **Never commit game data.** The original game's files (`*.DAT`, `*.WAV`, `*.MID`, `Pinball.exe`, `table.bmp`, `wavemix.inf`) are Microsoft's. `.gitignore` excludes them in any letter case; keep game data outside the repository and never force-add it.
 - **Never commit to or push `master`.** Merge `upstream/master` into it only when asked.
 - **Ask the user before changing gameplay behaviour,** including fixes to physics or table rules. The decompiled physics and table rules reproduce the original; a quirk that looks like a bug may be faithful to it.
 
@@ -43,6 +43,7 @@ There are no automated tests or linters yet. A change is checked by building it 
 
 - **Vendored code is ImGui.** `imgui*.cpp`, `imgui*.h`, `imstb_*.h` and `imconfig.h` in `SpaceCadetPinball/` are third-party; upgrade them as a set rather than editing them. `imgui_sdl.cpp` is also third-party: an older ImGui SDL renderer that is still compiled in.
 - **The game can't run without game data,** so it can't be play-tested in CI. Use `-noaudio` on machines without a sound device.
+- **The main loop prints any pending SDL error as `SDL Error: ...`.** Errors that SDL or SDL_mixer set internally and recovered from show up too, such as `Couldn't open timidity.cfg`; such a line doesn't mean anything failed.
 - **macOS builds are universal.** `CMakeLists.txt` hard-codes `CMAKE_OSX_ARCHITECTURES` to `arm64;x86_64`, which overrides `-D`.
 
 ## Docs

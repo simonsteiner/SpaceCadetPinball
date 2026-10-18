@@ -35,7 +35,7 @@ cmake --build build
 ./bin/SpaceCadetPinball
 ```
 
-Tested upstream with GCC 10 and Clang 11. `cmake --install build` installs the binary, the `.desktop` file, the AppStream metadata and the icons from `Platform/Linux/`.
+Tested upstream with GCC 10 and Clang 11. It also builds with GCC 15 and CMake 4.2. CMake warns that compatibility with versions before 3.10 is deprecated, and GCC warns about right-to-left marks in `translations.cpp`; both are harmless. `cmake --install build` installs the binary, the `.desktop` file, the AppStream metadata and the icons from `Platform/Linux/`.
 
 Some distributions package the game, and it is on [Flathub](https://flathub.org/apps/details/com.github.k4zmu2a.spacecadetpinball): see [Repology](https://repology.org/project/spacecadetpinball/versions).
 
@@ -86,4 +86,6 @@ Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake.
 
 - **No background music on Linux:** MIDI playback needs a SoundFont. Point `SDL_SOUNDFONT` at one before launching, for example `export SDL_SOUNDFONT=/usr/share/sounds/sf2/FluidR3_GM.sf2` (Debian and Ubuntu) or `/usr/share/soundfonts/FluidR3_GM.sf2` (Fedora).
 - **"Could not create renderer" or a black window:** try `-sw`.
+- **WSL2:** WSLg provides both a display and a PulseAudio device, so the game runs without extra setup and without `-noaudio`.
+- **`SDL Error: Couldn't open timidity.cfg` in the console:** the main loop prints any pending SDL error, including errors that SDL_mixer recovered from internally. This line alone is not proof that music is broken.
 - **"Could not load game data":** no data file was found. The message lists the folders searched; see [Game data](#game-data). When a file is found, the console prints `Loading game from: <path>`.
