@@ -8,6 +8,7 @@
 #include "options.h"
 #include "pb.h"
 #include "render.h"
+#include "replay.h"
 #include "Sound.h"
 #include "translations.h"
 #include "font_selection.h"
@@ -54,6 +55,19 @@ winmain::DurationMs winmain::SpinThreshold = DurationMs(0.005);
 WelfordState winmain::SleepState{};
 int winmain::CursorIdleCounter = 0;
 
+// Returns the word after flag in the command line, or the text between quotes if it starts with one
+static std::string GetArgValue(LPCSTR cmdLine, LPCSTR flag)
+{
+	auto pos = strstr(cmdLine, flag);
+	if (!pos)
+		return {};
+	pos += strlen(flag);
+	while (*pos == ' ')
+		pos++;
+	auto end = *pos == '"' ? strchr(++pos, '"') : strchr(pos, ' ');
+	return end ? std::string(pos, end) : std::string(pos);
+}
+
 int winmain::WinMain(LPCSTR lpCmdLine)
 {
 	std::set_new_handler(memalloc_failure);
@@ -63,6 +77,16 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	printf("Compiled with: SDL %d.%d.%d;", SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL);
 	printf(" SDL_mixer %d.%d.%d;", SDL_MIXER_MAJOR_VERSION, SDL_MIXER_MINOR_VERSION, SDL_MIXER_PATCHLEVEL);
 	printf(" ImGui %s %s\n", IMGUI_VERSION, ImGuiRender);
+
+	auto recordPath = GetArgValue(lpCmdLine, "-record");
+	auto replayPath = GetArgValue(lpCmdLine, "-replay");
+	if (!replayPath.empty())
+	{
+		if (!replay::StartPlayback(replayPath))
+			return 1;
+		// Playback is headless; the SDL_VIDEODRIVER environment variable still takes precedence
+		SDL_SetHint(SDL_HINT_VIDEODRIVER, "dummy");
+	}
 
 	// SDL init
 	SDL_SetMainReady();
@@ -92,7 +116,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 	// If HW fails, fallback to SW SDL renderer.
 	SDL_Renderer* renderer = nullptr;
-	auto swOffset = strstr(lpCmdLine, "-sw") != nullptr ? 1 : 0;
+	auto swOffset = strstr(lpCmdLine, "-sw") != nullptr || replay::IsPlaying() ? 1 : 0;
 	for (int i = swOffset; i < 2 && !renderer; i++)
 	{
 		Renderer = renderer = SDL_CreateRenderer
@@ -117,7 +141,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	auto basePath = SDL_GetBasePath();
 
 	// SDL mixer init
-	bool mixOpened = false, noAudio = strstr(lpCmdLine, "-noaudio") != nullptr;
+	bool mixOpened = false, noAudio = strstr(lpCmdLine, "-noaudio") != nullptr || replay::IsPlaying();
 	if (!noAudio)
 	{
 		if ((Mix_Init(MIX_INIT_MID_Proxy) & MIX_INIT_MID_Proxy) == 0)
@@ -166,6 +190,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		// First option initialization step: just load settings from .ini. Needs ImGui context.
 		options::InitPrimary();
+		// Playback may override options that affect play, so it must not save them
+		if (replay::IsPlaying())
+			io.IniFilename = nullptr;
 		if (resetAllOptions)
 		{
 			resetAllOptions = false;
@@ -220,6 +247,22 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		// Second step: run updates that depend on .DAT file selection
 		options::InitSecondary();
 
+		if (replay::IsPlaying())
+		{
+			if (!replay::CheckDatFile())
+				return 1;
+			fullscrn::SetResolution(replay::Resolution());
+		}
+		else if (!recordPath.empty())
+		{
+			// Only the first run records; a restart from the options ends the recording
+			if (!replay::StartRecording(recordPath))
+				return 1;
+			recordPath.clear();
+		}
+		if (replay::IsRecording() || replay::IsPlaying())
+			srand(replay::Seed());
+
 		Sound::Init(mixOpened, Options.SoundChannels, Options.Sounds, Options.SoundVolume);
 		if (!mixOpened)
 			Options.Sounds = false;
@@ -258,17 +301,32 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			auto resInfo = &fullscrn::resolution_array[fullscrn::GetResolution()];
 			SDL_SetWindowSize(MainWindow, resInfo->TableWidth, resInfo->TableHeight);
 		}
-		SDL_ShowWindow(window);
-		fullscrn::set_screen_mode(Options.FullScreen);
-
-		if (strstr(lpCmdLine, "-demo"))
-			pb::toggle_demo();
+		if (replay::IsPlaying())
+		{
+			// The recording holds the command that started the game
+			while (replay::PlayStep())
+			{
+			}
+			if (replay::PlaybackFailed())
+				return_value = 1;
+		}
 		else
-			pb::replay_level(false);
+		{
+			SDL_ShowWindow(window);
+			fullscrn::set_screen_mode(Options.FullScreen);
 
-		MainLoop();
+			if (strstr(lpCmdLine, "-demo"))
+				pb::toggle_demo();
+			else
+				pb::replay_level(false);
 
-		options::uninit();
+			MainLoop();
+		}
+		auto played = replay::IsPlaying();
+		replay::Stop();
+
+		if (!played)
+			options::uninit();
 		midi::music_shutdown();
 		Sound::Close();
 		pb::uninit();
