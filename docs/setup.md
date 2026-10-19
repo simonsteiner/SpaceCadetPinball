@@ -103,7 +103,7 @@ Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake 3.2
 
 | Hook | Checks |
 | --- | --- |
-| `pre-commit` | no staged game data, even with `git add -f`; no trailing whitespace or conflict markers in the staged changes; every staged `.cpp` and `.h` in `SpaceCadetPinball/` is listed in `CMakeLists.txt`, and every game `.cpp` starts with `#include "pch.h"` |
+| `pre-commit` | no staged game data, even with `git add -f`; no trailing whitespace or conflict markers in the staged changes, outside vendored ImGui and `docs/reference/` and not while concluding a merge; every staged `.cpp` and `.h` in `SpaceCadetPinball/` is listed in `CMakeLists.txt`, and every game `.cpp` starts with `#include "pch.h"` |
 | `pre-push` | on Linux, when the push changes code or build files: builds the `linux` preset with `SCP_WARNINGS=ON` in `build/pre-push/`, then plays back the replays in `../replays` against `../gamedata` if both exist (`SCP_REPLAYS_DIR` and `SCP_GAMEDATA_DIR` override the paths) |
 
 The first `pre-push` build compiles the whole game; later ones are incremental. It writes `bin/SpaceCadetPinball` like every preset. The scripts are in `tools/hooks/`. Skip the hooks once with `LEFTHOOK=0` or `--no-verify`. Personal changes go in `lefthook-local.yml`, which Git ignores.
