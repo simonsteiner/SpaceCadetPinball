@@ -458,9 +458,8 @@ void winmain::MainLoop()
 					dt = static_cast<float>(UpdateTime.count());
 					UpdateTimeAccumulator += frameDuration;
 					updates = static_cast<int>(UpdateTimeAccumulator / UpdateTime);
+					// At most 2: the accumulator was below UpdateTime and frameDuration is capped at 2 * UpdateTime
 					UpdateTimeAccumulator -= UpdateTime * updates;
-					// The same 2 update cap as the frame duration has
-					updates = std::min(updates, 2);
 					ballAlpha = static_cast<float>(UpdateTimeAccumulator / UpdateTime);
 				}
 				for (auto update = 0; update < updates; update++)
