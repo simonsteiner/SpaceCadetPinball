@@ -136,7 +136,7 @@ The LLVM version is set once, in `tools/llvm-requirements.txt`: CI installs it f
 
 ## Display
 
-The game opens its window at the largest whole multiple of the table that matches the display's scale setting and fits on the display: 600×416 plus the menu at 100 %, twice that at 200 %, and so on. On a Retina or other high-density display it draws at the full pixel resolution. The menus and dialogs follow the display's scale, and Options → Graphics → UI Scale works on top of that.
+The game opens its window at the largest whole multiple of the table that matches the display's scale setting and fits on the display: one table's size (600×416 for 3D Pinball, or the chosen Full Tilt resolution) plus the menu at 100 %, twice that at 200 %, and so on. On a Retina or other high-density display it draws at the full pixel resolution. The menus and dialogs follow the display's scale, and Options → Graphics → UI Scale works on top of that.
 
 Options → Graphics:
 
