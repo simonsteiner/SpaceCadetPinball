@@ -121,6 +121,8 @@ public:
 	static void Save();
 	static const std::string& GetSetting(const std::string& key, const std::string& defaultValue);
 	static void SetSetting(const std::string& key, const std::string& value);
+	// Unlike GetSetting, doesn't add the key when it is missing
+	static bool HasSetting(const std::string& key);
 	static int get_int(LPCSTR lpValueName, int defaultValue);
 	static void set_int(LPCSTR lpValueName, int data);
 	static float get_float(LPCSTR lpValueName, float defaultValue);
