@@ -531,7 +531,7 @@ void render::DrawBackdrop()
 
 void render::CreateBackdrop()
 {
-	// A blurred, darkened copy of the table as it is first drawn, made from the player's own data.
+	// A blurred, darkened copy of the table as drawn the first time the backdrop is shown, from the player's own data.
 	// Averaging blocks of pixels and scaling the result up with linear filtering blurs it.
 	constexpr int Block = 16;
 	constexpr unsigned Brightness = 90; // Out of 255
