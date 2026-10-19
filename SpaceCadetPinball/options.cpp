@@ -656,15 +656,13 @@ void options::RemoveSetting(const std::string& key)
 		ImGui::MarkIniSettingsDirty();
 }
 
-const std::array<const char*, 3> options::TableKeyPrefixes{"", "FullTilt.", "FullTiltDemo."};
-
 const char* options::TableKeyPrefix()
 {
 	if (pb::FullTiltDemoMode)
-		return TableKeyPrefixes[2];
+		return FullTiltDemoKeyPrefix;
 	if (pb::FullTiltMode)
-		return TableKeyPrefixes[1];
-	return TableKeyPrefixes[0];
+		return FullTiltKeyPrefix;
+	return SpaceCadetKeyPrefix;
 }
 
 void options::SetSetting(const std::string& key, const std::string& value)

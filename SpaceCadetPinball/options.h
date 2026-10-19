@@ -126,7 +126,10 @@ public:
 	static void RemoveSetting(const std::string& key);
 	// Settings kept for each table start with this: none for 3D Pinball, which keeps the original keys
 	static const char* TableKeyPrefix();
-	static const std::array<const char*, 3> TableKeyPrefixes;
+	static constexpr const char* SpaceCadetKeyPrefix = "";
+	static constexpr const char* FullTiltKeyPrefix = "FullTilt.";
+	static constexpr const char* FullTiltDemoKeyPrefix = "FullTiltDemo.";
+	static constexpr std::array TableKeyPrefixes{SpaceCadetKeyPrefix, FullTiltKeyPrefix, FullTiltDemoKeyPrefix};
 	static int get_int(LPCSTR lpValueName, int defaultValue);
 	static void set_int(LPCSTR lpValueName, int data);
 	static float get_float(LPCSTR lpValueName, float defaultValue);
