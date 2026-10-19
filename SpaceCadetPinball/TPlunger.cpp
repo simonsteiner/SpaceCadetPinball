@@ -46,7 +46,7 @@ TPlunger::TPlunger(TPinballTable* table, int groupIndex) : TCollisionComponent(t
 
 void TPlunger::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
-	if (PinballTable->TiltLockFlag || SomeCounter > 0) 
+	if (SomeCounter > 0 || (pb::FullTiltMode && PinballTable->TiltLockFlag))
 	{
 		auto boost = RandFloat() * MaxPullback * 0.1f + MaxPullback;
 		maths::basic_collision(ball, nextPosition, direction, Elasticity, Smoothness, 0, boost);
@@ -56,6 +56,9 @@ void TPlunger::Collision(TBall* ball, vector2* nextPosition, vector2* direction,
 	}
 	else 
 	{
+		// 3D Pinball sends Launch Ball when a ball hits the plunger on a tilted table, then pushes with that
+		if (PinballTable->TiltLockFlag)
+			Message(MessageCode::PlungerLaunchBall, 0.0f);
 		auto boost = RandFloat() * Boost * 0.1f + Boost;
 		maths::basic_collision(ball, nextPosition, direction, Elasticity, Smoothness, Threshold, boost);
 	}
