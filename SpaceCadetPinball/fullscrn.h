@@ -19,6 +19,7 @@ public:
 	static float ScaleY;
 	static int OffsetX;
 	static int OffsetY;
+	static bool Stacked;
 
 	static void init();
 	static void shutdown();
@@ -36,6 +37,7 @@ public:
 private :
 	static int resolution;
 
+	static void FitScale(int width, int height, int contentWidth, int contentHeight, float& scaleX, float& scaleY);
 	static int enableFullscreen();
 	static int disableFullscreen();
 };

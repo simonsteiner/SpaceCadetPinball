@@ -154,6 +154,8 @@ optionsStruct options::Options
 	{"FontFileName", ""},
 	{"Language", translations::GetCurrentLanguage()->ShortName},
 	{"Hide Cursor", false},
+	{"Backdrop", true},
+	{"Stacked Layout", true},
 };
 // clang-format on
 
@@ -313,6 +315,13 @@ void options::toggle(Menu1 uIDCheckItem)
 		break;
 	case Menu1::WindowIntegerScale:
 		Options.IntegerScaling ^= true;
+		fullscrn::window_size_changed();
+		break;
+	case Menu1::WindowBackdrop:
+		Options.Backdrop ^= true;
+		break;
+	case Menu1::WindowStackedLayout:
+		Options.StackedLayout ^= true;
 		fullscrn::window_size_changed();
 		break;
 	default:

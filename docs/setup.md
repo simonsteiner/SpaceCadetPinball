@@ -141,6 +141,8 @@ Options → Graphics:
 - **Integer Scaling** (on by default): the table is drawn at a whole multiple of its size, so every pixel of the original art becomes an even block. Off, it fills the window ("fit"), and each table pixel is still drawn the same size (SDL's pixel-art scaling, with SDL 3.4 or newer).
 - **Uniform Scaling** (on by default): keeps the table's proportions. Off, it stretches to the window.
 - **Linear Filtering** (off by default): smooths the table instead of keeping its pixels sharp.
+- **Backdrop** (on by default): fills the space around the table with a blurred, darkened copy of the table, made when the game starts from the player's own data, instead of black bars.
+- **Panel Under Table in Tall Windows** (on by default): in a tall window, such as a portrait screen, the score panel moves under the table when that lets the table be drawn larger. It needs Uniform Scaling.
 
 Full screen (F4 or `-fullscreen`) uses the desktop's resolution, without a mode change. Settings saved by an earlier version keep their values, so a player who had Integer Scaling off or Linear Filtering on keeps that.
 

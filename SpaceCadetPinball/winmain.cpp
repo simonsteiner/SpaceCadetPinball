@@ -683,6 +683,14 @@ void winmain::RenderUi()
 				{
 					options::toggle(Menu1::WindowIntegerScale);
 				}
+				if (ImGui::MenuItem("Backdrop", nullptr, Options.Backdrop))
+				{
+					options::toggle(Menu1::WindowBackdrop);
+				}
+				if (ImGui::MenuItem("Panel Under Table in Tall Windows", nullptr, Options.StackedLayout))
+				{
+					options::toggle(Menu1::WindowStackedLayout);
+				}
 				if (ImGui::DragFloat("UI Scale", &Options.UIScale.V, 0.005f, 0.8f, 5,
 				                     "%.2f", ImGuiSliderFlags_AlwaysClamp))
 				{

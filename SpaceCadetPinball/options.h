@@ -30,6 +30,8 @@ enum class Menu1:int
 	WindowUniformScale = 600,
 	WindowLinearFilter = 601,
 	WindowIntegerScale = 602,
+	WindowBackdrop = 603,
+	WindowStackedLayout = 604,
 	Prefer3DPBGameData = 700,
 };
 
@@ -290,4 +292,6 @@ struct optionsStruct
 	StringOption FontFileName;
 	StringOption Language;
 	BoolOption HideCursor;
+	BoolOption Backdrop;
+	BoolOption StackedLayout;
 };

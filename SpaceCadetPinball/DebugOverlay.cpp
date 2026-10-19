@@ -152,9 +152,7 @@ void DebugOverlay::DrawOverlay()
 	SDL_BlendMode blendMode;
 	SDL_GetRenderDrawBlendMode(winmain::Renderer, &blendMode);
 	SDL_SetRenderDrawBlendMode(winmain::Renderer, SDL_BLENDMODE_BLEND);
-	SDL_FRect dstRect;
-	SDL_RectToFRect(&render::DestinationRect, &dstRect);
-	SDL_RenderTexture(winmain::Renderer, dbScreen->Texture, nullptr, &dstRect);
+	render::DrawSplit(dbScreen->Texture, 0, 0);
 	SDL_SetRenderDrawBlendMode(winmain::Renderer, blendMode);
 }
 

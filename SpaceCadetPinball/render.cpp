@@ -17,7 +17,8 @@ int render::zmap_offsetX, render::zmap_offsetY, render::offset_x, render::offset
 rectangle_type render::vscreen_rect;
 gdrv_bitmap8 *render::vscreen, *render::background_bitmap, *render::ball_bitmap[20];
 zmap_header_type* render::zscreen;
-SDL_Rect render::DestinationRect{};
+SDL_Rect render::DestinationRect{}, render::BoardRect{}, render::SidebarRect{};
+SDL_Texture* render::BackdropTexture = nullptr;
 
 #if SDL_VERSION_ATLEAST(3, 4, 0)
 // The same as nearest at whole multiples; at other scales it keeps every table pixel the same size
@@ -142,6 +143,9 @@ void render::uninit()
 	for (auto& ballBmp : ball_bitmap)
 		delete ballBmp;
 	DebugOverlay::UnInit();
+	if (BackdropTexture)
+		SDL_DestroyTexture(BackdropTexture);
+	BackdropTexture = nullptr;
 }
 
 void render::recreate_screen_texture()
@@ -467,46 +471,96 @@ void render::PresentVScreen()
 {
 	vscreen->BlitToTexture();
 
-	SDL_FRect dstRect;
-	SDL_RectToFRect(&DestinationRect, &dstRect);
-	if (offset_x == 0 && offset_y == 0)
-	{
-		SDL_RenderTexture(winmain::Renderer, vscreen->Texture, nullptr, &dstRect);
-	}
-	else
-	{
-		auto tableWidthCoef = static_cast<float>(pb::MainTable->Width) / vscreen->Width;
-		auto srcSeparationX = static_cast<float>(round(vscreen->Width * tableWidthCoef));
-		auto srcBoardRect = SDL_FRect
-		{
-			0, 0,
-			srcSeparationX, static_cast<float>(vscreen->Height)
-		};
-		auto srcSidebarRect = SDL_FRect
-		{
-			srcSeparationX, 0,
-			vscreen->Width - srcSeparationX, static_cast<float>(vscreen->Height)
-		};
-
-		auto dstSeparationX = dstRect.w * tableWidthCoef;
-		auto dstBoardRect = SDL_FRect
-		{
-			dstRect.x + offset_x * fullscrn::ScaleX,
-			dstRect.y + offset_y * fullscrn::ScaleY,
-			dstSeparationX, dstRect.h
-		};
-		auto dstSidebarRect = SDL_FRect
-		{
-			dstRect.x + dstSeparationX, dstRect.y,
-			dstRect.w - dstSeparationX, dstRect.h
-		};
-
-		SDL_RenderTexture(winmain::Renderer, vscreen->Texture, &srcBoardRect, &dstBoardRect);
-		SDL_RenderTexture(winmain::Renderer, vscreen->Texture, &srcSidebarRect, &dstSidebarRect);
-	}
+	DrawBackdrop();
+	DrawSplit(vscreen->Texture, static_cast<float>(offset_x), static_cast<float>(offset_y));
 
 	if (options::Options.DebugOverlay)
 	{
 		DebugOverlay::DrawOverlay();
 	}
+}
+
+int render::BoardWidth()
+{
+	// The table is the left part of the frame, the score panel the rest
+	return pb::MainTable ? pb::MainTable->Width : vscreen ? vscreen->Width : 0;
+}
+
+void render::DrawSplit(SDL_Texture* texture, float offsetX, float offsetY)
+{
+	// Table and panel are drawn separately: the nudge shifts only the table, and the stacked layout moves the panel
+	auto boardWidth = static_cast<float>(BoardWidth());
+	auto height = static_cast<float>(vscreen->Height);
+	auto srcBoardRect = SDL_FRect{0, 0, boardWidth, height};
+	auto srcSidebarRect = SDL_FRect{boardWidth, 0, vscreen->Width - boardWidth, height};
+
+	SDL_FRect dstBoardRect, dstSidebarRect;
+	SDL_RectToFRect(&BoardRect, &dstBoardRect);
+	SDL_RectToFRect(&SidebarRect, &dstSidebarRect);
+	dstBoardRect.x += offsetX * fullscrn::ScaleX;
+	dstBoardRect.y += offsetY * fullscrn::ScaleY;
+
+	SDL_RenderTexture(winmain::Renderer, texture, &srcBoardRect, &dstBoardRect);
+	if (srcSidebarRect.w > 0)
+		SDL_RenderTexture(winmain::Renderer, texture, &srcSidebarRect, &dstSidebarRect);
+}
+
+void render::DrawBackdrop()
+{
+	if (!options::Options.Backdrop)
+		return;
+	if (!BackdropTexture)
+		CreateBackdrop();
+	if (!BackdropTexture)
+		return;
+
+	// Cover the whole window, keeping the art's proportions
+	int width, height;
+	float textureWidth, textureHeight;
+	SDL_GetRenderOutputSize(winmain::Renderer, &width, &height);
+	SDL_GetTextureSize(BackdropTexture, &textureWidth, &textureHeight);
+	auto scale = std::max(width / textureWidth, height / textureHeight);
+	auto dstRect = SDL_FRect{(width - textureWidth * scale) / 2, (height - textureHeight * scale) / 2,
+							 textureWidth * scale, textureHeight * scale};
+	SDL_RenderTexture(winmain::Renderer, BackdropTexture, nullptr, &dstRect);
+}
+
+void render::CreateBackdrop()
+{
+	// A blurred, darkened copy of the table as it is first drawn, made from the player's own data.
+	// Averaging blocks of pixels and scaling the result up with linear filtering blurs it.
+	constexpr int Block = 16;
+	constexpr unsigned Brightness = 90; // Out of 255
+	auto boardWidth = BoardWidth();
+	auto width = std::max(1, boardWidth / Block), height = std::max(1, vscreen->Height / Block);
+	std::vector<ColorRgba> pixels(width * height);
+	for (int y = 0; y < height; y++)
+	{
+		for (int x = 0; x < width; x++)
+		{
+			unsigned red = 0, green = 0, blue = 0;
+			for (int j = 0; j < Block; j++)
+			{
+				auto src = &vscreen->BmpBufPtr1[(y * Block + j) * vscreen->Stride + x * Block];
+				for (int i = 0; i < Block; i++, src++)
+				{
+					red += src->GetRed();
+					green += src->GetGreen();
+					blue += src->GetBlue();
+				}
+			}
+			constexpr unsigned divisor = Block * Block * 255;
+			pixels[y * width + x] = ColorRgba{static_cast<uint8_t>(red * Brightness / divisor),
+											  static_cast<uint8_t>(green * Brightness / divisor),
+											  static_cast<uint8_t>(blue * Brightness / divisor), 255};
+		}
+	}
+
+	BackdropTexture =
+		SDL_CreateTexture(winmain::Renderer, SDL_PIXELFORMAT_BGRA32, SDL_TEXTUREACCESS_STATIC, width, height);
+	if (!BackdropTexture)
+		return;
+	SDL_SetTextureScaleMode(BackdropTexture, SDL_SCALEMODE_LINEAR);
+	SDL_SetTextureBlendMode(BackdropTexture, SDL_BLENDMODE_NONE);
+	SDL_UpdateTexture(BackdropTexture, nullptr, pixels.data(), width * static_cast<int>(sizeof(ColorRgba)));
 }
