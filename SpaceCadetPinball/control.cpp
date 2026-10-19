@@ -2760,7 +2760,9 @@ void control::BallDrainControl(MessageCode code, TPinballComponent* caller)
 			{
 				lite200->Message(MessageCode::TLightResetAndTurnOff, 0.0);
 				lite199->Message(MessageCode::TLightResetAndTurnOff, 0.0);
-				midi::play_track(MidiTracks::Track1, false);
+				// Full Tilt keeps the mission or multi-ball track when a tilted ball drains (CADET.EXE 0x425842)
+				if (!pb::FullTiltMode)
+					midi::play_track(MidiTracks::Track1, false);
 			}
 			if (lite200->light_on())
 			{
