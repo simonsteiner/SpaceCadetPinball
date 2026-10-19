@@ -65,6 +65,7 @@ bool winmain::HighRefresh = false;
 winmain::DurationMs winmain::UpdateTime;
 winmain::DurationMs winmain::UpdateTimeAccumulator;
 int winmain::CurrentFps = 0;
+bool winmain::RefreshRateUnknown = false;
 std::map<SDL_JoystickID, std::array<bool, 2>> winmain::TriggerPressed{};
 std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> winmain::TouchBindings{};
 
@@ -781,8 +782,13 @@ void winmain::RenderUi()
 					Options.MatchRefreshRate ^= true;
 					changed = true;
 				}
-				if (HighRefresh)
+				// The frame rate in use: the display's, the slider's if the display's is unknown, or above UPS
+				if (Options.MatchRefreshRate && RefreshRateUnknown)
+					ImGui::TextDisabled("Refresh rate unknown, using %d FPS", CurrentFps);
+				else if (HighRefresh)
 					ImGui::TextDisabled("%d FPS, the ball drawn between updates", CurrentFps);
+				else if (Options.MatchRefreshRate)
+					ImGui::TextDisabled("%d FPS", CurrentFps);
 				snprintf(buffer, sizeof buffer - 1, "Uncapped UPS (FPS ratio %02.02f)", UpdateToFrameRatio);
 				if (ImGui::MenuItem(buffer, nullptr, Options.UncappedUpdatesPerSecond))
 				{
@@ -1581,6 +1587,7 @@ void winmain::Restart()
 void winmain::UpdateFrameRate()
 {
 	auto fps = Options.FramesPerSecond.V, ups = Options.UpdatesPerSecond.V;
+	RefreshRateUnknown = false;
 	if (Options.MatchRefreshRate)
 	{
 		// The display's refresh rate, if SDL knows it, within the FPS limits
@@ -1588,7 +1595,10 @@ void winmain::UpdateFrameRate()
 		if (mode && mode->refresh_rate > 0)
 			fps = Clamp(static_cast<int>(std::lround(mode->refresh_rate)), options::MinFps, options::MaxFps);
 		else
+		{
+			RefreshRateUnknown = true;
 			SDL_ClearError();
+		}
 	}
 
 	// With FPS above UPS, the loop runs at the frame rate and the table updates every 1000/UPS ms of it

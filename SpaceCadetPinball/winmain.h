@@ -122,6 +122,7 @@ private:
 	static bool HighRefresh;
 	static DurationMs UpdateTime, UpdateTimeAccumulator;
 	static int CurrentFps;
+	static bool RefreshRateUnknown;
 	// Left and right trigger state of each gamepad
 	static std::map<SDL_JoystickID, std::array<bool, 2>> TriggerPressed;
 	static std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> TouchBindings;
