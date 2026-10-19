@@ -66,8 +66,9 @@ int TPlunger::Message(MessageCode code, float value)
 	switch (code)
 	{
 	case MessageCode::PlungerInputPressed:
-		if (!PullbackStartedFlag && (!pb::FullTiltMode || (PinballTable->MultiballCount > 0 && !PinballTable->
-			TiltLockFlag)))
+		// 3D Pinball refuses a new pull only while the pullback timer runs
+		if (pb::FullTiltMode ? !PullbackStartedFlag && PinballTable->MultiballCount > 0 && !PinballTable->TiltLockFlag
+							 : !PullbackTimer_)
 		{
 			PullbackStartedFlag = true;
 			Boost = 0.0;
