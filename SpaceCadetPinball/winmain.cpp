@@ -192,7 +192,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 	{
 		// Load SDL Game Controller definitions from DB
-		auto controllerDb = EmbeddedData::DecompressStb(EmbeddedData::SDL_GameControllerDB_compressed_data);
+		auto controllerDb = EmbeddedData::DecompressStb(EmbeddedData::SDL_GameControllerDB_compressed_data,
+		                                                 EmbeddedData::SDL_GameControllerDB_compressed_size);
 		auto rw = SDL_RWFromMem(controllerDb.data(), static_cast<int>(controllerDb.size()));
 		const auto added = SDL_GameControllerAddMappingsFromRW(rw, 1);
 		if (added < 0)
