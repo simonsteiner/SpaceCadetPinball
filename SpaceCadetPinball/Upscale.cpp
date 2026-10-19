@@ -176,11 +176,12 @@ gdrv_bitmap8* Upscale::LoadOverride(const gdrv_bitmap8& bmp)
 	if (names == SpriteNames.end())
 		return nullptr;
 
+	auto folder = OverrideFolder();
 	std::string path;
 	SDL_IOStream* io = nullptr;
 	for (auto& name : names->second)
 	{
-		path = OverrideFolder() + name;
+		path = folder + name;
 		io = SDL_IOFromFile(path.c_str(), "rb");
 		if (io)
 			break;
