@@ -10,7 +10,8 @@ if [ "$(uname -s)" != Linux ]; then
     exit 0
 fi
 
-# An empty list means lefthook couldn't tell what is pushed, so check anyway
+# lefthook skips this job when nothing is pushed, so no arguments only happens on a manual run
+# (or lefthook run --force); then check everything
 if [ $# -gt 0 ]; then
     relevant=0
     for file in "$@"; do
