@@ -1286,6 +1286,7 @@ int winmain::event_handler(const SDL_Event* event)
 		SDL_OpenGamepad(event->gdevice.which);
 		break;
 	case SDL_EVENT_GAMEPAD_REMOVED:
+		// SDL normally sends the button up and axis 0 events before the removal; this releases whatever is left
 		if (auto held = GamepadHeld.find(event->gdevice.which); held != GamepadHeld.end())
 		{
 			for (auto value : held->second)
