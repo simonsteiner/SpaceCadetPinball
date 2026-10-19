@@ -23,7 +23,7 @@ for file in "$@"; do
 
     name=$(basename "$file")
     case "$name" in
-        *.h | imgui* | imstb* | imconfig.h | EmbeddedData.cpp) continue ;;
+        *.h | imgui* | imstb* | EmbeddedData.cpp) continue ;;
     esac
     # Some files start with a UTF-8 byte order mark. Bash makes the bytes, since BSD sed doesn't read \x escapes.
     first_include=$(git show ":$file" | sed "1s/^$bom//" | grep -m 1 '^[[:space:]]*#[[:space:]]*include' | tr -d '\r')
