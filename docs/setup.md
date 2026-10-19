@@ -151,7 +151,7 @@ Full screen (F4 or `-fullscreen`) uses the desktop's resolution, without a mode 
 
 ## Frame rate
 
-Options → Graphics sets how often the table updates (UPS, 120 by default) and how often it is drawn (FPS, 60 by default). Updates are the physics: keep UPS at 120 to play as the original data was tuned. FPS can go higher than UPS for a high-refresh display: the table still updates 120 times a second, in equal steps, and the ball is drawn between its last two positions in the frames in between, which delays it by at most one update (8 ms). **Match Display Refresh Rate** (off by default) sets FPS to the display's refresh rate, also after the window moves to another display.
+Options → Graphics sets how often the table updates (UPS, 120 by default) and how often it is drawn (FPS, 60 by default). Updates are the physics: keep UPS at 120 to play as the original data was tuned. FPS can go higher than UPS for a high-refresh display: the table still updates 120 times a second, in equal steps, and the ball is drawn between its last two positions in the frames in between, which delays it by at most one update (8 ms). In this mode **Uncapped UPS** reads **Uncapped FPS**: it lifts the frame limit, and the table still updates at UPS. **Match Display Refresh Rate** (off by default) sets FPS to the display's refresh rate, also after the window moves to another display.
 
 ## Controls
 

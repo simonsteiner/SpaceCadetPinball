@@ -789,7 +789,11 @@ void winmain::RenderUi()
 					ImGui::TextDisabled("%d FPS, the ball drawn between updates", CurrentFps);
 				else if (Options.MatchRefreshRate)
 					ImGui::TextDisabled("%d FPS", CurrentFps);
-				snprintf(buffer, sizeof buffer - 1, "Uncapped UPS (FPS ratio %02.02f)", UpdateToFrameRatio);
+				// With FPS above UPS, the updates keep their pace and only the frames are uncapped
+				if (HighRefresh)
+					snprintf(buffer, sizeof buffer - 1, "Uncapped FPS");
+				else
+					snprintf(buffer, sizeof buffer - 1, "Uncapped UPS (FPS ratio %02.02f)", UpdateToFrameRatio);
 				if (ImGui::MenuItem(buffer, nullptr, Options.UncappedUpdatesPerSecond))
 				{
 					Options.UncappedUpdatesPerSecond ^= true;
