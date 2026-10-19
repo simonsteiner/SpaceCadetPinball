@@ -16,7 +16,7 @@ if [ $# -gt 0 ]; then
     relevant=0
     for file in "$@"; do
         case "$file" in
-            SpaceCadetPinball/* | CMakeLists.txt | CMakePresets.json | CMakeModules/* | tools/*) relevant=1 ;;
+            SpaceCadetPinball/* | third_party/* | Platform/* | CMakeLists.txt | CMakePresets.json | CMakeModules/* | tools/*) relevant=1 ;;
         esac
     done
     if [ "$relevant" -eq 0 ]; then
