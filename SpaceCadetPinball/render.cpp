@@ -10,6 +10,7 @@
 #include "winmain.h"
 #include "DebugOverlay.h"
 #include "proj.h"
+#include "PostEffect.h"
 
 std::vector<render_sprite*> render::sprite_list, render::ball_list;
 zmap_header_type* render::background_zmap;
@@ -472,7 +473,7 @@ void render::PresentVScreen()
 	vscreen->BlitToTexture();
 
 	DrawBackdrop();
-	DrawSplit(vscreen->Texture, static_cast<float>(offset_x), static_cast<float>(offset_y));
+	DrawSplit(vscreen->Texture, static_cast<float>(offset_x), static_cast<float>(offset_y), true);
 
 	if (options::Options.DebugOverlay)
 	{
@@ -486,7 +487,7 @@ int render::BoardWidth()
 	return pb::MainTable ? pb::MainTable->Width : vscreen ? vscreen->Width : 0;
 }
 
-void render::DrawSplit(SDL_Texture* texture, float offsetX, float offsetY)
+void render::DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, bool postEffect)
 {
 	// Table and panel are drawn separately: the nudge shifts only the table, and the stacked layout moves the panel
 	auto boardWidth = static_cast<float>(BoardWidth());
@@ -500,9 +501,13 @@ void render::DrawSplit(SDL_Texture* texture, float offsetX, float offsetY)
 	dstBoardRect.x += offsetX * fullscrn::ScaleX;
 	dstBoardRect.y += offsetY * fullscrn::ScaleY;
 
+	if (postEffect)
+		PostEffect::Begin(static_cast<float>(vscreen->Width), height, fullscrn::ScaleX, fullscrn::ScaleY);
 	SDL_RenderTexture(winmain::Renderer, texture, &srcBoardRect, &dstBoardRect);
 	if (srcSidebarRect.w > 0)
 		SDL_RenderTexture(winmain::Renderer, texture, &srcSidebarRect, &dstSidebarRect);
+	if (postEffect)
+		PostEffect::End();
 }
 
 void render::DrawBackdrop()

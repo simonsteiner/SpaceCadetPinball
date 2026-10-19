@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "options.h"
 
+#include "PostEffect.h"
+
 #include "fullscrn.h"
 #include "midi.h"
 #include "pb.h"
@@ -156,6 +158,7 @@ optionsStruct options::Options
 	{"Hide Cursor", false},
 	{"Backdrop", true},
 	{"Stacked Layout", true},
+	{"Post Processing", 0},
 };
 // clang-format on
 
@@ -512,6 +515,7 @@ void options::PostProcessOptions()
 	Options.UpdatesPerSecond = std::max(Options.UpdatesPerSecond.V, Options.FramesPerSecond.V);
 	Options.SoundChannels = Clamp(Options.SoundChannels.V, MinSoundChannels, MaxSoundChannels);
 	Options.SoundVolume = Clamp(Options.SoundVolume.V, MinVolume, MaxVolume);
+	Options.PostProcessing = Clamp(Options.PostProcessing.V, 0, static_cast<int>(PostEffects::Max) - 1);
 	Options.MusicVolume = Clamp(Options.MusicVolume.V, MinVolume, MaxVolume);
 	translations::SetCurrentLanguage(Options.Language.V.c_str());
 	winmain::UpdateFrameRate();

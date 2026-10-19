@@ -5,3 +5,4 @@ SpaceCadetPinball/imconfig.h
 SpaceCadetPinball/EmbeddedData.cpp
 SpaceCadetPinball/translations.cpp
 third_party/**
+SpaceCadetPinball/shaders/PostEffectShaders.h

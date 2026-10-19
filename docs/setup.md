@@ -142,6 +142,7 @@ Options → Graphics:
 - **Uniform Scaling** (on by default): keeps the table's proportions. Off, it stretches to the window.
 - **Linear Filtering** (off by default): smooths the table instead of keeping its pixels sharp.
 - **Backdrop** (on by default): fills the space around the table with a blurred, darkened copy of the table, made when the game starts from the player's own data, instead of black bars.
+- **Post-Processing** (None by default): **CRT** adds scanlines and an aperture grille, **Smooth Edges** rounds the steps of diagonal edges (EPX, the edge-directed scaler xBR grew out of). Both draw through SDL's GPU renderer, the only one that takes custom shaders, so they need SDL 3.4 or newer and Vulkan, Direct3D 12 or Metal. Choosing an effect while another renderer runs restarts the game on the GPU renderer, which ends a game in progress; after that, switching effects is instant. Without a GPU renderer, the table is drawn plain. Not with `-sw`.
 - **Panel Under Table in Tall Windows** (on by default): in a tall window, such as a portrait screen, the score panel moves under the table when that lets the table be drawn larger. It needs Uniform Scaling.
 
 Full screen (F4 or `-fullscreen`) uses the desktop's resolution, without a mode change. Settings saved by an earlier version keep their values, so a player who had Integer Scaling off or Linear Filtering on keeps that.

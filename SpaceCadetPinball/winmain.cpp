@@ -11,6 +11,7 @@
 #include "midi.h"
 #include "options.h"
 #include "pb.h"
+#include "PostEffect.h"
 #include "render.h"
 #include "replay.h"
 #include "Sound.h"
@@ -59,6 +60,7 @@ winmain::DurationMs winmain::SpinThreshold = DurationMs(0.005);
 WelfordState winmain::SleepState{};
 int winmain::CursorIdleCounter = 0;
 std::unique_ptr<ImGuiStyle> winmain::BaseStyle{};
+bool winmain::SoftwareRenderer = false;
 
 // Splits the command line at spaces and tabs; double quotes keep an argument with spaces together
 static std::vector<std::string> SplitArgs(LPCSTR cmdLine)
@@ -145,21 +147,12 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		return 1;
 	}
 
-	// If HW fails, fallback to SW SDL renderer.
-	SDL_Renderer* renderer = nullptr;
-	auto swOffset = HasArg(args, "-sw") || replay::IsPlaying() ? 1 : 0;
-	for (int i = swOffset; i < 2 && !renderer; i++)
-	{
-		Renderer = renderer = SDL_CreateRenderer(window, i == 0 ? nullptr : SDL_SOFTWARE_RENDERER);
-	}
-	if (!renderer)
+	SoftwareRenderer = HasArg(args, "-sw") || replay::IsPlaying();
+	if (!CreateRenderer(false))
 	{
 		pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not create renderer", SDL_GetError());
 		return 1;
 	}
-	if (auto rendererName = SDL_GetRendererName(renderer))
-		printf("Using SDL renderer: %s\n", rendererName);
-	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
 
 	auto prefPath = SDL_GetPrefPath("", "SpaceCadetPinball");
 	auto basePath = SDL_GetBasePath();
@@ -219,6 +212,16 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			options::ResetAllOptions();
 		}
 
+		// Post-processing needs SDL's GPU renderer, the only one that takes custom shaders. No textures exist yet,
+		// so this is the place to switch. Turning an effect off keeps that renderer, so no restart is needed for it.
+		auto wantGpu = !SoftwareRenderer && static_cast<PostEffects>(Options.PostProcessing.V) != PostEffects::None;
+		if (wantGpu && !PostEffect::IsGpuRenderer(Renderer) && !CreateRenderer(true) && !CreateRenderer(false))
+		{
+			pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not create renderer", SDL_GetError());
+			return 1;
+		}
+		PostEffect::Init(Renderer, static_cast<PostEffects>(Options.PostProcessing.V));
+
 		if (!Options.FontFileName.V.empty())
 		{
 			ImFontConfig fontConfig{};
@@ -243,7 +246,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			if (!fontLoaded)
 				printf("Failed to load font: %s, using embedded font.\n", fileName);
 		}
-		ImGui_ImplSDLRenderer3_Init(renderer);
+		ImGui_ImplSDLRenderer3_Init(Renderer);
 		ImGui::StyleColorsDark();
 		BaseStyle = std::make_unique<ImGuiStyle>(ImGui::GetStyle());
 		ApplyDisplayScale();
@@ -349,6 +352,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		ImGui_ImplSDLRenderer3_Shutdown();
 		ImGui_ImplSDL3_Shutdown();
+		PostEffect::Uninit();
 		ImGui::DestroyContext();
 	}
 	while (restart);
@@ -361,7 +365,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	}
 
 	SDL_free(prefPath);
-	SDL_DestroyRenderer(renderer);
+	SDL_DestroyRenderer(Renderer);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
 
@@ -690,6 +694,18 @@ void winmain::RenderUi()
 				if (ImGui::MenuItem("Panel Under Table in Tall Windows", nullptr, Options.StackedLayout))
 				{
 					options::toggle(Menu1::WindowStackedLayout);
+				}
+				if (ImGui::BeginMenu("Post-Processing"))
+				{
+					constexpr const char* names[] = {"None", "CRT", "Smooth Edges"};
+					for (int i = 0; i < static_cast<int>(PostEffects::Max); i++)
+					{
+						if (ImGui::MenuItem(names[i], nullptr, Options.PostProcessing == i))
+							SetPostProcessing(static_cast<PostEffects>(i));
+					}
+					if (SoftwareRenderer)
+						ImGui::TextDisabled("Not with the software renderer");
+					ImGui::EndMenu();
 				}
 				if (ImGui::DragFloat("UI Scale", &Options.UIScale.V, 0.005f, 0.8f, 5,
 				                     "%.2f", ImGuiSliderFlags_AlwaysClamp))
@@ -1121,6 +1137,38 @@ int winmain::event_handler(const SDL_Event* event)
 	}
 
 	return 1;
+}
+
+void winmain::SetPostProcessing(PostEffects effect)
+{
+	if (Options.PostProcessing == static_cast<int>(effect))
+		return;
+	Options.PostProcessing = static_cast<int>(effect);
+
+	// The GPU renderer switches effects on the fly; any other renderer has to be replaced, which needs a restart
+	if (PostEffect::Available())
+		PostEffect::Init(Renderer, effect);
+	else if (effect != PostEffects::None && !SoftwareRenderer)
+		Restart();
+}
+
+bool winmain::CreateRenderer(bool gpu)
+{
+	// The GPU renderer, for post-processing; otherwise the default, falling back to the software renderer
+	if (Renderer)
+		SDL_DestroyRenderer(Renderer);
+	Renderer = nullptr;
+	if (gpu)
+		Renderer = PostEffect::CreateGpuRenderer(MainWindow);
+	for (int i = SoftwareRenderer ? 1 : 0; i < 2 && !Renderer && !gpu; i++)
+		Renderer = SDL_CreateRenderer(MainWindow, i == 0 ? nullptr : SDL_SOFTWARE_RENDERER);
+	if (!Renderer)
+		return false;
+
+	if (auto rendererName = SDL_GetRendererName(Renderer))
+		printf("Using SDL renderer: %s\n", rendererName);
+	SDL_SetRenderDrawColor(Renderer, 0, 0, 0, 255);
+	return true;
 }
 
 void winmain::ApplyDisplayScale()

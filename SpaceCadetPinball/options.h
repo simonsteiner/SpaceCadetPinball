@@ -294,4 +294,5 @@ struct optionsStruct
 	BoolOption HideCursor;
 	BoolOption Backdrop;
 	BoolOption StackedLayout;
+	IntOption PostProcessing;
 };

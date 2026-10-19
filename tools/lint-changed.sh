@@ -12,7 +12,7 @@ llvm_version=23.1.3
 
 # Vendored and generated files are never checked; .clang-format-ignore lists the same files for clang-format
 pathspec=(':(glob)SpaceCadetPinball/**' ':(exclude,glob)SpaceCadetPinball/imgui*' ':(exclude,glob)SpaceCadetPinball/imstb_*'
-	':(exclude)SpaceCadetPinball/imconfig.h' ':(exclude)SpaceCadetPinball/EmbeddedData.cpp' ':(exclude)SpaceCadetPinball/translations.cpp')
+	':(exclude)SpaceCadetPinball/imconfig.h' ':(exclude)SpaceCadetPinball/EmbeddedData.cpp' ':(exclude)SpaceCadetPinball/shaders/PostEffectShaders.h' ':(exclude)SpaceCadetPinball/translations.cpp')
 
 run_tool() { # package, command, args...
 	local package=$1 command=$2 dir_var

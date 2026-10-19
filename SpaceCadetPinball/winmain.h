@@ -2,6 +2,7 @@
 #include "gdrv.h"
 
 enum class GameBindings;
+enum class PostEffects : int;
 
 struct SdlTickClock
 {
@@ -88,6 +89,8 @@ public:
 	static void UpdateFrameRate();
 	static void HandleGameBinding(GameBindings binding, bool shortcut);
 	static void ApplyDisplayScale();
+	static bool CreateRenderer(bool gpu);
+	static void SetPostProcessing(PostEffects effect);
 	static float ExpectedMenuHeight();
 
 private:
@@ -111,6 +114,7 @@ private:
 	static float gfrWindow;
 	static int CursorIdleCounter;
 	static std::unique_ptr<ImGuiStyle> BaseStyle;
+	static bool SoftwareRenderer;
 
 	static void RenderUi();
 	static void RenderFrameTimeDialog();

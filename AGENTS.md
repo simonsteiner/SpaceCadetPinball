@@ -39,6 +39,8 @@ There are no automated tests yet. A change is checked by building it and playing
 
 - **Work lands on `main` through pull requests.** `master` mirrors `upstream/master` (k4zmu2a/SpaceCadetPinball) and only receives upstream changes.
 
+- **Post-processing shaders are compiled ahead of time.** `SpaceCadetPinball/shaders/*.frag.hlsl` become SPIR-V and DXIL, and the hand-written `*.frag.msl` are embedded as text, in the generated `PostEffectShaders.h`; run `tools/build-shaders.sh` after changing a shader (it fetches a pinned DXC). Keep each `.msl` in step with its `.hlsl`.
+
 ## Hard constraints
 
 - **Never commit game data.** The original game's files (`*.DAT`, `*.WAV`, `*.MID`, `Pinball.exe`, `table.bmp`, `wavemix.inf`) are Microsoft's. `.gitignore` excludes them in any letter case; keep game data outside the repository and never force-add it.
