@@ -62,7 +62,7 @@ int winmain::CursorIdleCounter = 0;
 std::unique_ptr<ImGuiStyle> winmain::BaseStyle{};
 bool winmain::SoftwareRenderer = false;
 bool winmain::TriggerPressed[2]{};
-std::map<SDL_FingerID, GameBindings> winmain::TouchBindings{};
+std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> winmain::TouchBindings{};
 
 // Splits the command line at spaces and tabs; double quotes keep an argument with spaces together
 static std::vector<std::string> SplitArgs(LPCSTR cmdLine)
@@ -1191,7 +1191,8 @@ void winmain::TouchInput(const SDL_TouchFingerEvent& event)
 {
 	// The left half of the table works the left flipper, the right half the right one, and the score panel the
 	// plunger, held to pull it back. Each finger keeps what it pressed until it lifts.
-	auto key = event.fingerID;
+	// Finger IDs are unique only per touch device
+	auto key = std::pair{event.touchID, event.fingerID};
 	if (event.type != SDL_EVENT_FINGER_DOWN)
 	{
 		auto finger = TouchBindings.find(key);

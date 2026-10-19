@@ -118,7 +118,7 @@ private:
 	static std::unique_ptr<ImGuiStyle> BaseStyle;
 	static bool SoftwareRenderer;
 	static bool TriggerPressed[2];
-	static std::map<SDL_FingerID, GameBindings> TouchBindings;
+	static std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> TouchBindings;
 
 	static void RenderUi();
 	static void RenderFrameTimeDialog();
