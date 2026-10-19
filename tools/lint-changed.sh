@@ -4,7 +4,8 @@
 #   base       branch or commit the work started from, for example main; the lines changed since
 #              its merge base with HEAD are checked, so commits that landed on base later don't count
 #   build-dir  CMake build with compile_commands.json for clang-tidy; without one, clang-tidy is skipped
-# The tools come pinned through uvx; set CLANG_FORMAT_DIR or CLANG_TIDY_DIR to a folder that has them instead.
+# The tools come pinned through uvx, at the version in tools/llvm-requirements.txt (which CI installs);
+# set CLANG_FORMAT_DIR or CLANG_TIDY_DIR to a folder that has them instead.
 set -euo pipefail
 
 usage='usage: tools/lint-changed.sh <base> [build-dir]'
@@ -15,7 +16,11 @@ if [ -n "$build_dir" ]; then
 	build_dir=$(cd "$build_dir" && pwd)
 fi
 cd "$repo" # git diff and clang-tidy-diff.py -p1 name files from the top of the repository
-llvm_version=23.1.3
+llvm_version=$(sed -n 's/^clang-format==\([0-9.]*\).*/\1/p' "$repo/tools/llvm-requirements.txt")
+if [ -z "$llvm_version" ]; then
+	echo "no clang-format version in tools/llvm-requirements.txt" >&2
+	exit 2
+fi
 if ! base=$(git merge-base "$base_ref" HEAD); then
 	echo "no merge base between '$base_ref' and HEAD" >&2
 	exit 2
