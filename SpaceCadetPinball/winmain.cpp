@@ -61,7 +61,7 @@ WelfordState winmain::SleepState{};
 int winmain::CursorIdleCounter = 0;
 std::unique_ptr<ImGuiStyle> winmain::BaseStyle{};
 bool winmain::SoftwareRenderer = false;
-bool winmain::TriggerPressed[2]{};
+std::map<SDL_JoystickID, std::array<bool, 2>> winmain::TriggerPressed{};
 std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> winmain::TouchBindings{};
 
 // Splits the command line at spaces and tabs; double quotes keep an argument with spaces together
@@ -1144,6 +1144,7 @@ int winmain::event_handler(const SDL_Event* event)
 		SDL_OpenGamepad(event->gdevice.which);
 		break;
 	case SDL_EVENT_GAMEPAD_REMOVED:
+		TriggerPressed.erase(event->gdevice.which);
 		if (auto gamepad = SDL_GetGamepadFromID(event->gdevice.which))
 			SDL_CloseGamepad(gamepad);
 		break;
@@ -1173,7 +1174,7 @@ void winmain::GamepadTrigger(const SDL_GamepadAxisEvent& event)
 	if (event.axis != SDL_GAMEPAD_AXIS_LEFT_TRIGGER && event.axis != SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
 		return;
 	auto left = event.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER;
-	auto& pressed = TriggerPressed[left ? 0 : 1];
+	auto& pressed = TriggerPressed[event.which][left ? 0 : 1];
 	GameInput input{InputTypes::GameController, left ? GamepadLeftTrigger : GamepadRightTrigger};
 	if (!pressed && event.value > SDL_JOYSTICK_AXIS_MAX / 2)
 	{

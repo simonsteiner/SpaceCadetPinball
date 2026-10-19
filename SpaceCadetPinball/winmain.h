@@ -1,6 +1,8 @@
 #pragma once
 #include "gdrv.h"
 
+#include <array>
+
 enum class GameBindings;
 enum class PostEffects : int;
 
@@ -117,7 +119,8 @@ private:
 	static int CursorIdleCounter;
 	static std::unique_ptr<ImGuiStyle> BaseStyle;
 	static bool SoftwareRenderer;
-	static bool TriggerPressed[2];
+	// Left and right trigger state of each gamepad
+	static std::map<SDL_JoystickID, std::array<bool, 2>> TriggerPressed;
 	static std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> TouchBindings;
 
 	static void RenderUi();
