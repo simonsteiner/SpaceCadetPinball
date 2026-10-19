@@ -77,5 +77,7 @@ private:
 	static bool TableTakesInput();
 	static void BindingsUp(GameInput input, const std::vector<GameBindings>& bindings);
 	static void BindingsDown(GameInput input, const std::vector<GameBindings>& bindings);
+	// InputDown and KeyDown: a waiting control dialog takes bound, else bound's bindings act and recorded is recorded
+	static void InputDown(GameInput recorded, GameInput bound);
 	static float BallToBallCollision(const ray_type& ray, const TBall& ball, TEdgeSegment** edge, float collisionDistance);
 };
