@@ -152,14 +152,15 @@ int TPlunger::Message(MessageCode code, float value)
 	case MessageCode::PlungerInputReleased:
 	case MessageCode::Resume:
 	case MessageCode::LooseFocus:
-		if (code == MessageCode::Reset || (PullbackStartedFlag && !SomeCounter))
+		// 3D Pinball releases even without a pull and sounds only when the plunger input is released
+		if ((!pb::FullTiltMode || PullbackStartedFlag) && !SomeCounter)
 		{
 			PullbackStartedFlag = false;
 			Threshold = 0.0;
 			if (PullbackTimer_)
 				timer::kill(PullbackTimer_);
 			PullbackTimer_ = 0;
-			if (code != MessageCode::Reset)
+			if (pb::FullTiltMode || code == MessageCode::PlungerInputReleased)
 				loader::play_sound(SoundIndexP2, this, "TPlunger3");
 			SpriteSet(0);
 			timer::set(PullbackDelay, this, ReleasedTimer);
