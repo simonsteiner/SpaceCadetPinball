@@ -173,6 +173,7 @@ enum class Msg : int
 	STRING287,
 	STRING288,
 	ControlJackpotDoubled,
+	ControlMissionJackpot,
 	TextBoxColor,
 
 	HIGHSCORES_Caption,

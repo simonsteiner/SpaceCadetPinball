@@ -4990,6 +4990,12 @@ const TextArray translations::Translations =
 		},
 	},
 	{
+		Msg::ControlMissionJackpot,
+		{
+			{ Lang::English, "Jackpot!\n%ld" },
+		},
+	},
+	{
 		Msg::TextBoxColor,
 		{
 			{ Lang::Arabic, "255 255 255   (R G B لون الخط الافتراضي)" },
