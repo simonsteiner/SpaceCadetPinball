@@ -12,9 +12,20 @@ high_score_entry high_score::DlgData;
 std::vector<high_score_entry> high_score::ScoreQueue;
 high_score_struct high_score::highscore_table[5];
 
+// Each table keeps its own scores; 3D Pinball keeps the original, unprefixed keys
+static const char* ScoreKeyPrefix()
+{
+	if (pb::FullTiltDemoMode)
+		return "FullTiltDemo.";
+	if (pb::FullTiltMode)
+		return "FullTilt.";
+	return "";
+}
+
 int high_score::read()
 {
-	char Buffer[20];
+	char Buffer[40];
+	auto prefix = ScoreKeyPrefix();
 
 	int checkSum = 0;
 	clear_table();
@@ -22,13 +33,11 @@ int high_score::read()
 	{
 		auto& tablePtr = highscore_table[position];
 
-		snprintf(Buffer, sizeof Buffer, "%d", position);
-		strcat(Buffer, ".Name");
+		snprintf(Buffer, sizeof Buffer, "%s%d.Name", prefix, position);
 		auto name = options::GetSetting(Buffer, "");
 		strncpy(tablePtr.Name, name.c_str(), sizeof tablePtr.Name);
 
-		snprintf(Buffer, sizeof Buffer, "%d", position);
-		strcat(Buffer, ".Score");
+		snprintf(Buffer, sizeof Buffer, "%s%d.Score", prefix, position);
 		tablePtr.Score = options::get_int(Buffer, tablePtr.Score);
 
 		for (int i = static_cast<int>(strlen(tablePtr.Name)); --i >= 0; checkSum += tablePtr.Name[i])
@@ -37,7 +46,8 @@ int high_score::read()
 		checkSum += tablePtr.Score;
 	}
 
-	auto verification = options::get_int("Verification", 7);
+	snprintf(Buffer, sizeof Buffer, "%sVerification", prefix);
+	auto verification = options::get_int(Buffer, 7);
 	if (checkSum != verification)
 		clear_table();
 	return 0;
@@ -45,19 +55,18 @@ int high_score::read()
 
 int high_score::write()
 {
-	char Buffer[20];
+	char Buffer[40];
+	auto prefix = ScoreKeyPrefix();
 
 	int checkSum = 0;
 	for (auto position = 0; position < 5; ++position)
 	{
 		auto& tablePtr = highscore_table[position];
 
-		snprintf(Buffer, sizeof Buffer, "%d", position);
-		strcat(Buffer, ".Name");
+		snprintf(Buffer, sizeof Buffer, "%s%d.Name", prefix, position);
 		options::SetSetting(Buffer, tablePtr.Name);
 
-		snprintf(Buffer, sizeof Buffer, "%d", position);
-		strcat(Buffer, ".Score");
+		snprintf(Buffer, sizeof Buffer, "%s%d.Score", prefix, position);
 		options::set_int(Buffer, tablePtr.Score);
 
 		for (int i = static_cast<int>(strlen(tablePtr.Name)); --i >= 0; checkSum += tablePtr.Name[i])
@@ -66,7 +75,8 @@ int high_score::write()
 		checkSum += tablePtr.Score;
 	}
 
-	options::set_int("Verification", checkSum);
+	snprintf(Buffer, sizeof Buffer, "%sVerification", prefix);
+	options::set_int(Buffer, checkSum);
 	return 0;
 }
 
