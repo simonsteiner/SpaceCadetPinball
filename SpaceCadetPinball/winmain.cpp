@@ -197,7 +197,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		return 1;
 	}
 
-	auto prefPath = SDL_GetPrefPath("", "SpaceCadetPinball");
+	// Owned, so the early returns below free it too; SDL owns basePath
+	const std::unique_ptr<char, decltype(&SDL_free)> prefPathOwner{SDL_GetPrefPath("", "SpaceCadetPinball"), SDL_free};
+	auto prefPath = prefPathOwner.get();
 	auto basePath = SDL_GetBasePath();
 
 	// SDL mixer init
@@ -428,7 +430,6 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		MIX_Quit();
 	}
 
-	SDL_free(prefPath);
 	PostEffect::Uninit();
 	SDL_DestroyRenderer(Renderer);
 	SDL_DestroyWindow(window);
