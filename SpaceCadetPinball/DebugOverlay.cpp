@@ -21,39 +21,42 @@
 
 gdrv_bitmap8* DebugOverlay::dbScreen = nullptr;
 
-static int SDL_RenderDrawCircle(SDL_Renderer* renderer, int x, int y, int radius)
+static bool SDL_RenderDrawCircle(SDL_Renderer* renderer, int x, int y, int radius)
 {
-	SDL_Point points[256];
+	SDL_FPoint points[256];
 	int pointCount = 0;
 	int offsetx, offsety, d;
-	int status;
+	bool status;
 
 	offsetx = 0;
 	offsety = radius;
 	d = radius - 1;
-	status = 0;
+	status = true;
+
+	auto addPoint = [&](int px, int py)
+	{
+		points[pointCount++] = { static_cast<float>(px), static_cast<float>(py) };
+	};
 
 	while (offsety >= offsetx)
 	{
 		if (pointCount + 8 > 256)
 		{
-			status = SDL_RenderDrawPoints(renderer, points, pointCount);
+			status = SDL_RenderPoints(renderer, points, pointCount);
 			pointCount = 0;
 
-			if (status < 0) {
-				status = -1;
+			if (!status)
 				break;
-			}
 		}
 
-		points[pointCount++] = { x + offsetx, y + offsety };
-		points[pointCount++] = { x + offsety, y + offsetx };
-		points[pointCount++] = { x - offsetx, y + offsety };
-		points[pointCount++] = { x - offsety, y + offsetx };
-		points[pointCount++] = { x + offsetx, y - offsety };
-		points[pointCount++] = { x + offsety, y - offsetx };
-		points[pointCount++] = { x - offsetx, y - offsety };
-		points[pointCount++] = { x - offsety, y - offsetx };
+		addPoint(x + offsetx, y + offsety);
+		addPoint(x + offsety, y + offsetx);
+		addPoint(x - offsetx, y + offsety);
+		addPoint(x - offsety, y + offsetx);
+		addPoint(x + offsetx, y - offsety);
+		addPoint(x + offsety, y - offsetx);
+		addPoint(x - offsetx, y - offsety);
+		addPoint(x - offsety, y - offsetx);
 
 		if (d >= 2 * offsetx) {
 			d -= 2 * offsetx + 1;
@@ -71,9 +74,22 @@ static int SDL_RenderDrawCircle(SDL_Renderer* renderer, int x, int y, int radius
 	}
 
 	if (pointCount > 0)
-		status = SDL_RenderDrawPoints(renderer, points, pointCount);
+		status = SDL_RenderPoints(renderer, points, pointCount);
 
 	return status;
+}
+
+static void SDL_RenderDrawLine(SDL_Renderer* renderer, int x1, int y1, int x2, int y2)
+{
+	SDL_RenderLine(renderer, static_cast<float>(x1), static_cast<float>(y1), static_cast<float>(x2),
+	               static_cast<float>(y2));
+}
+
+static void SDL_RenderDrawRect(SDL_Renderer* renderer, const SDL_Rect* rect)
+{
+	SDL_FRect frect;
+	SDL_RectToFRect(rect, &frect);
+	SDL_RenderRect(renderer, &frect);
 }
 
 void DebugOverlay::UnInit()
@@ -87,7 +103,7 @@ void DebugOverlay::DrawOverlay()
 	if (dbScreen == nullptr)
 	{
 		dbScreen = new gdrv_bitmap8(render::vscreen->Width, render::vscreen->Height, false, false);
-		dbScreen->CreateTexture("nearest", SDL_TEXTUREACCESS_TARGET);
+		dbScreen->CreateTexture(SDL_SCALEMODE_NEAREST, SDL_TEXTUREACCESS_TARGET);
 		SDL_SetTextureBlendMode(dbScreen->Texture, SDL_BLENDMODE_BLEND);
 	}
 
@@ -136,7 +152,9 @@ void DebugOverlay::DrawOverlay()
 	SDL_BlendMode blendMode;
 	SDL_GetRenderDrawBlendMode(winmain::Renderer, &blendMode);
 	SDL_SetRenderDrawBlendMode(winmain::Renderer, SDL_BLENDMODE_BLEND);
-	SDL_RenderCopy(winmain::Renderer, dbScreen->Texture, nullptr, &render::DestinationRect);
+	SDL_FRect dstRect;
+	SDL_RectToFRect(&render::DestinationRect, &dstRect);
+	SDL_RenderTexture(winmain::Renderer, dbScreen->Texture, nullptr, &dstRect);
 	SDL_SetRenderDrawBlendMode(winmain::Renderer, blendMode);
 }
 

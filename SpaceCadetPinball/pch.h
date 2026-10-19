@@ -33,24 +33,14 @@
 #include <initializer_list>
 //#include <array>
 
-#define SDL_MAIN_HANDLED
-#include "SDL.h"
-#include <SDL_mixer.h>
-
-// MIX_INIT_FLUIDSYNTH was renamed to MIX_INIT_MID in SDL_mixer v2.0.2
-// Older versions of SDL_mixer did not have SDL_MIXER_VERSION_ATLEAST
-constexpr int MIX_INIT_MID_Proxy =
-#if SDL_VERSIONNUM(SDL_MIXER_MAJOR_VERSION, SDL_MIXER_MINOR_VERSION, SDL_MIXER_PATCHLEVEL) >= SDL_VERSIONNUM(2, 0, 2)
-	MIX_INIT_MID;
-#else
-	MIX_INIT_FLUIDSYNTH;
-#endif
+#include <SDL3/SDL.h>
+#include <SDL3_mixer/SDL_mixer.h>
 
 // https://github.com/ocornut/imgui v1.93.0, unmodified
 #include "imgui.h"
 #include "imgui_internal.h"
-#include "imgui_impl_sdl2.h"
-#include "imgui_impl_sdlrenderer2.h"
+#include "imgui_impl_sdl3.h"
+#include "imgui_impl_sdlrenderer3.h"
 
 
 typedef char* LPSTR;

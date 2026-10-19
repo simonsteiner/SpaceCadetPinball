@@ -139,7 +139,8 @@ void render::uninit()
 
 void render::recreate_screen_texture()
 {
-	vscreen->CreateTexture(options::Options.LinearFiltering ? "linear" : "nearest", SDL_TEXTUREACCESS_STREAMING);
+	vscreen->CreateTexture(options::Options.LinearFiltering ? SDL_SCALEMODE_LINEAR : SDL_SCALEMODE_NEAREST,
+	                       SDL_TEXTUREACCESS_STREAMING);
 }
 
 void render::update()
@@ -459,67 +460,42 @@ void render::PresentVScreen()
 {
 	vscreen->BlitToTexture();
 
+	SDL_FRect dstRect;
+	SDL_RectToFRect(&DestinationRect, &dstRect);
 	if (offset_x == 0 && offset_y == 0)
 	{
-		SDL_RenderCopy(winmain::Renderer, vscreen->Texture, nullptr, &DestinationRect);
+		SDL_RenderTexture(winmain::Renderer, vscreen->Texture, nullptr, &dstRect);
 	}
 	else
 	{
 		auto tableWidthCoef = static_cast<float>(pb::MainTable->Width) / vscreen->Width;
-		auto srcSeparationX = static_cast<int>(round(vscreen->Width * tableWidthCoef));
-		auto srcBoardRect = SDL_Rect
+		auto srcSeparationX = static_cast<float>(round(vscreen->Width * tableWidthCoef));
+		auto srcBoardRect = SDL_FRect
 		{
 			0, 0,
-			srcSeparationX, vscreen->Height
+			srcSeparationX, static_cast<float>(vscreen->Height)
 		};
-		auto srcSidebarRect = SDL_Rect
+		auto srcSidebarRect = SDL_FRect
 		{
 			srcSeparationX, 0,
-			vscreen->Width - srcSeparationX, vscreen->Height
+			vscreen->Width - srcSeparationX, static_cast<float>(vscreen->Height)
 		};
 
-#if SDL_VERSION_ATLEAST(2, 0, 10)
-		// SDL_RenderCopyF was added in 2.0.10
-		auto dstSeparationX = DestinationRect.w * tableWidthCoef;
+		auto dstSeparationX = dstRect.w * tableWidthCoef;
 		auto dstBoardRect = SDL_FRect
 		{
-			DestinationRect.x + offset_x * fullscrn::ScaleX,
-			DestinationRect.y + offset_y * fullscrn::ScaleY,
-			dstSeparationX, static_cast<float>(DestinationRect.h)
+			dstRect.x + offset_x * fullscrn::ScaleX,
+			dstRect.y + offset_y * fullscrn::ScaleY,
+			dstSeparationX, dstRect.h
 		};
 		auto dstSidebarRect = SDL_FRect
 		{
-			DestinationRect.x + dstSeparationX, static_cast<float>(DestinationRect.y),
-			DestinationRect.w - dstSeparationX, static_cast<float>(DestinationRect.h)
+			dstRect.x + dstSeparationX, dstRect.y,
+			dstRect.w - dstSeparationX, dstRect.h
 		};
 
-		SDL_RenderCopyF(winmain::Renderer, vscreen->Texture, &srcBoardRect, &dstBoardRect);
-		SDL_RenderCopyF(winmain::Renderer, vscreen->Texture, &srcSidebarRect, &dstSidebarRect);
-#else
-		// SDL_RenderCopy cannot express sub pixel offset.
-		// Vscreen shift is required for that.
-		auto dstSeparationX = static_cast<int>(DestinationRect.w * tableWidthCoef);
-		auto scaledOffX = static_cast<int>(round(offset_x * fullscrn::ScaleX));
-		if (offset_x != 0 && scaledOffX == 0)
-			scaledOffX = Sign(offset_x);
-		auto scaledOffY = static_cast<int>(round(offset_y * fullscrn::ScaleY));
-		if (offset_y != 0 && scaledOffX == 0)
-			scaledOffY = Sign(offset_y);
-
-		auto dstBoardRect = SDL_Rect
-		{
-			DestinationRect.x + scaledOffX, DestinationRect.y + scaledOffY,
-			dstSeparationX, DestinationRect.h
-		};
-		auto dstSidebarRect = SDL_Rect
-		{
-			DestinationRect.x + dstSeparationX, DestinationRect.y,
-			DestinationRect.w - dstSeparationX, DestinationRect.h
-		};
-
-		SDL_RenderCopy(winmain::Renderer, vscreen->Texture, &srcBoardRect, &dstBoardRect);
-		SDL_RenderCopy(winmain::Renderer, vscreen->Texture, &srcSidebarRect, &dstSidebarRect);
-#endif
+		SDL_RenderTexture(winmain::Renderer, vscreen->Texture, &srcBoardRect, &dstBoardRect);
+		SDL_RenderTexture(winmain::Renderer, vscreen->Texture, &srcSidebarRect, &dstSidebarRect);
 	}
 
 	if (options::Options.DebugOverlay)

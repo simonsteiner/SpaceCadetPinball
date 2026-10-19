@@ -102,7 +102,8 @@ public:
 	                     DefUps = 120, DefFps = 60;
 	// Original uses 8 sound channels
 	static constexpr int MaxSoundChannels = 32, MinSoundChannels = 1, DefSoundChannels = 8;
-	static constexpr int MaxVolume = MIX_MAX_VOLUME, MinVolume = 0, DefVolume = MaxVolume;
+	// SDL2_mixer's MIX_MAX_VOLUME, kept so that saved volumes keep their meaning
+	static constexpr int MaxVolume = 128, MinVolume = 0, DefVolume = MaxVolume;
 	static struct optionsStruct Options;
 	static std::vector<struct OptionBase*> AllOptions;
 

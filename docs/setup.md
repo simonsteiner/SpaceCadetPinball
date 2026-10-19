@@ -20,7 +20,7 @@ In each folder it tries `CADET.DAT`, then `PINBALL.DAT`, then `DEMO.DAT`, in upp
 
 ## Build
 
-The project uses C++20, CMake 3.24 or newer, and `SDL2` (2.0.17 or newer) and `SDL2_mixer`. `CMakePresets.json` has one preset per platform. Configure and build with the same preset name:
+The project uses C++20, CMake 3.24 or newer, and `SDL3` and `SDL3_mixer` (3.2 or newer each). `CMakePresets.json` has one preset per platform. Configure and build with the same preset name:
 
 ```bash
 cmake --preset <preset>
@@ -39,21 +39,23 @@ Each preset builds in `build/<preset>/`. The executable is written to `bin/` in 
 | `mingw` | Linux, cross-compiling to Windows x64 | built from source |
 | `macos` | macOS, universal `arm64` and `x86_64` | built from source |
 
-The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL2 2.32.10 and SDL2_mixer 2.8.1 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity and the platform's native MIDI. Its other codecs and FluidSynth are left out. When it is `OFF` (the default on Linux), CMake uses the installed `SDL2` and `SDL2_mixer` development packages. CI builds every preset except `linux-debug` and `linux-sanitize` on each pull request. Windows builds are 64-bit only; the 32-bit and Windows XP builds were dropped with the move to C++20.
+The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL3 3.4.18 and SDL3_mixer 3.2.4 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity. Its other codecs and FluidSynth are left out; SDL3_mixer has no native MIDI. When it is `OFF` (the default on Linux), CMake uses the installed `SDL3` and `SDL3_mixer` development packages through their CMake config files. CI builds every preset except `linux-debug` and `linux-sanitize` on each pull request. Windows builds are 64-bit only; the 32-bit and Windows XP builds were dropped with the move to C++20.
 
 Plain `cmake -S . -B build` without a preset still works and follows the same defaults.
 
 Add `-DSCP_WARNINGS=ON` to the configure command to build the game with extra warnings, `-Wall -Wextra` or `/W4` with MSVC, and treat them as errors. Unused parameters are allowed, because overrides and callbacks keep the signatures their interfaces set. The option applies only to the game, not to SDL or ImGui, and is off by default, so a newer compiler with new warnings doesn't break a packager's build. CI turns it on. To see the warnings without failing the build, add `--compile-no-warning-as-error` to the configure command.
 
-`SCP_SANITIZERS=ON`, which the `linux-sanitize` preset sets, builds the game and ImGui with AddressSanitizer and UndefinedBehaviorSanitizer. It needs GCC or Clang. Run the replays with this build after a change to memory handling (`tools/check-replays.sh`, see `docs/replays.md`). The window, renderer and sound effects are clean too, but music isn't: with the system SDL_mixer, `Mix_Quit` unloads FluidSynth while one of its threads is still running, and the game crashes on exit under ASan. Use `-noaudio` for a windowed run, or preload FluidSynth to keep it loaded: `LD_PRELOAD="$(gcc -print-file-name=libasan.so) /usr/lib/x86_64-linux-gnu/libfluidsynth.so.3"`. LeakSanitizer then reports leaks inside FluidSynth, libinstpatch and GLib; none are in the game.
+`SCP_SANITIZERS=ON`, which the `linux-sanitize` preset sets, builds the game and ImGui with AddressSanitizer and UndefinedBehaviorSanitizer. It needs GCC or Clang. Run the replays with this build after a change to memory handling (`tools/check-replays.sh`, see `docs/replays.md`). The window, renderer, sound effects and options are clean too. With SDL2_mixer and FluidSynth, the game used to crash on exit under ASan, because `Mix_Quit` unloaded FluidSynth while one of its threads still ran. Debian's SDL3_mixer has no FluidSynth; with a build that does (Arch or Homebrew, for example), preload it if the exit crashes: `LD_PRELOAD="$(gcc -print-file-name=libasan.so) /usr/lib/x86_64-linux-gnu/libfluidsynth.so.3"`.
 
 ### Linux
 
+SDL3 is packaged in Debian testing (forky) and sid, Ubuntu 26.04, Fedora and Arch, but SDL3_mixer only in Debian testing and sid and Arch. Where there is no SDL3_mixer package, Ubuntu 24.04 and 26.04 and Fedora among them, use the `linux-vendored` preset below.
+
 ```bash
-# Debian and Ubuntu
-sudo apt install cmake build-essential ninja-build libsdl2-dev libsdl2-mixer-dev libsdl2-mixer-2.0-0 libsdl2-2.0-0 fluidsynth
-# Fedora
-sudo dnf install cmake ninja-build SDL2 SDL2-devel SDL2_mixer SDL2_mixer-devel fluidsynth fluidsynth-libs mscore-fonts g++
+# Debian testing or sid
+sudo apt install cmake build-essential ninja-build libsdl3-dev libsdl3-mixer-dev
+# Arch
+sudo pacman -S cmake ninja gcc sdl3 sdl3_mixer
 
 cmake --preset linux
 cmake --build --preset linux
@@ -62,9 +64,22 @@ cmake --build --preset linux
 
 Distribution packages should keep `SCP_VENDORED_SDL=OFF`, the Linux default, so the game links against the system SDL. Ubuntu 22.04 ships CMake 3.22, which is too old: install a newer one from [Kitware's APT repository](https://apt.kitware.com/) or with `pip install cmake`.
 
-Tested upstream with GCC 10 and Clang 11. The `linux` preset builds with GCC 15 and CMake 4.2. GCC warns about right-to-left marks in `translations.cpp` and, in optimized builds, about unchecked `fread` return values; both are harmless. `cmake --install build/linux` installs the binary, the `.desktop` file, the AppStream metadata and the icons from `Platform/Linux/`.
+**Music:** Debian builds SDL3_mixer without MIDI support, so a `linux` build against it has sound effects but no music. Arch's SDL3_mixer plays MIDI through FluidSynth.
 
-The `linux-vendored` preset builds SDL from source instead and needs no SDL packages. SDL loads X11, Wayland, PulseAudio, PipeWire and ALSA at run time, but it can only use the ones whose development headers were installed when it was built. That build plays MIDI through Timidity only, so music needs a `timidity.cfg` with patches.
+Tested upstream with GCC 10 and Clang 11. The `linux` preset builds with GCC 15 and CMake 4.2. `cmake --install build/linux` installs the binary, the `.desktop` file, the AppStream metadata and the icons from `Platform/Linux/`.
+
+The `linux-vendored` preset builds SDL from source instead and needs no SDL packages, only SDL's build dependencies. SDL loads X11, Wayland, PulseAudio, PipeWire and ALSA at run time, but it can only use the ones whose development headers were installed when it was built, and it stops configuring when a header for an X11 extension it wants is missing. On Debian and Ubuntu:
+
+```bash
+sudo apt install cmake build-essential ninja-build \
+  libasound2-dev libpulse-dev libpipewire-0.3-dev libx11-dev libxext-dev libxrandr-dev \
+  libxcursor-dev libxfixes-dev libxi-dev libxss-dev libxtst-dev libxkbcommon-dev \
+  libwayland-dev libdecor-0-dev libegl-dev libgl-dev libdrm-dev libgbm-dev libudev-dev libdbus-1-dev
+cmake --preset linux-vendored
+cmake --build --preset linux-vendored
+```
+
+To leave out a missing X11 extension instead, pass its option, for example `-DSDL_X11_XTEST=OFF`. That build plays MIDI through Timidity only, so music needs a `timidity.cfg` with GUS patches; set `TIMIDITY_CFG` if it isn't in `/etc/timidity.cfg` or `/etc/timidity/`.
 
 Some distributions package the game, and it is on [Flathub](https://flathub.org/apps/details/com.github.k4zmu2a.spacecadetpinball): see [Repology](https://repology.org/project/spacecadetpinball/versions).
 
@@ -77,7 +92,7 @@ cmake --preset windows-x64
 cmake --build --preset windows-x64
 ```
 
-SDL is downloaded and linked statically, so the executable needs no `SDL2.dll` or `SDL2_mixer.dll`. The `windows-*` presets build a GUI-subsystem executable with no console window. To see the console output, add `-DCMAKE_WIN32_EXECUTABLE=OFF`.
+SDL is downloaded and linked statically, so the executable needs no `SDL3.dll` or `SDL3_mixer.dll`. The `windows-*` presets build a GUI-subsystem executable with no console window. To see the console output, add `-DCMAKE_WIN32_EXECUTABLE=OFF`.
 
 ### Cross-compiling for Windows from Linux
 
@@ -95,7 +110,7 @@ The preset uses `mingwcc.cmake` as its toolchain file, builds SDL from source an
 Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake 3.24 or newer.
 
 - **Packaged app:** run `bash build-mac-app.sh` from the repository root. It builds the `macos` preset and produces `SpaceCadetPinball-<version>-mac.dmg`. See [deployment.md](deployment.md).
-- **Manual build:** `cmake --preset macos && cmake --build --preset macos` builds a universal binary with SDL linked statically. To use SDL from Homebrew (`sdl2`, `sdl2_mixer`) or MacPorts (`libsdl2`, `libsdl2_mixer`) instead, configure without the preset and pass `-DSCP_VENDORED_SDL=OFF`. That build targets only the host architecture unless `CMAKE_OSX_ARCHITECTURES` is set.
+- **Manual build:** `cmake --preset macos && cmake --build --preset macos` builds a universal binary with SDL linked statically. To use SDL from Homebrew (`sdl3`, `sdl3_mixer`) instead, configure without the preset and pass `-DSCP_VENDORED_SDL=OFF`. That build targets only the host architecture unless `CMAKE_OSX_ARCHITECTURES` is set.
 - **Tested upstream with:** the earlier framework-based script on macOS Ventura (Apple Silicon) with Command Line Tools 14 and on a GitHub Intel runner with Xcode 13; manual builds on macOS Big Sur (Intel) and Monterey beta (Apple Silicon) with Xcode 13. CI builds the `macos` preset on a `macos-26` runner, but nobody has run the resulting app yet.
 - **Prebuilt:** `brew tap draftbrew/tap && brew install --no-quarantine space-cadet-pinball`. `--no-quarantine` bypasses Gatekeeper for this install.
 
@@ -115,8 +130,8 @@ Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake 3.2
 ## Troubleshooting
 
 - **No background music:** music is on by default (the original game had it off), but a saved `Music=0` in `imgui_pb.ini` from an earlier run keeps it off. Turn it on with F6 or Options → Music.
-- **Still no music on Linux:** SDL_mixer plays MIDI through FluidSynth, which needs a SoundFont. Debian and Ubuntu builds find `/usr/share/sounds/sf2/FluidR3_GM.sf2` (package `fluid-soundfont-gm`) on their own. Elsewhere, point `SDL_SOUNDFONTS` at one before launching, for example `export SDL_SOUNDFONTS=/usr/share/soundfonts/FluidR3_GM.sf2` (Fedora).
+- **Still no music:** SDL3_mixer has no native MIDI, so Windows and macOS builds play music only with a Timidity setup for now, and Debian's SDL3_mixer has no MIDI at all. The next step of the modernization plan brings native MIDI back and adds a SoundFont synth.
 - **"Could not create renderer" or a black window:** try `-sw`.
 - **WSL2:** WSLg provides both a display and a PulseAudio device, so the game runs without extra setup and without `-noaudio`.
-- **`SDL Error: Couldn't open timidity.cfg` in the console:** the main loop prints any pending SDL error, including errors that SDL_mixer recovered from internally. This line alone is not proof that music is broken.
+- **An `SDL Error:` line in the console:** the main loop prints any pending SDL error, including errors that SDL or SDL_mixer recovered from internally. This line alone is not proof that music is broken.
 - **"Could not load game data":** no data file was found. The message lists the folders searched; see [Game data](#game-data). When a file is found, the console prints `Loading game from: <path>`.

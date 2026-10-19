@@ -17,12 +17,14 @@ jobs:
   build:
     name: ${{ matrix.preset }}
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { preset: linux, os: ubuntu-24.04 }
+          # Ubuntu 24.04 has no SDL3 or SDL3_mixer packages; Debian testing has both
+          - { preset: linux, os: ubuntu-24.04, container: "debian:forky-slim@sha256:3c80e257eff6274d593eb33a94bda5174ccd619836e6a728a73e11c97f2213e3" }
           - { preset: linux-vendored, os: ubuntu-24.04 }
           - { preset: mingw, os: ubuntu-24.04 }
           # windows-latest has Visual Studio 2026; the presets use the Visual Studio 2022 generator.
@@ -36,17 +38,19 @@ jobs:
       - name: Install system SDL packages
         if: matrix.preset == 'linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ninja-build libsdl2-dev libsdl2-mixer-dev
+          apt-get update
+          apt-get install -y --no-install-recommends cmake ninja-build g++ libsdl3-dev libsdl3-mixer-dev
 
-      # Without these headers SDL still builds, but with no video or audio backend
+      # SDL3 stops configuring when a header for an X11 extension it wants is missing,
+      # and without the audio and Wayland headers it builds without those backends
       - name: Install SDL build dependencies
         if: matrix.preset == 'linux-vendored'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ninja-build \
-            libasound2-dev libpulse-dev libx11-dev libxext-dev libxrandr-dev libxcursor-dev \
-            libxi-dev libxss-dev libxkbcommon-dev libwayland-dev libegl-dev libgl-dev
+            libasound2-dev libpulse-dev libpipewire-0.3-dev libx11-dev libxext-dev libxrandr-dev \
+            libxcursor-dev libxfixes-dev libxi-dev libxss-dev libxtst-dev libxkbcommon-dev \
+            libwayland-dev libdecor-0-dev libegl-dev libgl-dev libdrm-dev libgbm-dev libudev-dev libdbus-1-dev
 
       - name: Install MinGW
         if: matrix.preset == 'mingw'

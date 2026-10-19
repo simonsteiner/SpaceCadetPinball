@@ -131,6 +131,7 @@ void zdrv::CreatePreview(zmap_header_type& zMap)
 		SDL_TEXTUREACCESS_STATIC,
 		zMap.Width, zMap.Height
 	);
+	SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
 	SDL_UpdateTexture(texture, nullptr, tmpBuff, zMap.Width * 4);
 	zMap.Texture = texture;
 	delete[] tmpBuff;

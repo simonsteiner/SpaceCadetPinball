@@ -8,15 +8,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/CMakeModules")
-
 # Windows and macOS have no standard SDL packages, so build SDL from source there by default
 if(WIN32 OR APPLE)
     set(SCP_VENDORED_SDL_DEFAULT ON)
 else()
     set(SCP_VENDORED_SDL_DEFAULT OFF)
 endif()
-option(SCP_VENDORED_SDL "Build SDL2 and SDL2_mixer from pinned sources instead of using installed packages" ${SCP_VENDORED_SDL_DEFAULT})
+option(SCP_VENDORED_SDL "Build SDL3 and SDL3_mixer from pinned sources instead of using installed packages" ${SCP_VENDORED_SDL_DEFAULT})
 option(SCP_WARNINGS "Compile the game with extra warnings (-Wall -Wextra, or /W4 with MSVC) and treat them as errors" OFF)
 option(SCP_SANITIZERS "Build the game with AddressSanitizer and UndefinedBehaviorSanitizer (GCC and Clang)" OFF)
 
@@ -26,69 +24,62 @@ if(MINGW)
 endif()
 
 if(APPLE)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.11")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13")
 endif()
 
 if(SCP_VENDORED_SDL)
     include(FetchContent)
 
-    # Let option() in SDL2, which declares an older CMake version, honour the variables below
-    set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
-
-    # Static libraries, nothing installed, no SDL2main
+    # Static libraries, nothing installed, no tests or examples
     set(BUILD_SHARED_LIBS OFF)
     set(SDL_SHARED OFF)
     set(SDL_STATIC ON)
-    set(SDL_TEST OFF)
-    set(SDL2_DISABLE_SDL2MAIN ON)
-    set(SDL2_DISABLE_INSTALL ON)
-    set(SDL2_DISABLE_UNINSTALL ON)
-    # Off, or SDL raises its minimum CMake version below 3.10 and compiles through ccache when installed
-    set(SDL_CCACHE OFF)
+    set(SDL_TEST_LIBRARY OFF)
+    set(SDL_TESTS OFF)
+    set(SDL_EXAMPLES OFF)
+    set(SDL_INSTALL OFF)
+    set(SDL_UNINSTALL OFF)
 
-    # The game only plays WAV sounds and MIDI music: Timidity, plus native MIDI on Windows and macOS
-    set(SDL2MIXER_INSTALL OFF)
-    set(SDL2MIXER_SAMPLES OFF)
-    set(SDL2MIXER_VENDORED OFF)
-    set(SDL2MIXER_CMD OFF)
-    set(SDL2MIXER_FLAC OFF)
-    set(SDL2MIXER_GME OFF)
-    set(SDL2MIXER_MOD OFF)
-    set(SDL2MIXER_MP3 OFF)
-    set(SDL2MIXER_OPUS OFF)
-    set(SDL2MIXER_VORBIS OFF CACHE STRING "Enable OGG Vorbis music")
-    set(SDL2MIXER_WAVPACK OFF)
-    set(SDL2MIXER_WAVE ON)
-    set(SDL2MIXER_MIDI ON)
-    set(SDL2MIXER_MIDI_FLUIDSYNTH OFF)
-    set(SDL2MIXER_MIDI_TIMIDITY ON)
-    set(SDL2MIXER_MIDI_NATIVE ON)
+    # The game only plays WAV sounds and MIDI music. Timidity is SDL_mixer's only MIDI decoder
+    # that doesn't need a system library.
+    set(SDLMIXER_INSTALL OFF)
+    set(SDLMIXER_TESTS OFF)
+    set(SDLMIXER_EXAMPLES OFF)
+    set(SDLMIXER_VENDORED OFF)
+    set(SDLMIXER_DEPS_SHARED OFF)
+    set(SDLMIXER_AIFF OFF)
+    set(SDLMIXER_VOC OFF)
+    set(SDLMIXER_AU OFF)
+    set(SDLMIXER_FLAC OFF)
+    set(SDLMIXER_GME OFF)
+    set(SDLMIXER_MOD OFF)
+    set(SDLMIXER_MP3 OFF)
+    set(SDLMIXER_OPUS OFF)
+    set(SDLMIXER_VORBIS_STB OFF)
+    set(SDLMIXER_VORBIS_VORBISFILE OFF)
+    set(SDLMIXER_VORBIS_TREMOR OFF)
+    set(SDLMIXER_WAVPACK OFF)
+    set(SDLMIXER_WAVE ON)
+    set(SDLMIXER_MIDI ON)
+    set(SDLMIXER_MIDI_FLUIDSYNTH OFF)
+    set(SDLMIXER_MIDI_TIMIDITY ON)
 
-    FetchContent_Declare(SDL2
-            URL https://github.com/libsdl-org/SDL/releases/download/release-2.32.10/SDL2-2.32.10.tar.gz
-            URL_HASH SHA256=5f5993c530f084535c65a6879e9b26ad441169b3e25d789d83287040a9ca5165
+    FetchContent_Declare(SDL3
+            URL https://github.com/libsdl-org/SDL/releases/download/release-3.4.18/SDL3-3.4.18.tar.gz
+            URL_HASH SHA256=9c75cf16330322c217dedd2e0609f1124f1b54b8633e763467b4684d0f4334a3
             )
-    FetchContent_Declare(SDL2_mixer
-            URL https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.8.1/SDL2_mixer-2.8.1.tar.gz
-            URL_HASH SHA256=cb760211b056bfe44f4a1e180cc7cb201137e4d1572f2002cc1be728efd22660
+    FetchContent_Declare(SDL3_mixer
+            URL https://github.com/libsdl-org/SDL_mixer/releases/download/release-3.2.4/SDL3_mixer-3.2.4.tar.gz
+            URL_HASH SHA256=182a07c745375e113dc740d43964ff21b0be29f29f59876c4dbc4db3d32f6901
             )
-    FetchContent_MakeAvailable(SDL2 SDL2_mixer)
+    FetchContent_MakeAvailable(SDL3 SDL3_mixer)
 
-    set(SDL_LIBRARIES SDL2_mixer::SDL2_mixer-static SDL2::SDL2-static)
+    set(SDL_LIBRARIES SDL3_mixer::SDL3_mixer-static SDL3::SDL3-static)
 else()
-    # SDL2main is not needed
-    set(SDL2_BUILDING_LIBRARY ON)
+    find_package(SDL3 3.2 REQUIRED CONFIG COMPONENTS SDL3)
+    find_package(SDL3_mixer 3.2 REQUIRED CONFIG)
 
-    find_package(SDL2 REQUIRED)
-    FIND_PACKAGE(SDL2_mixer REQUIRED)
-
-    include_directories(${SDL2_INCLUDE_DIR} ${SDL2_MIXER_INCLUDE_DIR})
-    get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
-    foreach(dir ${dirs})
-      message(STATUS "Include dir='${dir}'")
-    endforeach()
-
-    set(SDL_LIBRARIES ${SDL2_LIBRARY} ${SDL2_MIXER_LIBRARY})
+    set(SDL_LIBRARIES SDL3_mixer::SDL3_mixer SDL3::SDL3)
 endif()
 
 
@@ -234,10 +225,10 @@ set(IMGUI_SOURCE_FILES
         SpaceCadetPinball/imgui_widgets.cpp
         SpaceCadetPinball/imgui_tables.cpp
         SpaceCadetPinball/imgui_demo.cpp
-        SpaceCadetPinball/imgui_impl_sdl2.cpp
-        SpaceCadetPinball/imgui_impl_sdl2.h
-        SpaceCadetPinball/imgui_impl_sdlrenderer2.cpp
-        SpaceCadetPinball/imgui_impl_sdlrenderer2.h
+        SpaceCadetPinball/imgui_impl_sdl3.cpp
+        SpaceCadetPinball/imgui_impl_sdl3.h
+        SpaceCadetPinball/imgui_impl_sdlrenderer3.cpp
+        SpaceCadetPinball/imgui_impl_sdlrenderer3.h
         SpaceCadetPinball/imstb_textedit.h
         SpaceCadetPinball/imstb_rectpack.h
         SpaceCadetPinball/imstb_truetype.h
@@ -289,20 +280,11 @@ if(SCP_SANITIZERS)
     endforeach()
 endif()
 
-# On Windows with installed SDL packages, copy DLL to output
+# On Windows with installed SDL packages, copy the DLLs next to the executable
 if(WIN32 AND NOT SCP_VENDORED_SDL)
-    list(GET SDL2_LIBRARY -1 SDL2_DLL_PATH)
-    list(GET SDL2_MIXER_LIBRARY -1 SDL2_MIXER_DLL_PATH)
-    get_filename_component(SDL2_DLL_PATH ${SDL2_DLL_PATH} DIRECTORY)
-    get_filename_component(SDL2_MIXER_DLL_PATH ${SDL2_MIXER_DLL_PATH} DIRECTORY)
-    if(MINGW)
-        string(REGEX REPLACE "lib$" "bin" SDL2_DLL_PATH ${SDL2_DLL_PATH})
-        string(REGEX REPLACE "lib$" "bin" SDL2_MIXER_DLL_PATH ${SDL2_MIXER_DLL_PATH})
-    endif()
-    message(STATUS "copy paths='${SDL2_DLL_PATH}' '${SDL2_MIXER_DLL_PATH}'") 
     add_custom_command(TARGET SpaceCadetPinball POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SDL2_DLL_PATH}/SDL2.dll" $<TARGET_FILE_DIR:SpaceCadetPinball>
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${SDL2_MIXER_DLL_PATH}/SDL2_mixer.dll" $<TARGET_FILE_DIR:SpaceCadetPinball>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:SpaceCadetPinball> $<TARGET_FILE_DIR:SpaceCadetPinball>
+        COMMAND_EXPAND_LISTS
         )
 endif()
 

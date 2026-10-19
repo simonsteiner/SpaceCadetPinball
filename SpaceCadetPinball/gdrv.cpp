@@ -123,14 +123,13 @@ void gdrv_bitmap8::ScaleIndexed(float scaleX, float scaleY)
 	BmpBufPtr1 = new ColorRgba[Stride * Height];
 }
 
-void gdrv_bitmap8::CreateTexture(const char* scaleHint, int access)
+void gdrv_bitmap8::CreateTexture(SDL_ScaleMode scaleMode, SDL_TextureAccess access)
 {
 	if (Texture != nullptr)
 	{
 		SDL_DestroyTexture(Texture);
 	}
 
-	UsingSdlHint hint{ SDL_HINT_RENDER_SCALE_QUALITY, scaleHint };
 	Texture = SDL_CreateTexture
 	(
 		winmain::Renderer,
@@ -138,6 +137,7 @@ void gdrv_bitmap8::CreateTexture(const char* scaleHint, int access)
 		access,
 		Width, Height
 	);
+	SDL_SetTextureScaleMode(Texture, scaleMode);
 	SDL_SetTextureBlendMode(Texture, SDL_BLENDMODE_NONE);
 }
 
@@ -153,7 +153,7 @@ void gdrv_bitmap8::BlitToTexture()
 		reinterpret_cast<void**>(&lockedPixels),
 		&pitch
 	);
-	assertm(result == 0, "Updating non-streaming texture");
+	assertm(result, "Updating non-streaming texture");
 	assertm(static_cast<unsigned>(pitch) == Width * sizeof(ColorRgba), "Padding on vScreen texture");
 
 	std::memcpy(lockedPixels, BmpBufPtr1, Width * Height * sizeof(ColorRgba));
@@ -306,6 +306,6 @@ void gdrv::CreatePreview(gdrv_bitmap8& bmp)
 	if (bmp.Texture)
 		return;
 
-	bmp.CreateTexture("nearest", SDL_TEXTUREACCESS_STATIC);
+	bmp.CreateTexture(SDL_SCALEMODE_NEAREST, SDL_TEXTUREACCESS_STATIC);
 	SDL_UpdateTexture(bmp.Texture, nullptr, bmp.BmpBufPtr1, bmp.Width * 4);
 }

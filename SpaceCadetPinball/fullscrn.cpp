@@ -57,7 +57,7 @@ int fullscrn::enableFullscreen()
 {
 	if (!display_changed)
 	{
-		if (SDL_SetWindowFullscreen(winmain::MainWindow, SDL_WINDOW_FULLSCREEN_DESKTOP) == 0)
+		if (SDL_SetWindowFullscreen(winmain::MainWindow, true))
 		{
 			display_changed = 1;
 			return 1;
@@ -70,7 +70,7 @@ int fullscrn::disableFullscreen()
 {
 	if (display_changed)
 	{
-		if (SDL_SetWindowFullscreen(winmain::MainWindow, 0) == 0)
+		if (SDL_SetWindowFullscreen(winmain::MainWindow, false))
 			display_changed = 0;
 	}
 
@@ -109,7 +109,7 @@ int fullscrn::GetMaxResolution()
 void fullscrn::window_size_changed()
 {
 	int width, height;
-	SDL_GetRendererOutputSize(winmain::Renderer, &width, &height);
+	SDL_GetRenderOutputSize(winmain::Renderer, &width, &height);
 	int menuHeight = options::Options.ShowMenu ? winmain::MainMenuHeight : 0;
 	height -= menuHeight;
 	auto res = &resolution_array[resolution];

@@ -1,6 +1,10 @@
 #include "pch.h"
 #include "winmain.h"
 
+// The game has its own main function
+#define SDL_MAIN_HANDLED
+#include <SDL3/SDL_main.h>
+
 #include "control.h"
 #include "EmbeddedData.h"
 #include "fullscrn.h"
@@ -105,8 +109,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 	printf("Game version: %s\n", Version);
 	printf("Command line: %s\n", lpCmdLine);
-	printf("Compiled with: SDL %d.%d.%d;", SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL);
-	printf(" SDL_mixer %d.%d.%d;", SDL_MIXER_MAJOR_VERSION, SDL_MIXER_MINOR_VERSION, SDL_MIXER_PATCHLEVEL);
+	printf("Compiled with: SDL %d.%d.%d;", SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_MICRO_VERSION);
+	printf(" SDL_mixer %d.%d.%d;", SDL_MIXER_MAJOR_VERSION, SDL_MIXER_MINOR_VERSION, SDL_MIXER_MICRO_VERSION);
 	printf(" ImGui %s\n", IMGUI_VERSION);
 
 	const auto args = SplitArgs(lpCmdLine);
@@ -117,15 +121,14 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		if (!replay::StartPlayback(replayPath))
 			return 1;
 		// Playback is headless; the SDL_VIDEODRIVER environment variable still takes precedence
-		SDL_SetHint(SDL_HINT_VIDEODRIVER, "dummy");
+		SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
 	}
 
 	// SDL init
 	SDL_SetMainReady();
-	if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO |
-		SDL_INIT_EVENTS | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER) < 0)
+	if (!SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD))
 	{
-		pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not initialize SDL2", SDL_GetError());
+		pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not initialize SDL3", SDL_GetError());
 		return 1;
 	}
 
@@ -135,7 +138,6 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	SDL_Window* window = SDL_CreateWindow
 	(
 		pb::get_rc_string(Msg::STRING139),
-		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 		800, 556,
 		SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE
 	);
@@ -151,50 +153,44 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	auto swOffset = HasArg(args, "-sw") || replay::IsPlaying() ? 1 : 0;
 	for (int i = swOffset; i < 2 && !renderer; i++)
 	{
-		Renderer = renderer = SDL_CreateRenderer
-		(
-			window,
-			-1,
-			i == 0 ? SDL_RENDERER_ACCELERATED : SDL_RENDERER_SOFTWARE
-		);
+		Renderer = renderer = SDL_CreateRenderer(window, i == 0 ? nullptr : SDL_SOFTWARE_RENDERER);
 	}
 	if (!renderer)
 	{
 		pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not create renderer", SDL_GetError());
 		return 1;
 	}
-	SDL_RendererInfo rendererInfo{};
-	if (!SDL_GetRendererInfo(renderer, &rendererInfo))
-		printf("Using SDL renderer: %s\n", rendererInfo.name);
+	if (auto rendererName = SDL_GetRendererName(renderer))
+		printf("Using SDL renderer: %s\n", rendererName);
 	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 
 	auto prefPath = SDL_GetPrefPath("", "SpaceCadetPinball");
 	auto basePath = SDL_GetBasePath();
 
 	// SDL mixer init
-	bool mixOpened = false, noAudio = HasArg(args, "-noaudio") || replay::IsPlaying();
+	MIX_Mixer* mixer = nullptr;
+	bool noAudio = HasArg(args, "-noaudio") || replay::IsPlaying();
 	if (!noAudio)
 	{
-		if ((Mix_Init(MIX_INIT_MID_Proxy) & MIX_INIT_MID_Proxy) == 0)
+		if (!MIX_Init())
 		{
-			printf("Could not initialize SDL MIDI, music might not work.\nSDL Error: %s\n", SDL_GetError());
+			printf("Could not initialize SDL_mixer, continuing without audio.\nSDL Error: %s\n", SDL_GetError());
 			SDL_ClearError();
+			noAudio = true;
 		}
-		if (Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 1024) != 0)
+		else if (!(mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr)))
 		{
 			printf("Could not open audio device, continuing without audio.\nSDL Error: %s\n", SDL_GetError());
 			SDL_ClearError();
 		}
-		else
-			mixOpened = true;
 	}
+	auto mixOpened = mixer != nullptr;
 
 	{
 		// Load SDL Game Controller definitions from DB
 		auto controllerDb = EmbeddedData::DecompressStb(EmbeddedData::SDL_GameControllerDB_compressed_data);
-		auto rw = SDL_RWFromMem(controllerDb.data(), static_cast<int>(controllerDb.size()));
-		const auto added = SDL_GameControllerAddMappingsFromRW(rw, 1);
+		auto io = SDL_IOFromConstMem(controllerDb.data(), controllerDb.size());
+		const auto added = SDL_AddGamepadMappingsFromIO(io, true);
 		if (added < 0)
 		{
 			printf("Could not load game controller DB.\nSDL Error: %s\n", SDL_GetError());
@@ -250,10 +246,10 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			if (!fontLoaded)
 				printf("Failed to load font: %s, using embedded font.\n", fileName);
 		}
-		ImGui_ImplSDLRenderer2_Init(renderer);
+		ImGui_ImplSDLRenderer3_Init(renderer);
 		ImGui::StyleColorsDark();
 
-		ImGui_ImplSDL2_InitForSDLRenderer(window, Renderer);
+		ImGui_ImplSDL3_InitForSDLRenderer(window, Renderer);
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
 
 		// Data search order: WD, executable path, user pref path, platform specific paths.
@@ -287,13 +283,13 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		if (replay::IsRecording() || replay::IsPlaying())
 			srand(replay::Seed());
 
-		Sound::Init(mixOpened, Options.SoundChannels, Options.Sounds, Options.SoundVolume);
+		Sound::Init(mixer, Options.SoundChannels, Options.Sounds, Options.SoundVolume);
 		if (!mixOpened)
 			Options.Sounds = false;
 
 		// Keep Options.Music as saved: playback is a no-op without a loaded track,
 		// and clearing it here would persist Music=0 after a -noaudio or -quick run.
-		midi::music_init(mixOpened, Options.MusicVolume);
+		midi::music_init(mixer, Options.MusicVolume);
 
 		if (pb::init())
 		{
@@ -355,20 +351,19 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		Sound::Close();
 		pb::uninit();
 
-		ImGui_ImplSDLRenderer2_Shutdown();
-		ImGui_ImplSDL2_Shutdown();
+		ImGui_ImplSDLRenderer3_Shutdown();
+		ImGui_ImplSDL3_Shutdown();
 		ImGui::DestroyContext();
 	}
 	while (restart);
 
 	if (!noAudio)
 	{
-		if (mixOpened)
-			Mix_CloseAudio();
-		Mix_Quit();
+		if (mixer)
+			MIX_DestroyMixer(mixer);
+		MIX_Quit();
 	}
 
-	SDL_free(basePath);
 	SDL_free(prefPath);
 	SDL_DestroyRenderer(renderer);
 	SDL_DestroyWindow(window);
@@ -411,8 +406,10 @@ void winmain::MainLoop()
 		{
 			if (mouse_down)
 			{
-				int x, y, w, h;
-				SDL_GetMouseState(&x, &y);
+				float mouseX, mouseY;
+				int w, h;
+				SDL_GetMouseState(&mouseX, &mouseY);
+				auto x = static_cast<int>(mouseX), y = static_cast<int>(mouseY);
 				SDL_GetWindowSize(MainWindow, &w, &h);
 				float dx = static_cast<float>(last_mouse_x - x) / static_cast<float>(w);
 				float dy = static_cast<float>(y - last_mouse_y) / static_cast<float>(h);
@@ -430,7 +427,7 @@ void winmain::MainLoop()
 					// Mouse warp does not work over remote desktop or in some VMs
 					x = abs(x - xMod);
 					y = abs(y - yMod);
-					SDL_WarpMouseInWindow(MainWindow, x, y);
+					SDL_WarpMouseInWindow(MainWindow, static_cast<float>(x), static_cast<float>(y));
 				}
 
 				last_mouse_x = x;
@@ -459,8 +456,8 @@ void winmain::MainLoop()
 			{
 				if (Options.HideCursor && CursorIdleCounter <= 0)
 					ImGui::SetMouseCursor(ImGuiMouseCursor_None);
-				ImGui_ImplSDL2_NewFrame();
-				ImGui_ImplSDLRenderer2_NewFrame();
+				ImGui_ImplSDLRenderer3_NewFrame();
+				ImGui_ImplSDL3_NewFrame();
 				ImGui::NewFrame();
 				RenderUi();
 
@@ -471,7 +468,7 @@ void winmain::MainLoop()
 				render::PresentVScreen();
 
 				ImGui::Render();
-				ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), Renderer);
+				ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), Renderer);
 
 				SDL_RenderPresent(Renderer);
 				frameCounter++;
@@ -898,7 +895,7 @@ void winmain::RenderUi()
 
 		if (ImGui::Button(pb::get_rc_string(Msg::GenericOk), ImVec2(120, 0)))
 		{
-			SDL_Event event{SDL_QUIT};
+			SDL_Event event{SDL_EVENT_QUIT};
 			SDL_PushEvent(&event);
 			ImGui::CloseCurrentPopup();
 		}
@@ -925,23 +922,23 @@ int winmain::event_handler(const SDL_Event* event)
 	auto inputDown = false;
 	switch (event->type)
 	{
-	case SDL_KEYDOWN:
-	case SDL_MOUSEBUTTONDOWN:
-	case SDL_CONTROLLERBUTTONDOWN:
+	case SDL_EVENT_KEY_DOWN:
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
+	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
 		inputDown = true;
 		break;
 	default: break;
 	}
 	if (!options::WaitingForInput() || !inputDown)
-		ImGui_ImplSDL2_ProcessEvent(event);
+		ImGui_ImplSDL3_ProcessEvent(event);
 
 	bool mouseEvent;
 	switch (event->type)
 	{
-	case SDL_MOUSEMOTION:
-	case SDL_MOUSEBUTTONDOWN:
-	case SDL_MOUSEBUTTONUP:
-	case SDL_MOUSEWHEEL:
+	case SDL_EVENT_MOUSE_MOTION:
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
+	case SDL_EVENT_MOUSE_BUTTON_UP:
+	case SDL_EVENT_MOUSE_WHEEL:
 		CursorIdleCounter = 1000;
 		mouseEvent = true;
 		break;
@@ -955,7 +952,7 @@ int winmain::event_handler(const SDL_Event* event)
 		if (mouse_down)
 		{
 			mouse_down = 0;
-			SDL_SetWindowGrab(MainWindow, SDL_FALSE);
+			SDL_SetWindowMouseGrab(MainWindow, false);
 		}
 		if (mouseEvent)
 			return 1;
@@ -964,10 +961,10 @@ int winmain::event_handler(const SDL_Event* event)
 	{
 		switch (event->type)
 		{
-		case SDL_KEYDOWN:
-		case SDL_KEYUP:
-		case SDL_CONTROLLERBUTTONDOWN:
-		case SDL_CONTROLLERBUTTONUP:
+		case SDL_EVENT_KEY_DOWN:
+		case SDL_EVENT_KEY_UP:
+		case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+		case SDL_EVENT_GAMEPAD_BUTTON_UP:
 			return 1;
 		default: ;
 		}
@@ -975,29 +972,29 @@ int winmain::event_handler(const SDL_Event* event)
 
 	switch (event->type)
 	{
-	case SDL_QUIT:
+	case SDL_EVENT_QUIT:
 		end_pause();
 		bQuit = true;
 		fullscrn::shutdown();
 		return_value = 0;
 		return 0;
-	case SDL_KEYUP:
-		pb::InputUp({InputTypes::Keyboard, event->key.keysym.sym});
+	case SDL_EVENT_KEY_UP:
+		pb::InputUp({InputTypes::Keyboard, static_cast<int>(event->key.key)});
 		break;
-	case SDL_KEYDOWN:
+	case SDL_EVENT_KEY_DOWN:
 		if (event->key.repeat)
 			break;
 
-		pb::InputDown({InputTypes::Keyboard, event->key.keysym.sym});
+		pb::InputDown({InputTypes::Keyboard, static_cast<int>(event->key.key)});
 		if (!pb::cheat_mode)
 			break;
 
-		switch (event->key.keysym.sym)
+		switch (event->key.key)
 		{
-		case SDLK_g:
+		case SDLK_G:
 			DispGRhistory ^= true;
 			break;
-		case SDLK_o:
+		case SDLK_O:
 			{
 				auto plt = new ColorRgba[4 * 256];
 				auto pltPtr = &plt[10]; // first 10 entries are system colors hardcoded in display_palette()
@@ -1016,7 +1013,7 @@ int winmain::event_handler(const SDL_Event* event)
 				delete[] plt;
 			}
 			break;
-		case SDLK_y:
+		case SDLK_Y:
 			SDL_SetWindowTitle(MainWindow, "Pinball");
 			DispFrameRate ^= true;
 			break;
@@ -1032,7 +1029,7 @@ int winmain::event_handler(const SDL_Event* event)
 			break;
 		}
 		break;
-	case SDL_MOUSEBUTTONDOWN:
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
 		{
 			bool noInput = false;
 			switch (event->button.button)
@@ -1041,9 +1038,9 @@ int winmain::event_handler(const SDL_Event* event)
 				if (pb::cheat_mode)
 				{
 					mouse_down = 1;
-					last_mouse_x = event->button.x;
-					last_mouse_y = event->button.y;
-					SDL_SetWindowGrab(MainWindow, SDL_TRUE);
+					last_mouse_x = static_cast<int>(event->button.x);
+					last_mouse_y = static_cast<int>(event->button.y);
+					SDL_SetWindowMouseGrab(MainWindow, true);
 					noInput = true;
 				}
 				break;
@@ -1055,7 +1052,7 @@ int winmain::event_handler(const SDL_Event* event)
 				pb::InputDown({InputTypes::Mouse, event->button.button});
 		}
 		break;
-	case SDL_MOUSEBUTTONUP:
+	case SDL_EVENT_MOUSE_BUTTON_UP:
 		{
 			bool noInput = false;
 			switch (event->button.button)
@@ -1064,7 +1061,7 @@ int winmain::event_handler(const SDL_Event* event)
 				if (mouse_down)
 				{
 					mouse_down = 0;
-					SDL_SetWindowGrab(MainWindow, SDL_FALSE);
+					SDL_SetWindowMouseGrab(MainWindow, false);
 					noInput = true;
 				}
 				break;
@@ -1076,56 +1073,41 @@ int winmain::event_handler(const SDL_Event* event)
 				pb::InputUp({InputTypes::Mouse, event->button.button});
 		}
 		break;
-	case SDL_WINDOWEVENT:
-		switch (event->window.event)
-		{
-		case SDL_WINDOWEVENT_FOCUS_GAINED:
-		case SDL_WINDOWEVENT_TAKE_FOCUS:
-		case SDL_WINDOWEVENT_SHOWN:
-			activated = true;
-			Sound::Activate();
-			if (Options.Music && !single_step)
-				midi::music_play();
-			no_time_loss = true;
-			has_focus = true;
-			break;
-		case SDL_WINDOWEVENT_FOCUS_LOST:
-		case SDL_WINDOWEVENT_HIDDEN:
-			activated = false;
-			fullscrn::activate(0);
-			Options.FullScreen = false;
-			Sound::Deactivate();
-			midi::music_stop();
-			has_focus = false;
-			pb::loose_focus();
-			break;
-		case SDL_WINDOWEVENT_SIZE_CHANGED:
-		case SDL_WINDOWEVENT_RESIZED:
-			fullscrn::window_size_changed();
-			break;
-		default: ;
-		}
+	case SDL_EVENT_WINDOW_FOCUS_GAINED:
+	case SDL_EVENT_WINDOW_SHOWN:
+		activated = true;
+		Sound::Activate();
+		if (Options.Music && !single_step)
+			midi::music_play();
+		no_time_loss = true;
+		has_focus = true;
 		break;
-	case SDL_JOYDEVICEADDED:
-		if (SDL_IsGameController(event->jdevice.which))
-		{
-			SDL_GameControllerOpen(event->jdevice.which);
-		}
+	case SDL_EVENT_WINDOW_FOCUS_LOST:
+	case SDL_EVENT_WINDOW_HIDDEN:
+		activated = false;
+		fullscrn::activate(0);
+		Options.FullScreen = false;
+		Sound::Deactivate();
+		midi::music_stop();
+		has_focus = false;
+		pb::loose_focus();
 		break;
-	case SDL_JOYDEVICEREMOVED:
-		{
-			SDL_GameController* controller = SDL_GameControllerFromInstanceID(event->jdevice.which);
-			if (controller)
-			{
-				SDL_GameControllerClose(controller);
-			}
-		}
+	case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+	case SDL_EVENT_WINDOW_RESIZED:
+		fullscrn::window_size_changed();
 		break;
-	case SDL_CONTROLLERBUTTONDOWN:
-		pb::InputDown({InputTypes::GameController, event->cbutton.button});
+	case SDL_EVENT_GAMEPAD_ADDED:
+		SDL_OpenGamepad(event->gdevice.which);
 		break;
-	case SDL_CONTROLLERBUTTONUP:
-		pb::InputUp({InputTypes::GameController, event->cbutton.button});
+	case SDL_EVENT_GAMEPAD_REMOVED:
+		if (auto gamepad = SDL_GetGamepadFromID(event->gdevice.which))
+			SDL_CloseGamepad(gamepad);
+		break;
+	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+		pb::InputDown({InputTypes::GameController, event->gbutton.button});
+		break;
+	case SDL_EVENT_GAMEPAD_BUTTON_UP:
+		pb::InputUp({InputTypes::GameController, event->gbutton.button});
 		break;
 	default: ;
 	}
@@ -1193,10 +1175,7 @@ void winmain::a_dialog()
 				ImGui::Text("Version %s", Version);
 				if (ImGui::SmallButton("Project home: https://github.com/k4zmu2a/SpaceCadetPinball"))
 				{
-#if SDL_VERSION_ATLEAST(2, 0, 14)
-					// Relatively new feature, skip with older SDL
 					SDL_OpenURL("https://github.com/k4zmu2a/SpaceCadetPinball");
-#endif
 				}
 				ImGui::EndTabItem();
 			}
@@ -1375,7 +1354,7 @@ void winmain::pause(bool toggle)
 void winmain::Restart()
 {
 	restart = true;
-	SDL_Event event{SDL_QUIT};
+	SDL_Event event{SDL_EVENT_QUIT};
 	SDL_PushEvent(&event);
 }
 
@@ -1416,7 +1395,7 @@ void winmain::HandleGameBinding(GameBindings binding, bool shortcut)
 	case GameBindings::Exit:
 		if (!shortcut)
 		{
-			SDL_Event event{SDL_QUIT};
+			SDL_Event event{SDL_EVENT_QUIT};
 			SDL_PushEvent(&event);
 		}
 		else

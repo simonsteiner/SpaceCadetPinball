@@ -24,44 +24,44 @@ optionsStruct options::Options
 		{
 			"Left Flipper key",
 			Msg::KEYMAPPER_FlipperL,
-			{InputTypes::Keyboard, SDLK_z},
+			{InputTypes::Keyboard, SDLK_Z},
 			{InputTypes::Mouse, SDL_BUTTON_LEFT},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_LEFTSHOULDER}
+			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER}
 		},
 		{
 			"Right Flipper key",
 			Msg::KEYMAPPER_FlipperR,
 			{InputTypes::Keyboard, SDLK_SLASH},
 			{InputTypes::Mouse,SDL_BUTTON_RIGHT},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER}
+			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER}
 		},
 		{
 			"Plunger key",
 			Msg::KEYMAPPER_Plunger,
 			{InputTypes::Keyboard, SDLK_SPACE},
 			{InputTypes::Mouse,SDL_BUTTON_MIDDLE},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_A}
+			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_SOUTH}
 		},
 		{
 			"Left Table Bump key",
 			Msg::KEYMAPPER_BumpLeft,
-			{InputTypes::Keyboard, SDLK_x},
+			{InputTypes::Keyboard, SDLK_X},
 			{InputTypes::Mouse,SDL_BUTTON_X1},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_LEFT}
+			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_DPAD_LEFT}
 		},
 		{
 			"Right Table Bump key",
 			Msg::KEYMAPPER_BumpRight,
 			{InputTypes::Keyboard, SDLK_PERIOD},
 			{InputTypes::Mouse,SDL_BUTTON_X2},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_RIGHT}
+			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_DPAD_RIGHT}
 		},
 		{
 			"Bottom Table Bump key",
 			Msg::KEYMAPPER_BumpBottom,
 			{InputTypes::Keyboard, SDLK_UP},
 			{InputTypes::Mouse,SDL_BUTTON_X2 + 1},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_UP}
+			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_DPAD_UP}
 		},
 		{
 			"New Game",
@@ -75,7 +75,7 @@ optionsStruct options::Options
 			Msg::Menu1_Pause_Resume_Game,
 			{InputTypes::Keyboard, SDLK_F3},
 			{},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_START}
+			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_START}
 		},
 		{
 			"Toggle FullScreen",
@@ -117,7 +117,7 @@ optionsStruct options::Options
 			Msg::Menu1_Exit,
 			{InputTypes::Keyboard, SDLK_ESCAPE},
 			{},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_BACK}
+			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_BACK}
 		},
 	},
 	{"Sounds", true},
@@ -568,7 +568,7 @@ std::string GameInput::GetShortInputDescription() const
 	switch (Type)
 	{
 	case InputTypes::Keyboard:
-		keyName = SDL_GetKeyName(Value);
+		keyName = SDL_GetKeyName(static_cast<SDL_Keycode>(Value));
 		break;
 	case InputTypes::Mouse:
 		if (Value >= SDL_BUTTON_LEFT && Value <= SDL_BUTTON_X2)
@@ -577,7 +577,7 @@ std::string GameInput::GetShortInputDescription() const
 			keyName = "MButton" + std::to_string(Value);
 		break;
 	case InputTypes::GameController:
-		if (Value >= SDL_CONTROLLER_BUTTON_A && Value < std::min(static_cast<int>(SDL_CONTROLLER_BUTTON_MAX), 21))
+		if (Value >= SDL_GAMEPAD_BUTTON_SOUTH && Value < std::min(static_cast<int>(SDL_GAMEPAD_BUTTON_COUNT), 21))
 			keyName = controllerButtons[Value];
 		else
 			keyName = "CButton" + std::to_string(Value);
