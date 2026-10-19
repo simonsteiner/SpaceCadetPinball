@@ -30,6 +30,7 @@ jobs:
           # windows-latest has Visual Studio 2026; the presets use the Visual Studio 2022 generator.
           - { preset: windows-x64, os: windows-2022 }
           - { preset: macos, os: macos-26 }
+          - { preset: web, os: ubuntu-24.04 }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -58,6 +59,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ninja-build g++-mingw-w64-x86-64-posix gcc-mingw-w64-x86-64-posix
 
+      - name: Install Emscripten
+        if: matrix.preset == 'web'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build
+          tools/install-emsdk.sh "$RUNNER_TEMP/emsdk"
+          echo "EMSDK=$RUNNER_TEMP/emsdk" >> "$GITHUB_ENV"
+
       - name: Configure
         env:
           PRESET: ${{ matrix.preset }}
@@ -69,6 +78,10 @@ jobs:
           PRESET: ${{ matrix.preset }}
         run: cmake --build --preset "$PRESET" --parallel 4
         shell: bash
+
+      - name: Check the web build holds no game data
+        if: matrix.preset == 'web'
+        run: tools/check-no-game-data.sh bin
 
   # clang-format and clang-tidy on the lines a pull request changes; the code is never reformatted as a whole
   lint:

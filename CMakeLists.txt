@@ -8,8 +8,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin)
 
-# Windows and macOS have no standard SDL packages, so build SDL from source there by default
-if(WIN32 OR APPLE)
+# Windows, macOS and the web have no standard SDL packages, so build SDL from source there by default
+if(WIN32 OR APPLE OR EMSCRIPTEN)
     set(SCP_VENDORED_SDL_DEFAULT ON)
 else()
     set(SCP_VENDORED_SDL_DEFAULT OFF)
@@ -334,7 +334,28 @@ if(WIN32 AND NOT SCP_VENDORED_SDL)
         )
 endif()
 
-if(UNIX AND NOT APPLE)
+# The web build: one page with the game, which the player gives their game data in the browser (Platform/Web)
+if(EMSCRIPTEN)
+    set_target_properties(SpaceCadetPinball PROPERTIES SUFFIX ".html")
+    target_link_options(SpaceCadetPinball PRIVATE
+        # The main loop stays a loop and yields to the browser while it waits for the next frame
+        -sASYNCIFY
+        -sALLOW_MEMORY_GROWTH=1
+        -sINITIAL_MEMORY=128MB
+        -sMAXIMUM_MEMORY=2GB
+        -sSTACK_SIZE=1MB
+        # IndexedDB keeps the player's game data and settings; the page starts the game once they are in place
+        -lidbfs.js
+        -sFORCE_FILESYSTEM=1
+        -sINVOKE_RUN=0
+        -sEXIT_RUNTIME=0
+        "-sEXPORTED_RUNTIME_METHODS=['FS','ENV','callMain','addRunDependency','removeRunDependency']"
+        "--shell-file=${CMAKE_CURRENT_SOURCE_DIR}/Platform/Web/shell.html"
+        )
+    set_property(TARGET SpaceCadetPinball APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Platform/Web/shell.html")
+endif()
+
+if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
 	include(GNUInstallDirs)
 	install(TARGETS "${PROJECT_NAME}" RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 	install(FILES "${CMAKE_SOURCE_DIR}/Platform/Linux/${PROJECT_NAME}.desktop" DESTINATION "share/applications")

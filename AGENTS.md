@@ -6,7 +6,7 @@ Domain terms are in `GLOSSARY.md`; dated work plans are in `docs/plan/` (the new
 ## Commands
 
 ```bash
-cmake --preset linux  # configure (presets: linux, linux-debug, linux-sanitize, linux-vendored, windows-x64, mingw, macos); linux needs SDL3 and SDL3_mixer dev packages
+cmake --preset linux  # configure (presets: linux, linux-debug, linux-sanitize, linux-vendored, windows-x64, mingw, macos, web); linux needs SDL3 and SDL3_mixer dev packages
 cmake --build --preset linux  # build; the executable lands in bin/ in the source tree
 cmake --preset linux-vendored && cmake --build --preset linux-vendored  # build with SDL fetched from source, as the Windows and macOS presets do
 ./bin/SpaceCadetPinball -noaudio  # run; needs game data, see docs/setup.md
@@ -46,6 +46,7 @@ There are no automated tests yet. A change is checked by building it and playing
 ## Hard constraints
 
 - **Never commit game data.** The original game's files (`*.DAT`, `*.WAV`, `*.MID`, `Pinball.exe`, `table.bmp`, `wavemix.inf`) are Microsoft's, and so is anything made from them, such as exported or upscaled sprites. `.gitignore` excludes them in any letter case; keep game data outside the repository and never force-add it.
+- **The web build never contains game data.** `.github/workflows/Pages.yml` publishes only the page, the game's code and the MIT SoundFont, after `tools/check-no-game-data.sh` has checked the folder. The player's files go into their browser's IndexedDB and nowhere else.
 - **Never commit to or push `master`.** Merge `upstream/master` into it only when asked.
 - **Ask the user before changing gameplay behaviour,** including fixes to physics or table rules. The decompiled physics and table rules reproduce the original; a quirk that looks like a bug may be faithful to it.
 

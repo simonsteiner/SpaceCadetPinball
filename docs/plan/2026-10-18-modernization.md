@@ -1,6 +1,6 @@
 # Modernization plan
 
-Date: 2026-10-18. Status: Phase 0, Phase 1 and Phase 2 done. Decisions of 2026-10-19 are under [Open decisions](#open-decisions).
+Date: 2026-10-18. Status: Phase 0, Phase 1, Phase 2 and Phase 4 done, except the first Pages deployment (Pages isn't enabled yet). Decisions of 2026-10-19 are under [Open decisions](#open-decisions).
 
 The goal is to bring this fork of k4zmu2a/SpaceCadetPinball up to a current toolchain and a better presentation without changing how the game plays. Phases 1, 2 and 4 are the recommended path. Phase 3 stays parked unless there is a specific reason for it.
 
@@ -138,10 +138,18 @@ Porting the logic to TypeScript/WebGL or Rust would re-create what the decompila
 
 ## Phase 4: web build
 
-1. Emscripten preset on top of the SDL3 port.
+1. Done: **Emscripten preset on top of the SDL3 port.** `cmake --preset web` (with `EMSDK` set; `tools/install-emsdk.sh` installs the pinned emsdk 6.0.12) builds SDL3, SDL3_mixer and the game with Emscripten into `bin/SpaceCadetPinball.html`, `.js` and `.wasm`, about 3.4 MB together.
+   - **Main loop:** `-sASYNCIFY`, and the loop yields with `emscripten_sleep` after every frame, so `WinMain`'s restart loop and `MainLoop` stay as they are. alula's port turned the loop into an `emscripten_set_main_loop_arg` callback instead; with ASYNCIFY, the restarts (language, resolution, data) need no rework.
+   - **No threads:** GitHub Pages can't send the cross-origin isolation headers that threads need, so the build has none. SDL's audio and the TinySoundFont callback run on the main thread.
+   - **Canvas:** the window is sized to the browser's viewport and follows it (`emscripten_set_resize_callback`). SDL 3.4's `SDL_WINDOW_FILL_DOCUMENT` was tried first, but SDL left that mode at startup and then failed restoring the page (it had moved the canvas's next sibling itself).
+   - **Rates:** the defaults stay 120 updates and 60 frames a second, so the physics are those of the desktop build. alula's port dropped to 60 updates a second on the web because it stuttered at 120; whether this build stutters wasn't measured.
+   - No Exit menu item (a tab is closed instead), no post-processing (SDL's GPU renderer doesn't run in browsers), and no native MIDI.
    - Done first: **SF3 SoundFonts.** TinySoundFont now loads SF3 (Ogg Vorbis samples) through the vendored `stb_vorbis.c` (v1.22, MIT or public domain), so the web build can use a SoundFont small enough to download: MuseScore's `FluidR3Mono_GM.sf3` from its v2.3.2 release, 14.5 MB, MIT like FluidR3 (Frank Wen; mono version by Michael Cowgill). On the desktop, Debian's newer default `/usr/share/sounds/sf3/default-GM.sf3` is tried first. Verified with GCC 15: both play the theme at the usual level; FluidR3Mono loads in about a second, but TinySoundFont decodes every sample to floats, so the game then uses about 400 MB.
-2. The player supplies the game data through a file picker. It is kept in IndexedDB and never uploaded.
-3. Publish the build without data to GitHub Pages from CI.
+2. Done: **The player supplies the game data through a file picker. It is kept in IndexedDB and never uploaded.** `Platform/Web/shell.html` is the page: "Choose files…" or "Choose a folder…" (Full Tilt's `SOUND` subfolder is kept) writes the DAT, WAV, MID and MDS files into `/data`, an IDBFS mount, and syncs it to IndexedDB; "Forget the game data" removes them. SDL's preference folder (`/libsdl`) is an IDBFS mount too and is synced every five seconds, so settings and high scores persist. The game starts from the Play button, which is also the click browsers want before audio may start.
+   - **Music:** TinySoundFont plays it with the player's own SoundFont, if they add a `.sf2` or `.sf3` with the game files, or else with `FluidR3Mono_GM.sf3`, which the page offers to download (14.5 MB, MIT). `SDL_SOUNDFONTS` is set in `preRun`, because Emscripten builds the C environment before `main`.
+   - Verified in Chromium, served from `localhost`: the 62 files of the Windows data went in through the picker and survived reloads; Play started the game with `opengles2`, filling the 1280×800 viewport at a pixel ratio of 2 with the table at 2×; music loaded with the downloaded SoundFont; F2 and F8 reached the game. Not verified: Firefox and Safari, phones and tablets, touch, gamepads, Full Tilt data, and actually hearing the audio.
+3. **Publish the build without data to GitHub Pages from CI.** `.github/workflows/Pages.yml` builds the `web` preset on pushes to `main`, adds the SoundFont and its licence (pinned SHA-256), runs `tools/check-no-game-data.sh` on the folder and deploys it with `actions/deploy-pages`. The `Build` workflow builds `web` on every pull request and runs the same check on `bin/`.
+   - Pages is not enabled for the repository yet (the API reports no Pages site), so the deploy job can't run until **Settings → Pages → Source: GitHub Actions** is set. Nothing was published.
 
 Prior art: alula's port (<https://github.com/alula/SpaceCadetPinball>, played at <https://pinball.alula.me>) is five commits on a September 2021 upstream, so only its approach carries over, not its code:
 

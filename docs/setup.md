@@ -38,6 +38,7 @@ Each preset builds in `build/<preset>/`. The executable is written to `bin/` in 
 | `windows-x64` | Windows, Visual Studio 2022 | built from source |
 | `mingw` | Linux, cross-compiling to Windows x64 | built from source |
 | `macos` | macOS, universal `arm64` and `x86_64` | built from source |
+| `web` | Linux or macOS with Emscripten, for browsers | built from source |
 
 The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL3 3.4.18 and SDL3_mixer 3.2.4 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity. Its other codecs and FluidSynth are left out; the game brings its own MIDI playback (see [Music](#music)). When it is `OFF` (the default on Linux), CMake uses the installed `SDL3` and `SDL3_mixer` development packages through their CMake config files. CI builds every preset except `linux-debug` and `linux-sanitize` on each pull request. Windows builds are 64-bit only; the 32-bit and Windows XP builds were dropped with the move to C++20.
 
@@ -93,6 +94,24 @@ cmake --build --preset windows-x64
 ```
 
 SDL is downloaded and linked statically, so the executable needs no `SDL3.dll` or `SDL3_mixer.dll`. The `windows-*` presets build a GUI-subsystem executable with no console window. To see the console output, add `-DCMAKE_WIN32_EXECUTABLE=OFF`.
+
+### Web
+
+The `web` preset builds the game with [Emscripten](https://emscripten.org/) into one page: `bin/SpaceCadetPinball.html`, `.js` and `.wasm`. `tools/install-emsdk.sh <folder>` installs the pinned Emscripten SDK; set `EMSDK` to that folder before configuring.
+
+```bash
+tools/install-emsdk.sh ~/emsdk
+export EMSDK=~/emsdk
+cmake --preset web
+cmake --build --preset web
+```
+
+To try it, copy the three files into a folder, rename the page to `index.html`, add `FluidR3Mono_GM.sf3` for music if you like, and serve the folder over HTTP (`python3 -m http.server`); browsers don't run it from a `file:` URL. The page asks for the game data with a file picker. The files are kept in the browser's IndexedDB, so they are only asked for once, and are never uploaded; "Forget the game data" removes them. Settings and high scores are kept the same way.
+
+- The game's loop yields to the browser after every frame (`-sASYNCIFY` and `emscripten_sleep`), so the browser shows the frame and delivers input in between. It runs without threads, because GitHub Pages can't send the headers that threads need.
+- Music plays with TinySoundFont and the SoundFont the player adds with the game files (`.sf2` or `.sf3`), or else the free `FluidR3Mono_GM.sf3` that the page offers to download. It takes about 400 MB of memory once loaded.
+- The browser lets the game start audio only after a click, so the game starts from the Play button.
+- There is no Exit in the menu; closing the tab ends the game. Post-processing isn't available, because SDL's GPU renderer doesn't run in browsers.
 
 ### Cross-compiling for Windows from Linux
 

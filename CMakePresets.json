@@ -1,84 +1,147 @@
 {
-  "version": 5,
-  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
-  "configurePresets": [
-    {
-      "name": "base",
-      "hidden": true,
-      "binaryDir": "${sourceDir}/build/${presetName}"
-    },
-    {
-      "name": "linux",
-      "displayName": "Linux, system SDL packages",
-      "inherits": "base",
-      "generator": "Ninja",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "SCP_VENDORED_SDL": "OFF"
-      },
-      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
-    },
-    {
-      "name": "linux-debug",
-      "displayName": "Linux debug, system SDL packages",
-      "inherits": "linux",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
-    },
-    {
-      "name": "linux-sanitize",
-      "displayName": "Linux debug with AddressSanitizer and UBSan, system SDL packages",
-      "inherits": "linux-debug",
-      "cacheVariables": { "SCP_SANITIZERS": "ON" }
-    },
-    {
-      "name": "linux-vendored",
-      "displayName": "Linux, SDL built from source",
-      "inherits": "linux",
-      "cacheVariables": { "SCP_VENDORED_SDL": "ON" }
-    },
-    {
-      "name": "windows-x64",
-      "displayName": "Windows x64, Visual Studio 2022",
-      "inherits": "base",
-      "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
-      "cacheVariables": {
-        "CMAKE_WIN32_EXECUTABLE": "ON",
-        "SCP_VENDORED_SDL": "ON"
-      },
-      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
-    },
-    {
-      "name": "mingw",
-      "displayName": "Windows x64 cross-build with MinGW",
-      "inherits": "base",
-      "generator": "Ninja",
-      "toolchainFile": "${sourceDir}/mingwcc.cmake",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "SCP_VENDORED_SDL": "ON"
-      },
-      "condition": { "type": "notEquals", "lhs": "${hostSystemName}", "rhs": "Windows" }
-    },
-    {
-      "name": "macos",
-      "displayName": "macOS universal (arm64 and x86_64)",
-      "inherits": "base",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_OSX_ARCHITECTURES": "arm64;x86_64",
-        "SCP_VENDORED_SDL": "ON"
-      },
-      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" }
-    }
-  ],
-  "buildPresets": [
-    { "name": "linux", "configurePreset": "linux" },
-    { "name": "linux-debug", "configurePreset": "linux-debug" },
-    { "name": "linux-sanitize", "configurePreset": "linux-sanitize" },
-    { "name": "linux-vendored", "configurePreset": "linux-vendored" },
-    { "name": "windows-x64", "configurePreset": "windows-x64", "configuration": "Release" },
-    { "name": "mingw", "configurePreset": "mingw" },
-    { "name": "macos", "configurePreset": "macos" }
-  ]
+	"version": 5,
+	"cmakeMinimumRequired": {
+		"major": 3,
+		"minor": 24,
+		"patch": 0
+	},
+	"configurePresets": [
+		{
+			"name": "base",
+			"hidden": true,
+			"binaryDir": "${sourceDir}/build/${presetName}"
+		},
+		{
+			"name": "linux",
+			"displayName": "Linux, system SDL packages",
+			"inherits": "base",
+			"generator": "Ninja",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release",
+				"SCP_VENDORED_SDL": "OFF"
+			},
+			"condition": {
+				"type": "equals",
+				"lhs": "${hostSystemName}",
+				"rhs": "Linux"
+			}
+		},
+		{
+			"name": "linux-debug",
+			"displayName": "Linux debug, system SDL packages",
+			"inherits": "linux",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug"
+			}
+		},
+		{
+			"name": "linux-sanitize",
+			"displayName": "Linux debug with AddressSanitizer and UBSan, system SDL packages",
+			"inherits": "linux-debug",
+			"cacheVariables": {
+				"SCP_SANITIZERS": "ON"
+			}
+		},
+		{
+			"name": "linux-vendored",
+			"displayName": "Linux, SDL built from source",
+			"inherits": "linux",
+			"cacheVariables": {
+				"SCP_VENDORED_SDL": "ON"
+			}
+		},
+		{
+			"name": "windows-x64",
+			"displayName": "Windows x64, Visual Studio 2022",
+			"inherits": "base",
+			"generator": "Visual Studio 17 2022",
+			"architecture": "x64",
+			"cacheVariables": {
+				"CMAKE_WIN32_EXECUTABLE": "ON",
+				"SCP_VENDORED_SDL": "ON"
+			},
+			"condition": {
+				"type": "equals",
+				"lhs": "${hostSystemName}",
+				"rhs": "Windows"
+			}
+		},
+		{
+			"name": "mingw",
+			"displayName": "Windows x64 cross-build with MinGW",
+			"inherits": "base",
+			"generator": "Ninja",
+			"toolchainFile": "${sourceDir}/mingwcc.cmake",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release",
+				"SCP_VENDORED_SDL": "ON"
+			},
+			"condition": {
+				"type": "notEquals",
+				"lhs": "${hostSystemName}",
+				"rhs": "Windows"
+			}
+		},
+		{
+			"name": "macos",
+			"displayName": "macOS universal (arm64 and x86_64)",
+			"inherits": "base",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release",
+				"CMAKE_OSX_ARCHITECTURES": "arm64;x86_64",
+				"SCP_VENDORED_SDL": "ON"
+			},
+			"condition": {
+				"type": "equals",
+				"lhs": "${hostSystemName}",
+				"rhs": "Darwin"
+			}
+		},
+		{
+			"name": "web",
+			"displayName": "Web (Emscripten), SDL built from source; needs EMSDK set",
+			"inherits": "base",
+			"generator": "Ninja",
+			"toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release",
+				"SCP_VENDORED_SDL": "ON"
+			}
+		}
+	],
+	"buildPresets": [
+		{
+			"name": "linux",
+			"configurePreset": "linux"
+		},
+		{
+			"name": "linux-debug",
+			"configurePreset": "linux-debug"
+		},
+		{
+			"name": "linux-sanitize",
+			"configurePreset": "linux-sanitize"
+		},
+		{
+			"name": "linux-vendored",
+			"configurePreset": "linux-vendored"
+		},
+		{
+			"name": "windows-x64",
+			"configurePreset": "windows-x64",
+			"configuration": "Release"
+		},
+		{
+			"name": "mingw",
+			"configurePreset": "mingw"
+		},
+		{
+			"name": "macos",
+			"configurePreset": "macos"
+		},
+		{
+			"name": "web",
+			"configurePreset": "web"
+		}
+	]
 }

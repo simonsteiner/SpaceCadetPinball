@@ -1,0 +1,71 @@
+name: Pages
+
+# Publishes the web build to GitHub Pages: the page, the game's code and a freely licensed SoundFont.
+# The player brings the game data in their browser; none of it is ever part of the site.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      # MuseScore 2.3.2's FluidR3Mono_GM.sf3, MIT; its licence file goes along with it
+      SOUNDFONT_URL: https://raw.githubusercontent.com/musescore/MuseScore/v2.3.2/share/sound/FluidR3Mono_GM.sf3
+      SOUNDFONT_SHA256: cfcd66d89e8386823400eca64934b14fbea7bf48ba1f00d21189af1262794ec2
+      SOUNDFONT_LICENSE_URL: https://raw.githubusercontent.com/musescore/MuseScore/v2.3.2/share/sound/FluidR3Mono_License.md
+      SOUNDFONT_LICENSE_SHA256: 09926f9451f751408abd65162c99343f840234d2a708584808fd46427633063f
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Emscripten
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build
+          tools/install-emsdk.sh "$RUNNER_TEMP/emsdk"
+          echo "EMSDK=$RUNNER_TEMP/emsdk" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: |
+          cmake --preset web
+          cmake --build --preset web --parallel 4
+
+      - name: Assemble the site
+        run: |
+          mkdir site
+          cp bin/SpaceCadetPinball.html site/index.html
+          cp bin/SpaceCadetPinball.js bin/SpaceCadetPinball.wasm site/
+          curl -sSfL -o site/FluidR3Mono_GM.sf3 "$SOUNDFONT_URL"
+          curl -sSfL -o site/FluidR3Mono_License.md "$SOUNDFONT_LICENSE_URL"
+          echo "$SOUNDFONT_SHA256  site/FluidR3Mono_GM.sf3" | sha256sum -c
+          echo "$SOUNDFONT_LICENSE_SHA256  site/FluidR3Mono_License.md" | sha256sum -c
+          tools/check-no-game-data.sh site
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

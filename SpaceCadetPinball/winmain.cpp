@@ -5,6 +5,23 @@
 #define SDL_MAIN_HANDLED
 #include <SDL3/SDL_main.h>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/html5.h>
+
+// The window fills the browser's viewport
+static void FitWindowToPage(int width, int height)
+{
+	SDL_SetWindowSize(winmain::MainWindow, width, height);
+}
+
+static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* userData)
+{
+	FitWindowToPage(event->windowInnerWidth, event->windowInnerHeight);
+	return false;
+}
+#endif
+
 #include "control.h"
 #include "EmbeddedData.h"
 #include "fullscrn.h"
@@ -326,8 +343,10 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			Options.FullScreen = true;
 		}
 
+#ifndef __EMSCRIPTEN__
 		if (!Options.FullScreen)
 			fullscrn::ResetWindowSize();
+#endif
 		if (replay::IsPlaying())
 		{
 			// The recording holds the command that started the game
@@ -340,6 +359,10 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		else
 		{
 			SDL_ShowWindow(window);
+#ifdef __EMSCRIPTEN__
+			FitWindowToPage(EM_ASM_INT({ return window.innerWidth; }), EM_ASM_INT({ return window.innerHeight; }));
+			emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, false, PageResized);
+#endif
 			fullscrn::set_screen_mode(Options.FullScreen);
 
 			if (HasArg(args, "-demo"))
@@ -535,6 +558,14 @@ void winmain::MainLoop()
 			auto targetTimeDelta = TargetFrameTime - DurationMs(updateEnd - frameStart) - sleepRemainder;
 
 			TimePoint frameEnd;
+#ifdef __EMSCRIPTEN__
+			// The browser draws the canvas and delivers events only while the loop yields, so it yields every time
+			if (targetTimeDelta > DurationMs::zero() && !Options.UncappedUpdatesPerSecond)
+				emscripten_sleep(static_cast<unsigned>(targetTimeDelta.count()));
+			else
+				emscripten_sleep(0);
+			frameEnd = Clock::now();
+#else
 			if (targetTimeDelta > DurationMs::zero() && !Options.UncappedUpdatesPerSecond)
 			{
 				if (Options.HybridSleep)
@@ -547,6 +578,7 @@ void winmain::MainLoop()
 			{
 				frameEnd = updateEnd;
 			}
+#endif
 
 			// Limit duration to 2 * target time
 			sleepRemainder = Clamp(DurationMs(frameEnd - updateEnd) - targetTimeDelta, -TargetFrameTime,
@@ -621,7 +653,10 @@ void winmain::RenderUi()
 				end_pause();
 				pb::toggle_demo();
 			}
+#ifndef __EMSCRIPTEN__
+			// A browser tab closes the game itself
 			ImGuiMenuItemWShortcut(GameBindings::Exit);
+#endif
 			ImGui::EndMenu();
 		}
 
@@ -1621,6 +1656,9 @@ void winmain::HandleGameBinding(GameBindings binding, bool shortcut)
 		options::toggle(Menu1::Show_Menu);
 		break;
 	case GameBindings::Exit:
+#ifdef __EMSCRIPTEN__
+		break;
+#endif
 		if (!shortcut)
 		{
 			SDL_Event event{SDL_EVENT_QUIT};
