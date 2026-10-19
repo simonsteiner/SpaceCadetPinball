@@ -61,6 +61,10 @@ WelfordState winmain::SleepState{};
 int winmain::CursorIdleCounter = 0;
 std::unique_ptr<ImGuiStyle> winmain::BaseStyle{};
 bool winmain::SoftwareRenderer = false;
+bool winmain::HighRefresh = false;
+winmain::DurationMs winmain::UpdateTime;
+winmain::DurationMs winmain::UpdateTimeAccumulator;
+int winmain::CurrentFps = 0;
 bool winmain::TriggerPressed[2]{};
 std::map<SDL_FingerID, GameBindings> winmain::TouchBindings{};
 
@@ -435,23 +439,43 @@ void winmain::MainLoop()
 				last_mouse_x = x;
 				last_mouse_y = y;
 			}
+			auto ballAlpha = 1.0f;
 			if (!single_step && !no_time_loss)
 			{
+				// Normally one update per loop. With more frames than updates per second, the loop runs at the frame
+				// rate and the table still advances in steps of 1000/UPS ms, so the physics see the same time steps.
+				auto updates = 1;
 				auto dt = static_cast<float>(frameDuration.count());
-				pb::frame(dt);
-				if (DispGRhistory)
+				if (HighRefresh)
 				{
-					auto targetSize = static_cast<unsigned>(static_cast<float>(Options.UpdatesPerSecond) * gfrWindow);
-					if (gfrDisplay.size() != targetSize)
-					{
-						gfrDisplay.resize(targetSize, static_cast<float>(TargetFrameTime.count()));
-						gfrOffset = 0;
-					}
-					gfrDisplay[gfrOffset] = dt;
-					gfrOffset = (gfrOffset + 1) % gfrDisplay.size();
+					dt = static_cast<float>(UpdateTime.count());
+					UpdateTimeAccumulator += frameDuration;
+					updates = static_cast<int>(UpdateTimeAccumulator / UpdateTime);
+					UpdateTimeAccumulator -= UpdateTime * updates;
+					// The same 2 update cap as the frame duration has
+					updates = std::min(updates, 2);
+					ballAlpha = static_cast<float>(UpdateTimeAccumulator / UpdateTime);
 				}
-				updateCounter++;
+				for (auto update = 0; update < updates; update++)
+				{
+					pb::frame(dt);
+					if (DispGRhistory)
+					{
+						auto targetSize =
+							static_cast<unsigned>(static_cast<float>(Options.UpdatesPerSecond) * gfrWindow);
+						if (gfrDisplay.size() != targetSize)
+						{
+							gfrDisplay.resize(targetSize, static_cast<float>(UpdateTime.count()));
+							gfrOffset = 0;
+						}
+						gfrDisplay[gfrOffset] = dt;
+						gfrOffset = (gfrOffset + 1) % gfrDisplay.size();
+					}
+					updateCounter++;
+				}
 			}
+			else
+				UpdateTimeAccumulator = DurationMs::zero();
 			no_time_loss = false;
 
 			if (UpdateToFrameCounter >= UpdateToFrameRatio)
@@ -467,7 +491,10 @@ void winmain::MainLoop()
 				// Alternative clear hack, clear might fail on some systems
 				// Todo: remove original clear, if save for all platforms
 				SDL_RenderFillRect(Renderer, nullptr);
+				if (HighRefresh && ballAlpha < 1.0f)
+					render::InterpolateBalls(ballAlpha);
 				render::PresentVScreen();
+				render::RestoreBalls();
 
 				ImGui::Render();
 				ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), Renderer);
@@ -522,7 +549,8 @@ void winmain::MainLoop()
 			// Limit duration to 2 * target time
 			sleepRemainder = Clamp(DurationMs(frameEnd - updateEnd) - targetTimeDelta, -TargetFrameTime,
 			                       TargetFrameTime);
-			frameDuration = std::min<DurationMs>(DurationMs(frameEnd - frameStart), 2 * TargetFrameTime);
+			frameDuration = std::min<DurationMs>(DurationMs(frameEnd - frameStart),
+												 2 * (HighRefresh ? UpdateTime : TargetFrameTime));
 			frameStart = frameEnd;
 			UpdateToFrameCounter++;
 
@@ -730,14 +758,21 @@ void winmain::RenderUi()
 				                     ImGuiSliderFlags_AlwaysClamp))
 				{
 					changed = true;
-					Options.FramesPerSecond = std::min(Options.UpdatesPerSecond.V, Options.FramesPerSecond.V);
 				}
+				ImGui::BeginDisabled(Options.MatchRefreshRate);
 				if (ImGui::SliderInt("FPS", &Options.FramesPerSecond.V, options::MinFps, options::MaxFps, "%d",
 				                     ImGuiSliderFlags_AlwaysClamp))
 				{
 					changed = true;
-					Options.UpdatesPerSecond = std::max(Options.UpdatesPerSecond.V, Options.FramesPerSecond.V);
 				}
+				ImGui::EndDisabled();
+				if (ImGui::MenuItem("Match Display Refresh Rate", nullptr, Options.MatchRefreshRate))
+				{
+					Options.MatchRefreshRate ^= true;
+					changed = true;
+				}
+				if (HighRefresh)
+					ImGui::TextDisabled("%d FPS, the ball drawn between updates", CurrentFps);
 				snprintf(buffer, sizeof buffer - 1, "Uncapped UPS (FPS ratio %02.02f)", UpdateToFrameRatio);
 				if (ImGui::MenuItem(buffer, nullptr, Options.UncappedUpdatesPerSecond))
 				{
@@ -1120,6 +1155,11 @@ int winmain::event_handler(const SDL_Event* event)
 		midi::music_stop();
 		has_focus = false;
 		pb::loose_focus();
+		break;
+	case SDL_EVENT_WINDOW_DISPLAY_CHANGED:
+	case SDL_EVENT_DISPLAY_CURRENT_MODE_CHANGED:
+		if (Options.MatchRefreshRate)
+			UpdateFrameRate();
 		break;
 	case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
 		ApplyDisplayScale();
@@ -1511,10 +1551,24 @@ void winmain::Restart()
 
 void winmain::UpdateFrameRate()
 {
-	// UPS >= FPS
 	auto fps = Options.FramesPerSecond.V, ups = Options.UpdatesPerSecond.V;
-	UpdateToFrameRatio = static_cast<double>(ups) / fps;
-	TargetFrameTime = DurationMs(1000.0 / ups);
+	if (Options.MatchRefreshRate)
+	{
+		// The display's refresh rate, if SDL knows it, within the FPS limits
+		auto mode = SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(MainWindow));
+		if (mode && mode->refresh_rate > 0)
+			fps = Clamp(static_cast<int>(std::lround(mode->refresh_rate)), options::MinFps, options::MaxFps);
+		else
+			SDL_ClearError();
+	}
+
+	// With FPS above UPS, the loop runs at the frame rate and the table updates every 1000/UPS ms of it
+	HighRefresh = fps > ups;
+	UpdateToFrameRatio = HighRefresh ? 1.0 : static_cast<double>(ups) / fps;
+	TargetFrameTime = DurationMs(1000.0 / std::max(ups, fps));
+	UpdateTime = DurationMs(1000.0 / ups);
+	UpdateTimeAccumulator = DurationMs::zero();
+	CurrentFps = fps;
 }
 
 void winmain::HandleGameBinding(GameBindings binding, bool shortcut)

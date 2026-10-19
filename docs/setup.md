@@ -147,6 +147,10 @@ Options → Graphics:
 
 Full screen (F4 or `-fullscreen`) uses the desktop's resolution, without a mode change. Settings saved by an earlier version keep their values, so a player who had Integer Scaling off or Linear Filtering on keeps that.
 
+## Frame rate
+
+Options → Graphics sets how often the table updates (UPS, 120 by default) and how often it is drawn (FPS, 60 by default). Updates are the physics: keep UPS at 120 to play as the original data was tuned. FPS can go higher than UPS for a high-refresh display: the table still updates 120 times a second, in equal steps, and the ball is drawn between its last two positions in the frames in between, which delays it by at most one update (8 ms). **Match Display Refresh Rate** (off by default) sets FPS to the display's refresh rate, also after the window moves to another display.
+
 ## Controls
 
 Options → Player Controls (F8) binds a key, a mouse button and a gamepad button to each action. Gamepads work through SDL's gamepad database: by default the shoulder buttons are the flippers, A launches the ball, and the D-pad nudges the table. The analog triggers can be bound too: they count as pressed past half way and released below a quarter. **Options → Gamepad Rumble** (on by default) shakes the gamepad when a flipper fires and when the ball hits a bumper; the demo doesn't rumble.

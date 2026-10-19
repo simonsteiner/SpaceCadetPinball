@@ -299,4 +299,5 @@ struct optionsStruct
 	BoolOption StackedLayout;
 	IntOption PostProcessing;
 	BoolOption Rumble;
+	BoolOption MatchRefreshRate;
 };

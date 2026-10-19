@@ -20,6 +20,7 @@ gdrv_bitmap8 *render::vscreen, *render::background_bitmap, *render::ball_bitmap[
 zmap_header_type* render::zscreen;
 SDL_Rect render::DestinationRect{}, render::BoardRect{}, render::SidebarRect{};
 SDL_Texture* render::BackdropTexture = nullptr;
+bool render::BallsInterpolated = false;
 
 #if SDL_VERSION_ATLEAST(3, 4, 0)
 // The same as nearest at whole multiples; at other scales it keeps every table pixel the same size
@@ -214,6 +215,58 @@ void render::update()
 	}
 
 	paint_balls();
+
+	for (auto ball : ball_list)
+	{
+		ball->PrevPaintedRect = ball->PaintedRect;
+		ball->PrevPainted = ball->Painted;
+		ball->PaintedRect = ball->BmpRect;
+		ball->Painted = ball->Bmp != nullptr;
+	}
+}
+
+void render::InterpolateBalls(float alpha)
+{
+	// Moves the balls on the frame to where they were between the last two updates, alpha of the way to the last.
+	// Only the picture changes: the table's own ball positions are untouched, and RestoreBalls puts the frame back.
+	if (BallsInterpolated || ball_list.empty())
+		return;
+
+	unpaint_balls();
+	for (auto ball : ball_list)
+	{
+		ball->SavedBmpRect = ball->BmpRect;
+		ball->SavedDirtyRectPrev = ball->DirtyRectPrev;
+		if (!ball->Painted || !ball->PrevPainted)
+			continue;
+
+		// A ball that jumped, such as into a hole or back to the plunger, isn't drawn in between
+		auto& from = ball->PrevPaintedRect;
+		auto& to = ball->PaintedRect;
+		constexpr int MaxStep = 24;
+		if (std::abs(to.XPosition - from.XPosition) > MaxStep || std::abs(to.YPosition - from.YPosition) > MaxStep)
+			continue;
+		ball->BmpRect.XPosition =
+			static_cast<int>(std::lround(from.XPosition + (to.XPosition - from.XPosition) * alpha));
+		ball->BmpRect.YPosition =
+			static_cast<int>(std::lround(from.YPosition + (to.YPosition - from.YPosition) * alpha));
+	}
+	paint_balls();
+	BallsInterpolated = true;
+}
+
+void render::RestoreBalls()
+{
+	if (!BallsInterpolated)
+		return;
+
+	unpaint_balls();
+	for (auto ball : ball_list)
+		ball->BmpRect = ball->SavedBmpRect;
+	paint_balls();
+	for (auto ball : ball_list)
+		ball->DirtyRectPrev = ball->SavedDirtyRectPrev;
+	BallsInterpolated = false;
 }
 
 void render::AddSprite(render_sprite& sprite)

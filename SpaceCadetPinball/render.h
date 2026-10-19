@@ -25,6 +25,10 @@ struct render_sprite
 	std::vector<render_sprite*>* OccludedSprites;
 	rectangle_type BoundingRect{};
 	bool DirtyFlag{};
+	// Balls only: where the last two updates painted the ball, for drawing frames in between
+	rectangle_type PaintedRect{}, PrevPaintedRect{};
+	bool Painted{}, PrevPainted{};
+	rectangle_type SavedBmpRect{}, SavedDirtyRectPrev{};
 
 	render_sprite(VisualTypes visualType, gdrv_bitmap8* bmp, zmap_header_type* zMap,
 	              int xPosition, int yPosition, rectangle_type* boundingRect);
@@ -55,6 +59,8 @@ public:
 	static void SpriteViewer(bool* show);
 	static void PresentVScreen();
 	static int BoardWidth();
+	static void InterpolateBalls(float alpha);
+	static void RestoreBalls();
 	static void DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, bool postEffect = false);
 
 private:
@@ -64,6 +70,7 @@ private:
 	static gdrv_bitmap8* ball_bitmap[20];
 	static zmap_header_type* zscreen;
 	static SDL_Texture* BackdropTexture;
+	static bool BallsInterpolated;
 
 	static void repaint(const render_sprite& sprite);
 	static void paint_balls();

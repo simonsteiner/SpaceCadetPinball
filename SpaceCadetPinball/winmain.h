@@ -117,6 +117,9 @@ private:
 	static int CursorIdleCounter;
 	static std::unique_ptr<ImGuiStyle> BaseStyle;
 	static bool SoftwareRenderer;
+	static bool HighRefresh;
+	static DurationMs UpdateTime, UpdateTimeAccumulator;
+	static int CurrentFps;
 	static bool TriggerPressed[2];
 	static std::map<SDL_FingerID, GameBindings> TouchBindings;
 

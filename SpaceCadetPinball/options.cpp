@@ -160,6 +160,7 @@ optionsStruct options::Options
 	{"Stacked Layout", true},
 	{"Post Processing", 0},
 	{"Gamepad Rumble", true},
+	{"Match Display Refresh Rate", false},
 };
 // clang-format on
 
@@ -513,7 +514,6 @@ void options::PostProcessOptions()
 	ImGui::GetStyle().FontScaleMain = Options.UIScale;
 	Options.FramesPerSecond = Clamp(Options.FramesPerSecond.V, MinFps, MaxFps);
 	Options.UpdatesPerSecond = Clamp(Options.UpdatesPerSecond.V, MinUps, MaxUps);
-	Options.UpdatesPerSecond = std::max(Options.UpdatesPerSecond.V, Options.FramesPerSecond.V);
 	Options.SoundChannels = Clamp(Options.SoundChannels.V, MinSoundChannels, MaxSoundChannels);
 	Options.SoundVolume = Clamp(Options.SoundVolume.V, MinVolume, MaxVolume);
 	Options.PostProcessing = Clamp(Options.PostProcessing.V, 0, static_cast<int>(PostEffects::Max) - 1);
