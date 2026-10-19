@@ -1,0 +1,22 @@
+# Git hooks for this repository, run by lefthook (https://lefthook.dev). See docs/setup.md.
+# They catch mistakes before CI does; CI stays the gate.
+# Skip them once with LEFTHOOK=0 git commit ..., or git commit --no-verify.
+
+pre-commit:
+  parallel: true
+  commands:
+    no-game-data:
+      run: tools/hooks/no-game-data.sh {staged_files}
+    whitespace:
+      # Trailing whitespace and leftover conflict markers in the staged changes, outside vendored
+      # code (ImGui, third_party/), the generated shader header and the reference dumps.
+      # Skipped while concluding a merge, whose diff carries upstream's lines too.
+      skip: merge
+      run: git diff --cached --check -- . ':!SpaceCadetPinball/imgui*' ':!SpaceCadetPinball/imstb*' ':!third_party/' ':!SpaceCadetPinball/shaders/PostEffectShaders.h' ':!docs/reference/'
+    sources:
+      run: tools/hooks/check-sources.sh {staged_files}
+
+pre-push:
+  commands:
+    build-and-replays:
+      run: tools/hooks/pre-push.sh {push_files}

@@ -190,6 +190,17 @@ SDL3_mixer can't be relied on for the MIDI music: it has no native MIDI, and som
 
 No SoundFont ships with the game. Music needs an audio device, so `-noaudio` and `-quick` turn it off.
 
+## Git hooks
+
+`lefthook.yml` defines Git hooks that catch mistakes before CI does. They are optional. Install [lefthook](https://lefthook.dev/install/) (for example `brew install lefthook`, `go install github.com/evilmartians/lefthook/v2@latest` or `pipx install lefthook`), then run `lefthook install` once in the repository.
+
+| Hook | Checks |
+| --- | --- |
+| `pre-commit` | no staged game data, even with `git add -f`; no trailing whitespace or conflict markers in the staged changes, outside vendored code (ImGui, `third_party/`), the generated `PostEffectShaders.h` and `docs/reference/`, and not while concluding a merge; every staged `.cpp` and `.h` in `SpaceCadetPinball/` is listed in `CMakeLists.txt`, and every game `.cpp` starts with `#include "pch.h"` |
+| `pre-push` | on Linux, when the push changes code or build files: builds the `linux` preset with `SCP_WARNINGS=ON` in `build/pre-push/` (it needs the SDL3 packages the preset does; CMake also finds them through `CMAKE_PREFIX_PATH`), then plays back the replays in `../replays` against `../gamedata` if both exist (`SCP_REPLAYS_DIR` and `SCP_GAMEDATA_DIR` override the paths) |
+
+`pre-push` builds the working tree, not the commits being pushed: uncommitted changes are part of the build (it warns about them), and pushing another branch still tests the checked-out code. CI stays the gate. The first `pre-push` build compiles the whole game; later ones are incremental. It writes `bin/SpaceCadetPinball` like every preset. The scripts are in `tools/hooks/`. Skip the hooks once with `LEFTHOOK=0` or `--no-verify`. Personal changes go in `lefthook-local.yml`, which Git ignores.
+
 ## Command-line options
 
 | Flag | Effect |
