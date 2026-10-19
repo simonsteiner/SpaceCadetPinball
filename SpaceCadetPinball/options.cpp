@@ -198,6 +198,8 @@ void options::InitPrimary()
 
 void options::InitSecondary()
 {
+	// The table is known now
+	Options.Resolution.Load();
 	auto maxRes = fullscrn::GetMaxResolution();
 	if (Options.Resolution >= 0 && Options.Resolution > maxRes)
 		Options.Resolution = maxRes;
@@ -648,6 +650,23 @@ bool options::HasSetting(const std::string& key)
 	return settings.contains(key);
 }
 
+void options::RemoveSetting(const std::string& key)
+{
+	if (settings.erase(key) && ImGui::GetCurrentContext())
+		ImGui::MarkIniSettingsDirty();
+}
+
+const std::array<const char*, 3> options::TableKeyPrefixes{"", "FullTilt.", "FullTiltDemo."};
+
+const char* options::TableKeyPrefix()
+{
+	if (pb::FullTiltDemoMode)
+		return TableKeyPrefixes[2];
+	if (pb::FullTiltMode)
+		return TableKeyPrefixes[1];
+	return TableKeyPrefixes[0];
+}
+
 void options::SetSetting(const std::string& key, const std::string& value)
 {
 	settings[key] = value;
@@ -666,6 +685,28 @@ OptionBase::~OptionBase()
 	auto position = std::find(vec.begin(), vec.end(), this);
 	if (position != vec.end())
 		vec.erase(position);
+}
+
+void TableIntOption::Load()
+{
+	auto key = options::TableKeyPrefix() + std::string{Name};
+	// Before tables had their own keys, every table saved under the unprefixed one.
+	// A table that never saved its own value starts from that one; Save then writes it under its prefix.
+	if (!options::HasSetting(key))
+		key = Name;
+	V = options::HasSetting(key) ? options::get_int(key.c_str(), DefaultValue) : DefaultValue;
+}
+
+void TableIntOption::Save() const
+{
+	options::set_int((options::TableKeyPrefix() + std::string{Name}).c_str(), V);
+}
+
+void TableIntOption::Reset()
+{
+	V = DefaultValue;
+	for (const auto prefix : options::TableKeyPrefixes)
+		options::RemoveSetting(prefix + std::string{Name});
 }
 
 std::string ControlOption::GetShortcutDescription() const

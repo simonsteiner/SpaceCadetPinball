@@ -12,19 +12,9 @@ high_score_entry high_score::DlgData;
 std::vector<high_score_entry> high_score::ScoreQueue;
 high_score_struct high_score::highscore_table[5];
 
-// Each table keeps its own scores; 3D Pinball keeps the original, unprefixed keys
-static const char* ScoreKeyPrefix()
-{
-	if (pb::FullTiltDemoMode)
-		return "FullTiltDemo.";
-	if (pb::FullTiltMode)
-		return "FullTilt.";
-	return "";
-}
-
 int high_score::read()
 {
-	std::string prefix = ScoreKeyPrefix();
+	std::string prefix = options::TableKeyPrefix();
 
 	// Before tables had their own keys, every table saved under the unprefixed ones.
 	// A table that never saved its own scores starts from those; write() then saves them under its prefix.
@@ -57,7 +47,7 @@ int high_score::read()
 
 int high_score::write()
 {
-	std::string prefix = ScoreKeyPrefix();
+	std::string prefix = options::TableKeyPrefix();
 
 	int checkSum = 0;
 	for (auto position = 0; position < 5; ++position)

@@ -123,6 +123,10 @@ public:
 	static void SetSetting(const std::string& key, const std::string& value);
 	// Unlike GetSetting, doesn't add the key when it is missing
 	static bool HasSetting(const std::string& key);
+	static void RemoveSetting(const std::string& key);
+	// Settings kept for each table start with this: none for 3D Pinball, which keeps the original keys
+	static const char* TableKeyPrefix();
+	static const std::array<const char*, 3> TableKeyPrefixes;
 	static int get_int(LPCSTR lpValueName, int defaultValue);
 	static void set_int(LPCSTR lpValueName, int data);
 	static float get_float(LPCSTR lpValueName, float defaultValue);
@@ -187,6 +191,20 @@ struct IntOption : OptionBaseT<int>
 
 	void Load() override { V = options::get_int(Name, DefaultValue); }
 	void Save() const override { options::set_int(Name, V); }
+	using OptionBaseT::operator=;
+};
+
+// An int kept for each table, under the table's key prefix
+struct TableIntOption : IntOption
+{
+	TableIntOption(LPCSTR name, int defaultValue) : IntOption(name, defaultValue)
+	{
+	}
+
+	// Loaded again once the table is known (options::InitSecondary)
+	void Load() override;
+	void Save() const override;
+	void Reset() override;
 	using OptionBaseT::operator=;
 };
 
@@ -273,7 +291,7 @@ struct optionsStruct
 	BoolOption Music;
 	BoolOption FullScreen;
 	IntOption Players;
-	IntOption Resolution;
+	TableIntOption Resolution;
 	FloatOption UIScale;
 	BoolOption UniformScaling;
 	BoolOption LinearFiltering;

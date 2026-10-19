@@ -32,7 +32,7 @@
 #include <map>
 #include <unordered_map>
 #include <initializer_list>
-//#include <array>
+#include <array>
 
 #include <SDL3/SDL.h>
 #include <SDL3_mixer/SDL_mixer.h>
