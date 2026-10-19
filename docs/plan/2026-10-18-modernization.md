@@ -67,7 +67,7 @@ Done when all presets build in CI and the determinism harness passes against the
 
 1. Integer scaling with an optional "fit" mode, HiDPI-correct window sizing, and proper full screen on modern displays.
 2. Widescreen layout: use the space beside the table for the score panel or artwork instead of black bars.
-3. Optional post-processing (CRT, xBR-style upscaling) using SDL3's GPU API, off by default.
+3. Optional post-processing of the finished frame (CRT and similar filters) using SDL3's GPU API, off by default. Sprite upscaling is item 6, not a post-processing filter; the two can be on at once.
 4. Gamepad support through the SDL3 gamepad API, including rumble on flipper and bumper hits. Touch controls, which the web build on tablets needs too.
 5. High-refresh rendering: decide whether to interpolate ball and flipper positions between physics updates or simply raise both rates. Interpolation must not change the physics.
 6. **Upscaled art with a toggle back to the original.** An option in `optionsStruct` switches between the upscaled sprites and the original ones at any time, including during a game.
