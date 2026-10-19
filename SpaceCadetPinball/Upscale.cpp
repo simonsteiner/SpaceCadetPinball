@@ -3,6 +3,7 @@
 
 #include "fullscrn.h"
 #include "GroupData.h"
+#include "loader.h"
 #include "pb.h"
 #include "mmpx.h"
 
@@ -146,12 +147,12 @@ void Upscale::FindSpriteNames()
 		auto kind = !entries.empty() && entries[0]->EntryType == FieldTypes::ShortValue
 						? *reinterpret_cast<const int16_t*>(entries[0]->Buffer)
 						: 0;
-		if (kind == 200)
+		if (kind == loader::FirstStateGroup)
 		{
 			owner = group->GroupName.empty() ? nullptr : group;
 			stateIndex = 0;
 		}
-		else if (kind == 201 && owner)
+		else if (kind == loader::NextStateGroup && owner)
 			stateIndex++;
 		else
 			owner = nullptr;
@@ -160,7 +161,7 @@ void Upscale::FindSpriteNames()
 		if (!bmp)
 			continue;
 		auto& names = SpriteNames[bmp];
-		if (kind == 201 && owner && group->GroupName.empty())
+		if (kind == loader::NextStateGroup && owner && group->GroupName.empty())
 			names.push_back(
 				SpriteFileName(owner->GroupId, owner->GroupName + "_" + std::to_string(stateIndex), resolution));
 		names.push_back(SpriteFileName(group->GroupId, group->GroupName, resolution));

@@ -351,7 +351,7 @@ int loader::state_id(int groupIndex, int groupIndexOffset)
 	auto shortArr = reinterpret_cast<int16_t*>(loader_table->field(groupIndex, FieldTypes::ShortValue));
 	if (!shortArr)
 		return error(1, 24);
-	if (*shortArr != 200)
+	if (*shortArr != FirstStateGroup)
 		return error(5, 24);
 	if (groupIndexOffset > visualState)
 		return error(12, 24);
@@ -362,7 +362,7 @@ int loader::state_id(int groupIndex, int groupIndexOffset)
 	shortArr = reinterpret_cast<int16_t*>(loader_table->field(groupIndex, FieldTypes::ShortValue));
 	if (!shortArr)
 		return error(1, 24);
-	if (*shortArr != 201)
+	if (*shortArr != NextStateGroup)
 		return error(6, 24);
 	return groupIndex;
 }
