@@ -665,6 +665,16 @@ const char* options::TableKeyPrefix()
 	return SpaceCadetKeyPrefix;
 }
 
+std::string options::TableKeyPrefixToRead(const std::string& key)
+{
+	// Before tables had their own keys, every table saved under the unprefixed ones.
+	// A table that never saved its own value starts from that one; saving then writes it under its prefix.
+	std::string prefix = TableKeyPrefix();
+	if (!prefix.empty() && !HasSetting(prefix + key) && HasSetting(key))
+		prefix.clear();
+	return prefix;
+}
+
 void options::SetSetting(const std::string& key, const std::string& value)
 {
 	settings[key] = value;
@@ -687,11 +697,7 @@ OptionBase::~OptionBase()
 
 void TableIntOption::Load()
 {
-	auto key = options::TableKeyPrefix() + std::string{Name};
-	// Before tables had their own keys, every table saved under the unprefixed one.
-	// A table that never saved its own value starts from that one; Save then writes it under its prefix.
-	if (!options::HasSetting(key))
-		key = Name;
+	auto key = options::TableKeyPrefixToRead(Name) + Name;
 	V = options::HasSetting(key) ? options::get_int(key.c_str(), DefaultValue) : DefaultValue;
 }
 

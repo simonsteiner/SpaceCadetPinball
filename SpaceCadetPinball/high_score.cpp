@@ -14,12 +14,8 @@ high_score_struct high_score::highscore_table[5];
 
 int high_score::read()
 {
-	std::string prefix = options::TableKeyPrefix();
-
-	// Before tables had their own keys, every table saved under the unprefixed ones.
-	// A table that never saved its own scores starts from those; write() then saves them under its prefix.
-	if (!prefix.empty() && !options::HasSetting(prefix + "Verification") && options::HasSetting("Verification"))
-		prefix.clear();
+	// Verification is written with the scores, so it tells whether this table saved its own
+	auto prefix = options::TableKeyPrefixToRead("Verification");
 
 	int checkSum = 0;
 	clear_table();
