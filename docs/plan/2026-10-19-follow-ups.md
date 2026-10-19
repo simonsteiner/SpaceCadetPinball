@@ -46,5 +46,4 @@ Running `CADET.EXE`'s table (`gamedata-fulltilt/`) to check #27 and #33 showed t
 
 ## Housekeeping
 
-- `../replays/launch-ball.replay` was recorded for the unmerged `fix/launch-ball-push` and diverges on `main` at frame 1091, so the `pre-push` replay check fails on every code change until that branch merges. Merge it, or keep that replay out of `../replays` until then.
 - Pull `main` into local checkouts: the branches of the merged pull requests still exist on GitHub and locally. Delete them once nothing local depends on them.
