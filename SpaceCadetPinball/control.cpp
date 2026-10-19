@@ -3378,7 +3378,7 @@ void control::GameoverController(MessageCode code, TPinballComponent* caller)
 	}
 
 	mission_text_box->MessageField = 0x100;
-	mission_text_box->Display(pb::get_rc_string(Msg::STRING272), 10.0);
+	mission_text_box->Display(pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_GameOver : Msg::STRING272), 10.0);
 }
 
 void control::LaunchTrainingController(MessageCode code, TPinballComponent* caller)
