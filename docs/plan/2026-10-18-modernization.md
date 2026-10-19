@@ -139,6 +139,7 @@ Porting the logic to TypeScript/WebGL or Rust would re-create what the decompila
 ## Phase 4: web build
 
 1. Emscripten preset on top of the SDL3 port.
+   - Done first: **SF3 SoundFonts.** TinySoundFont now loads SF3 (Ogg Vorbis samples) through the vendored `stb_vorbis.c` (v1.22, MIT or public domain), so the web build can use a SoundFont small enough to download: MuseScore's `FluidR3Mono_GM.sf3` from its v2.3.2 release, 14.5 MB, MIT like FluidR3 (Frank Wen; mono version by Michael Cowgill). On the desktop, Debian's newer default `/usr/share/sounds/sf3/default-GM.sf3` is tried first. Verified with GCC 15: both play the theme at the usual level; FluidR3Mono loads in about a second, but TinySoundFont decodes every sample to floats, so the game then uses about 400 MB.
 2. The player supplies the game data through a file picker. It is kept in IndexedDB and never uploaded.
 3. Publish the build without data to GitHub Pages from CI.
 

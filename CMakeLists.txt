@@ -259,7 +259,10 @@ add_library(tinysoundfont STATIC
         third_party/TinySoundFont/TinySoundFont.c
         third_party/TinySoundFont/tml.h
         third_party/TinySoundFont/tsf.h
+        third_party/stb/stb_vorbis.c
         )
+# stb_vorbis.c is compiled through TinySoundFont.c
+set_source_files_properties(third_party/stb/stb_vorbis.c PROPERTIES HEADER_FILE_ONLY ON)
 target_include_directories(tinysoundfont PUBLIC third_party/TinySoundFont)
 if(UNIX)
     target_link_libraries(tinysoundfont PUBLIC m)

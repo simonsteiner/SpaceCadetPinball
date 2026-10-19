@@ -143,12 +143,13 @@ namespace
 			}
 		}
 		for (auto path : {
-			     "/usr/share/sounds/sf2/default-GM.sf2",
-			     "/usr/share/sounds/sf2/FluidR3_GM.sf2",
-			     "/usr/share/soundfonts/default.sf2",
-			     "/usr/share/soundfonts/FluidR3_GM.sf2",
-			     "/usr/share/sounds/sf2/TimGM6mb.sf2",
-		     })
+				 "/usr/share/sounds/sf3/default-GM.sf3",
+				 "/usr/share/sounds/sf2/default-GM.sf2",
+				 "/usr/share/sounds/sf2/FluidR3_GM.sf2",
+				 "/usr/share/soundfonts/default.sf2",
+				 "/usr/share/soundfonts/FluidR3_GM.sf2",
+				 "/usr/share/sounds/sf2/TimGM6mb.sf2",
+			 })
 		{
 			paths.emplace_back(path);
 		}
