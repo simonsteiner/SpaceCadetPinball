@@ -317,9 +317,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			Options.FullScreen = true;
 		}
 
-		// Only the first open centres it, so a restart keeps where the player put the window
-		if (!Options.FullScreen)
-			fullscrn::ResetWindowSize(firstOpen);
+		// Also in full screen, where it sets the size the window returns to.
+		// Only the first open centres it, so a restart keeps where the player put the window.
+		fullscrn::ResetWindowSize(firstOpen);
 		firstOpen = false;
 		if (replay::IsPlaying())
 		{
