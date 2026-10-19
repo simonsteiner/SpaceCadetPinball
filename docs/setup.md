@@ -9,6 +9,8 @@ The game needs the original game data, which is not included. Copy the `.DAT` fi
 - 3D Pinball for Windows (`PINBALL.DAT`), or
 - Full Tilt! Pinball (`CADET.DAT`, or `DEMO.DAT` from the demo).
 
+3D Pinball for Windows came with Windows NT 4.0, Windows 2000, Windows Me and Windows XP, and before them with Microsoft Plus! for Windows 95. On an installed 32-bit Windows XP it is in (the x64 Edition shipped without it) `C:\Program Files\Windows NT\Pinball`. On the Windows XP CD its files are compressed (`PINBALL.DA_`, `SOUND1.WA_` and so on); unpack them with `expand` on Windows or `cabextract` on Linux and macOS. Full Tilt! Pinball, which has the same table, came on its own CD. Use a copy you own: the project doesn't distribute the data or point to downloads of it, and the web build only reads game files the player picks.
+
 The game searches these folders in order and uses the first data file it finds:
 
 1. the current working directory

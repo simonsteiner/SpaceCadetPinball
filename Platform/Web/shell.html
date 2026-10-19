@@ -22,6 +22,7 @@
   input[type=file] { display: none; }
   #files { font-family: ui-monospace, monospace; font-size: .85rem; color: var(--muted); max-height: 8rem; overflow: auto; }
   #status { min-height: 1.5em; }
+  details { margin: .5rem 0; } summary { cursor: pointer; color: var(--muted); }
   a { color: var(--accent); }
 </style>
 </head>
@@ -37,6 +38,15 @@
     <label class="button" for="pickFolder">Choose a folder…</label>
     <input id="pickFiles" type="file" multiple accept=".dat,.wav,.mid,.mds,.sf2,.sf3">
     <input id="pickFolder" type="file" webkitdirectory>
+    <details>
+      <summary>Where do I find these files?</summary>
+      <p>3D Pinball for Windows came with Windows NT 4.0, Windows 2000, Windows Me and Windows XP, and before them
+        with Microsoft Plus! for Windows 95. On an installed 32-bit Windows XP it lives in <code>C:\Program Files\Windows NT\Pinball</code>;
+        choose that folder. On the Windows XP CD the files are compressed (<code>PINBALL.DA_</code>, <code>SOUND1.WA_</code>
+        and so on): unpack them with <code>expand</code> on Windows or <code>cabextract</code> elsewhere.
+        Full Tilt! Pinball, which has the same table, came on its own CD.</p>
+      <p class="muted">Use a copy you own. This page doesn't download the game from anywhere.</p>
+    </details>
     <div id="files"></div>
     <p class="muted">The files stay in this browser (IndexedDB). They are never uploaded anywhere.
       <button id="forget" type="button">Forget the game data</button></p>
