@@ -57,6 +57,8 @@ namespace
 	constexpr int SynthRate = 44100;
 	// Frames per render call; TinySoundFont updates its effects every 64 frames
 	constexpr int SynthBlock = 64;
+	// At 0 dB the theme's loud chords go past full scale with FluidR3 and clip; -6 dB keeps them at about -1 dBFS
+	constexpr float SynthGainDb = -6.0f;
 	tsf* Synth = nullptr;
 	SDL_AudioStream* SynthStream = nullptr;
 	tml_message* SynthSong = nullptr; // First message of the playing song, null when stopped
@@ -278,7 +280,7 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 			Synth = LoadSoundFont();
 		if (Synth)
 		{
-			tsf_set_output(Synth, TSF_STEREO_INTERLEAVED, SynthRate, 0.0f);
+			tsf_set_output(Synth, TSF_STEREO_INTERLEAVED, SynthRate, SynthGainDb);
 			const SDL_AudioSpec synthSpec{SDL_AUDIO_F32, 2, SynthRate};
 			SynthStream = SDL_CreateAudioStream(&synthSpec, nullptr);
 			MusicTrack = MIX_CreateTrack(Mixer);
