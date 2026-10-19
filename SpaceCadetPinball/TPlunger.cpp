@@ -130,35 +130,41 @@ int TPlunger::Message(MessageCode code, float value)
 		SomeCounter = 0;
 		timer::kill(BallFeedTimer);
 		break;
+	case MessageCode::Reset:
+		if (pb::FullTiltMode)
+		{
+			PullbackStartedFlag = false;
+			Boost = 0.0f;
+			Threshold = 1000000000.0f;
+			SomeCounter = 0;
+
+			timer::kill(BallFeedTimer);
+			timer::kill(PullbackTimer);
+			timer::kill(ReleasedTimer);
+
+			SpriteSet(0);
+			break;
+		}
+		// 3D Pinball's Reset stops the ball feed, then lets the plunger go as a release does, without the sound
+		SomeCounter = 0;
+		timer::kill(BallFeedTimer);
+		[[fallthrough]];
 	case MessageCode::PlungerInputReleased:
 	case MessageCode::Resume:
 	case MessageCode::LooseFocus:
-		if (PullbackStartedFlag && !SomeCounter)
+		if (code == MessageCode::Reset || (PullbackStartedFlag && !SomeCounter))
 		{
 			PullbackStartedFlag = false;
 			Threshold = 0.0;
 			if (PullbackTimer_)
 				timer::kill(PullbackTimer_);
 			PullbackTimer_ = 0;
-			loader::play_sound(SoundIndexP2, this, "TPlunger3");
+			if (code != MessageCode::Reset)
+				loader::play_sound(SoundIndexP2, this, "TPlunger3");
 			SpriteSet(0);
 			timer::set(PullbackDelay, this, ReleasedTimer);
 		}
 		break;
-	case MessageCode::Reset:
-	{
-		PullbackStartedFlag = false;
-		Boost = 0.0f;
-		Threshold = 1000000000.0f;
-		SomeCounter = 0;
-
-		timer::kill(BallFeedTimer);
-		timer::kill(PullbackTimer);
-		timer::kill(ReleasedTimer);
-
-		SpriteSet(0);
-		break;
-	}
 	default:
 		break;
 	}
