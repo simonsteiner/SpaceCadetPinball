@@ -6,9 +6,11 @@
 #endif
 
 bool PostEffect::Supported = false;
+bool PostEffect::GpuFailed = false;
 SDL_Renderer* PostEffect::Renderer = nullptr;
-SDL_GPUShader* PostEffect::Shader = nullptr;
-SDL_GPURenderState* PostEffect::State = nullptr;
+PostEffects PostEffect::Effect = PostEffects::None;
+SDL_GPUShader* PostEffect::Shaders[static_cast<int>(PostEffects::Max)]{};
+SDL_GPURenderState* PostEffect::States[static_cast<int>(PostEffects::Max)]{};
 
 namespace
 {
@@ -41,10 +43,11 @@ SDL_Renderer* PostEffect::CreateGpuRenderer(SDL_Window* window)
 		printf("Could not create the GPU renderer for post-processing.\nSDL Error: %s\n", SDL_GetError());
 		SDL_ClearError();
 	}
-	return renderer;
 #else
-	return nullptr;
+	SDL_Renderer* renderer = nullptr;
 #endif
+	GpuFailed = !renderer;
+	return renderer;
 }
 
 bool PostEffect::IsGpuRenderer(SDL_Renderer* renderer)
@@ -57,36 +60,42 @@ bool PostEffect::IsGpuRenderer(SDL_Renderer* renderer)
 #endif
 }
 
-void PostEffect::Init(SDL_Renderer* renderer, PostEffects effect)
+void PostEffect::Init(SDL_Renderer* renderer)
 {
+	if (renderer == Renderer)
+		return;
 	Uninit();
 	Renderer = renderer;
 	Supported = IsGpuRenderer(renderer);
 #if SDL_VERSION_ATLEAST(3, 4, 0)
-	if (!Supported || effect == PostEffects::None)
+	if (!Supported)
 		return;
+
+	// Indexed by PostEffects; None has no shader
+	constexpr ShaderCode spirv[] = {{}, {crt_frag_spv, sizeof crt_frag_spv}, {smooth_frag_spv, sizeof smooth_frag_spv}};
+	constexpr ShaderCode dxil[] = {
+		{}, {crt_frag_dxil, sizeof crt_frag_dxil}, {smooth_frag_dxil, sizeof smooth_frag_dxil}};
+	constexpr ShaderCode msl[] = {{}, {crt_frag_msl, sizeof crt_frag_msl}, {smooth_frag_msl, sizeof smooth_frag_msl}};
+	static_assert(std::size(spirv) == static_cast<size_t>(PostEffects::Max), "One shader per effect");
 
 	auto device = SDL_GetGPURendererDevice(renderer);
 	auto formats = device ? SDL_GetGPUShaderFormats(device) : SDL_GPU_SHADERFORMAT_INVALID;
-	auto crt = effect == PostEffects::Crt;
 	SDL_GPUShaderCreateInfo info{};
+	const ShaderCode* code;
 	if (formats & SDL_GPU_SHADERFORMAT_SPIRV)
 	{
 		info.format = SDL_GPU_SHADERFORMAT_SPIRV;
-		info.code = crt ? crt_frag_spv : smooth_frag_spv;
-		info.code_size = crt ? sizeof crt_frag_spv : sizeof smooth_frag_spv;
+		code = spirv;
 	}
 	else if (formats & SDL_GPU_SHADERFORMAT_DXIL)
 	{
 		info.format = SDL_GPU_SHADERFORMAT_DXIL;
-		info.code = crt ? crt_frag_dxil : smooth_frag_dxil;
-		info.code_size = crt ? sizeof crt_frag_dxil : sizeof smooth_frag_dxil;
+		code = dxil;
 	}
 	else if (formats & SDL_GPU_SHADERFORMAT_MSL)
 	{
 		info.format = SDL_GPU_SHADERFORMAT_MSL;
-		info.code = crt ? crt_frag_msl : smooth_frag_msl;
-		info.code_size = crt ? sizeof crt_frag_msl : sizeof smooth_frag_msl;
+		code = msl;
 	}
 	else
 	{
@@ -97,54 +106,65 @@ void PostEffect::Init(SDL_Renderer* renderer, PostEffects effect)
 	info.num_samplers = 1;
 	info.num_uniform_buffers = 1;
 
-	Shader = SDL_CreateGPUShader(device, &info);
-	if (Shader)
+	for (int i = static_cast<int>(PostEffects::None) + 1; i < static_cast<int>(PostEffects::Max); i++)
 	{
-		SDL_GPURenderStateCreateInfo stateInfo{};
-		stateInfo.fragment_shader = Shader;
-		State = SDL_CreateGPURenderState(renderer, &stateInfo);
-	}
-	if (!State)
-	{
-		printf("Could not create the post-processing shader.\nSDL Error: %s\n", SDL_GetError());
-		SDL_ClearError();
-		Uninit();
-		Renderer = renderer;
-		Supported = true;
+		info.code = code[i].Code;
+		info.code_size = code[i].Size;
+		Shaders[i] = SDL_CreateGPUShader(device, &info);
+		if (Shaders[i])
+		{
+			SDL_GPURenderStateCreateInfo stateInfo{};
+			stateInfo.fragment_shader = Shaders[i];
+			States[i] = SDL_CreateGPURenderState(renderer, &stateInfo);
+		}
+		if (!States[i])
+		{
+			printf("Could not create the post-processing shader.\nSDL Error: %s\n", SDL_GetError());
+			SDL_ClearError();
+		}
 	}
 #endif
 }
 
 void PostEffect::Uninit()
 {
+	for (int i = 0; i < static_cast<int>(PostEffects::Max); i++)
+	{
 #if SDL_VERSION_ATLEAST(3, 4, 0)
-	if (State)
-		SDL_DestroyGPURenderState(State);
-	if (Shader)
-		SDL_ReleaseGPUShader(SDL_GetGPURendererDevice(Renderer), Shader);
+		if (States[i])
+			SDL_DestroyGPURenderState(States[i]);
+		if (Shaders[i])
+			SDL_ReleaseGPUShader(SDL_GetGPURendererDevice(Renderer), Shaders[i]);
 #endif
-	State = nullptr;
-	Shader = nullptr;
+		States[i] = nullptr;
+		Shaders[i] = nullptr;
+	}
 	Renderer = nullptr;
 	Supported = false;
+}
+
+void PostEffect::SetEffect(PostEffects effect)
+{
+	Effect = effect;
 }
 
 void PostEffect::Begin(float textureWidth, float textureHeight, float scaleX, float scaleY)
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
-	if (!State)
+	auto state = States[static_cast<int>(Effect)];
+	if (!state)
 		return;
 
 	EffectUniforms uniforms{{textureWidth, textureHeight}, {scaleX, scaleY}};
-	SDL_SetGPURenderStateFragmentUniforms(State, 0, &uniforms, sizeof uniforms);
-	SDL_SetGPURenderState(Renderer, State);
+	SDL_SetGPURenderStateFragmentUniforms(state, 0, &uniforms, sizeof uniforms);
+	SDL_SetGPURenderState(Renderer, state);
 #endif
 }
 
 void PostEffect::End()
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
-	if (State)
+	if (States[static_cast<int>(Effect)])
 		SDL_SetGPURenderState(Renderer, nullptr);
 #endif
 }

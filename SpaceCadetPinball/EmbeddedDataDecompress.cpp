@@ -12,7 +12,7 @@ namespace
 	}
 
 	unsigned char *stb__barrier_out_e, *stb__barrier_out_b;
-	const unsigned char* stb__barrier_in_b;
+	const unsigned char *stb__barrier_in_b, *stb__barrier_in_e;
 	unsigned char* stb__dout;
 
 	void stb__match(const unsigned char* data, unsigned int length)
@@ -27,6 +27,7 @@ namespace
 	{
 		if (stb__dout + length > stb__barrier_out_e) { stb__dout += length; return; }
 		if (data < stb__barrier_in_b) { stb__dout = stb__barrier_out_e + 1; return; }
+		if (length > static_cast<size_t>(stb__barrier_in_e - data)) { stb__dout = stb__barrier_out_e + 1; return; }
 		memcpy(stb__dout, data, length);
 		stb__dout += length;
 	}
@@ -83,18 +84,23 @@ namespace
 		return static_cast<unsigned int>(s2 << 16) + static_cast<unsigned int>(s1);
 	}
 
-	unsigned int stb_decompress(unsigned char* output, const unsigned char* i)
+	// Unlike stb.h, this takes the input length and never reads past it, so truncated input fails cleanly
+	unsigned int stb_decompress(unsigned char* output, const unsigned char* i, size_t length)
 	{
+		if (length < 16) return 0;
 		if (stb__in4(0) != 0x57bC0000) return 0;
 		if (stb__in4(4) != 0)          return 0; // error! stream is > 4GB
 		const unsigned int olen = stb_decompress_length(i);
 		stb__barrier_in_b = i;
+		stb__barrier_in_e = i + length;
 		stb__barrier_out_e = output + olen;
 		stb__barrier_out_b = output;
 		i += 16;
 
 		stb__dout = output;
 		for (;;) {
+			// Every token header and the 6-byte end marker fit in 6 bytes
+			if (stb__barrier_in_e - i < 6) return 0;
 			const unsigned char* old_i = i;
 			i = stb_decompress_token(i);
 			if (i == old_i) {
@@ -133,11 +139,13 @@ namespace
 	}
 }
 
-std::vector<uint8_t> EmbeddedData::DecompressStb(const void* compressedData)
+std::vector<uint8_t> EmbeddedData::DecompressStb(const void* compressedData, size_t compressedSize)
 {
 	auto input = static_cast<const unsigned char*>(compressedData);
+	if (compressedSize < 16)
+		return {};
 	std::vector<uint8_t> output(stb_decompress_length(input));
-	if (stb_decompress(output.data(), input) != output.size())
+	if (stb_decompress(output.data(), input, compressedSize) != output.size())
 		output.clear();
 	return output;
 }
@@ -146,5 +154,5 @@ std::vector<uint8_t> EmbeddedData::DecompressBase85(const char* compressedDataBa
 {
 	std::vector<unsigned char> compressed((strlen(compressedDataBase85) + 4) / 5 * 4);
 	Decode85(compressedDataBase85, compressed.data());
-	return DecompressStb(compressed.data());
+	return DecompressStb(compressed.data(), compressed.size());
 }

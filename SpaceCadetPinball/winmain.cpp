@@ -180,7 +180,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 	{
 		// Load SDL Game Controller definitions from DB
-		auto controllerDb = EmbeddedData::DecompressStb(EmbeddedData::SDL_GameControllerDB_compressed_data);
+		auto controllerDb = EmbeddedData::DecompressStb(EmbeddedData::SDL_GameControllerDB_compressed_data,
+		                                                 EmbeddedData::SDL_GameControllerDB_compressed_size);
 		auto io = SDL_IOFromConstMem(controllerDb.data(), controllerDb.size());
 		const auto added = SDL_AddGamepadMappingsFromIO(io, true);
 		if (added < 0)
@@ -191,6 +192,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	}
 
 	auto resetAllOptions = HasArg(args, "-reset");
+	auto firstOpen = true;
 	do
 	{
 		restart = false;
@@ -216,13 +218,16 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		// Post-processing needs SDL's GPU renderer, the only one that takes custom shaders. No textures exist yet,
 		// so this is the place to switch. Turning an effect off keeps that renderer, so no restart is needed for it.
-		auto wantGpu = !SoftwareRenderer && static_cast<PostEffects>(Options.PostProcessing.V) != PostEffects::None;
+		// Once the GPU renderer has failed, it isn't tried again.
+		auto effect = static_cast<PostEffects>(Options.PostProcessing.V);
+		auto wantGpu = !SoftwareRenderer && effect != PostEffects::None && !PostEffect::GpuRendererFailed();
 		if (wantGpu && !PostEffect::IsGpuRenderer(Renderer) && !CreateRenderer(true) && !CreateRenderer(false))
 		{
 			pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not create renderer", SDL_GetError());
 			return 1;
 		}
-		PostEffect::Init(Renderer, static_cast<PostEffects>(Options.PostProcessing.V));
+		PostEffect::Init(Renderer);
+		PostEffect::SetEffect(effect);
 
 		if (!Options.FontFileName.V.empty())
 		{
@@ -320,8 +325,10 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			Options.FullScreen = true;
 		}
 
-		if (!Options.FullScreen)
-			fullscrn::ResetWindowSize();
+		// Also in full screen, where it sets the size the window returns to.
+		// Only the first open centres it, so a restart keeps where the player put the window.
+		fullscrn::ResetWindowSize(firstOpen);
+		firstOpen = false;
 		if (replay::IsPlaying())
 		{
 			// The recording holds the command that started the game
@@ -354,7 +361,6 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		ImGui_ImplSDLRenderer3_Shutdown();
 		ImGui_ImplSDL3_Shutdown();
-		PostEffect::Uninit();
 		ImGui::DestroyContext();
 	}
 	while (restart);
@@ -367,6 +373,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	}
 
 	SDL_free(prefPath);
+	PostEffect::Uninit();
 	SDL_DestroyRenderer(Renderer);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
@@ -699,6 +706,7 @@ void winmain::RenderUi()
 				{
 					options::toggle(Menu1::WindowStackedLayout);
 				}
+#if SDL_VERSION_ATLEAST(3, 4, 0)
 				if (ImGui::BeginMenu("Post-Processing"))
 				{
 					constexpr const char* names[] = {"None", "CRT", "Smooth Edges"};
@@ -709,8 +717,11 @@ void winmain::RenderUi()
 					}
 					if (SoftwareRenderer)
 						ImGui::TextDisabled("Not with the software renderer");
+					else if (PostEffect::GpuRendererFailed())
+						ImGui::TextDisabled("Needs Vulkan, Direct3D 12 or Metal");
 					ImGui::EndMenu();
 				}
+#endif
 				if (ImGui::DragFloat("UI Scale", &Options.UIScale.V, 0.005f, 0.8f, 5,
 				                     "%.2f", ImGuiSliderFlags_AlwaysClamp))
 				{
@@ -1214,16 +1225,18 @@ void winmain::SetPostProcessing(PostEffects effect)
 		return;
 	Options.PostProcessing = static_cast<int>(effect);
 
-	// The GPU renderer switches effects on the fly; any other renderer has to be replaced, which needs a restart
-	if (PostEffect::Available())
-		PostEffect::Init(Renderer, effect);
-	else if (effect != PostEffects::None && !SoftwareRenderer)
+	// The GPU renderer switches effects on the fly; any other renderer has to be replaced, which needs a restart,
+	// unless the GPU renderer could not be created
+	PostEffect::SetEffect(effect);
+	if (!PostEffect::Available() && effect != PostEffects::None && !SoftwareRenderer &&
+		!PostEffect::GpuRendererFailed())
 		Restart();
 }
 
 bool winmain::CreateRenderer(bool gpu)
 {
 	// The GPU renderer, for post-processing; otherwise the default, falling back to the software renderer
+	PostEffect::Uninit();
 	if (Renderer)
 		SDL_DestroyRenderer(Renderer);
 	Renderer = nullptr;

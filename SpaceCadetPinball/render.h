@@ -40,8 +40,8 @@ public:
 	static gdrv_bitmap8 *vscreen, *background_bitmap;
 	static zmap_header_type* background_zmap;
 	static int zmap_offsetX, zmap_offsetY;
-	// Where the table and its score panel are drawn, in pixels. DestinationRect holds both.
-	static SDL_Rect DestinationRect, BoardRect, SidebarRect;
+	// Where the table and its score panel are drawn, in pixels
+	static SDL_Rect BoardRect, SidebarRect;
 
 	static void init(gdrv_bitmap8* bmp, int width, int height);
 	static void uninit();
@@ -55,7 +55,7 @@ public:
 	static void SpriteViewer(bool* show);
 	static void PresentVScreen();
 	static int BoardWidth();
-	static void DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, bool postEffect = false);
+	static void DrawSplit(SDL_Texture* texture, float offsetX, float offsetY);
 
 private:
 	static std::vector<render_sprite*> sprite_list, ball_list;
