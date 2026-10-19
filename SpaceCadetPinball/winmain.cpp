@@ -557,7 +557,12 @@ void winmain::MainLoop()
 				render::RestoreBalls();
 
 				ImGui::Render();
+				// ImGui draws in window coordinates and leaves scaling them to pixels to the render scale;
+				// the table above is drawn in pixels, so the scale applies to the UI only
+				auto fbScale = ImIO->DisplayFramebufferScale;
+				SDL_SetRenderScale(Renderer, fbScale.x, fbScale.y);
 				ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), Renderer);
+				SDL_SetRenderScale(Renderer, 1.0f, 1.0f);
 
 				SDL_RenderPresent(Renderer);
 				frameCounter++;
