@@ -243,7 +243,39 @@ endif(WIN32)
 add_library(imgui STATIC ${IMGUI_SOURCE_FILES})
 target_link_libraries(imgui PUBLIC ${SDL_LIBRARIES})
 
+# Vendored TinySoundFont plays MIDI music with a SoundFont where there is no native MIDI
+add_library(tinysoundfont STATIC
+        third_party/TinySoundFont/TinySoundFont.c
+        third_party/TinySoundFont/tml.h
+        third_party/TinySoundFont/tsf.h
+        )
+target_include_directories(tinysoundfont PUBLIC third_party/TinySoundFont)
+if(UNIX)
+    target_link_libraries(tinysoundfont PUBLIC m)
+endif()
+
 add_executable(SpaceCadetPinball ${SOURCE_FILES})
+target_link_libraries(SpaceCadetPinball tinysoundfont)
+
+# Vendored SDL_native_midi plays MIDI music through the system's synth on Windows and macOS
+if(WIN32 OR APPLE)
+    add_library(native_midi STATIC
+            third_party/SDL_native_midi/include/SDL3_native_midi/SDL_native_midi.h
+            third_party/SDL_native_midi/src/SDL_native_midi_common.c
+            third_party/SDL_native_midi/src/SDL_native_midi_common.h
+            third_party/SDL_native_midi/src/SDL_native_midi_macos.c
+            third_party/SDL_native_midi/src/SDL_native_midi_win32.c
+            )
+    target_include_directories(native_midi PUBLIC third_party/SDL_native_midi/include)
+    target_link_libraries(native_midi PUBLIC ${SDL_LIBRARIES})
+    if(WIN32)
+        target_link_libraries(native_midi PUBLIC winmm)
+    else()
+        target_link_libraries(native_midi PUBLIC "-framework AudioToolbox" "-framework AudioUnit" "-framework CoreServices")
+    endif()
+    target_link_libraries(SpaceCadetPinball native_midi)
+    target_compile_definitions(SpaceCadetPinball PRIVATE SCP_NATIVE_MIDI)
+endif()
 
 target_precompile_headers(SpaceCadetPinball
         PUBLIC
@@ -274,7 +306,7 @@ if(SCP_SANITIZERS)
         message(FATAL_ERROR "SCP_SANITIZERS needs GCC or Clang")
     endif()
     set(SCP_SANITIZER_FLAGS -fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer)
-    foreach(target SpaceCadetPinball imgui)
+    foreach(target SpaceCadetPinball imgui tinysoundfont)
         target_compile_options(${target} PRIVATE ${SCP_SANITIZER_FLAGS})
         target_link_options(${target} PRIVATE ${SCP_SANITIZER_FLAGS})
     endforeach()

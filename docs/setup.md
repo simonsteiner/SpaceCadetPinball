@@ -39,7 +39,7 @@ Each preset builds in `build/<preset>/`. The executable is written to `bin/` in 
 | `mingw` | Linux, cross-compiling to Windows x64 | built from source |
 | `macos` | macOS, universal `arm64` and `x86_64` | built from source |
 
-The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL3 3.4.18 and SDL3_mixer 3.2.4 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity. Its other codecs and FluidSynth are left out; SDL3_mixer has no native MIDI. When it is `OFF` (the default on Linux), CMake uses the installed `SDL3` and `SDL3_mixer` development packages through their CMake config files. CI builds every preset except `linux-debug` and `linux-sanitize` on each pull request. Windows builds are 64-bit only; the 32-bit and Windows XP builds were dropped with the move to C++20.
+The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL3 3.4.18 and SDL3_mixer 3.2.4 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity. Its other codecs and FluidSynth are left out; the game brings its own MIDI playback (see [Music](#music)). When it is `OFF` (the default on Linux), CMake uses the installed `SDL3` and `SDL3_mixer` development packages through their CMake config files. CI builds every preset except `linux-debug` and `linux-sanitize` on each pull request. Windows builds are 64-bit only; the 32-bit and Windows XP builds were dropped with the move to C++20.
 
 Plain `cmake -S . -B build` without a preset still works and follows the same defaults.
 
@@ -53,9 +53,9 @@ SDL3 is packaged in Debian testing (forky) and sid, Ubuntu 26.04, Fedora and Arc
 
 ```bash
 # Debian testing or sid
-sudo apt install cmake build-essential ninja-build libsdl3-dev libsdl3-mixer-dev
+sudo apt install cmake build-essential ninja-build libsdl3-dev libsdl3-mixer-dev fluid-soundfont-gm
 # Arch
-sudo pacman -S cmake ninja gcc sdl3 sdl3_mixer
+sudo pacman -S cmake ninja gcc sdl3 sdl3_mixer soundfont-fluid
 
 cmake --preset linux
 cmake --build --preset linux
@@ -64,7 +64,7 @@ cmake --build --preset linux
 
 Distribution packages should keep `SCP_VENDORED_SDL=OFF`, the Linux default, so the game links against the system SDL. Ubuntu 22.04 ships CMake 3.22, which is too old: install a newer one from [Kitware's APT repository](https://apt.kitware.com/) or with `pip install cmake`.
 
-**Music:** Debian builds SDL3_mixer without MIDI support, so a `linux` build against it has sound effects but no music. Arch's SDL3_mixer plays MIDI through FluidSynth.
+**Music:** see [Music](#music); on Linux it needs a General MIDI SoundFont, such as Debian's and Ubuntu's `fluid-soundfont-gm` package.
 
 Tested upstream with GCC 10 and Clang 11. The `linux` preset builds with GCC 15 and CMake 4.2. `cmake --install build/linux` installs the binary, the `.desktop` file, the AppStream metadata and the icons from `Platform/Linux/`.
 
@@ -79,7 +79,7 @@ cmake --preset linux-vendored
 cmake --build --preset linux-vendored
 ```
 
-To leave out a missing X11 extension instead, pass its option, for example `-DSDL_X11_XTEST=OFF`. That build plays MIDI through Timidity only, so music needs a `timidity.cfg` with GUS patches; set `TIMIDITY_CFG` if it isn't in `/etc/timidity.cfg` or `/etc/timidity/`.
+To leave out a missing X11 extension instead, pass its option, for example `-DSDL_X11_XTEST=OFF`.
 
 Some distributions package the game, and it is on [Flathub](https://flathub.org/apps/details/com.github.k4zmu2a.spacecadetpinball): see [Repology](https://repology.org/project/spacecadetpinball/versions).
 
@@ -114,6 +114,16 @@ Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake 3.2
 - **Tested upstream with:** the earlier framework-based script on macOS Ventura (Apple Silicon) with Command Line Tools 14 and on a GitHub Intel runner with Xcode 13; manual builds on macOS Big Sur (Intel) and Monterey beta (Apple Silicon) with Xcode 13. CI builds the `macos` preset on a `macos-26` runner, but nobody has run the resulting app yet.
 - **Prebuilt:** `brew tap draftbrew/tap && brew install --no-quarantine space-cadet-pinball`. `--no-quarantine` bypasses Gatekeeper for this install.
 
+## Music
+
+SDL3_mixer can't be relied on for the MIDI music: it has no native MIDI, and some distributions build it without MIDI. The game picks the first of these that works when it starts:
+
+1. **Native MIDI** on Windows and macOS (vendored [SDL_native_midi](https://github.com/libsdl-org/SDL_native_midi)): the system's own synth, which is what the original game used.
+2. **TinySoundFont** (vendored) with a SoundFont: the files in `SDL_SOUNDFONTS` (separated by `;`, or also `:` outside Windows), then `/usr/share/sounds/sf2/default-GM.sf2`, `/usr/share/sounds/sf2/FluidR3_GM.sf2`, `/usr/share/soundfonts/default.sf2`, `/usr/share/soundfonts/FluidR3_GM.sf2` and `/usr/share/sounds/sf2/TimGM6mb.sf2`. Only SF2 files load, not SF3. The whole SoundFont is held in memory as floating point, so FluidR3 (148 MB on disk) takes about 400 MB; TimGM6mb (6 MB) is lighter.
+3. **SDL3_mixer's own MIDI decoders,** if it has any: Timidity in the vendored build (needs a `timidity.cfg` with GUS patches; set `TIMIDITY_CFG` if it isn't in `/etc/timidity.cfg` or `/etc/timidity/`), FluidSynth in some distribution builds.
+
+No SoundFont ships with the game. Music needs an audio device, so `-noaudio` and `-quick` turn it off.
+
 ## Command-line options
 
 | Flag | Effect |
@@ -130,7 +140,7 @@ Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake 3.2
 ## Troubleshooting
 
 - **No background music:** music is on by default (the original game had it off), but a saved `Music=0` in `imgui_pb.ini` from an earlier run keeps it off. Turn it on with F6 or Options → Music.
-- **Still no music:** SDL3_mixer has no native MIDI, so Windows and macOS builds play music only with a Timidity setup for now, and Debian's SDL3_mixer has no MIDI at all. The next step of the modernization plan brings native MIDI back and adds a SoundFont synth.
+- **Still no music:** the console says which synth plays the music, `Playing music with SoundFont: <path>`, or why none could start. On Linux, install a General MIDI SoundFont or point `SDL_SOUNDFONTS` at one; see [Music](#music).
 - **"Could not create renderer" or a black window:** try `-sw`.
 - **WSL2:** WSLg provides both a display and a PulseAudio device, so the game runs without extra setup and without `-noaudio`.
 - **An `SDL Error:` line in the console:** the main loop prints any pending SDL error, including errors that SDL or SDL_mixer recovered from internally. This line alone is not proof that music is broken.
