@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the game with SCP_WARNINGS=ON, as CI does, and plays back the reference replays.
+# Builds the working tree with SCP_WARNINGS=ON, as CI does, and plays back the reference replays.
 # Runs only on Linux, and only when the push changes code or build files.
 # The replays need the game data, which lives outside the repository; they are skipped when it isn't there.
 # Usage: tools/hooks/pre-push.sh [pushed file]...
@@ -27,6 +27,11 @@ fi
 
 root=$(git rev-parse --show-toplevel)
 cd "$root" || exit 1
+
+# The build uses the working tree, not the pushed commits; CI checks those
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+    echo "pre-push: warning: uncommitted changes are part of this build, so it may not match the pushed commits"
+fi
 
 # Its own build directory, so the user's linux preset keeps its settings.
 # The executable still lands in bin/, like every preset's.
