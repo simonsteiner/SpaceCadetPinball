@@ -78,14 +78,15 @@ int TPlunger::Message(MessageCode code, float value)
 		break;
 	case MessageCode::PlungerFeedBall:
 		{
-			if (PinballTable->BallCountInRect(PinballTable->PlungerPosition, PinballTable->CollisionCompOffset * 1.2f))
+			auto position = PinballTable->PlungerPosition;
+			// AddBall fails only when all 20 ball slots are in use, which only cheats can cause; try again later
+			if (PinballTable->BallCountInRect(position, PinballTable->CollisionCompOffset * 1.2f) ||
+				!PinballTable->AddBall(position))
 			{
 				timer::set(1.0f, this, BallFeedTimer);
 			}
 			else
 			{
-				[[maybe_unused]] auto ball = PinballTable->AddBall(PinballTable->PlungerPosition);
-				assertm(ball, "Failure to create ball in plunger");
 				PinballTable->MultiballCount++;
 				PinballTable->BallInDrainFlag = 0;
 				pb::tilt_no_more();

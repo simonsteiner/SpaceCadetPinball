@@ -81,7 +81,12 @@ void TSink::TimerExpired(int timerId, void* caller)
 	else 
 	{
 		auto ball = table->AddBall(sink->BallPosition);
-		assertm(ball, "Failure to create ball in sink");
+		if (!ball)
+		{
+			// All 20 ball slots are in use, which only cheats can cause; try again later, as when the sink is busy
+			timer::set(0.5f, sink, TimerExpired);
+			return;
+		}
 		ball->CollisionDisabledFlag = true;
 		ball->throw_ball(&sink->BallThrowDirection, sink->ThrowAngleMult, sink->ThrowSpeedMult1,
 			sink->ThrowSpeedMult2);
