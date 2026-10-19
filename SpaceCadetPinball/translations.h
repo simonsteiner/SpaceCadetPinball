@@ -222,6 +222,7 @@ enum class Msg : int
 	Menu1_UseMaxResolution_640x480,
 	Menu1_UseMaxResolution_800x600,
 	Menu1_UseMaxResolution_1024x768,
+	Menu1_ToggleUpscaledArt,
 
 	Max,
 };

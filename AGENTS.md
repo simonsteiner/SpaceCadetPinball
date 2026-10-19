@@ -41,15 +41,17 @@ There are no automated tests yet. A change is checked by building it and playing
 
 - **Post-processing shaders are compiled ahead of time.** `SpaceCadetPinball/shaders/*.frag.hlsl` become SPIR-V and DXIL, and the hand-written `*.frag.msl` are embedded as text, in the generated `PostEffectShaders.h`; run `tools/build-shaders.sh` after changing a shader (it fetches a pinned DXC). Keep each `.msl` in step with its `.hlsl`.
 
+- **Upscaled Art keeps a second, larger frame in step with the original one.** `render` composes both: every paint at 1x is repeated at `HiScale` with the art from `Upscale`, and the score panel, which text boxes and digits draw straight into the 1x frame, is magnified from there when it changes. A new way of drawing into the frame has to do the same, or it shows only with the toggle off.
+
 ## Hard constraints
 
-- **Never commit game data.** The original game's files (`*.DAT`, `*.WAV`, `*.MID`, `Pinball.exe`, `table.bmp`, `wavemix.inf`) are Microsoft's. `.gitignore` excludes them in any letter case; keep game data outside the repository and never force-add it.
+- **Never commit game data.** The original game's files (`*.DAT`, `*.WAV`, `*.MID`, `Pinball.exe`, `table.bmp`, `wavemix.inf`) are Microsoft's, and so is anything made from them, such as exported or upscaled sprites. `.gitignore` excludes them in any letter case; keep game data outside the repository and never force-add it.
 - **Never commit to or push `master`.** Merge `upstream/master` into it only when asked.
 - **Ask the user before changing gameplay behaviour,** including fixes to physics or table rules. The decompiled physics and table rules reproduce the original; a quirk that looks like a bug may be faithful to it.
 
 ## Gotchas
 
-- **Vendored code is ImGui and `third_party/`.** `imgui*.cpp`, `imgui*.h`, `imstb_*.h` and `imconfig.h` in `SpaceCadetPinball/` are third-party; upgrade them as a set rather than editing them. The ImGui files are unmodified upstream releases with only `imconfig.h` set up, so an upgrade is a copy of the new release's files. `third_party/` holds SDL_native_midi and TinySoundFont, which play the music; `third_party/README.md` lists their versions.
+- **Vendored code is ImGui and `third_party/`.** `imgui*.cpp`, `imgui*.h`, `imstb_*.h` and `imconfig.h` in `SpaceCadetPinball/` are third-party; upgrade them as a set rather than editing them. The ImGui files are unmodified upstream releases with only `imconfig.h` set up, so an upgrade is a copy of the new release's files. `third_party/` holds SDL_native_midi and TinySoundFont, which play the music, and MMPX, which upscales the art; `third_party/README.md` lists their versions.
 - **Music doesn't go through SDL3_mixer's MIDI support.** `midi.cpp` plays it through native MIDI on Windows and macOS, else TinySoundFont with a system SoundFont, else SDL3_mixer's decoders (`docs/setup.md`, Music). TinySoundFont renders on the audio thread, in the callback of the stream that feeds the music track; change its song only while holding that stream's lock.
 - **The game can't run without game data,** so it can't be play-tested in CI. Use `-noaudio` on machines without a sound device.
 - **The main loop prints any pending SDL error as `SDL Error: ...`.** Errors that SDL or SDL_mixer set internally and recovered from show up too, such as a missing `timidity.cfg`; such a line doesn't mean anything failed.

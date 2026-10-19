@@ -32,6 +32,7 @@ enum class Menu1:int
 	WindowIntegerScale = 602,
 	WindowBackdrop = 603,
 	WindowStackedLayout = 604,
+	WindowUpscaledArt = 605,
 	Prefer3DPBGameData = 700,
 };
 
@@ -86,6 +87,7 @@ enum class GameBindings
 	ShowControlDialog,
 	ToggleMenuDisplay,
 	Exit,
+	ToggleUpscaledArt,
 	Max
 };
 
@@ -300,4 +302,6 @@ struct optionsStruct
 	IntOption PostProcessing;
 	BoolOption Rumble;
 	BoolOption MatchRefreshRate;
+	BoolOption UpscaledArt;
+	IntOption UpscaleFactor;
 };

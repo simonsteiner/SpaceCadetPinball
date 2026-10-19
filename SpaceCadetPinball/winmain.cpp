@@ -12,6 +12,7 @@
 #include "options.h"
 #include "pb.h"
 #include "PostEffect.h"
+#include "Upscale.h"
 #include "render.h"
 #include "replay.h"
 #include "Sound.h"
@@ -315,6 +316,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		}
 
 		fullscrn::init();
+		render::SetUpscale(Options.UpscaledArt ? Options.UpscaleFactor.V : 0);
 
 		pb::reset_table();
 		pb::firsttime_setup();
@@ -726,6 +728,24 @@ void winmain::RenderUi()
 				if (ImGui::MenuItem("Panel Under Table in Tall Windows", nullptr, Options.StackedLayout))
 				{
 					options::toggle(Menu1::WindowStackedLayout);
+				}
+				ImGuiMenuItemWShortcut(GameBindings::ToggleUpscaledArt, Options.UpscaledArt);
+				if (ImGui::BeginMenu("Upscaled Art Size"))
+				{
+					for (auto factor : {2, 4})
+					{
+						char label[8];
+						snprintf(label, sizeof label, "%dx", factor);
+						if (ImGui::MenuItem(label, nullptr, Options.UpscaleFactor == factor))
+						{
+							Options.UpscaleFactor = factor;
+							if (Options.UpscaledArt)
+								render::SetUpscale(factor);
+						}
+					}
+					if (ImGui::MenuItem("Export Original Sprites"))
+						Upscale::ExportOriginals();
+					ImGui::EndMenu();
 				}
 				if (ImGui::BeginMenu("Post-Processing"))
 				{
@@ -1586,6 +1606,9 @@ void winmain::HandleGameBinding(GameBindings binding, bool shortcut)
 		break;
 	case GameBindings::ToggleSounds:
 		options::toggle(Menu1::Sounds);
+		break;
+	case GameBindings::ToggleUpscaledArt:
+		options::toggle(Menu1::WindowUpscaledArt);
 		break;
 	case GameBindings::ToggleMusic:
 		options::toggle(Menu1::Music);

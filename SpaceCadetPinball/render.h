@@ -29,6 +29,8 @@ struct render_sprite
 	rectangle_type PaintedRect{}, PrevPaintedRect{};
 	bool Painted{}, PrevPainted{};
 	rectangle_type SavedBmpRect{}, SavedDirtyRectPrev{};
+	// Balls only: the part of the upscaled frame the ball covers
+	rectangle_type DirtyRectHi{};
 
 	render_sprite(VisualTypes visualType, gdrv_bitmap8* bmp, zmap_header_type* zMap,
 	              int xPosition, int yPosition, rectangle_type* boundingRect);
@@ -61,7 +63,16 @@ public:
 	static int BoardWidth();
 	static void InterpolateBalls(float alpha);
 	static void RestoreBalls();
-	static void DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, bool postEffect = false);
+	static void DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, bool postEffect = false,
+						  int textureScale = 1);
+	// Upscaled art: 0 for the original sprites, or 2 or 4 to draw an upscaled copy of the frame
+	static void SetUpscale(int factor);
+	static int GetUpscale()
+	{
+		return HiScale;
+	}
+	// The table's background as pb::init first copied it into the frame
+	static gdrv_bitmap8* InitialBackground;
 
 private:
 	static std::vector<render_sprite*> sprite_list, ball_list;
@@ -71,10 +82,17 @@ private:
 	static zmap_header_type* zscreen;
 	static SDL_Texture* BackdropTexture;
 	static bool BallsInterpolated;
+	static gdrv_bitmap8 *vscreenHi, *ball_bitmap_hi[20];
+	static zmap_header_type* zscreenHi;
+	static int HiScale;
+	static std::vector<ColorRgba> SidebarCopy;
 
 	static void repaint(const render_sprite& sprite);
 	static void paint_balls();
 	static void unpaint_balls();
+	static void paint_balls_hi();
+	static void PaintHi(const render_sprite& sprite, const rectangle_type& clipRect);
+	static void RefreshSidebarHi();
 	static void DrawBackdrop();
 	static void CreateBackdrop();
 };

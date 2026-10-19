@@ -93,6 +93,7 @@ int pb::init()
 		backgroundBmp,
 		0,
 		0);
+	render::InitialBackground = backgroundBmp;
 
 	loader::loadfrom(record_table);
 

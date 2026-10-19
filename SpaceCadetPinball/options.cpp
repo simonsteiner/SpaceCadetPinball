@@ -123,6 +123,13 @@ optionsStruct options::Options
 			{},
 			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_BACK}
 		},
+		{
+			"Toggle Upscaled Art",
+			Msg::Menu1_ToggleUpscaledArt,
+			{InputTypes::Keyboard, SDLK_F7},
+			{},
+			{}
+		},
 	},
 	{"Sounds", true},
 	{"Music", true},
@@ -161,6 +168,8 @@ optionsStruct options::Options
 	{"Post Processing", 0},
 	{"Gamepad Rumble", true},
 	{"Match Display Refresh Rate", false},
+	{"Upscaled Art", false},
+	{"Upscale Factor", 2},
 };
 // clang-format on
 
@@ -324,6 +333,10 @@ void options::toggle(Menu1 uIDCheckItem)
 		break;
 	case Menu1::WindowBackdrop:
 		Options.Backdrop ^= true;
+		break;
+	case Menu1::WindowUpscaledArt:
+		Options.UpscaledArt ^= true;
+		render::SetUpscale(Options.UpscaledArt ? Options.UpscaleFactor.V : 0);
 		break;
 	case Menu1::WindowStackedLayout:
 		Options.StackedLayout ^= true;
@@ -516,6 +529,7 @@ void options::PostProcessOptions()
 	Options.UpdatesPerSecond = Clamp(Options.UpdatesPerSecond.V, MinUps, MaxUps);
 	Options.SoundChannels = Clamp(Options.SoundChannels.V, MinSoundChannels, MaxSoundChannels);
 	Options.SoundVolume = Clamp(Options.SoundVolume.V, MinVolume, MaxVolume);
+	Options.UpscaleFactor = Options.UpscaleFactor.V >= 4 ? 4 : 2;
 	Options.PostProcessing = Clamp(Options.PostProcessing.V, 0, static_cast<int>(PostEffects::Max) - 1);
 	Options.MusicVolume = Clamp(Options.MusicVolume.V, MinVolume, MaxVolume);
 	translations::SetCurrentLanguage(Options.Language.V.c_str());

@@ -126,6 +126,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/replay.h
         SpaceCadetPinball/Rumble.cpp
         SpaceCadetPinball/Rumble.h
+        SpaceCadetPinball/Upscale.cpp
+        SpaceCadetPinball/Upscale.h
         SpaceCadetPinball/score.cpp
         SpaceCadetPinball/score.h
         SpaceCadetPinball/Sound.cpp
@@ -248,6 +250,10 @@ endif(WIN32)
 add_library(imgui STATIC ${IMGUI_SOURCE_FILES})
 target_link_libraries(imgui PUBLIC ${SDL_LIBRARIES})
 
+# Vendored MMPX magnifies the table's art for the Upscaled Art option
+add_library(mmpx STATIC third_party/MMPX/mmpx.c third_party/MMPX/mmpx.h)
+target_include_directories(mmpx PUBLIC third_party/MMPX)
+
 # Vendored TinySoundFont plays MIDI music with a SoundFont where there is no native MIDI
 add_library(tinysoundfont STATIC
         third_party/TinySoundFont/TinySoundFont.c
@@ -260,7 +266,7 @@ if(UNIX)
 endif()
 
 add_executable(SpaceCadetPinball ${SOURCE_FILES})
-target_link_libraries(SpaceCadetPinball tinysoundfont)
+target_link_libraries(SpaceCadetPinball tinysoundfont mmpx)
 
 # Vendored SDL_native_midi plays MIDI music through the system's synth on Windows and macOS
 if(WIN32 OR APPLE)
@@ -311,7 +317,7 @@ if(SCP_SANITIZERS)
         message(FATAL_ERROR "SCP_SANITIZERS needs GCC or Clang")
     endif()
     set(SCP_SANITIZER_FLAGS -fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer)
-    foreach(target SpaceCadetPinball imgui tinysoundfont)
+    foreach(target SpaceCadetPinball imgui tinysoundfont mmpx)
         target_compile_options(${target} PRIVATE ${SCP_SANITIZER_FLAGS})
         target_link_options(${target} PRIVATE ${SCP_SANITIZER_FLAGS})
     endforeach()

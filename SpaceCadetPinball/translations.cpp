@@ -6226,5 +6226,12 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "Show Menu"},
 		}
+	},
+	{
+		Msg::Menu1_ToggleUpscaledArt,
+		{
+			{ Lang::English, "Upscaled Art"},
+			{ Lang::German, "Hochskalierte Grafik"},
+		}
 	}
 };
