@@ -2317,19 +2317,22 @@ void control::CompleteMission(TTextBox* doneBox, Msg doneText, int score, int ra
 	if (pb::FullTiltMode)
 		table_set_replay(-1.0f);
 
-	const auto done = pb::get_rc_string(doneText);
-	const auto scoreText = pb::get_rc_string(!pb::FullTiltMode ? Msg::STRING179 : Msg::ControlMissionJackpot);
+	struct BoxText
+	{
+		TTextBox* Box;
+		LPCSTR Text;
+	};
+	BoxText first{doneBox, pb::get_rc_string(doneText)};
+	const auto scoreText = pb::get_rc_string(pb::FullTiltMode ? Msg::ControlMissionJackpot : Msg::STRING179);
 	snprintf(Buffer, sizeof Buffer, scoreText, SpecialAddScore(score, true));
-	if (!pb::FullTiltMode)
-		doneBox->Display(done, 4.0);
-	else
-		mission_text_box->Display(Buffer, 4.0);
+	BoxText second{mission_text_box, Buffer};
+	if (pb::FullTiltMode)
+		std::swap(first, second);
+
+	first.Box->Display(first.Text, 4.0);
 	if (!AddRankProgress(rank))
 	{
-		if (!pb::FullTiltMode)
-			mission_text_box->Display(Buffer, 8.0);
-		else
-			doneBox->Display(done, 8.0);
+		second.Box->Display(second.Text, 8.0);
 		soundwave9->Play(nullptr, soundSource);
 	}
 }
