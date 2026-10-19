@@ -30,7 +30,8 @@ private:
 	static int CurrentFactor;
 	static std::unordered_map<const gdrv_bitmap8*, std::unique_ptr<gdrv_bitmap8>> Bitmaps;
 	static std::unordered_map<const zmap_header_type*, std::unique_ptr<zmap_header_type>> ZMaps;
-	static std::unordered_map<const gdrv_bitmap8*, std::string> SpriteNames;
+	// The file names an override of each sprite may have; ExportOriginals writes the first
+	static std::unordered_map<const gdrv_bitmap8*, std::vector<std::string>> SpriteNames;
 
 	static std::vector<ColorRgba> Magnify(const ColorRgba* pixels, int width, int height, int factor);
 	static void FindSpriteNames();

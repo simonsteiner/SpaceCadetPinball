@@ -9,7 +9,7 @@
 int Upscale::CurrentFactor = 0;
 std::unordered_map<const gdrv_bitmap8*, std::unique_ptr<gdrv_bitmap8>> Upscale::Bitmaps{};
 std::unordered_map<const zmap_header_type*, std::unique_ptr<zmap_header_type>> Upscale::ZMaps{};
-std::unordered_map<const gdrv_bitmap8*, std::string> Upscale::SpriteNames{};
+std::unordered_map<const gdrv_bitmap8*, std::vector<std::string>> Upscale::SpriteNames{};
 
 static_assert(sizeof(ColorRgba) == sizeof(uint32_t), "MMPX works on 32-bit ARGB pixels");
 
@@ -116,26 +116,54 @@ std::string Upscale::OriginalsFolder()
 	return OverrideFolder() + "originals" + PathSeparator;
 }
 
+static std::string SpriteFileName(int groupId, std::string name, int resolution)
+{
+	for (auto& ch : name)
+	{
+		if (!std::isalnum(static_cast<unsigned char>(ch)) && ch != '_' && ch != '-')
+			ch = '_';
+	}
+	char prefix[16];
+	snprintf(prefix, sizeof prefix, "%04d-", groupId);
+	return prefix + name + "-r" + std::to_string(resolution) + ".png";
+}
+
 void Upscale::FindSpriteNames()
 {
-	// A sprite's file name is its group's number and name and the table resolution, such as 0123-ball-r0.png
+	// A sprite's file name is its group's number and name and the table resolution, such as 0108-ball-r0.png.
+	// A component with several bitmaps keeps them in the groups after its own, which have no name; those take the
+	// component's number and name with the bitmap's index, so the ball's sizes are 0108-ball-r0.png, then
+	// 0108-ball_1-r0.png to 0108-ball_6-r0.png. Their own number with an empty name, such as 0109--r0.png, is
+	// what earlier versions looked for, so it still works.
 	if (!SpriteNames.empty() || !pb::record_table)
 		return;
 	auto resolution = fullscrn::GetResolution();
+	const GroupData* owner = nullptr;
+	int stateIndex = 0;
 	for (auto group : pb::record_table->Groups)
 	{
+		auto& entries = group->GetEntries();
+		auto kind = !entries.empty() && entries[0]->EntryType == FieldTypes::ShortValue
+						? *reinterpret_cast<const int16_t*>(entries[0]->Buffer)
+						: 0;
+		if (kind == 200)
+		{
+			owner = group->GroupName.empty() ? nullptr : group;
+			stateIndex = 0;
+		}
+		else if (kind == 201 && owner)
+			stateIndex++;
+		else
+			owner = nullptr;
+
 		auto bmp = group->GetBitmap(resolution);
 		if (!bmp)
 			continue;
-		std::string name = group->GroupName;
-		for (auto& ch : name)
-		{
-			if (!std::isalnum(static_cast<unsigned char>(ch)) && ch != '_' && ch != '-')
-				ch = '_';
-		}
-		char prefix[16];
-		snprintf(prefix, sizeof prefix, "%04d-", group->GroupId);
-		SpriteNames[bmp] = prefix + name + "-r" + std::to_string(resolution) + ".png";
+		auto& names = SpriteNames[bmp];
+		if (kind == 201 && owner && group->GroupName.empty())
+			names.push_back(
+				SpriteFileName(owner->GroupId, owner->GroupName + "_" + std::to_string(stateIndex), resolution));
+		names.push_back(SpriteFileName(group->GroupId, group->GroupName, resolution));
 	}
 }
 
@@ -143,12 +171,19 @@ gdrv_bitmap8* Upscale::LoadOverride(const gdrv_bitmap8& bmp)
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
 	FindSpriteNames();
-	auto name = SpriteNames.find(&bmp);
-	if (name == SpriteNames.end())
+	auto names = SpriteNames.find(&bmp);
+	if (names == SpriteNames.end())
 		return nullptr;
 
-	auto path = OverrideFolder() + name->second;
-	auto io = SDL_IOFromFile(path.c_str(), "rb");
+	std::string path;
+	SDL_IOStream* io = nullptr;
+	for (auto& name : names->second)
+	{
+		path = OverrideFolder() + name;
+		io = SDL_IOFromFile(path.c_str(), "rb");
+		if (io)
+			break;
+	}
 	if (!io)
 	{
 		SDL_ClearError();
@@ -217,12 +252,12 @@ int Upscale::ExportOriginals()
 	for (auto group : pb::record_table->Groups)
 	{
 		auto bmp = group->GetBitmap(resolution);
-		auto name = SpriteNames.find(bmp);
-		if (!bmp || name == SpriteNames.end() || bmp->Width <= 0 || bmp->Height <= 0)
+		auto names = SpriteNames.find(bmp);
+		if (!bmp || names == SpriteNames.end() || bmp->Width <= 0 || bmp->Height <= 0)
 			continue;
 		auto surface = SDL_CreateSurfaceFrom(bmp->Width, bmp->Height, SDL_PIXELFORMAT_BGRA32, bmp->BmpBufPtr1,
 											 bmp->Stride * static_cast<int>(sizeof(ColorRgba)));
-		if (surface && SDL_SavePNG(surface, (folder + name->second).c_str()))
+		if (surface && SDL_SavePNG(surface, (folder + names->second.front()).c_str()))
 			count++;
 		SDL_DestroySurface(surface);
 	}
