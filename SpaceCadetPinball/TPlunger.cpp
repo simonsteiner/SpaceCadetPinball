@@ -64,14 +64,21 @@ void TPlunger::Collision(TBall* ball, vector2* nextPosition, vector2* direction,
 	}
 }
 
+bool TPlunger::CanStartPull() const
+{
+	if (pb::FullTiltMode)
+		return !PullbackStartedFlag && PinballTable->MultiballCount > 0 && !PinballTable->TiltLockFlag;
+
+	// 3D Pinball refuses a new pull only while the pullback timer runs
+	return !PullbackTimer_;
+}
+
 int TPlunger::Message(MessageCode code, float value)
 {
 	switch (code)
 	{
 	case MessageCode::PlungerInputPressed:
-		// 3D Pinball refuses a new pull only while the pullback timer runs
-		if (pb::FullTiltMode ? !PullbackStartedFlag && PinballTable->MultiballCount > 0 && !PinballTable->TiltLockFlag
-							 : !PullbackTimer_)
+		if (CanStartPull())
 		{
 			PullbackStartedFlag = true;
 			Boost = 0.0;
@@ -128,6 +135,7 @@ int TPlunger::Message(MessageCode code, float value)
 		SomeCounter = 0;
 		timer::kill(BallFeedTimer);
 		timer::kill(PullbackTimer);
+		PullbackTimer_ = 0;
 		timer::kill(ReleasedTimer);
 		break;
 	case MessageCode::SetTiltLock:
@@ -144,6 +152,7 @@ int TPlunger::Message(MessageCode code, float value)
 
 			timer::kill(BallFeedTimer);
 			timer::kill(PullbackTimer);
+			PullbackTimer_ = 0;
 			timer::kill(ReleasedTimer);
 
 			SpriteSet(0);
