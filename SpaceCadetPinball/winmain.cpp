@@ -750,8 +750,20 @@ void winmain::RenderUi()
 								render::SetUpscale(factor);
 						}
 					}
+#if SDL_VERSION_ATLEAST(3, 4, 0)
 					if (ImGui::MenuItem("Export Original Sprites"))
-						Upscale::ExportOriginals();
+					{
+						auto count = Upscale::ExportOriginals();
+						auto folder = Upscale::OriginalsFolder();
+						auto message = count ? "Exported " + std::to_string(count) + " sprites to " + folder
+											 : "Could not export the sprites to " + folder;
+						SDL_ShowSimpleMessageBox(count ? SDL_MESSAGEBOX_INFORMATION : SDL_MESSAGEBOX_WARNING,
+												 "Export Original Sprites", message.c_str(), MainWindow);
+					}
+#else
+					ImGui::MenuItem("Export Original Sprites", nullptr, false, false);
+					ImGui::TextDisabled("Needs SDL 3.4 or newer");
+#endif
 					ImGui::EndMenu();
 				}
 #if SDL_VERSION_ATLEAST(3, 4, 0)

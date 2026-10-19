@@ -111,6 +111,11 @@ std::string Upscale::OverrideFolder()
 	return folder + "sprites" + PathSeparator;
 }
 
+std::string Upscale::OriginalsFolder()
+{
+	return OverrideFolder() + "originals" + PathSeparator;
+}
+
 void Upscale::FindSpriteNames()
 {
 	// A sprite's file name is its group's number and name and the table resolution, such as 0123-ball-r0.png
@@ -199,7 +204,7 @@ int Upscale::ExportOriginals()
 	FindSpriteNames();
 	if (!pb::record_table)
 		return 0;
-	auto folder = OverrideFolder() + "originals" + PathSeparator;
+	auto folder = OriginalsFolder();
 	if (!SDL_CreateDirectory(folder.c_str()))
 	{
 		printf("Could not create %s: %s\n", folder.c_str(), SDL_GetError());
