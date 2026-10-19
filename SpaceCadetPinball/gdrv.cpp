@@ -137,8 +137,9 @@ void gdrv_bitmap8::CreateTexture(SDL_ScaleMode scaleMode, SDL_TextureAccess acce
 		access,
 		Width, Height
 	);
-	// A renderer without the pixel-art mode falls back to nearest
-	if (!SDL_SetTextureScaleMode(Texture, scaleMode))
+	// A renderer without the pixel-art mode falls back to nearest.
+	// Skipped without a texture, so the creation error stays reported.
+	if (Texture && !SDL_SetTextureScaleMode(Texture, scaleMode))
 	{
 		SDL_ClearError();
 		SDL_SetTextureScaleMode(Texture, SDL_SCALEMODE_NEAREST);

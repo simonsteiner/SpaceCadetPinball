@@ -1,6 +1,8 @@
 #pragma once
 #include "gdrv.h"
 
+#include <array>
+
 enum class GameBindings;
 enum class PostEffects : int;
 
@@ -120,8 +122,10 @@ private:
 	static bool HighRefresh;
 	static DurationMs UpdateTime, UpdateTimeAccumulator;
 	static int CurrentFps;
-	static bool TriggerPressed[2];
-	static std::map<SDL_FingerID, GameBindings> TouchBindings;
+	static bool RefreshRateUnknown;
+	// Left and right trigger state of each gamepad
+	static std::map<SDL_JoystickID, std::array<bool, 2>> TriggerPressed;
+	static std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> TouchBindings;
 
 	static void RenderUi();
 	static void RenderFrameTimeDialog();

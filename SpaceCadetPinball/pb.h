@@ -69,5 +69,10 @@ public:
 private:
 	static bool demo_mode;
 	static float IdleTimerMs;
+
+	// The shared path of InputUp/Down and BindingUp/Down: shortcuts, then, while a game runs, record and act
+	static bool TableTakesInput();
+	static void BindingsUp(GameInput input, const std::vector<GameBindings>& bindings);
+	static void BindingsDown(GameInput input, const std::vector<GameBindings>& bindings);
 	static float BallToBallCollision(const ray_type& ray, const TBall& ball, TEdgeSegment** edge, float collisionDistance);
 };

@@ -29,19 +29,17 @@ There are no automated tests yet. A change is checked by building it and playing
 - **Open files with `fopenu`, not `fopen`.** It handles UTF-8 paths on Windows (`SpaceCadetPinball/pch.h`).
 - **Every game `.cpp` starts with `#include "pch.h"`.** It is the shared precompiled header; only vendored ImGui files and the generated `EmbeddedData.cpp` skip it.
 - **The game compiles without warnings.** CI builds with `SCP_WARNINGS=ON`, which treats warnings as errors with GCC, Clang and MSVC. Fix a new warning instead of silencing it; a variable used only in `assertm` gets `[[maybe_unused]]`, because Release builds drop the assert.
+- **Upscaled Art keeps a second, larger frame in step with the original one.** `render` composes both: every paint at 1x is repeated at `HiScale` with the art from `Upscale`, and the score panel, which text boxes and digits draw straight into the 1x frame, is magnified from there when it changes. A new way of drawing into the frame has to do the same, or it shows only with the toggle off.
 
 ### Build
 
 - **Source files are listed by hand in `CMakeLists.txt`.** Add each new `.cpp` and `.h` to `SOURCE_FILES`; there is no glob. Vendored ImGui is listed in `IMGUI_SOURCE_FILES` and builds as the separate `imgui` library, without the game's precompiled header and warnings.
 - **SDL comes from `SCP_VENDORED_SDL`.** `ON` (Windows, macOS, `mingw`, `linux-vendored`) fetches the SDL3 and SDL3_mixer versions pinned in `CMakeLists.txt` and links them statically. `OFF` (the Linux default) uses the system packages. Keep both paths working, because distribution packagers use the system one. CI builds the system path in a Debian testing container, because Ubuntu 24.04 has no SDL3 packages. To bump SDL, change the URL and the `URL_HASH` together.
+- **Post-processing shaders are compiled ahead of time.** `SpaceCadetPinball/shaders/*.frag.hlsl` become SPIR-V and DXIL, and the hand-written `*.frag.msl` are embedded as text, in the generated `PostEffectShaders.h`; run `tools/build-shaders.sh` after changing a shader (it fetches a pinned DXC). Keep each `.msl` in step with its `.hlsl`.
 
 ### Git
 
 - **Work lands on `main` through pull requests.** `master` mirrors `upstream/master` (k4zmu2a/SpaceCadetPinball) and only receives upstream changes.
-
-- **Post-processing shaders are compiled ahead of time.** `SpaceCadetPinball/shaders/*.frag.hlsl` become SPIR-V and DXIL, and the hand-written `*.frag.msl` are embedded as text, in the generated `PostEffectShaders.h`; run `tools/build-shaders.sh` after changing a shader (it fetches a pinned DXC). Keep each `.msl` in step with its `.hlsl`.
-
-- **Upscaled Art keeps a second, larger frame in step with the original one.** `render` composes both: every paint at 1x is repeated at `HiScale` with the art from `Upscale`, and the score panel, which text boxes and digits draw straight into the 1x frame, is magnified from there when it changes. A new way of drawing into the frame has to do the same, or it shows only with the toggle off.
 
 ## Hard constraints
 
@@ -52,7 +50,7 @@ There are no automated tests yet. A change is checked by building it and playing
 
 ## Gotchas
 
-- **Vendored code is ImGui and `third_party/`.** `imgui*.cpp`, `imgui*.h`, `imstb_*.h` and `imconfig.h` in `SpaceCadetPinball/` are third-party; upgrade them as a set rather than editing them. The ImGui files are unmodified upstream releases with only `imconfig.h` set up, so an upgrade is a copy of the new release's files. `third_party/` holds SDL_native_midi and TinySoundFont, which play the music, and MMPX, which upscales the art; `third_party/README.md` lists their versions.
+- **Vendored code is ImGui and `third_party/`.** `imgui*.cpp`, `imgui*.h`, `imstb_*.h` and `imconfig.h` in `SpaceCadetPinball/` are third-party; upgrade them as a set rather than editing them. The ImGui files are unmodified upstream releases with only `imconfig.h` set up, so an upgrade is a copy of the new release's files. `third_party/` holds SDL_native_midi and TinySoundFont (with stb_vorbis, for the SF3 SoundFonts TinySoundFont loads), which play the music, and MMPX, which upscales the art; `third_party/README.md` lists their versions.
 - **Music doesn't go through SDL3_mixer's MIDI support.** `midi.cpp` plays it through native MIDI on Windows and macOS, else TinySoundFont with a system SoundFont, else SDL3_mixer's decoders (`docs/setup.md`, Music). TinySoundFont renders on the audio thread, in the callback of the stream that feeds the music track; change its song only while holding that stream's lock.
 - **The game can't run without game data,** so it can't be play-tested in CI. Use `-noaudio` on machines without a sound device.
 - **The main loop prints any pending SDL error as `SDL Error: ...`.** Errors that SDL or SDL_mixer set internally and recovered from show up too, such as a missing `timidity.cfg`; such a line doesn't mean anything failed.

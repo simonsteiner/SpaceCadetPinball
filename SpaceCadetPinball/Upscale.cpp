@@ -111,6 +111,11 @@ std::string Upscale::OverrideFolder()
 	return folder + "sprites" + PathSeparator;
 }
 
+std::string Upscale::OriginalsFolder()
+{
+	return OverrideFolder() + "originals" + PathSeparator;
+}
+
 void Upscale::FindSpriteNames()
 {
 	// A sprite's file name is its group's number and name and the table resolution, such as 0123-ball-r0.png
@@ -167,7 +172,17 @@ gdrv_bitmap8* Upscale::LoadOverride(const gdrv_bitmap8& bmp)
 		{
 			auto row = reinterpret_cast<const ColorRgba*>(static_cast<const uint8_t*>(converted->pixels) +
 														  static_cast<size_t>(y) * converted->pitch);
-			std::copy_n(row, converted->w, &result->BmpBufPtr1[y * result->Stride]);
+			// The frame has no blending and paint_flat skips only colour 0, so a pixel is either transparent or
+			// opaque: mostly transparent becomes 0, whatever colour it hides, the rest is drawn solid
+			auto dst = &result->BmpBufPtr1[y * result->Stride];
+			for (int x = 0; x < converted->w; x++)
+			{
+				dst[x] = row[x];
+				if (row[x].GetAlpha() < 128)
+					dst[x] = ColorRgba{0};
+				else
+					dst[x].SetAlpha(255);
+			}
 		}
 	}
 	else
@@ -189,7 +204,7 @@ int Upscale::ExportOriginals()
 	FindSpriteNames();
 	if (!pb::record_table)
 		return 0;
-	auto folder = OverrideFolder() + "originals" + PathSeparator;
+	auto folder = OriginalsFolder();
 	if (!SDL_CreateDirectory(folder.c_str()))
 	{
 		printf("Could not create %s: %s\n", folder.c_str(), SDL_GetError());

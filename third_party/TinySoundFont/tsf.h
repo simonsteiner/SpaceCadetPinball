@@ -918,7 +918,14 @@ static int tsf_decode_sf3_samples(const void* rawBuffer, float** pFloatBuffer, u
 		struct tsf_hydra_shdr *shdr = &hydra->shdrs[i];
 		if (shdr->sampleType & 0x30) // compression flags (sometimes Vorbis flag)
 		{
-			const tsf_u8 *pSmpl = smplBuffer + shdr->start, *pSmplEnd = smplBuffer + shdr->end;
+			const tsf_u8 *pSmpl, *pSmplEnd;
+			// SpaceCadetPinball: a sample outside the smpl chunk is empty, rather than read out of bounds
+			if (shdr->start >= smplLength || shdr->end > smplLength || shdr->start >= shdr->end)
+			{
+				shdr->start = shdr->end = shdr->startLoop = shdr->endLoop = 0;
+				continue;
+			}
+			pSmpl = smplBuffer + shdr->start; pSmplEnd = smplBuffer + shdr->end;
 			if (pSmpl + 4 > pSmplEnd || !TSF_FourCCEquals(pSmpl, "OggS"))
 			{
 				shdr->start = shdr->end = shdr->startLoop = shdr->endLoop = 0;

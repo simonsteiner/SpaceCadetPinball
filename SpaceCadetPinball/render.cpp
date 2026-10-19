@@ -19,7 +19,7 @@ int render::zmap_offsetX, render::zmap_offsetY, render::offset_x, render::offset
 rectangle_type render::vscreen_rect;
 gdrv_bitmap8 *render::vscreen, *render::background_bitmap, *render::ball_bitmap[20];
 zmap_header_type* render::zscreen;
-SDL_Rect render::DestinationRect{}, render::BoardRect{}, render::SidebarRect{};
+SDL_Rect render::BoardRect{}, render::SidebarRect{};
 SDL_Texture* render::BackdropTexture = nullptr;
 bool render::BallsInterpolated = false;
 gdrv_bitmap8* render::InitialBackground = nullptr;
@@ -239,10 +239,11 @@ void render::update()
 
 	for (auto ball : ball_list)
 	{
-		ball->PrevPaintedRect = ball->PaintedRect;
-		ball->PrevPainted = ball->Painted;
-		ball->PaintedRect = ball->BmpRect;
-		ball->Painted = ball->Bmp != nullptr;
+		auto& interp = ball->Interp;
+		interp.PrevPaintedRect = interp.PaintedRect;
+		interp.PrevPainted = interp.Painted;
+		interp.PaintedRect = ball->BmpRect;
+		interp.Painted = ball->Bmp != nullptr;
 	}
 }
 
@@ -256,14 +257,14 @@ void render::InterpolateBalls(float alpha)
 	unpaint_balls();
 	for (auto ball : ball_list)
 	{
-		ball->SavedBmpRect = ball->BmpRect;
-		ball->SavedDirtyRectPrev = ball->DirtyRectPrev;
-		if (!ball->Painted || !ball->PrevPainted)
+		auto& interp = ball->Interp;
+		interp.SavedBmpRect = ball->BmpRect;
+		if (!interp.Painted || !interp.PrevPainted)
 			continue;
 
 		// A ball that jumped, such as into a hole or back to the plunger, isn't drawn in between
-		auto& from = ball->PrevPaintedRect;
-		auto& to = ball->PaintedRect;
+		auto& from = interp.PrevPaintedRect;
+		auto& to = interp.PaintedRect;
 		constexpr int MaxStep = 24;
 		if (std::abs(to.XPosition - from.XPosition) > MaxStep || std::abs(to.YPosition - from.YPosition) > MaxStep)
 			continue;
@@ -283,10 +284,8 @@ void render::RestoreBalls()
 
 	unpaint_balls();
 	for (auto ball : ball_list)
-		ball->BmpRect = ball->SavedBmpRect;
+		ball->BmpRect = ball->Interp.SavedBmpRect;
 	paint_balls();
-	for (auto ball : ball_list)
-		ball->DirtyRectPrev = ball->SavedDirtyRectPrev;
 	BallsInterpolated = false;
 }
 
@@ -521,6 +520,9 @@ void render::SpriteViewer(bool* show)
 			ImGui::EndMenuBar();
 		}
 
+		// The renderer backend samples linearly by default; keep the previews' own nearest scale mode
+		auto drawList = ImGui::GetWindowDrawList();
+		drawList->AddCallback(ImGui::GetPlatformIO().DrawCallback_SetSamplerFromTex, nullptr);
 		for (const auto group : pb::record_table->Groups)
 		{
 			bool emptyGroup = true;
@@ -586,6 +588,7 @@ void render::SpriteViewer(bool* show)
 				}
 			}
 		}
+		drawList->AddCallback(ImGui::GetPlatformIO().DrawCallback_ResetRenderState, nullptr);
 		ImGui::PopStyleColor();
 		ImGui::PopStyleVar();
 	}
@@ -603,7 +606,12 @@ void render::PresentVScreen()
 	screen->BlitToTexture();
 
 	DrawBackdrop();
-	DrawSplit(screen->Texture, static_cast<float>(offset_x), static_cast<float>(offset_y), true, HiScale ? HiScale : 1);
+	// Only the table goes through the post-processing effect, not the backdrop or the overlays
+	auto scale = HiScale ? HiScale : 1;
+	PostEffect::Begin(static_cast<float>(screen->Width), static_cast<float>(screen->Height),
+					  fullscrn::ScaleX / static_cast<float>(scale), fullscrn::ScaleY / static_cast<float>(scale));
+	DrawSplit(screen->Texture, static_cast<float>(offset_x), static_cast<float>(offset_y), scale);
+	PostEffect::End();
 
 	if (options::Options.DebugOverlay)
 	{
@@ -617,7 +625,7 @@ int render::BoardWidth()
 	return pb::MainTable ? pb::MainTable->Width : vscreen ? vscreen->Width : 0;
 }
 
-void render::DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, bool postEffect, int textureScale)
+void render::DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, int textureScale)
 {
 	// Table and panel are drawn separately: the nudge shifts only the table, and the stacked layout moves the panel.
 	// The texture is the frame at textureScale times its size.
@@ -634,13 +642,9 @@ void render::DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, bool 
 	dstBoardRect.x += offsetX * fullscrn::ScaleX;
 	dstBoardRect.y += offsetY * fullscrn::ScaleY;
 
-	if (postEffect)
-		PostEffect::Begin(width, height, fullscrn::ScaleX / scale, fullscrn::ScaleY / scale);
 	SDL_RenderTexture(winmain::Renderer, texture, &srcBoardRect, &dstBoardRect);
 	if (srcSidebarRect.w > 0)
 		SDL_RenderTexture(winmain::Renderer, texture, &srcSidebarRect, &dstSidebarRect);
-	if (postEffect)
-		PostEffect::End();
 }
 
 void render::DrawBackdrop()
@@ -665,7 +669,7 @@ void render::DrawBackdrop()
 
 void render::CreateBackdrop()
 {
-	// A blurred, darkened copy of the table as it is first drawn, made from the player's own data.
+	// A blurred, darkened copy of the table as drawn the first time the backdrop is shown, from the player's own data.
 	// Averaging blocks of pixels and scaling the result up with linear filtering blurs it.
 	constexpr int Block = 16;
 	constexpr unsigned Brightness = 90; // Out of 255
@@ -721,7 +725,11 @@ void render::SetUpscale(int factor)
 	HiScale = 0;
 	SidebarCopy.clear();
 	if (factor < Upscale::MinFactor || !vscreen)
+	{
+		// Off, the upscaled art is freed too; turning it back on makes it again
+		Upscale::Clear();
 		return;
+	}
 
 	Upscale::Init(factor);
 	HiScale = factor;

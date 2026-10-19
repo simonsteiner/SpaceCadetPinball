@@ -111,11 +111,13 @@ jobs:
       - name: Configure
         run: cmake -S . -B build/lint -G Ninja -DSCP_VENDORED_SDL=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
 
+      # A pull request is checked out as its merge into the base, so HEAD^1 is the base it is compared with,
+      # even when the base branch has moved on since the run started
       - name: Check changed lines
         env:
-          BASE_REF: ${{ github.base_ref }}
           CLANG_FORMAT_DIR: /opt/llvm/bin
           CLANG_TIDY_DIR: /opt/llvm/bin
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          tools/lint-changed.sh "origin/$BASE_REF" build/lint
+          git rev-parse --verify --quiet HEAD^2 >/dev/null || { echo "HEAD is not a pull request merge commit" >&2; exit 1; }
+          tools/lint-changed.sh HEAD^1 build/lint
