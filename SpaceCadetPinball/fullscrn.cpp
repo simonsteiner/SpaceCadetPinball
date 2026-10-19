@@ -22,7 +22,6 @@ float fullscrn::ScaleX = 1;
 float fullscrn::ScaleY = 1;
 int fullscrn::OffsetX = 0;
 int fullscrn::OffsetY = 0;
-bool fullscrn::Stacked = false;
 
 void fullscrn::init()
 {
@@ -124,7 +123,7 @@ void fullscrn::window_size_changed()
 
 	// Classic: the score panel beside the table, as the original drew it
 	FitScale(width, height, res->TableWidth, res->TableHeight, ScaleX, ScaleY);
-	Stacked = false;
+	auto stacked = false;
 
 	// Stacked: the panel under the table, when that makes the table larger, as in a portrait window
 	if (options::Options.StackedLayout && options::Options.UniformScaling && sidebarWidth > 0)
@@ -133,7 +132,7 @@ void fullscrn::window_size_changed()
 		FitScale(width, height, std::max(boardWidth, sidebarWidth), res->TableHeight * 2, stackedX, stackedY);
 		if (stackedX > ScaleX)
 		{
-			Stacked = true;
+			stacked = true;
 			ScaleX = stackedX;
 			ScaleY = stackedY;
 		}
@@ -142,12 +141,12 @@ void fullscrn::window_size_changed()
 	auto boardW = static_cast<int>(std::round(boardWidth * ScaleX));
 	auto sidebarW = static_cast<int>(std::round(res->TableWidth * ScaleX)) - boardW;
 	auto tableH = static_cast<int>(std::round(res->TableHeight * ScaleY));
-	auto contentW = Stacked ? std::max(boardW, sidebarW) : boardW + sidebarW;
-	auto contentH = Stacked ? tableH * 2 : tableH;
+	auto contentW = stacked ? std::max(boardW, sidebarW) : boardW + sidebarW;
+	auto contentH = stacked ? tableH * 2 : tableH;
 	OffsetX = (width - contentW) / 2;
 	OffsetY = (height - contentH) / 2 + menuHeight;
 
-	if (Stacked)
+	if (stacked)
 	{
 		render::BoardRect = SDL_Rect{OffsetX + (contentW - boardW) / 2, OffsetY, boardW, tableH};
 		render::SidebarRect = SDL_Rect{OffsetX + (contentW - sidebarW) / 2, OffsetY + tableH, sidebarW, tableH};

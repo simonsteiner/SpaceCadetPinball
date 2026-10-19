@@ -19,7 +19,6 @@ public:
 	static float ScaleY;
 	static int OffsetX;
 	static int OffsetY;
-	static bool Stacked;
 
 	static void init();
 	static void shutdown();
