@@ -17,6 +17,7 @@ constexpr int options::MaxVolume, options::MinVolume, options::DefVolume;
 
 std::unordered_map<std::string, std::string> options::settings{};
 bool options::ShowDialog = false;
+bool options::MigrateKeycodes = false;
 GameInput* options::ControlWaitingForInput = nullptr;
 std::vector<OptionBase*> options::AllOptions{};
 
@@ -24,109 +25,110 @@ std::vector<OptionBase*> options::AllOptions{};
 // clang-format off
 optionsStruct options::Options
 {
+	// Keyboard inputs are scancodes, so a binding stays on the same physical key in any layout
 	{
 		{
 			"Left Flipper key",
 			Msg::KEYMAPPER_FlipperL,
-			{InputTypes::Keyboard, SDLK_Z},
+			{InputTypes::Keyboard, SDL_SCANCODE_Z},
 			{InputTypes::Mouse, SDL_BUTTON_LEFT},
 			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER}
 		},
 		{
 			"Right Flipper key",
 			Msg::KEYMAPPER_FlipperR,
-			{InputTypes::Keyboard, SDLK_SLASH},
+			{InputTypes::Keyboard, SDL_SCANCODE_SLASH},
 			{InputTypes::Mouse,SDL_BUTTON_RIGHT},
 			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER}
 		},
 		{
 			"Plunger key",
 			Msg::KEYMAPPER_Plunger,
-			{InputTypes::Keyboard, SDLK_SPACE},
+			{InputTypes::Keyboard, SDL_SCANCODE_SPACE},
 			{InputTypes::Mouse,SDL_BUTTON_MIDDLE},
 			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_SOUTH}
 		},
 		{
 			"Left Table Bump key",
 			Msg::KEYMAPPER_BumpLeft,
-			{InputTypes::Keyboard, SDLK_X},
+			{InputTypes::Keyboard, SDL_SCANCODE_X},
 			{InputTypes::Mouse,SDL_BUTTON_X1},
 			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_DPAD_LEFT}
 		},
 		{
 			"Right Table Bump key",
 			Msg::KEYMAPPER_BumpRight,
-			{InputTypes::Keyboard, SDLK_PERIOD},
+			{InputTypes::Keyboard, SDL_SCANCODE_PERIOD},
 			{InputTypes::Mouse,SDL_BUTTON_X2},
 			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_DPAD_RIGHT}
 		},
 		{
 			"Bottom Table Bump key",
 			Msg::KEYMAPPER_BumpBottom,
-			{InputTypes::Keyboard, SDLK_UP},
+			{InputTypes::Keyboard, SDL_SCANCODE_UP},
 			{InputTypes::Mouse,SDL_BUTTON_X2 + 1},
 			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_DPAD_UP}
 		},
 		{
 			"New Game",
 			Msg::Menu1_New_Game,
-			{InputTypes::Keyboard, SDLK_F2},
+			{InputTypes::Keyboard, SDL_SCANCODE_F2},
 			{},
 			{}
 		},
 		{
 			"Toggle Pause",
 			Msg::Menu1_Pause_Resume_Game,
-			{InputTypes::Keyboard, SDLK_F3},
+			{InputTypes::Keyboard, SDL_SCANCODE_F3},
 			{},
 			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_START}
 		},
 		{
 			"Toggle FullScreen",
 			Msg::Menu1_Full_Screen,
-			{InputTypes::Keyboard, SDLK_F4},
+			{InputTypes::Keyboard, SDL_SCANCODE_F4},
 			{},
 			{}
 		},
 		{
 			"Toggle Sounds",
 			Msg::Menu1_Sounds,
-			{InputTypes::Keyboard, SDLK_F5},
+			{InputTypes::Keyboard, SDL_SCANCODE_F5},
 			{},
 			{}
 		},
 		{
 			"Toggle Music",
 			Msg::Menu1_Music,
-			{InputTypes::Keyboard, SDLK_F6},
+			{InputTypes::Keyboard, SDL_SCANCODE_F6},
 			{},
 			{}
 		},
 		{
 			"Show Control Dialog",
 			Msg::Menu1_Player_Controls,
-			{InputTypes::Keyboard, SDLK_F8},
+			{InputTypes::Keyboard, SDL_SCANCODE_F8},
 			{},
 			{}
 		},
 		{
 			"Toggle Menu Display",
 			Msg::Menu1_ToggleShowMenu,
-			{InputTypes::Keyboard, SDLK_F9},
+			{InputTypes::Keyboard, SDL_SCANCODE_F9},
 			{},
 			{}
 		},
 		{
 			"Exit",
 			Msg::Menu1_Exit,
-			{InputTypes::Keyboard, SDLK_ESCAPE},
+			{InputTypes::Keyboard, SDL_SCANCODE_ESCAPE},
 			{},
 			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_BACK}
 		},
 		{
 			"Toggle Upscaled Art",
 			Msg::Menu1_ToggleUpscaledArt,
-			{InputTypes::Keyboard, SDLK_F7},
+			{InputTypes::Keyboard, SDL_SCANCODE_F7},
 			{},
 			{}
 		},
@@ -170,8 +172,19 @@ optionsStruct options::Options
 	{"Match Display Refresh Rate", false},
 	{"Upscaled Art", false},
 	{"Upscale Factor", 2},
+	{"Key Bindings Version", KeyBindingsScancodes},
 };
 // clang-format on
+
+namespace
+{
+	// The keyboard defaults of Options.Key before Key Bindings Version, as keycodes, in the same order
+	constexpr SDL_Keycode KeycodeDefaults[] = {
+		SDLK_Z,  SDLK_SLASH, SDLK_SPACE, SDLK_X,  SDLK_PERIOD, SDLK_UP,     SDLK_F2, SDLK_F3,
+		SDLK_F4, SDLK_F5,    SDLK_F6,    SDLK_F8, SDLK_F9,     SDLK_ESCAPE, SDLK_F7,
+	};
+	static_assert(std::size(KeycodeDefaults) == static_cast<size_t>(~GameBindings::Max));
+} // namespace
 
 void options::InitPrimary()
 {
@@ -191,8 +204,17 @@ void options::InitPrimary()
 		imContext->SettingsLoaded = true;
 	}
 
+	// Settings saved before Key Bindings Version existed hold keyboard bindings as keycodes
+	MigrateKeycodes = !HasSetting(Options.KeyBindingsVersion.Name);
 	for (const auto opt : AllOptions)
 		opt->Load();
+	if (MigrateKeycodes)
+	{
+		// Write the scancodes now, as ImGui may save the new version before options::Save runs
+		MigrateKeycodes = false;
+		for (const auto& control : Options.Key)
+			control.Save();
+	}
 	PostProcessOptions();
 }
 
@@ -539,6 +561,7 @@ void options::PostProcessOptions()
 	Options.UpscaleFactor = Options.UpscaleFactor.V >= 4 ? 4 : 2;
 	Options.PostProcessing = Clamp(Options.PostProcessing.V, 0, static_cast<int>(PostEffects::Max) - 1);
 	Options.MusicVolume = Clamp(Options.MusicVolume.V, MinVolume, MaxVolume);
+	Options.KeyBindingsVersion = KeyBindingsScancodes;
 	translations::SetCurrentLanguage(Options.Language.V.c_str());
 	winmain::UpdateFrameRate();
 }
@@ -606,8 +629,14 @@ std::string GameInput::GetShortInputDescription() const
 	switch (Type)
 	{
 	case InputTypes::Keyboard:
-		keyName = SDL_GetKeyName(static_cast<SDL_Keycode>(Value));
-		break;
+		{
+			// Name the key by what it types in the current layout
+			auto scancode = static_cast<SDL_Scancode>(Value);
+			keyName = SDL_GetKeyName(SDL_GetKeyFromScancode(scancode, SDL_KMOD_NONE, false));
+			if (keyName.empty())
+				keyName = SDL_GetScancodeName(scancode);
+			break;
+		}
 	case InputTypes::Mouse:
 		if (Value >= SDL_BUTTON_LEFT && Value <= SDL_BUTTON_X2)
 			keyName = mouseButtons[Value];
@@ -680,6 +709,38 @@ void options::SetSetting(const std::string& key, const std::string& value)
 	settings[key] = value;
 	if (ImGui::GetCurrentContext())
 		ImGui::MarkIniSettingsDirty();
+}
+
+void ControlOption::Load()
+{
+	for (auto i = 0u; i <= 2; i++)
+	{
+		auto name = std::string{Name} + " " + std::to_string(i);
+		auto saved = options::HasSetting(name + " input");
+		Inputs[i].Type =
+			static_cast<InputTypes>(options::get_int((name + " type").c_str(), static_cast<int>(Defaults[i].Type)));
+		Inputs[i].Value = options::get_int((name + " input").c_str(), Defaults[i].Value);
+
+		if (saved && options::MigrateKeycodes && Inputs[i].Type == InputTypes::Keyboard)
+		{
+			// Old settings hold every binding, defaults included; an old default becomes the new one
+			auto slot = 0u;
+			while (&options::Options.Key[slot] != this)
+				slot++;
+			if (Defaults[i].Type == InputTypes::Keyboard && Inputs[i].Value == static_cast<int>(KeycodeDefaults[slot]))
+			{
+				Inputs[i] = Defaults[i];
+				continue;
+			}
+
+			// The key that types this keycode in the current layout
+			auto scancode = SDL_GetScancodeFromKey(static_cast<SDL_Keycode>(Inputs[i].Value), nullptr);
+			if (scancode != SDL_SCANCODE_UNKNOWN)
+				Inputs[i].Value = scancode;
+			else
+				Inputs[i] = {};
+		}
+	}
 }
 
 OptionBase::OptionBase(LPCSTR name): Name(name)

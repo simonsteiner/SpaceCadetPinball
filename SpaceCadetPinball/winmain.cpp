@@ -1151,13 +1151,13 @@ int winmain::event_handler(const SDL_Event* event)
 		return_value = 0;
 		return 0;
 	case SDL_EVENT_KEY_UP:
-		pb::InputUp({InputTypes::Keyboard, static_cast<int>(event->key.key)});
+		pb::KeyUp(event->key.scancode, event->key.key);
 		break;
 	case SDL_EVENT_KEY_DOWN:
 		if (event->key.repeat)
 			break;
 
-		pb::InputDown({InputTypes::Keyboard, static_cast<int>(event->key.key)});
+		pb::KeyDown(event->key.scancode, event->key.key);
 		if (!pb::cheat_mode)
 			break;
 

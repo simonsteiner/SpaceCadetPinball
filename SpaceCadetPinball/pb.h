@@ -50,6 +50,9 @@ public:
 	static void loose_focus();
 	static void InputUp(GameInput input);
 	static void InputDown(GameInput input);
+	// Bindings match the physical key; the table and replays get the keycode
+	static void KeyUp(SDL_Scancode scancode, SDL_Keycode key);
+	static void KeyDown(SDL_Scancode scancode, SDL_Keycode key);
 	// Input that already is a binding, such as a touch on the table
 	static void BindingDown(GameBindings binding);
 	static void BindingUp(GameBindings binding);
@@ -74,5 +77,7 @@ private:
 	static bool TableTakesInput();
 	static void BindingsUp(GameInput input, const std::vector<GameBindings>& bindings);
 	static void BindingsDown(GameInput input, const std::vector<GameBindings>& bindings);
+	// InputDown and KeyDown: a waiting control dialog takes bound, else bound's bindings act and recorded is recorded
+	static void InputDown(GameInput recorded, GameInput bound);
 	static float BallToBallCollision(const ray_type& ray, const TBall& ball, TEdgeSegment** edge, float collisionDistance);
 };
