@@ -18,7 +18,7 @@ int render::zmap_offsetX, render::zmap_offsetY, render::offset_x, render::offset
 rectangle_type render::vscreen_rect;
 gdrv_bitmap8 *render::vscreen, *render::background_bitmap, *render::ball_bitmap[20];
 zmap_header_type* render::zscreen;
-SDL_Rect render::DestinationRect{}, render::BoardRect{}, render::SidebarRect{};
+SDL_Rect render::BoardRect{}, render::SidebarRect{};
 SDL_Texture* render::BackdropTexture = nullptr;
 
 #if SDL_VERSION_ATLEAST(3, 4, 0)
@@ -397,6 +397,9 @@ void render::SpriteViewer(bool* show)
 			ImGui::EndMenuBar();
 		}
 
+		// The renderer backend samples linearly by default; keep the previews' own nearest scale mode
+		auto drawList = ImGui::GetWindowDrawList();
+		drawList->AddCallback(ImGui::GetPlatformIO().DrawCallback_SetSamplerFromTex, nullptr);
 		for (const auto group : pb::record_table->Groups)
 		{
 			bool emptyGroup = true;
@@ -462,6 +465,7 @@ void render::SpriteViewer(bool* show)
 				}
 			}
 		}
+		drawList->AddCallback(ImGui::GetPlatformIO().DrawCallback_ResetRenderState, nullptr);
 		ImGui::PopStyleColor();
 		ImGui::PopStyleVar();
 	}
@@ -532,7 +536,7 @@ void render::DrawBackdrop()
 
 void render::CreateBackdrop()
 {
-	// A blurred, darkened copy of the table as it is first drawn, made from the player's own data.
+	// A blurred, darkened copy of the table as drawn the first time the backdrop is shown, from the player's own data.
 	// Averaging blocks of pixels and scaling the result up with linear filtering blurs it.
 	constexpr int Block = 16;
 	constexpr unsigned Brightness = 90; // Out of 255
