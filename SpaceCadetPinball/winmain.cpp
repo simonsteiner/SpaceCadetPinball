@@ -216,13 +216,15 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		// Post-processing needs SDL's GPU renderer, the only one that takes custom shaders. No textures exist yet,
 		// so this is the place to switch. Turning an effect off keeps that renderer, so no restart is needed for it.
-		auto wantGpu = !SoftwareRenderer && static_cast<PostEffects>(Options.PostProcessing.V) != PostEffects::None;
+		auto effect = static_cast<PostEffects>(Options.PostProcessing.V);
+		auto wantGpu = !SoftwareRenderer && effect != PostEffects::None;
 		if (wantGpu && !PostEffect::IsGpuRenderer(Renderer) && !CreateRenderer(true) && !CreateRenderer(false))
 		{
 			pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not create renderer", SDL_GetError());
 			return 1;
 		}
-		PostEffect::Init(Renderer, static_cast<PostEffects>(Options.PostProcessing.V));
+		PostEffect::Init(Renderer);
+		PostEffect::SetEffect(effect);
 
 		if (!Options.FontFileName.V.empty())
 		{
@@ -356,7 +358,6 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		ImGui_ImplSDLRenderer3_Shutdown();
 		ImGui_ImplSDL3_Shutdown();
-		PostEffect::Uninit();
 		ImGui::DestroyContext();
 	}
 	while (restart);
@@ -369,6 +370,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	}
 
 	SDL_free(prefPath);
+	PostEffect::Uninit();
 	SDL_DestroyRenderer(Renderer);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
@@ -1150,15 +1152,15 @@ void winmain::SetPostProcessing(PostEffects effect)
 	Options.PostProcessing = static_cast<int>(effect);
 
 	// The GPU renderer switches effects on the fly; any other renderer has to be replaced, which needs a restart
-	if (PostEffect::Available())
-		PostEffect::Init(Renderer, effect);
-	else if (effect != PostEffects::None && !SoftwareRenderer)
+	PostEffect::SetEffect(effect);
+	if (!PostEffect::Available() && effect != PostEffects::None && !SoftwareRenderer)
 		Restart();
 }
 
 bool winmain::CreateRenderer(bool gpu)
 {
 	// The GPU renderer, for post-processing; otherwise the default, falling back to the software renderer
+	PostEffect::Uninit();
 	if (Renderer)
 		SDL_DestroyRenderer(Renderer);
 	Renderer = nullptr;

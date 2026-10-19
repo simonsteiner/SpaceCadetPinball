@@ -16,8 +16,12 @@ class PostEffect
 public:
 	static SDL_Renderer* CreateGpuRenderer(SDL_Window* window);
 	static bool IsGpuRenderer(SDL_Renderer* renderer);
-	static void Init(SDL_Renderer* renderer, PostEffects effect);
+	// Creates every effect's shader for the renderer, once per renderer, so none is released while SDL's pipeline
+	// cache, keyed on the shader's address, can still hold it
+	static void Init(SDL_Renderer* renderer);
+	// Releases the shaders; call before the renderer is destroyed
 	static void Uninit();
+	static void SetEffect(PostEffects effect);
 	static bool Available()
 	{
 		return Supported;
@@ -30,6 +34,7 @@ public:
 private:
 	static bool Supported;
 	static SDL_Renderer* Renderer;
-	static struct SDL_GPUShader* Shader;
-	static struct SDL_GPURenderState* State;
+	static PostEffects Effect;
+	static struct SDL_GPUShader* Shaders[static_cast<int>(PostEffects::Max)];
+	static struct SDL_GPURenderState* States[static_cast<int>(PostEffects::Max)];
 };
