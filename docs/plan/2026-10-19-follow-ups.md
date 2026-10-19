@@ -18,6 +18,19 @@ Each item keeps the replays matching. One that would change gameplay stops and a
 7. **Release a held trigger or button when its gamepad is unplugged.** Unplugging a gamepad while a trigger or button is held leaves the flipper up until another input releases it. Send the matching up event on `SDL_EVENT_GAMEPAD_REMOVED` (`winmain.cpp`). Input goes through `pb` entry points, so replays stay correct.
 8. **Free the startup path strings.** A LeakSanitizer run that fails to load the game data reports 75 bytes leaked in `winmain::WinMain`, most likely SDL path strings. Free them on that path and check with a `linux-sanitize` build.
 
+## From upstream pull requests and forks
+
+A survey of upstream's pull requests and issues and of its forks (2026-10-19) brought in the ball-slot crash fix, per-table high scores, the Chinese string fixes, loading the message font from the player's `pinball.exe` and the 0.2 s Launch Ball push. These were left:
+
+9. **Full Tilt mission fixes, waiting for `CADET.EXE`.** A completed mission should award a replay ball (issue k4zmu2a#238; boisdal/SpaceCadetPinball@1cacc25b9, which cites 16 call sites in `CADET.EXE`; upstream PR k4zmu2a#240 is a weaker variant), and the mission targets should play the special sound when all three `ramp_tgt_lights` are on (issue k4zmu2a#206; boisdal@84671006b). Both change gameplay. Check them with REA against Full Tilt's `CADET.EXE`, which this workspace doesn't have, then ask.
+10. **Bind keys by physical position.** Key bindings store keycodes (`options.cpp`), so on a QWERTZ or AZERTY layout the default flipper keys sit elsewhere. Store scancodes instead and migrate saved bindings; omediodomonte38/SpaceCadetPinball@4b9fd05d2 does this. Input only; replays record bindings after they are resolved.
+11. **Where `TPlunger` differs from 3D Pinball.** Checking Launch Ball against `Pinball.exe` showed other differences, most of them from the Full Tilt hybrid: when tilted, collision sends Launch Ball (0.2 s push) in the original; the release case has no started-flag guard and plays the release sound only for `PlungerInputReleased`; `Reset` runs the release path instead of killing every timer; a new pull is refused only while the pullback timer runs. Each changes gameplay; check one at a time and ask.
+
+Decided against:
+
+- **Upstream PR k4zmu2a#262** (push a resting ball on release, cancel the release timer on a quick re-pull). The original does neither, so a plunger that sometimes misses a bouncing ball is faithful (issue k4zmu2a#210).
+- **Ignoring toggled cheats for high scores** (issue k4zmu2a#228). `CheatsUsed` is reset at a new game while toggled cheats stay on; the code notes this loose check is likely the original's. It only matters to someone using cheats.
+
 ## Open decision
 
 - **`pre-push` with uncommitted changes:** it warns and goes on, because it builds the working tree, not the pushed commits (#9). Refusing would be stricter but blocks a push over any stray edit. Recommended: keep the warning; CI stays the gate.
