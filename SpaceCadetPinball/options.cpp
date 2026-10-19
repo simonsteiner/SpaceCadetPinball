@@ -176,6 +176,16 @@ optionsStruct options::Options
 };
 // clang-format on
 
+namespace
+{
+	// The keyboard defaults of Options.Key before Key Bindings Version, as keycodes, in the same order
+	constexpr SDL_Keycode KeycodeDefaults[] = {
+		SDLK_Z,  SDLK_SLASH, SDLK_SPACE, SDLK_X,  SDLK_PERIOD, SDLK_UP,     SDLK_F2, SDLK_F3,
+		SDLK_F4, SDLK_F5,    SDLK_F6,    SDLK_F8, SDLK_F9,     SDLK_ESCAPE, SDLK_F7,
+	};
+	static_assert(std::size(KeycodeDefaults) == static_cast<size_t>(~GameBindings::Max));
+} // namespace
+
 void options::InitPrimary()
 {
 	auto imContext = ImGui::GetCurrentContext();
@@ -686,6 +696,16 @@ void ControlOption::Load()
 
 		if (saved && options::MigrateKeycodes && Inputs[i].Type == InputTypes::Keyboard)
 		{
+			// Old settings hold every binding, defaults included; an old default becomes the new one
+			auto slot = 0u;
+			while (&options::Options.Key[slot] != this)
+				slot++;
+			if (Defaults[i].Type == InputTypes::Keyboard && Inputs[i].Value == static_cast<int>(KeycodeDefaults[slot]))
+			{
+				Inputs[i] = Defaults[i];
+				continue;
+			}
+
 			// The key that types this keycode in the current layout
 			auto scancode = SDL_GetScancodeFromKey(static_cast<SDL_Keycode>(Inputs[i].Value), nullptr);
 			if (scancode != SDL_SCANCODE_UNKNOWN)
