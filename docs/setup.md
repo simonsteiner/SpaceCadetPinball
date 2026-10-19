@@ -39,13 +39,13 @@ Each preset builds in `build/<preset>/`. The executable is written to `bin/` in 
 | `mingw` | Linux, cross-compiling to Windows x64 | built from source |
 | `macos` | macOS, universal `arm64` and `x86_64` | built from source |
 
-The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL3 3.4.18 and SDL3_mixer 3.2.4 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity. Its other codecs and FluidSynth are left out; the game brings its own MIDI playback (see [Music](#music)). When it is `OFF` (the default on Linux), CMake uses the installed `SDL3` and `SDL3_mixer` development packages through their CMake config files. CI builds every preset except `linux-debug` and `linux-sanitize` on each pull request. Windows builds are 64-bit only; the 32-bit and Windows XP builds were dropped with the move to C++20.
+The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL3 3.4.18 and SDL3_mixer 3.2.4 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity. Its other codecs and FluidSynth are left out; the game brings its own MIDI playback (see [Music](#music)). When it is `OFF` (the default on Linux), CMake uses the installed `SDL3` and `SDL3_mixer` development packages through their CMake config files. CI builds every preset except `linux-debug` and `linux-sanitize` on each pull request. Windows builds are 64-bit only: the 32-bit build was dropped by decision, and the Windows XP build because its `v141_xp` toolset lacks full C++20 support.
 
 Plain `cmake -S . -B build` without a preset still works and follows the same defaults.
 
 Add `-DSCP_WARNINGS=ON` to the configure command to build the game with extra warnings, `-Wall -Wextra` or `/W4` with MSVC, and treat them as errors. Unused parameters are allowed, because overrides and callbacks keep the signatures their interfaces set. The option applies only to the game, not to SDL or ImGui, and is off by default, so a newer compiler with new warnings doesn't break a packager's build. CI turns it on. To see the warnings without failing the build, add `--compile-no-warning-as-error` to the configure command.
 
-`SCP_SANITIZERS=ON`, which the `linux-sanitize` preset sets, builds the game and ImGui with AddressSanitizer and UndefinedBehaviorSanitizer. It needs GCC or Clang. Run the replays with this build after a change to memory handling (`tools/check-replays.sh`, see `docs/replays.md`). The window, renderer, sound effects and options are clean too. With SDL2_mixer and FluidSynth, the game used to crash on exit under ASan, because `Mix_Quit` unloaded FluidSynth while one of its threads still ran. Debian's SDL3_mixer has no FluidSynth; with a build that does (Arch or Homebrew, for example), preload it if the exit crashes: `LD_PRELOAD="$(gcc -print-file-name=libasan.so) /usr/lib/x86_64-linux-gnu/libfluidsynth.so.3"`.
+`SCP_SANITIZERS=ON`, which the `linux-sanitize` preset sets, builds the game and ImGui with AddressSanitizer and UndefinedBehaviorSanitizer. It needs GCC or Clang. Run the replays with this build after a change to memory handling (`tools/check-replays.sh`, see `docs/replays.md`). The window, renderer, sound effects and options are clean too. With SDL2_mixer and FluidSynth, the game used to crash on exit under ASan, because `Mix_Quit` unloaded FluidSynth while one of its threads still ran. Debian's SDL3_mixer has no FluidSynth; with a build that does (Arch or Homebrew, for example), preload it if the exit crashes. With a GCC build, the ASan runtime is a shared library and has to come first: `LD_PRELOAD="$(g++ -print-file-name=libasan.so) /usr/lib/x86_64-linux-gnu/libfluidsynth.so.3"`. Clang links its ASan runtime into the executable, so a Clang build preloads only FluidSynth. The FluidSynth path is the one on Debian and Ubuntu x86_64; other distributions put it elsewhere, and `ldconfig -p | grep libfluidsynth` shows where.
 
 ### Linux
 
@@ -130,19 +130,21 @@ cmake -S . -B build/lint -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_DIS
 tools/lint-changed.sh main build/lint
 ```
 
-Without the build folder argument, the script checks the formatting only. CI installs the same LLVM version from `tools/llvm-requirements.txt`, pinned with hashes; bump it there and in the script together.
+The script checks the lines changed since the branch left `main` (their merge base), so commits that landed on `main` afterwards don't count; CI passes the base side of the pull request's merge commit. Without the build folder argument, it checks the formatting only. clang-tidy checks changed lines in `.cpp` files and in game headers; a header has no compile command of its own, so it is parsed with `pch.h` included first, as the build does.
+
+The LLVM version is set once, in `tools/llvm-requirements.txt`: CI installs it from there with hashes, and the script reads it for `uvx`. To bump it, regenerate that file's hashes, then update the version in the `uvx` commands above and in `AGENTS.md`.
 
 ## Display
 
-The game opens its window at the largest whole multiple of the table that matches the display's scale setting and fits on the display: 600×416 plus the menu at 100 %, twice that at 200 %, and so on. On a Retina or other high-density display it draws at the full pixel resolution. The menus and dialogs follow the display's scale, and Options → Graphics → UI Scale works on top of that.
+The game opens its window at the largest whole multiple of the table that matches the display's scale setting and fits on the display: one table's size (600×416 for 3D Pinball, or the chosen Full Tilt resolution) plus the menu at 100 %, twice that at 200 %, and so on. On a Retina or other high-density display it draws at the full pixel resolution. The menus and dialogs follow the display's scale, and Options → Graphics → UI Scale works on top of that.
 
 Options → Graphics:
 
 - **Integer Scaling** (on by default): the table is drawn at a whole multiple of its size, so every pixel of the original art becomes an even block. Off, it fills the window ("fit"), and each table pixel is still drawn the same size (SDL's pixel-art scaling, with SDL 3.4 or newer).
 - **Uniform Scaling** (on by default): keeps the table's proportions. Off, it stretches to the window.
 - **Linear Filtering** (off by default): smooths the table instead of keeping its pixels sharp.
-- **Backdrop** (on by default): fills the space around the table with a blurred, darkened copy of the table, made when the game starts from the player's own data, instead of black bars.
-- **Post-Processing** (None by default): **CRT** adds scanlines and an aperture grille, **Smooth Edges** rounds the steps of diagonal edges (EPX, the edge-directed scaler xBR grew out of). Both draw through SDL's GPU renderer, the only one that takes custom shaders, so they need SDL 3.4 or newer and Vulkan, Direct3D 12 or Metal. Choosing an effect while another renderer runs restarts the game on the GPU renderer, which ends a game in progress; after that, switching effects is instant. Without a GPU renderer, the table is drawn plain. Not with `-sw`.
+- **Backdrop** (on by default): fills the space around the table with a blurred, darkened copy of the table, made from the player's own data the first time it is shown, instead of black bars.
+- **Post-Processing** (None by default): **CRT** adds scanlines and an aperture grille, **Smooth Edges** rounds the steps of diagonal edges (EPX, the edge-directed scaler xBR grew out of). Both draw through SDL's GPU renderer, the only one that takes custom shaders, so they need SDL 3.4 or newer and Vulkan, Direct3D 12 or Metal. Choosing an effect while another renderer runs restarts the game on the GPU renderer, which ends a game in progress; after that, switching effects is instant. If the GPU renderer can't be created, the menu says so, the table is drawn plain and choosing an effect restarts nothing. With SDL older than 3.4 the menu isn't there. Not with `-sw`.
 - **Panel Under Table in Tall Windows** (on by default): in a tall window, such as a portrait screen, the score panel moves under the table when that lets the table be drawn larger. It needs Uniform Scaling.
 
 Full screen (F4 or `-fullscreen`) uses the desktop's resolution, without a mode change. Settings saved by an earlier version keep their values, so a player who had Integer Scaling off or Linear Filtering on keeps that.
@@ -155,7 +157,7 @@ Options → Graphics sets how often the table updates (UPS, 120 by default) and 
 
 Options → Player Controls (F8) binds a key, a mouse button and a gamepad button to each action. Gamepads work through SDL's gamepad database: by default the shoulder buttons are the flippers, A launches the ball, and the D-pad nudges the table. The analog triggers can be bound too: they count as pressed past half way and released below a quarter. **Options → Gamepad Rumble** (on by default) shakes the gamepad when a flipper fires and when the ball hits a bumper; the demo doesn't rumble.
 
-On a touch screen, touching the left half of the table works the left flipper and the right half the right flipper, as long as the finger stays down. Touching the score panel pulls the plunger back, and lifting the finger launches the ball. Several fingers work at once. The menus take touches as mouse clicks.
+On a touch screen, touching the left half of the table works the left flipper and the right half the right flipper, as long as the finger stays down. Touching the score panel pulls the plunger back, and lifting the finger launches the ball. Several fingers work at once. Touches elsewhere, such as the margins, do nothing to the table, and the menus take touches as mouse clicks.
 
 ## Music
 

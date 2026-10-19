@@ -18,7 +18,7 @@ int render::zmap_offsetX, render::zmap_offsetY, render::offset_x, render::offset
 rectangle_type render::vscreen_rect;
 gdrv_bitmap8 *render::vscreen, *render::background_bitmap, *render::ball_bitmap[20];
 zmap_header_type* render::zscreen;
-SDL_Rect render::DestinationRect{}, render::BoardRect{}, render::SidebarRect{};
+SDL_Rect render::BoardRect{}, render::SidebarRect{};
 SDL_Texture* render::BackdropTexture = nullptr;
 bool render::BallsInterpolated = false;
 
@@ -450,6 +450,9 @@ void render::SpriteViewer(bool* show)
 			ImGui::EndMenuBar();
 		}
 
+		// The renderer backend samples linearly by default; keep the previews' own nearest scale mode
+		auto drawList = ImGui::GetWindowDrawList();
+		drawList->AddCallback(ImGui::GetPlatformIO().DrawCallback_SetSamplerFromTex, nullptr);
 		for (const auto group : pb::record_table->Groups)
 		{
 			bool emptyGroup = true;
@@ -515,6 +518,7 @@ void render::SpriteViewer(bool* show)
 				}
 			}
 		}
+		drawList->AddCallback(ImGui::GetPlatformIO().DrawCallback_ResetRenderState, nullptr);
 		ImGui::PopStyleColor();
 		ImGui::PopStyleVar();
 	}
@@ -526,7 +530,11 @@ void render::PresentVScreen()
 	vscreen->BlitToTexture();
 
 	DrawBackdrop();
-	DrawSplit(vscreen->Texture, static_cast<float>(offset_x), static_cast<float>(offset_y), true);
+	// Only the table goes through the post-processing effect, not the backdrop or the overlays
+	PostEffect::Begin(static_cast<float>(vscreen->Width), static_cast<float>(vscreen->Height), fullscrn::ScaleX,
+					  fullscrn::ScaleY);
+	DrawSplit(vscreen->Texture, static_cast<float>(offset_x), static_cast<float>(offset_y));
+	PostEffect::End();
 
 	if (options::Options.DebugOverlay)
 	{
@@ -540,7 +548,7 @@ int render::BoardWidth()
 	return pb::MainTable ? pb::MainTable->Width : vscreen ? vscreen->Width : 0;
 }
 
-void render::DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, bool postEffect)
+void render::DrawSplit(SDL_Texture* texture, float offsetX, float offsetY)
 {
 	// Table and panel are drawn separately: the nudge shifts only the table, and the stacked layout moves the panel
 	auto boardWidth = static_cast<float>(BoardWidth());
@@ -554,13 +562,9 @@ void render::DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, bool 
 	dstBoardRect.x += offsetX * fullscrn::ScaleX;
 	dstBoardRect.y += offsetY * fullscrn::ScaleY;
 
-	if (postEffect)
-		PostEffect::Begin(static_cast<float>(vscreen->Width), height, fullscrn::ScaleX, fullscrn::ScaleY);
 	SDL_RenderTexture(winmain::Renderer, texture, &srcBoardRect, &dstBoardRect);
 	if (srcSidebarRect.w > 0)
 		SDL_RenderTexture(winmain::Renderer, texture, &srcSidebarRect, &dstSidebarRect);
-	if (postEffect)
-		PostEffect::End();
 }
 
 void render::DrawBackdrop()
@@ -585,7 +589,7 @@ void render::DrawBackdrop()
 
 void render::CreateBackdrop()
 {
-	// A blurred, darkened copy of the table as it is first drawn, made from the player's own data.
+	// A blurred, darkened copy of the table as drawn the first time the backdrop is shown, from the player's own data.
 	// Averaging blocks of pixels and scaling the result up with linear filtering blurs it.
 	constexpr int Block = 16;
 	constexpr unsigned Brightness = 90; // Out of 255
