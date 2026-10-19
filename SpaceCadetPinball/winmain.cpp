@@ -315,6 +315,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		};
 		searchPaths.insert(searchPaths.end(), std::begin(PlatformDataPaths), std::end(PlatformDataPaths));
 		pb::SelectDatFile(searchPaths);
+		SDL_SetWindowTitle(window, pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_Caption : Msg::STRING139));
 
 		// Second step: run updates that depend on .DAT file selection
 		options::InitSecondary();
@@ -1030,7 +1031,7 @@ void winmain::RenderUi()
 			}
 			ImGui::Separator();
 
-			if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_About_Pinball)))
+			if (ImGui::MenuItem(pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_About : Msg::Menu1_About_Pinball)))
 			{
 				pause(false);
 				ShowAboutDialog = true;
@@ -1491,21 +1492,22 @@ void winmain::memalloc_failure()
 
 void winmain::a_dialog()
 {
+	auto aboutTitle = pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_About : Msg::STRING204);
 	if (ShowAboutDialog == true)
 	{
 		ShowAboutDialog = false;
-		ImGui::OpenPopup(pb::get_rc_string(Msg::STRING204));
+		ImGui::OpenPopup(aboutTitle);
 	}
 
 	bool unused_open = true;
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2{ 600, 300 });
-	if (ImGui::BeginPopupModal(pb::get_rc_string(Msg::STRING204), &unused_open, ImGuiWindowFlags_None))
+	if (ImGui::BeginPopupModal(aboutTitle, &unused_open, ImGuiWindowFlags_None))
 	{
 		if (ImGui::BeginTabBar("AboutTabBar", ImGuiTabBarFlags_None))
 		{
 			if (ImGui::BeginTabItem("3DPB"))
 			{
-				ImGui::TextUnformatted(pb::get_rc_string(Msg::STRING139));
+				ImGui::TextUnformatted(pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_Caption : Msg::STRING139));
 				ImGui::TextUnformatted("Original game by Cinematronics, Microsoft");
 				ImGui::Separator();
 

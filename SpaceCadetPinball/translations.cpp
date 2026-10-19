@@ -6241,5 +6241,23 @@ const TextArray translations::Translations =
 			{ Lang::English, "Upscaled Art"},
 			{ Lang::German, "Hochskalierte Grafik"},
 		}
+	},
+	{
+		Msg::FullTilt_Caption,
+		{
+			{ Lang::English, "Full Tilt! - Space Cadet" },
+		}
+	},
+	{
+		Msg::FullTilt_About,
+		{
+			{ Lang::English, "About Full Tilt!" },
+		}
+	},
+	{
+		Msg::FullTilt_GameOver,
+		{
+			{ Lang::English, "Full Tilt!\nSpace Cadet Demo" },
+		}
 	}
 };
