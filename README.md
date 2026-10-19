@@ -16,7 +16,7 @@ cp -r /path/to/original-game/. bin/  # PINBALL.DAT with its .WAV and .MID files
 ./bin/SpaceCadetPinball
 ```
 
-The game data is not included. Ubuntu, Fedora and other platforms, data search paths and troubleshooting are in [docs/setup.md](docs/setup.md).
+The game data is not included: copy it from a Windows XP or Windows 2000 installation or CD you own ([where to find it](docs/setup.md#game-data)). Ubuntu, Fedora and other platforms, data search paths and troubleshooting are in [docs/setup.md](docs/setup.md).
 
 ## Docs
 
