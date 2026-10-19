@@ -17,7 +17,7 @@ int render::zmap_offsetX, render::zmap_offsetY, render::offset_x, render::offset
 rectangle_type render::vscreen_rect;
 gdrv_bitmap8 *render::vscreen, *render::background_bitmap, *render::ball_bitmap[20];
 zmap_header_type* render::zscreen;
-SDL_Rect render::DestinationRect{}, render::BoardRect{}, render::SidebarRect{};
+SDL_Rect render::BoardRect{}, render::SidebarRect{};
 SDL_Texture* render::BackdropTexture = nullptr;
 
 #if SDL_VERSION_ATLEAST(3, 4, 0)

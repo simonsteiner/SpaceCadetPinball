@@ -147,7 +147,6 @@ void fullscrn::window_size_changed()
 	OffsetX = (width - contentW) / 2;
 	OffsetY = (height - contentH) / 2 + menuHeight;
 
-	render::DestinationRect = SDL_Rect{OffsetX, OffsetY, contentW, contentH};
 	if (Stacked)
 	{
 		render::BoardRect = SDL_Rect{OffsetX + (contentW - boardW) / 2, OffsetY, boardW, tableH};
