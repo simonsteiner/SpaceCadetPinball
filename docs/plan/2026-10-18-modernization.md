@@ -1,6 +1,6 @@
 # Modernization plan
 
-Date: 2026-10-18. Status: Phase 0, Phase 1, Phase 2 and Phase 4 done, except the first Pages deployment (Pages isn't enabled yet). Decisions of 2026-10-19 are under [Open decisions](#open-decisions).
+Date: 2026-10-18. Status: Phase 0, Phase 1, Phase 2 and Phase 4 done, except the first Pages deployment (Pages isn't enabled yet). Decisions of 2026-10-19 are under [Open decisions](#open-decisions). What is left after the stack merged is in [the follow-ups plan](2026-10-19-follow-ups.md).
 
 The goal is to bring this fork of k4zmu2a/SpaceCadetPinball up to a current toolchain and a better presentation without changing how the game plays. Phases 1, 2 and 4 are the recommended path. Phase 3 stays parked unless there is a specific reason for it.
 
