@@ -1208,12 +1208,15 @@ void winmain::TouchInput(const SDL_TouchFingerEvent& event)
 	int width, height;
 	SDL_GetRenderOutputSize(Renderer, &width, &height);
 	SDL_Point point{static_cast<int>(event.x * width), static_cast<int>(event.y * height)};
+	// Only the table and the panel bind, not the menu bar or the margins: the ImGui capture flag is last frame's
 	auto& board = render::BoardRect;
 	GameBindings binding;
 	if (SDL_PointInRect(&point, &render::SidebarRect))
 		binding = GameBindings::Plunger;
-	else
+	else if (SDL_PointInRect(&point, &board))
 		binding = point.x < board.x + board.w / 2 ? GameBindings::LeftFlipper : GameBindings::RightFlipper;
+	else
+		return;
 
 	TouchBindings[key] = binding;
 	pb::BindingDown(binding);
