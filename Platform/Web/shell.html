@@ -109,6 +109,8 @@
       let relative = parts.length > 1 ? parts.slice(1).join("/") : parts[0];
       if (SoundFontExtensions.test(relative)) relative = "soundfont." + relative.split(".").pop().toLowerCase();
       else if (!GameExtensions.test(relative)) continue;
+      // The file system is case-sensitive and the game looks for the executable under fixed names
+      else if (/\.exe$/i.test(relative)) relative = "PINBALL.EXE";
       const path = DataDir + "/" + relative;
       makeDirs(path);
       FS.writeFile(path, new Uint8Array(await file.arrayBuffer()));
