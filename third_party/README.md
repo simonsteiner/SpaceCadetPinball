@@ -20,6 +20,6 @@ Libraries vendored as source, so that every build, including a distribution's of
 
 `TinySoundFont/` differs from upstream in this edit, to re-apply after an upgrade unless upstream has it:
 
-- `tsf.h`: `tsf_decode_sf3_samples` treats a compressed sample whose `start`/`end` fall outside the `smpl` chunk (`start >= smplLength || end > smplLength || start >= end`) as empty, taking the existing zeroing branch, instead of reading `smplBuffer + start` out of bounds. Without it a SoundFont (SF2 or SF3) with a damaged compressed sample header crashes the game at startup, when it loads the SoundFonts it finds. Could be sent upstream.
+- `tsf.h`: `tsf_decode_sf3_samples` treats a compressed sample whose `start`/`end` fall outside the `smpl` chunk (`start >= smplLength || end > smplLength || start >= end`) as empty, taking the existing zeroing branch, instead of reading `smplBuffer + start` out of bounds. Without it a SoundFont (SF2 or SF3) with a damaged compressed sample header crashes the game at startup, when it loads the SoundFonts it finds. Upstream still reads out of bounds there, but it refuses issues and patches written with an LLM (README, "Strict No LLM / No AI Policy"), so this patch, made with one, can't be sent; a fix upstream has to be written and reported by a person.
 
 Dear ImGui is vendored too, in `SpaceCadetPinball/`; see `AGENTS.md`.
