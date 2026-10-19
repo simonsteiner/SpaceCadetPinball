@@ -392,6 +392,9 @@ void render::SpriteViewer(bool* show)
 			ImGui::EndMenuBar();
 		}
 
+		// The renderer backend samples linearly by default; keep the previews' own nearest scale mode
+		auto drawList = ImGui::GetWindowDrawList();
+		drawList->AddCallback(ImGui::GetPlatformIO().DrawCallback_SetSamplerFromTex, nullptr);
 		for (const auto group : pb::record_table->Groups)
 		{
 			bool emptyGroup = true;
@@ -457,6 +460,7 @@ void render::SpriteViewer(bool* show)
 				}
 			}
 		}
+		drawList->AddCallback(ImGui::GetPlatformIO().DrawCallback_ResetRenderState, nullptr);
 		ImGui::PopStyleColor();
 		ImGui::PopStyleVar();
 	}
