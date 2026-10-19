@@ -97,6 +97,7 @@ public:
 	static int SpecialAddScore(int score, bool mission = false);
 	static int AddRankProgress(int rank);
 	static void AdvanceWormHoleDestination(int flag);
+	static void CompleteMission();
 
 	static void FlipperRebounderControl1(MessageCode code, TPinballComponent* caller);
 	static void FlipperRebounderControl2(MessageCode code, TPinballComponent* caller);
