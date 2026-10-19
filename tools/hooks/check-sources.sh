@@ -6,6 +6,7 @@
 set -u
 
 cmake_lists=$(git show :CMakeLists.txt)
+bom=$'\xEF\xBB\xBF'
 failed=0
 for file in "$@"; do
     case "$file" in
@@ -24,8 +25,8 @@ for file in "$@"; do
     case "$name" in
         *.h | imgui* | imstb* | imconfig.h | EmbeddedData.cpp) continue ;;
     esac
-    # Some files start with a UTF-8 byte order mark
-    first_include=$(git show ":$file" | sed '1s/^\xEF\xBB\xBF//' | grep -m 1 '^[[:space:]]*#[[:space:]]*include' | tr -d '\r')
+    # Some files start with a UTF-8 byte order mark. Bash makes the bytes, since BSD sed doesn't read \x escapes.
+    first_include=$(git show ":$file" | sed "1s/^$bom//" | grep -m 1 '^[[:space:]]*#[[:space:]]*include' | tr -d '\r')
     if [ "$first_include" != '#include "pch.h"' ]; then
         echo "$file must start with #include \"pch.h\" (first include is: ${first_include:-none})" >&2
         failed=1
