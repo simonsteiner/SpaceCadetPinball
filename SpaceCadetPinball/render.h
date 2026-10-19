@@ -55,7 +55,7 @@ public:
 	static void SpriteViewer(bool* show);
 	static void PresentVScreen();
 	static int BoardWidth();
-	static void DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, bool postEffect = false);
+	static void DrawSplit(SDL_Texture* texture, float offsetX, float offsetY);
 
 private:
 	static std::vector<render_sprite*> sprite_list, ball_list;
