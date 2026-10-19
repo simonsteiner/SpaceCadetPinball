@@ -66,8 +66,9 @@ bool winmain::HighRefresh = false;
 winmain::DurationMs winmain::UpdateTime;
 winmain::DurationMs winmain::UpdateTimeAccumulator;
 int winmain::CurrentFps = 0;
-bool winmain::TriggerPressed[2]{};
-std::map<SDL_FingerID, GameBindings> winmain::TouchBindings{};
+bool winmain::RefreshRateUnknown = false;
+std::map<SDL_JoystickID, std::array<bool, 2>> winmain::TriggerPressed{};
+std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> winmain::TouchBindings{};
 
 // Splits the command line at spaces and tabs; double quotes keep an argument with spaces together
 static std::vector<std::string> SplitArgs(LPCSTR cmdLine)
@@ -185,7 +186,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 	{
 		// Load SDL Game Controller definitions from DB
-		auto controllerDb = EmbeddedData::DecompressStb(EmbeddedData::SDL_GameControllerDB_compressed_data);
+		auto controllerDb = EmbeddedData::DecompressStb(EmbeddedData::SDL_GameControllerDB_compressed_data,
+		                                                 EmbeddedData::SDL_GameControllerDB_compressed_size);
 		auto io = SDL_IOFromConstMem(controllerDb.data(), controllerDb.size());
 		const auto added = SDL_AddGamepadMappingsFromIO(io, true);
 		if (added < 0)
@@ -196,6 +198,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	}
 
 	auto resetAllOptions = HasArg(args, "-reset");
+	auto firstOpen = true;
 	do
 	{
 		restart = false;
@@ -221,13 +224,16 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		// Post-processing needs SDL's GPU renderer, the only one that takes custom shaders. No textures exist yet,
 		// so this is the place to switch. Turning an effect off keeps that renderer, so no restart is needed for it.
-		auto wantGpu = !SoftwareRenderer && static_cast<PostEffects>(Options.PostProcessing.V) != PostEffects::None;
+		// Once the GPU renderer has failed, it isn't tried again.
+		auto effect = static_cast<PostEffects>(Options.PostProcessing.V);
+		auto wantGpu = !SoftwareRenderer && effect != PostEffects::None && !PostEffect::GpuRendererFailed();
 		if (wantGpu && !PostEffect::IsGpuRenderer(Renderer) && !CreateRenderer(true) && !CreateRenderer(false))
 		{
 			pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not create renderer", SDL_GetError());
 			return 1;
 		}
-		PostEffect::Init(Renderer, static_cast<PostEffects>(Options.PostProcessing.V));
+		PostEffect::Init(Renderer);
+		PostEffect::SetEffect(effect);
 
 		if (!Options.FontFileName.V.empty())
 		{
@@ -326,8 +332,10 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			Options.FullScreen = true;
 		}
 
-		if (!Options.FullScreen)
-			fullscrn::ResetWindowSize();
+		// Also in full screen, where it sets the size the window returns to.
+		// Only the first open centres it, so a restart keeps where the player put the window.
+		fullscrn::ResetWindowSize(firstOpen);
+		firstOpen = false;
 		if (replay::IsPlaying())
 		{
 			// The recording holds the command that started the game
@@ -360,7 +368,6 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		ImGui_ImplSDLRenderer3_Shutdown();
 		ImGui_ImplSDL3_Shutdown();
-		PostEffect::Uninit();
 		ImGui::DestroyContext();
 	}
 	while (restart);
@@ -373,6 +380,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	}
 
 	SDL_free(prefPath);
+	PostEffect::Uninit();
 	SDL_DestroyRenderer(Renderer);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
@@ -453,9 +461,8 @@ void winmain::MainLoop()
 					dt = static_cast<float>(UpdateTime.count());
 					UpdateTimeAccumulator += frameDuration;
 					updates = static_cast<int>(UpdateTimeAccumulator / UpdateTime);
+					// At most 2: the accumulator was below UpdateTime and frameDuration is capped at 2 * UpdateTime
 					UpdateTimeAccumulator -= UpdateTime * updates;
-					// The same 2 update cap as the frame duration has
-					updates = std::min(updates, 2);
 					ballAlpha = static_cast<float>(UpdateTimeAccumulator / UpdateTime);
 				}
 				for (auto update = 0; update < updates; update++)
@@ -743,10 +750,23 @@ void winmain::RenderUi()
 								render::SetUpscale(factor);
 						}
 					}
+#if SDL_VERSION_ATLEAST(3, 4, 0)
 					if (ImGui::MenuItem("Export Original Sprites"))
-						Upscale::ExportOriginals();
+					{
+						auto count = Upscale::ExportOriginals();
+						auto folder = Upscale::OriginalsFolder();
+						auto message = count ? "Exported " + std::to_string(count) + " sprites to " + folder
+											 : "Could not export the sprites to " + folder;
+						SDL_ShowSimpleMessageBox(count ? SDL_MESSAGEBOX_INFORMATION : SDL_MESSAGEBOX_WARNING,
+												 "Export Original Sprites", message.c_str(), MainWindow);
+					}
+#else
+					ImGui::MenuItem("Export Original Sprites", nullptr, false, false);
+					ImGui::TextDisabled("Needs SDL 3.4 or newer");
+#endif
 					ImGui::EndMenu();
 				}
+#if SDL_VERSION_ATLEAST(3, 4, 0)
 				if (ImGui::BeginMenu("Post-Processing"))
 				{
 					constexpr const char* names[] = {"None", "CRT", "Smooth Edges"};
@@ -757,8 +777,11 @@ void winmain::RenderUi()
 					}
 					if (SoftwareRenderer)
 						ImGui::TextDisabled("Not with the software renderer");
+					else if (PostEffect::GpuRendererFailed())
+						ImGui::TextDisabled("Needs Vulkan, Direct3D 12 or Metal");
 					ImGui::EndMenu();
 				}
+#endif
 				if (ImGui::DragFloat("UI Scale", &Options.UIScale.V, 0.005f, 0.8f, 5,
 				                     "%.2f", ImGuiSliderFlags_AlwaysClamp))
 				{
@@ -791,9 +814,18 @@ void winmain::RenderUi()
 					Options.MatchRefreshRate ^= true;
 					changed = true;
 				}
-				if (HighRefresh)
+				// The frame rate in use: the display's, the slider's if the display's is unknown, or above UPS
+				if (Options.MatchRefreshRate && RefreshRateUnknown)
+					ImGui::TextDisabled("Refresh rate unknown, using %d FPS", CurrentFps);
+				else if (HighRefresh)
 					ImGui::TextDisabled("%d FPS, the ball drawn between updates", CurrentFps);
-				snprintf(buffer, sizeof buffer - 1, "Uncapped UPS (FPS ratio %02.02f)", UpdateToFrameRatio);
+				else if (Options.MatchRefreshRate)
+					ImGui::TextDisabled("%d FPS", CurrentFps);
+				// With FPS above UPS, the updates keep their pace and only the frames are uncapped
+				if (HighRefresh)
+					snprintf(buffer, sizeof buffer - 1, "Uncapped FPS");
+				else
+					snprintf(buffer, sizeof buffer - 1, "Uncapped UPS (FPS ratio %02.02f)", UpdateToFrameRatio);
 				if (ImGui::MenuItem(buffer, nullptr, Options.UncappedUpdatesPerSecond))
 				{
 					Options.UncappedUpdatesPerSecond ^= true;
@@ -1193,6 +1225,7 @@ int winmain::event_handler(const SDL_Event* event)
 		SDL_OpenGamepad(event->gdevice.which);
 		break;
 	case SDL_EVENT_GAMEPAD_REMOVED:
+		TriggerPressed.erase(event->gdevice.which);
 		if (auto gamepad = SDL_GetGamepadFromID(event->gdevice.which))
 			SDL_CloseGamepad(gamepad);
 		break;
@@ -1222,7 +1255,7 @@ void winmain::GamepadTrigger(const SDL_GamepadAxisEvent& event)
 	if (event.axis != SDL_GAMEPAD_AXIS_LEFT_TRIGGER && event.axis != SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
 		return;
 	auto left = event.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER;
-	auto& pressed = TriggerPressed[left ? 0 : 1];
+	auto& pressed = TriggerPressed[event.which][left ? 0 : 1];
 	GameInput input{InputTypes::GameController, left ? GamepadLeftTrigger : GamepadRightTrigger};
 	if (!pressed && event.value > SDL_JOYSTICK_AXIS_MAX / 2)
 	{
@@ -1239,33 +1272,49 @@ void winmain::GamepadTrigger(const SDL_GamepadAxisEvent& event)
 void winmain::TouchInput(const SDL_TouchFingerEvent& event)
 {
 	// The left half of the table works the left flipper, the right half the right one, and the score panel the
-	// plunger, held to pull it back. Each finger keeps what it pressed until it lifts.
-	auto key = event.fingerID;
+	// plunger, held to pull it back. Each finger keeps what it pressed until it lifts, and a binding is held while
+	// any finger is on it, so it goes down with the first finger and up with the last.
+	// Finger IDs are unique only per touch device
+	auto key = std::pair{event.touchID, event.fingerID};
+	auto held = [](GameBindings binding)
+	{
+		return std::any_of(TouchBindings.begin(), TouchBindings.end(),
+						   [binding](const auto& finger) { return finger.second == binding; });
+	};
 	if (event.type != SDL_EVENT_FINGER_DOWN)
 	{
 		auto finger = TouchBindings.find(key);
 		if (finger != TouchBindings.end())
 		{
-			pb::BindingUp(finger->second);
+			auto binding = finger->second;
 			TouchBindings.erase(finger);
+			if (!held(binding))
+				pb::BindingUp(binding);
 		}
 		return;
 	}
+	if (TouchBindings.count(key))
+		return;
 	if (ImIO->WantCaptureMouse)
 		return;
 
 	int width, height;
 	SDL_GetRenderOutputSize(Renderer, &width, &height);
 	SDL_Point point{static_cast<int>(event.x * width), static_cast<int>(event.y * height)};
+	// Only the table and the panel bind, not the menu bar or the margins: the ImGui capture flag is last frame's
 	auto& board = render::BoardRect;
 	GameBindings binding;
 	if (SDL_PointInRect(&point, &render::SidebarRect))
 		binding = GameBindings::Plunger;
-	else
+	else if (SDL_PointInRect(&point, &board))
 		binding = point.x < board.x + board.w / 2 ? GameBindings::LeftFlipper : GameBindings::RightFlipper;
+	else
+		return;
 
+	auto first = !held(binding);
 	TouchBindings[key] = binding;
-	pb::BindingDown(binding);
+	if (first)
+		pb::BindingDown(binding);
 }
 
 void winmain::SetPostProcessing(PostEffects effect)
@@ -1274,16 +1323,18 @@ void winmain::SetPostProcessing(PostEffects effect)
 		return;
 	Options.PostProcessing = static_cast<int>(effect);
 
-	// The GPU renderer switches effects on the fly; any other renderer has to be replaced, which needs a restart
-	if (PostEffect::Available())
-		PostEffect::Init(Renderer, effect);
-	else if (effect != PostEffects::None && !SoftwareRenderer)
+	// The GPU renderer switches effects on the fly; any other renderer has to be replaced, which needs a restart,
+	// unless the GPU renderer could not be created
+	PostEffect::SetEffect(effect);
+	if (!PostEffect::Available() && effect != PostEffects::None && !SoftwareRenderer &&
+		!PostEffect::GpuRendererFailed())
 		Restart();
 }
 
 bool winmain::CreateRenderer(bool gpu)
 {
 	// The GPU renderer, for post-processing; otherwise the default, falling back to the software renderer
+	PostEffect::Uninit();
 	if (Renderer)
 		SDL_DestroyRenderer(Renderer);
 	Renderer = nullptr;
@@ -1572,6 +1623,7 @@ void winmain::Restart()
 void winmain::UpdateFrameRate()
 {
 	auto fps = Options.FramesPerSecond.V, ups = Options.UpdatesPerSecond.V;
+	RefreshRateUnknown = false;
 	if (Options.MatchRefreshRate)
 	{
 		// The display's refresh rate, if SDL knows it, within the FPS limits
@@ -1579,7 +1631,10 @@ void winmain::UpdateFrameRate()
 		if (mode && mode->refresh_rate > 0)
 			fps = Clamp(static_cast<int>(std::lround(mode->refresh_rate)), options::MinFps, options::MaxFps);
 		else
+		{
+			RefreshRateUnknown = true;
 			SDL_ClearError();
+		}
 	}
 
 	// With FPS above UPS, the loop runs at the frame rate and the table updates every 1000/UPS ms of it

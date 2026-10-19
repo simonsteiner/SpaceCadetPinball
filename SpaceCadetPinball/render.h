@@ -26,9 +26,11 @@ struct render_sprite
 	rectangle_type BoundingRect{};
 	bool DirtyFlag{};
 	// Balls only: where the last two updates painted the ball, for drawing frames in between
-	rectangle_type PaintedRect{}, PrevPaintedRect{};
-	bool Painted{}, PrevPainted{};
-	rectangle_type SavedBmpRect{}, SavedDirtyRectPrev{};
+	struct
+	{
+		rectangle_type PaintedRect{}, PrevPaintedRect{}, SavedBmpRect{};
+		bool Painted{}, PrevPainted{};
+	} Interp{};
 	// Balls only: the part of the upscaled frame the ball covers
 	rectangle_type DirtyRectHi{};
 
@@ -46,8 +48,8 @@ public:
 	static gdrv_bitmap8 *vscreen, *background_bitmap;
 	static zmap_header_type* background_zmap;
 	static int zmap_offsetX, zmap_offsetY;
-	// Where the table and its score panel are drawn, in pixels. DestinationRect holds both.
-	static SDL_Rect DestinationRect, BoardRect, SidebarRect;
+	// Where the table and its score panel are drawn, in pixels
+	static SDL_Rect BoardRect, SidebarRect;
 
 	static void init(gdrv_bitmap8* bmp, int width, int height);
 	static void uninit();
@@ -63,8 +65,8 @@ public:
 	static int BoardWidth();
 	static void InterpolateBalls(float alpha);
 	static void RestoreBalls();
-	static void DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, bool postEffect = false,
-						  int textureScale = 1);
+	// The texture is the frame at textureScale times its size
+	static void DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, int textureScale = 1);
 	// Upscaled art: 0 for the original sprites, or 2 or 4 to draw an upscaled copy of the frame
 	static void SetUpscale(int factor);
 	static int GetUpscale()

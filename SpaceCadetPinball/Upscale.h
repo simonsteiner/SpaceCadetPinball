@@ -21,6 +21,9 @@ public:
 	// Magnifies a rectangle of src into dst, which is Factor() times larger, at the matching position
 	static void Region(const gdrv_bitmap8& src, int x, int y, int width, int height, gdrv_bitmap8& dst);
 	static std::string OverrideFolder();
+	// Where ExportOriginals writes the original sprites
+	static std::string OriginalsFolder();
+	// Needs SDL 3.4 or newer, like the overrides; returns how many sprites were written
 	static int ExportOriginals();
 
 private:
