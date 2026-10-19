@@ -206,6 +206,11 @@ void options::InitSecondary()
 
 void options::uninit()
 {
+	Save();
+}
+
+void options::Save()
+{
 	Options.Language.V = translations::GetCurrentLanguage()->ShortName;
 	for (const auto opt : AllOptions)
 	{

@@ -35,6 +35,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "Sound.h"
 #include "translations.h"
 #include "font_selection.h"
+#include "high_score.h"
 
 #include <new>
 
@@ -57,6 +58,23 @@ int winmain::mouse_down;
 bool winmain::no_time_loss = false;
 
 bool winmain::restart = false;
+
+#ifdef __EMSCRIPTEN__
+// True while a game runs and its settings may be saved
+static bool GameRunning = false;
+
+// The page calls this before it copies the preference folder to IndexedDB. The browser never lets MainLoop
+// return, so the options, high scores and ImGui's .ini would otherwise only reach the file at a shutdown that
+// doesn't happen.
+extern "C" EMSCRIPTEN_KEEPALIVE void SaveSettings()
+{
+	if (!GameRunning || !winmain::ImIO || !winmain::ImIO->IniFilename)
+		return;
+	options::Save();
+	high_score::write();
+	ImGui::SaveIniSettingsToDisk(winmain::ImIO->IniFilename);
+}
+#endif
 
 std::vector<float> winmain::gfrDisplay{};
 unsigned winmain::gfrOffset = 0;
@@ -380,7 +398,13 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			else
 				pb::replay_level(false);
 
+#ifdef __EMSCRIPTEN__
+			GameRunning = true;
 			MainLoop();
+			GameRunning = false;
+#else
+			MainLoop();
+#endif
 		}
 		auto played = replay::IsPlaying();
 		replay::Stop();

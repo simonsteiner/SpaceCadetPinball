@@ -96,7 +96,10 @@
     }
   }
 
-  async function addFiles(fileList) {
+  async function addFiles(input) {
+    // A copy, so that the input can be cleared: it fires "change" again only for a different selection
+    const fileList = Array.from(input.files);
+    input.value = "";
     let added = 0;
     for (const file of fileList) {
       // A folder's own name is dropped; subfolders such as Full Tilt's SOUND stay
@@ -109,15 +112,38 @@
       FS.writeFile(path, new Uint8Array(await file.arrayBuffer()));
       added++;
     }
-    await sync(false);
-    refresh();
-    setStatus(added ? `Added ${added} file${added > 1 ? "s" : ""}.` : "No game files among those.");
+    let message = added ? `Added ${added} file${added > 1 ? "s" : ""}.` : "No game files among those.";
+    try {
+      await sync(false);
+    } catch (err) {
+      message = "Couldn't keep the files in this browser: " + err;
+    } finally {
+      refresh();
+    }
+    setStatus(message);
   }
 
   async function forget() {
     for (const name of listFiles().reverse()) FS.unlink(DataDir + "/" + name);
-    await sync(false);
-    refresh();
+    let message = "";
+    try {
+      await sync(false);
+    } catch (err) {
+      message = "Couldn't remove the files from this browser: " + err;
+    } finally {
+      refresh();
+    }
+    if (message) setStatus(message);
+  }
+
+  // The game writes its settings and high scores only when asked, then they go to IndexedDB
+  function saveSettings() {
+    try {
+      Module._SaveSettings();
+    } catch (err) {
+      console.warn("Couldn't save the settings", err);
+    }
+    return sync(false).catch(err => console.warn(err));
   }
 
   async function play() {
@@ -135,8 +161,11 @@
     }
 
     // Settings and high scores are written to the preferences folder; keep them in IndexedDB too
-    setInterval(() => sync(false).catch(err => console.warn(err)), 5000);
-    window.addEventListener("pagehide", () => sync(false));
+    setInterval(saveSettings, 5000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") saveSettings();
+    });
+    window.addEventListener("pagehide", saveSettings);
 
     $("start").style.display = "none";
     Module.canvas.style.display = "block";
@@ -167,8 +196,8 @@
     }],
     onRuntimeInitialized: () => {
       refresh();
-      $("pickFiles").addEventListener("change", event => addFiles(event.target.files));
-      $("pickFolder").addEventListener("change", event => addFiles(event.target.files));
+      $("pickFiles").addEventListener("change", event => addFiles(event.target));
+      $("pickFolder").addEventListener("change", event => addFiles(event.target));
       $("forget").addEventListener("click", forget);
       $("play").addEventListener("click", play);
     },

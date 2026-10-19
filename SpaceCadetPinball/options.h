@@ -117,6 +117,8 @@ public:
 	static void InitPrimary();
 	static void InitSecondary();
 	static void uninit();
+	// Writes every option into the settings, which ImGui keeps in its .ini
+	static void Save();
 	static const std::string& GetSetting(const std::string& key, const std::string& defaultValue);
 	static void SetSetting(const std::string& key, const std::string& value);
 	static int get_int(LPCSTR lpValueName, int defaultValue);
