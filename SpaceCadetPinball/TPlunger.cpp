@@ -98,6 +98,14 @@ int TPlunger::Message(MessageCode code, float value)
 		loader::play_sound(SoundIndexP1, this, "TPlunger2");
 		break;
 	case MessageCode::PlungerLaunchBall:
+		if (!pb::FullTiltMode)
+		{
+			// 3D Pinball's Launch Ball command keeps the full push for 0.2 s, not the 25 ms of a released pull
+			Threshold = 0.0f;
+			Boost = MaxPullback;
+			timer::set(0.2f, this, ReleasedTimer);
+			break;
+		}
 		PullbackStartedFlag = true;
 		Boost = MaxPullback;
 		Message(MessageCode::PlungerInputReleased, 0.0f);
