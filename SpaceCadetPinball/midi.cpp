@@ -319,7 +319,7 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 	}
 	else
 	{
-		// 3DPB has only one music track. PINBALL2.MID is a bitmap font, in the same format as PB_MSGFT.bin
+		// 3DPB has only one music track. PINBALL2.MID is a bitmap font, like the PBMSG_FT resource in pinball.exe
 		track1 = load_track("PINBALL");
 	}
 

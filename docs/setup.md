@@ -20,6 +20,8 @@ The game searches these folders in order and uses the first data file it finds:
 
 In each folder it tries `CADET.DAT`, then `PINBALL.DAT`, then `DEMO.DAT`, in upper case and then lower case. The "Prefer 3DPB Data" menu option swaps the first two.
 
+3D Pinball keeps the bitmap font of its table messages not in `PINBALL.DAT` but in `PINBALL.EXE`, as a resource. Copy the executable too, into the same folder as the DAT file; the game looks for `PINBALL.EXE`, `pinball.exe` and `Pinball.exe` there and only reads the font out of it, it never runs it. Without it, or if it holds no font, the console says so and the messages are drawn in the ImGui font instead. Full Tilt! Pinball has its fonts in `CADET.DAT` and needs no executable.
+
 ## Build
 
 The project uses C++20, CMake 3.24 or newer, and `SDL3` and `SDL3_mixer` (3.2 or newer each). `CMakePresets.json` has one preset per platform. Configure and build with the same preset name:
@@ -108,7 +110,7 @@ cmake --preset web
 cmake --build --preset web
 ```
 
-To try it, copy the three files into a folder, rename the page to `index.html`, add `FluidR3Mono_GM.sf3` for music if you like, and serve the folder over HTTP (`python3 -m http.server`); browsers don't run it from a `file:` URL. The page asks for the game data with a file picker. The files are kept in the browser's IndexedDB, so they are only asked for once, and are never uploaded; "Forget the game data" removes them. Settings and high scores are kept the same way.
+To try it, copy the three files into a folder, rename the page to `index.html`, add `FluidR3Mono_GM.sf3` for music if you like, and serve the folder over HTTP (`python3 -m http.server`); browsers don't run it from a `file:` URL. The page asks for the game data with a file picker, including `PINBALL.EXE` for the message font. The files are kept in the browser's IndexedDB, so they are only asked for once, and are never uploaded; "Forget the game data" removes them. Settings and high scores are kept the same way.
 
 - The game's loop yields to the browser after every frame (`-sASYNCIFY` and `emscripten_sleep`), so the browser shows the frame and delivers input in between. It runs without threads, because GitHub Pages can't send the headers that threads need.
 - Music plays with TinySoundFont and the SoundFont the player adds with the game files (`.sf2` or `.sf3`), or else the free `FluidR3Mono_GM.sf3` that the page offers to download. It takes about 400 MB of memory once loaded.

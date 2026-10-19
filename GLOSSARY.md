@@ -5,7 +5,7 @@ A decompiled reimplementation of the pinball game bundled with Windows (original
 ## Game data
 
 **Game data**:
-The original Microsoft data files (a DAT file plus its sound and music files) that the player supplies. They are copyrighted and never ship with the project.
+The original Microsoft data files (a DAT file plus its sound and music files, and for 3D Pinball the `PINBALL.EXE` that holds the message font) that the player supplies. They are copyrighted and never ship with the project.
 _Avoid_: Assets, resources, ROM
 
 **DAT file**:

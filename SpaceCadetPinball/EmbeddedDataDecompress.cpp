@@ -120,23 +120,6 @@ namespace
 #undef stb__in2
 #undef stb__in3
 #undef stb__in4
-
-	unsigned int Decode85Byte(char c) { return c >= '\\' ? c - 36 : c - 35; }
-
-	void Decode85(const char* src, unsigned char* dst)
-	{
-		while (*src)
-		{
-			unsigned int tmp = Decode85Byte(src[0]) + 85 * (Decode85Byte(src[1]) + 85 * (Decode85Byte(src[2]) + 85 * (
-				Decode85Byte(src[3]) + 85 * Decode85Byte(src[4]))));
-			dst[0] = (tmp >> 0) & 0xFF;
-			dst[1] = (tmp >> 8) & 0xFF;
-			dst[2] = (tmp >> 16) & 0xFF;
-			dst[3] = (tmp >> 24) & 0xFF;
-			src += 5;
-			dst += 4;
-		}
-	}
 }
 
 std::vector<uint8_t> EmbeddedData::DecompressStb(const void* compressedData, size_t compressedSize)
@@ -148,11 +131,4 @@ std::vector<uint8_t> EmbeddedData::DecompressStb(const void* compressedData, siz
 	if (stb_decompress(output.data(), input, compressedSize) != output.size())
 		output.clear();
 	return output;
-}
-
-std::vector<uint8_t> EmbeddedData::DecompressBase85(const char* compressedDataBase85)
-{
-	std::vector<unsigned char> compressed((strlen(compressedDataBase85) + 4) / 5 * 4);
-	Decode85(compressedDataBase85, compressed.data());
-	return DecompressStb(compressed.data(), compressed.size());
 }

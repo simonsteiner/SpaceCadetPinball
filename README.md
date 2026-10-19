@@ -12,7 +12,7 @@ This is [simonsteiner's fork](https://github.com/simonsteiner/SpaceCadetPinball)
 ```bash
 sudo apt install cmake build-essential ninja-build libsdl3-dev libsdl3-mixer-dev  # Debian testing; Ubuntu has no SDL3_mixer yet
 cmake --preset linux && cmake --build --preset linux
-cp -r /path/to/original-game/. bin/  # PINBALL.DAT with its .WAV and .MID files
+cp -r /path/to/original-game/. bin/  # PINBALL.DAT with its .WAV and .MID files, and PINBALL.EXE for the message font
 ./bin/SpaceCadetPinball
 ```
 

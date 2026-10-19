@@ -33,10 +33,11 @@
 
   <div class="panel">
     <p><strong>1. Add the game data.</strong> Choose <code>PINBALL.DAT</code> with its <code>.WAV</code> and <code>.MID</code> files
-      from 3D Pinball for Windows, or the folder of Full Tilt! Pinball (<code>CADET.DAT</code>).</p>
+      and <code>PINBALL.EXE</code>, which holds the font of the messages, from 3D Pinball for Windows, or the folder of
+      Full Tilt! Pinball (<code>CADET.DAT</code>).</p>
     <label class="button" for="pickFiles">Choose files…</label>
     <label class="button" for="pickFolder">Choose a folder…</label>
-    <input id="pickFiles" type="file" multiple accept=".dat,.wav,.mid,.mds,.sf2,.sf3">
+    <input id="pickFiles" type="file" multiple accept=".dat,.wav,.mid,.mds,.exe,.sf2,.sf3">
     <input id="pickFolder" type="file" webkitdirectory>
     <details>
       <summary>Where do I find these files?</summary>
@@ -70,7 +71,8 @@
   const DataDir = "/data", PrefDir = "/libsdl", SoundFontUrl = "FluidR3Mono_GM.sf3";
   // The player's own SoundFont first, then the downloaded one; the game reads this list when it starts
   const SoundFonts = [DataDir + "/soundfont.sf2", DataDir + "/soundfont.sf3", "/soundfont/" + SoundFontUrl];
-  const GameExtensions = /\.(dat|wav|mid|mds)$/i, SoundFontExtensions = /\.(sf2|sf3)$/i;
+  // Of the executables, only 3D Pinball's is used, for its message font
+  const GameExtensions = /\.(dat|wav|mid|mds)$|^pinball\.exe$/i, SoundFontExtensions = /\.(sf2|sf3)$/i;
   const $ = id => document.getElementById(id);
 
   function setStatus(text) { $("status").textContent = text; }
@@ -117,6 +119,8 @@
       let relative = parts.length > 1 ? parts.slice(1).join("/") : parts[0];
       if (SoundFontExtensions.test(relative)) relative = "soundfont." + relative.split(".").pop().toLowerCase();
       else if (!GameExtensions.test(relative)) continue;
+      // The file system is case-sensitive and the game looks for the executable under fixed names
+      else if (/\.exe$/i.test(relative)) relative = "PINBALL.EXE";
       const path = DataDir + "/" + relative;
       makeDirs(path);
       FS.writeFile(path, new Uint8Array(await file.arrayBuffer()));
