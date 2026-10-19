@@ -89,6 +89,10 @@ static_assert(sizeof(WaveHeader) == 44, "Wrong size of WaveHeader");
 class loader
 {
 public:
+	// First ShortValue of a component's state groups: its first bitmap's group, then one group per further bitmap
+	static constexpr int16_t FirstStateGroup = 200;
+	static constexpr int16_t NextStateGroup = 201;
+
 	static int error(int errorCode, int captionCode);
 	static void default_vsi(visualStruct* visual);
 	static int get_sound_id(int groupIndex);
