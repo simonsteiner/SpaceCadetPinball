@@ -28,11 +28,16 @@ run_tool() { # package, command, args...
 status=0
 
 echo "clang-format on lines changed since $base"
-format_diff=$(run_tool clang-format git-clang-format --diff "$base" -- "${pathspec[@]}" || true)
-if [ -n "$format_diff" ] && [ "$format_diff" != "no modified files to format" ] && [ "$format_diff" != "clang-format did not modify any files" ]; then
-	echo "$format_diff"
+# git-clang-format --diff exits 0 when the lines are formatted, 1 when it prints a diff, 2 on its own errors;
+# anything else (127 for a missing tool) is an error too
+rc=0
+run_tool clang-format git-clang-format --diff "$base" -- "${pathspec[@]}" || rc=$?
+if [ "$rc" -eq 1 ]; then
 	echo "Changed lines are not formatted. Run: uvx --from clang-format==$llvm_version git-clang-format $base"
 	status=1
+elif [ "$rc" -ne 0 ]; then
+	echo "git-clang-format failed with exit code $rc" >&2
+	exit "$rc"
 fi
 
 if [ -n "$build_dir" ]; then
