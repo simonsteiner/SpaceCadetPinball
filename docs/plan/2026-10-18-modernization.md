@@ -1,6 +1,6 @@
 # Modernization plan
 
-Date: 2026-10-18. Status: Phase 0, Phase 1, Phase 2 and Phase 4 done, except the first Pages deployment (Pages isn't enabled yet). Decisions of 2026-10-19 are under [Open decisions](#open-decisions). What is left after the stack merged is in [the follow-ups plan](2026-10-19-follow-ups.md).
+Date: 2026-10-18. Status: Phase 0, Phase 1, Phase 2 and Phase 4 done; the web build is live at https://simonsteiner.github.io/SpaceCadetPinball/. Decisions of 2026-10-19 are under [Open decisions](#open-decisions). What is left after the stack merged is in [the follow-ups plan](2026-10-19-follow-ups.md).
 
 The goal is to bring this fork of k4zmu2a/SpaceCadetPinball up to a current toolchain and a better presentation without changing how the game plays. Phases 1, 2 and 4 are the recommended path. Phase 3 stays parked unless there is a specific reason for it.
 
@@ -149,7 +149,7 @@ Porting the logic to TypeScript/WebGL or Rust would re-create what the decompila
    - **Music:** TinySoundFont plays it with the player's own SoundFont, if they add a `.sf2` or `.sf3` with the game files, or else with `FluidR3Mono_GM.sf3`, which the page offers to download (14.5 MB, MIT). `SDL_SOUNDFONTS` is set in `preRun`, because Emscripten builds the C environment before `main`.
    - Verified in Chromium, served from `localhost`: the 62 files of the Windows data went in through the picker and survived reloads; Play started the game with `opengles2`, filling the 1280×800 viewport at a pixel ratio of 2 with the table at 2×; music loaded with the downloaded SoundFont; F2 and F8 reached the game. Not verified: Firefox and Safari, phones and tablets, touch, gamepads, Full Tilt data, and actually hearing the audio.
 3. **Publish the build without data to GitHub Pages from CI.** `.github/workflows/Pages.yml` builds the `web` preset on pushes to `main`, adds the SoundFont and its licence (pinned SHA-256), runs `tools/check-no-game-data.sh` on the folder and deploys it with `actions/deploy-pages`. The `Build` workflow builds `web` on every pull request and runs the same check on `bin/`.
-   - Pages is not enabled for the repository yet (the API reports no Pages site), so the deploy job can't run until **Settings → Pages → Source: GitHub Actions** is set. Nothing was published.
+   - Pages was enabled on 2026-10-19 (**Settings → Pages → Source: GitHub Actions**). The site at https://simonsteiner.github.io/SpaceCadetPinball/ was first published by the `Pages` run for #24; each push to `main` redeploys it.
 
 Prior art: alula's port (<https://github.com/alula/SpaceCadetPinball>, played at <https://pinball.alula.me>) is five commits on a September 2021 upstream, so only its approach carries over, not its code:
 
