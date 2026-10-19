@@ -1,7 +1,7 @@
 #pragma once
 #include "gdrv.h"
 
-#include <array>
+#include <set>
 
 enum class GameBindings;
 enum class PostEffects : int;
@@ -125,7 +125,7 @@ private:
 	static int CurrentFps;
 	static bool RefreshRateUnknown;
 	// Buttons and triggers held on each gamepad, released when it is unplugged
-	static std::map<SDL_JoystickID, std::vector<int>> GamepadHeld;
+	static std::map<SDL_JoystickID, std::set<int>> GamepadHeld;
 	static std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> TouchBindings;
 
 	static void RenderUi();

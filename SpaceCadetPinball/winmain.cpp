@@ -102,7 +102,7 @@ winmain::DurationMs winmain::UpdateTime;
 winmain::DurationMs winmain::UpdateTimeAccumulator;
 int winmain::CurrentFps = 0;
 bool winmain::RefreshRateUnknown = false;
-std::map<SDL_JoystickID, std::vector<int>> winmain::GamepadHeld{};
+std::map<SDL_JoystickID, std::set<int>> winmain::GamepadHeld{};
 std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> winmain::TouchBindings{};
 
 // Splits the command line at spaces and tabs; double quotes keep an argument with spaces together
@@ -1322,8 +1322,7 @@ void winmain::GamepadTrigger(const SDL_GamepadAxisEvent& event)
 	if (event.axis != SDL_GAMEPAD_AXIS_LEFT_TRIGGER && event.axis != SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
 		return;
 	auto value = event.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ? GamepadLeftTrigger : GamepadRightTrigger;
-	auto& held = GamepadHeld[event.which];
-	auto pressed = std::find(held.begin(), held.end(), value) != held.end();
+	auto pressed = GamepadHeld[event.which].count(value) > 0;
 	if (!pressed && event.value > SDL_JOYSTICK_AXIS_MAX / 2)
 		GamepadInput(event.which, value, true);
 	else if (pressed && event.value < SDL_JOYSTICK_AXIS_MAX / 4)
@@ -1334,17 +1333,14 @@ void winmain::GamepadInput(SDL_JoystickID gamepad, int value, bool down)
 {
 	// Remembers what is held, so unplugging the gamepad can release it
 	auto& held = GamepadHeld[gamepad];
-	auto it = std::find(held.begin(), held.end(), value);
 	if (down)
 	{
-		if (it == held.end())
-			held.push_back(value);
+		held.insert(value);
 		pb::InputDown({InputTypes::GameController, value});
 	}
 	else
 	{
-		if (it != held.end())
-			held.erase(it);
+		held.erase(value);
 		pb::InputUp({InputTypes::GameController, value});
 	}
 }
