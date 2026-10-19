@@ -2303,15 +2303,38 @@ void control::EscapeChuteSinkControl(MessageCode code, TPinballComponent* caller
 	}
 }
 
-// Ends a mission the player completed. Full Tilt awards a replay for it, which
-// is why this isn't part of MissionControl: running out of fuel and
-// BallDrainControl end missions through it too, without one.
-void control::CompleteMission()
+// Ends a mission the player completed, adds its score and shows what it
+// achieved. Full Tilt awards a replay for it, which is why this isn't part of
+// MissionControl: running out of fuel and BallDrainControl end missions
+// through it too, without one. 3D Pinball shows the achievement, then the
+// score; Full Tilt shows the score as a jackpot first, then the achievement.
+void control::CompleteMission(TTextBox* doneBox, Msg doneText, int score, int rank, LPCSTR soundSource)
 {
+	char Buffer[64];
+
 	lite198->MessageField = 1;
 	MissionControl(MessageCode::ControlMissionComplete, nullptr);
 	if (pb::FullTiltMode)
 		table_set_replay(-1.0f);
+
+	struct BoxText
+	{
+		TTextBox* Box;
+		LPCSTR Text;
+	};
+	BoxText first{doneBox, pb::get_rc_string(doneText)};
+	const auto scoreText = pb::get_rc_string(pb::FullTiltMode ? Msg::ControlMissionJackpot : Msg::STRING179);
+	snprintf(Buffer, sizeof Buffer, scoreText, SpecialAddScore(score, true));
+	BoxText second{mission_text_box, Buffer};
+	if (pb::FullTiltMode)
+		std::swap(first, second);
+
+	first.Box->Display(first.Text, 4.0);
+	if (!AddRankProgress(rank))
+	{
+		second.Box->Display(second.Text, 8.0);
+		soundwave9->Play(nullptr, soundSource);
+	}
 }
 
 void control::MissionControl(MessageCode code, TPinballComponent* caller)
@@ -3000,23 +3023,13 @@ void control::AlienMenacePartTwoController(MessageCode code, TPinballComponent* 
 		{
 			lite308->Message(MessageCode::TLightResetAndTurnOff, 0.0);
 			lite311->Message(MessageCode::TLightResetAndTurnOff, 0.0);
-			CompleteMission();
-			mission_text_box->Display(pb::get_rc_string(Msg::STRING231), 4.0);
-			int addedScore = SpecialAddScore(750000, true);
-			snprintf(Buffer, sizeof Buffer, pb::get_rc_string(Msg::STRING179), addedScore);
-			if (!AddRankProgress(7))
-			{
-				mission_text_box->Display(Buffer, 8.0);
-				soundwave9->Play(nullptr, "AlienMenacePartTwoController");
-			}
+			CompleteMission(mission_text_box, Msg::STRING231, 750000, 7, "AlienMenacePartTwoController");
 		}
 	}
 }
 
 void control::BlackHoleThreatController(MessageCode code, TPinballComponent* caller)
 {
-	char Buffer[64];
-
 	if (code == MessageCode::TBumperSetBmpIndex)
 	{
 		if (bump5 == caller)
@@ -3031,15 +3044,7 @@ void control::BlackHoleThreatController(MessageCode code, TPinballComponent* cal
 				lite316->Message(MessageCode::TLightResetAndTurnOff, 0.0);
 			if (lite314->light_on())
 				lite314->Message(MessageCode::TLightResetAndTurnOff, 0.0);
-			CompleteMission();
-			mission_text_box->Display(pb::get_rc_string(Msg::STRING225), 4.0);
-			int addedScore = SpecialAddScore(1000000, true);
-			snprintf(Buffer, sizeof Buffer, pb::get_rc_string(Msg::STRING179), addedScore);
-			if (!AddRankProgress(8))
-			{
-				mission_text_box->Display(Buffer, 8.0);
-				soundwave9->Play(nullptr, "BlackHoleThreatController");
-			}
+			CompleteMission(mission_text_box, Msg::STRING225, 1000000, 8, "BlackHoleThreatController");
 		}
 	}
 	else
@@ -3155,15 +3160,7 @@ void control::BugHuntController(MessageCode code, TPinballComponent* caller)
 			lite310->Message(MessageCode::TLightResetAndTurnOff, 0.0);
 			lite313->Message(MessageCode::TLightResetAndTurnOff, 0.0);
 			lite319->Message(MessageCode::TLightResetAndTurnOff, 0.0);
-			CompleteMission();
-			mission_text_box->Display(pb::get_rc_string(Msg::STRING227), 4.0);
-			int addedScore = SpecialAddScore(750000, true);
-			snprintf(Buffer, sizeof Buffer, pb::get_rc_string(Msg::STRING179), addedScore);
-			if (!AddRankProgress(7))
-			{
-				mission_text_box->Display(Buffer, 8.0);
-				soundwave9->Play(nullptr, "BugHuntController");
-			}
+			CompleteMission(mission_text_box, Msg::STRING227, 750000, 7, "BugHuntController");
 		}
 	}
 }
@@ -3211,8 +3208,6 @@ void control::CosmicPlagueController(MessageCode code, TPinballComponent* caller
 
 void control::CosmicPlaguePartTwoController(MessageCode code, TPinballComponent* caller)
 {
-	char Buffer[64];
-
 	if (code != MessageCode::ControlCollision)
 	{
 		if (code == MessageCode::ControlMissionComplete)
@@ -3229,15 +3224,7 @@ void control::CosmicPlaguePartTwoController(MessageCode code, TPinballComponent*
 	if (roll9 == caller)
 	{
 		lite310->Message(MessageCode::TLightResetAndTurnOff, 0.0);
-		CompleteMission();
-		mission_text_box->Display(pb::get_rc_string(Msg::STRING242), 4.0);
-		int addedScore = SpecialAddScore(1750000, true);
-		snprintf(Buffer, sizeof Buffer, pb::get_rc_string(Msg::STRING179), addedScore);
-		if (!AddRankProgress(11))
-		{
-			mission_text_box->Display(Buffer, 8.0);
-			soundwave9->Play(nullptr, "CosmicPlaguePartTwoController");
-		}
+		CompleteMission(mission_text_box, Msg::STRING242, 1750000, 11, "CosmicPlaguePartTwoController");
 	}
 }
 
@@ -3272,15 +3259,7 @@ void control::DoomsdayMachineController(MessageCode code, TPinballComponent* cal
 		{
 			lite301->Message(MessageCode::TLightResetAndTurnOff, 0.0);
 			lite320->Message(MessageCode::TLightResetAndTurnOff, 0.0);
-			CompleteMission();
-			mission_text_box->Display(pb::get_rc_string(Msg::STRING239), 4.0);
-			int addedScore = SpecialAddScore(1250000, true);
-			snprintf(Buffer, sizeof Buffer, pb::get_rc_string(Msg::STRING179), addedScore);
-			if (!AddRankProgress(9))
-			{
-				mission_text_box->Display(Buffer, 8.0);
-				soundwave9->Play(nullptr, "DoomsdayMachineController");
-			}
+			CompleteMission(mission_text_box, Msg::STRING239, 1250000, 9, "DoomsdayMachineController");
 		}
 	}
 }
@@ -3412,15 +3391,7 @@ void control::LaunchTrainingController(MessageCode code, TPinballComponent* call
 		else
 		{
 			lite317->Message(MessageCode::TLightResetAndTurnOff, 0.0);
-			CompleteMission();
-			mission_text_box->Display(pb::get_rc_string(Msg::STRING212), 4.0);
-			int addedScore = SpecialAddScore(500000, true);
-			snprintf(Buffer, sizeof Buffer, pb::get_rc_string(Msg::STRING179), addedScore);
-			if (!AddRankProgress(6))
-			{
-				mission_text_box->Display(Buffer, 8.0);
-				soundwave9->Play(nullptr, "LaunchTrainingController");
-			}
+			CompleteMission(mission_text_box, Msg::STRING212, 500000, 6, "LaunchTrainingController");
 		}
 	}
 }
@@ -3474,8 +3445,6 @@ void control::MaelstromController(MessageCode code, TPinballComponent* caller)
 
 void control::MaelstromPartEightController(MessageCode code, TPinballComponent* caller)
 {
-	char Buffer[64];
-
 	if (code != MessageCode::ControlCollision)
 	{
 		if (code == MessageCode::ControlMissionComplete)
@@ -3494,15 +3463,7 @@ void control::MaelstromPartEightController(MessageCode code, TPinballComponent* 
 	{
 		lite304->Message(MessageCode::TLightResetAndTurnOff, 0.0);
 		lite130->Message(MessageCode::TLightResetAndTurnOff, 0.0);
-		CompleteMission();
-		int addedScore = SpecialAddScore(5000000, true);
-		snprintf(Buffer, sizeof Buffer, pb::get_rc_string(Msg::STRING179), addedScore);
-		info_text_box->Display(pb::get_rc_string(Msg::STRING149), 4.0);
-		if (!AddRankProgress(18))
-		{
-			mission_text_box->Display(Buffer, 8.0);
-			soundwave9->Play(nullptr, "MaelstromPartEightController");
-		}
+		CompleteMission(info_text_box, Msg::STRING149, 5000000, 18, "MaelstromPartEightController");
 	}
 }
 
@@ -3754,15 +3715,7 @@ void control::PracticeMissionController(MessageCode code, TPinballComponent* cal
 		{
 			lite308->Message(MessageCode::TLightResetAndTurnOff, 0.0);
 			lite311->Message(MessageCode::TLightResetAndTurnOff, 0.0);
-			CompleteMission();
-			mission_text_box->Display(pb::get_rc_string(Msg::STRING209), 4.0);
-			int addedScore = SpecialAddScore(500000, true);
-			snprintf(Buffer, sizeof Buffer, pb::get_rc_string(Msg::STRING179), addedScore);
-			if (!AddRankProgress(6))
-			{
-				mission_text_box->Display(Buffer, 8.0);
-				soundwave9->Play(nullptr, "PracticeMissionController");
-			}
+			CompleteMission(mission_text_box, Msg::STRING209, 500000, 6, "PracticeMissionController");
 		}
 	}
 }
@@ -3816,15 +3769,7 @@ void control::ReconnaissanceController(MessageCode code, TPinballComponent* call
 			lite316->Message(MessageCode::TLightResetAndTurnOff, 0.0);
 			lite320->Message(MessageCode::TLightResetAndTurnOff, 0.0);
 			lite321->Message(MessageCode::TLightResetAndTurnOff, 0.0);
-			CompleteMission();
-			mission_text_box->Display(pb::get_rc_string(Msg::STRING237), 4.0);
-			int addedScore = SpecialAddScore(1250000, true);
-			snprintf(Buffer, sizeof Buffer, pb::get_rc_string(Msg::STRING179), addedScore);
-			if (!AddRankProgress(9))
-			{
-				mission_text_box->Display(Buffer, 8.0);
-				soundwave9->Play(nullptr, "ReconnaissanceController");
-			}
+			CompleteMission(mission_text_box, Msg::STRING237, 1250000, 9, "ReconnaissanceController");
 		}
 	}
 }
@@ -3866,23 +3811,13 @@ void control::ReentryTrainingController(MessageCode code, TPinballComponent* cal
 		else
 		{
 			lite307->Message(MessageCode::TLightResetAndTurnOff, 0.0);
-			CompleteMission();
-			mission_text_box->Display(pb::get_rc_string(Msg::STRING214), 4.0);
-			int addedScore = SpecialAddScore(500000, true);
-			snprintf(Buffer, sizeof Buffer, pb::get_rc_string(Msg::STRING179), addedScore);
-			if (!AddRankProgress(6))
-			{
-				mission_text_box->Display(Buffer, 8.0);
-				soundwave9->Play(nullptr, "ReentryTrainingController");
-			}
+			CompleteMission(mission_text_box, Msg::STRING214, 500000, 6, "ReentryTrainingController");
 		}
 	}
 }
 
 void control::RescueMissionController(MessageCode code, TPinballComponent* caller)
 {
-	char Buffer[64];
-
 	switch (code)
 	{
 	case MessageCode::ControlCollision:
@@ -3906,15 +3841,7 @@ void control::RescueMissionController(MessageCode code, TPinballComponent* calle
 				lite303->Message(MessageCode::TLightResetAndTurnOff, 0.0);
 			if (lite304->light_on())
 				lite304->Message(MessageCode::TLightResetAndTurnOff, 0.0);
-			CompleteMission();
-			mission_text_box->Display(pb::get_rc_string(Msg::STRING230), 4.0);
-			int addedScore = SpecialAddScore(750000, true);
-			snprintf(Buffer, sizeof Buffer, pb::get_rc_string(Msg::STRING179), addedScore);
-			if (!AddRankProgress(7))
-			{
-				mission_text_box->Display(Buffer, 8.0);
-				soundwave9->Play(nullptr, "RescueMissionController");
-			}
+			CompleteMission(mission_text_box, Msg::STRING230, 750000, 7, "RescueMissionController");
 			break;
 		}
 	case MessageCode::ControlMissionComplete:
@@ -3978,15 +3905,7 @@ void control::SatelliteController(MessageCode code, TPinballComponent* caller)
 		else
 		{
 			lite308->Message(MessageCode::TLightResetAndTurnOff, 0.0);
-			CompleteMission();
-			mission_text_box->Display(pb::get_rc_string(Msg::STRING234), 4.0);
-			int addedScore = SpecialAddScore(1250000, true);
-			snprintf(Buffer, sizeof Buffer, pb::get_rc_string(Msg::STRING179), addedScore);
-			if (!AddRankProgress(9))
-			{
-				mission_text_box->Display(Buffer, 8.0);
-				soundwave9->Play(nullptr, "SatelliteController");
-			}
+			CompleteMission(mission_text_box, Msg::STRING234, 1250000, 9, "SatelliteController");
 		}
 	}
 }
@@ -4050,23 +3969,13 @@ void control::ScienceMissionController(MessageCode code, TPinballComponent* call
 			lite303->Message(MessageCode::TLightResetAndTurnOff, 0.0);
 			lite309->Message(MessageCode::TLightResetAndTurnOff, 0.0);
 			lite315->Message(MessageCode::TLightResetAndTurnOff, 0.0);
-			CompleteMission();
-			mission_text_box->Display(pb::get_rc_string(Msg::STRING216), 4.0);
-			int addedScore = SpecialAddScore(750000, true);
-			snprintf(Buffer, sizeof Buffer, pb::get_rc_string(Msg::STRING179), addedScore);
-			if (!AddRankProgress(9))
-			{
-				mission_text_box->Display(Buffer, 8.0);
-				soundwave9->Play(nullptr, "ScienceMissionController");
-			}
+			CompleteMission(mission_text_box, Msg::STRING216, 750000, 9, "ScienceMissionController");
 		}
 	}
 }
 
 void control::SecretMissionGreenController(MessageCode code, TPinballComponent* caller)
 {
-	char Buffer[64];
-
 	if (code != MessageCode::ControlCollision)
 	{
 		if (code == MessageCode::ControlMissionComplete)
@@ -4086,15 +3995,7 @@ void control::SecretMissionGreenController(MessageCode code, TPinballComponent* 
 	}
 	if (sink2 == caller)
 	{
-		CompleteMission();
-		mission_text_box->Display(pb::get_rc_string(Msg::STRING246), 4.0);
-		int addedScore = SpecialAddScore(1500000, true);
-		snprintf(Buffer, sizeof Buffer, pb::get_rc_string(Msg::STRING179), addedScore);
-		if (!AddRankProgress(10))
-		{
-			mission_text_box->Display(Buffer, 8.0);
-			soundwave9->Play(nullptr, "SecretMissionGreenController");
-		}
+		CompleteMission(mission_text_box, Msg::STRING246, 1500000, 10, "SecretMissionGreenController");
 	}
 }
 
@@ -4372,8 +4273,6 @@ void control::SelectMissionController(MessageCode code, TPinballComponent* calle
 
 void control::SpaceRadiationController(MessageCode code, TPinballComponent* caller)
 {
-	char Buffer[64];
-
 	if (code == MessageCode::ControlCollision)
 	{
 		if (target16 == caller
@@ -4394,15 +4293,7 @@ void control::SpaceRadiationController(MessageCode code, TPinballComponent* call
 				|| sink3 == caller)
 			&& lite104->MessageField == 15)
 		{
-			CompleteMission();
-			mission_text_box->Display(pb::get_rc_string(Msg::STRING222), 4.0);
-			int addedScore = SpecialAddScore(1000000, true);
-			snprintf(Buffer, sizeof Buffer, pb::get_rc_string(Msg::STRING179), addedScore);
-			if (!AddRankProgress(8))
-			{
-				mission_text_box->Display(Buffer, 8.0);
-				soundwave9->Play(nullptr, "SpaceRadiationController");
-			}
+			CompleteMission(mission_text_box, Msg::STRING222, 1000000, 8, "SpaceRadiationController");
 		}
 	}
 	else
@@ -4427,8 +4318,6 @@ void control::SpaceRadiationController(MessageCode code, TPinballComponent* call
 
 void control::StrayCometController(MessageCode code, TPinballComponent* caller)
 {
-	char Buffer[64];
-
 	if (code == MessageCode::ControlCollision)
 	{
 		if (target19 == caller
@@ -4446,15 +4335,7 @@ void control::StrayCometController(MessageCode code, TPinballComponent* caller)
 		else if (kickout2 == caller && lite107->MessageField == 15)
 		{
 			lite304->Message(MessageCode::TLightResetAndTurnOff, 0.0);
-			CompleteMission();
-			mission_text_box->Display(pb::get_rc_string(Msg::STRING220), 4.0);
-			int addedScore = SpecialAddScore(1000000, true);
-			snprintf(Buffer, sizeof Buffer, pb::get_rc_string(Msg::STRING179), addedScore);
-			if (!AddRankProgress(8))
-			{
-				mission_text_box->Display(Buffer, 8.0);
-				soundwave9->Play(nullptr, "StrayCometController");
-			}
+			CompleteMission(mission_text_box, Msg::STRING220, 1000000, 8, "StrayCometController");
 		}
 	}
 	else
