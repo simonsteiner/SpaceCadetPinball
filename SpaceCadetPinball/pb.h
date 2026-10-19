@@ -50,6 +50,9 @@ public:
 	static void loose_focus();
 	static void InputUp(GameInput input);
 	static void InputDown(GameInput input);
+	// Bindings match the physical key; the table and replays get the keycode
+	static void KeyUp(SDL_Scancode scancode, SDL_Keycode key);
+	static void KeyDown(SDL_Scancode scancode, SDL_Keycode key);
 	// Input that already is a binding, such as a touch on the table
 	static void BindingDown(GameBindings binding);
 	static void BindingUp(GameBindings binding);

@@ -629,6 +629,23 @@ void pb::InputDown(GameInput input)
 	BindingsDown(input, options::MapGameInput(input));
 }
 
+void pb::KeyUp(SDL_Scancode scancode, SDL_Keycode key)
+{
+	BindingsUp({InputTypes::Keyboard, static_cast<int>(key)}, options::MapGameInput({InputTypes::Keyboard, scancode}));
+}
+
+void pb::KeyDown(SDL_Scancode scancode, SDL_Keycode key)
+{
+	if (options::WaitingForInput())
+	{
+		options::InputDown({InputTypes::Keyboard, scancode});
+		return;
+	}
+
+	BindingsDown({InputTypes::Keyboard, static_cast<int>(key)},
+				 options::MapGameInput({InputTypes::Keyboard, scancode}));
+}
+
 void pb::GameInputDown(GameInput input, const std::vector<GameBindings>& bindings)
 {
 	if (CreditsActive)
