@@ -78,9 +78,9 @@ int TPlunger::Message(MessageCode code, float value)
 		break;
 	case MessageCode::PlungerFeedBall:
 		{
-			auto position = PinballTable->PlungerPosition;
 			// AddBall fails only when all 20 ball slots are in use, which only cheats can cause; try again later
-			if (PinballTable->BallCountInRect(position, PinballTable->CollisionCompOffset * 1.2f) ||
+			if (auto position = PinballTable->PlungerPosition;
+				PinballTable->BallCountInRect(position, PinballTable->CollisionCompOffset * 1.2f) ||
 				!PinballTable->AddBall(position))
 			{
 				timer::set(1.0f, this, BallFeedTimer);

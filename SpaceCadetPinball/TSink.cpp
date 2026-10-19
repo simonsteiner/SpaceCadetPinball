@@ -74,10 +74,12 @@ void TSink::TimerExpired(int timerId, void* caller)
 {
 	auto sink = static_cast<TSink*>(caller);
 	auto table = sink->PinballTable;
-	// AddBall fails only when all 20 ball slots are in use, which only cheats can cause; try again later
+	// Try again later while the spot is busy, or when AddBall fails because all 20 ball slots are in use, which
+	// only cheats can cause
 	TBall* ball = nullptr;
-	if (table->BallCountInRect(sink->BallPosition, table->CollisionCompOffset * 2.0f) ||
-		!(ball = table->AddBall(sink->BallPosition)))
+	if (!table->BallCountInRect(sink->BallPosition, table->CollisionCompOffset * 2.0f))
+		ball = table->AddBall(sink->BallPosition);
+	if (!ball)
 	{
 		timer::set(0.5f, sink, TimerExpired);
 		return;
