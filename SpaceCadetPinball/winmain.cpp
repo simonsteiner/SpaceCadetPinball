@@ -102,7 +102,7 @@ winmain::DurationMs winmain::UpdateTime;
 winmain::DurationMs winmain::UpdateTimeAccumulator;
 int winmain::CurrentFps = 0;
 bool winmain::RefreshRateUnknown = false;
-std::map<SDL_JoystickID, std::array<bool, 2>> winmain::TriggerPressed{};
+std::map<SDL_JoystickID, std::set<int>> winmain::GamepadHeld{};
 std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> winmain::TouchBindings{};
 
 // Splits the command line at spaces and tabs; double quotes keep an argument with spaces together
@@ -1286,15 +1286,21 @@ int winmain::event_handler(const SDL_Event* event)
 		SDL_OpenGamepad(event->gdevice.which);
 		break;
 	case SDL_EVENT_GAMEPAD_REMOVED:
-		TriggerPressed.erase(event->gdevice.which);
+		// SDL normally sends the button up and axis 0 events before the removal; this releases whatever is left
+		if (auto held = GamepadHeld.find(event->gdevice.which); held != GamepadHeld.end())
+		{
+			for (auto value : held->second)
+				pb::InputUp({InputTypes::GameController, value});
+			GamepadHeld.erase(held);
+		}
 		if (auto gamepad = SDL_GetGamepadFromID(event->gdevice.which))
 			SDL_CloseGamepad(gamepad);
 		break;
 	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
-		pb::InputDown({InputTypes::GameController, event->gbutton.button});
+		GamepadInput(event->gbutton.which, event->gbutton.button, true);
 		break;
 	case SDL_EVENT_GAMEPAD_BUTTON_UP:
-		pb::InputUp({InputTypes::GameController, event->gbutton.button});
+		GamepadInput(event->gbutton.which, event->gbutton.button, false);
 		break;
 	case SDL_EVENT_GAMEPAD_AXIS_MOTION:
 		GamepadTrigger(event->gaxis);
@@ -1315,18 +1321,27 @@ void winmain::GamepadTrigger(const SDL_GamepadAxisEvent& event)
 	// A trigger is pressed past half way and released below a quarter, so it doesn't chatter in between
 	if (event.axis != SDL_GAMEPAD_AXIS_LEFT_TRIGGER && event.axis != SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
 		return;
-	auto left = event.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER;
-	auto& pressed = TriggerPressed[event.which][left ? 0 : 1];
-	GameInput input{InputTypes::GameController, left ? GamepadLeftTrigger : GamepadRightTrigger};
+	auto value = event.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ? GamepadLeftTrigger : GamepadRightTrigger;
+	auto pressed = GamepadHeld[event.which].count(value) > 0;
 	if (!pressed && event.value > SDL_JOYSTICK_AXIS_MAX / 2)
-	{
-		pressed = true;
-		pb::InputDown(input);
-	}
+		GamepadInput(event.which, value, true);
 	else if (pressed && event.value < SDL_JOYSTICK_AXIS_MAX / 4)
+		GamepadInput(event.which, value, false);
+}
+
+void winmain::GamepadInput(SDL_JoystickID gamepad, int value, bool down)
+{
+	// Remembers what is held, so unplugging the gamepad can release it
+	auto& held = GamepadHeld[gamepad];
+	if (down)
 	{
-		pressed = false;
-		pb::InputUp(input);
+		held.insert(value);
+		pb::InputDown({InputTypes::GameController, value});
+	}
+	else
+	{
+		held.erase(value);
+		pb::InputUp({InputTypes::GameController, value});
 	}
 }
 
