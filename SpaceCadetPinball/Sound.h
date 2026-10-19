@@ -24,6 +24,9 @@ public:
 	static void FreeSound(MIX_Audio* wave);
 	static void SetChannels(int channels);
 	static void SetVolume(int volume);
+	// Linear up to the knee, then a tanh curve that keeps the slope continuous and approaches the ceiling
+	static float SoftClip(float sample, float knee, float ceiling);
+
 private:
 	static int num_channels;
 	static bool enabled_flag;

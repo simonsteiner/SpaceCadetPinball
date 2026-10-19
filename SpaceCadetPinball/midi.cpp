@@ -4,6 +4,7 @@
 
 #include "options.h"
 #include "pb.h"
+#include "Sound.h"
 
 #include "tml.h"
 #include "tsf.h"
@@ -97,16 +98,6 @@ namespace
 		}
 	}
 
-	// Linear up to the knee, then a tanh curve that keeps the slope continuous and approaches the ceiling
-	float SoftClip(float sample)
-	{
-		auto level = std::fabs(sample);
-		if (level <= SoftClipKnee)
-			return sample;
-		constexpr auto range = SoftClipCeiling - SoftClipKnee;
-		return std::copysign(SoftClipKnee + range * std::tanh((level - SoftClipKnee) / range), sample);
-	}
-
 	void SDLCALL RenderSynth(void* userdata, SDL_AudioStream* stream, int additionalAmount, int totalAmount)
 	{
 		if (!SynthSong)
@@ -130,7 +121,7 @@ namespace
 
 			tsf_render_float(Synth, buffer, block, 0);
 			for (auto i = 0; i < block * 2; i++)
-				buffer[i] = SoftClip(buffer[i]);
+				buffer[i] = Sound::SoftClip(buffer[i], SoftClipKnee, SoftClipCeiling);
 			SDL_PutAudioStreamData(stream, buffer, block * static_cast<int>(sizeof buffer[0] * 2));
 			frames -= block;
 		}
