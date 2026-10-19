@@ -102,7 +102,7 @@ winmain::DurationMs winmain::UpdateTime;
 winmain::DurationMs winmain::UpdateTimeAccumulator;
 int winmain::CurrentFps = 0;
 bool winmain::RefreshRateUnknown = false;
-std::map<SDL_JoystickID, std::array<bool, 2>> winmain::TriggerPressed{};
+std::map<SDL_JoystickID, std::set<int>> winmain::GamepadHeld{};
 std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> winmain::TouchBindings{};
 
 // Splits the command line at spaces and tabs; double quotes keep an argument with spaces together
@@ -197,7 +197,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		return 1;
 	}
 
-	auto prefPath = SDL_GetPrefPath("", "SpaceCadetPinball");
+	// Owned, so the early returns below free it too; SDL owns basePath
+	const std::unique_ptr<char, decltype(&SDL_free)> prefPathOwner{SDL_GetPrefPath("", "SpaceCadetPinball"), &SDL_free};
+	auto prefPath = prefPathOwner.get();
 	auto basePath = SDL_GetBasePath();
 
 	// SDL mixer init
@@ -315,6 +317,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		};
 		searchPaths.insert(searchPaths.end(), std::begin(PlatformDataPaths), std::end(PlatformDataPaths));
 		pb::SelectDatFile(searchPaths);
+		SDL_SetWindowTitle(window, pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_Caption : Msg::STRING139));
 
 		// Second step: run updates that depend on .DAT file selection
 		options::InitSecondary();
@@ -428,7 +431,6 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		MIX_Quit();
 	}
 
-	SDL_free(prefPath);
 	PostEffect::Uninit();
 	SDL_DestroyRenderer(Renderer);
 	SDL_DestroyWindow(window);
@@ -1030,7 +1032,7 @@ void winmain::RenderUi()
 			}
 			ImGui::Separator();
 
-			if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_About_Pinball)))
+			if (ImGui::MenuItem(pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_About : Msg::Menu1_About_Pinball)))
 			{
 				pause(false);
 				ShowAboutDialog = true;
@@ -1151,13 +1153,13 @@ int winmain::event_handler(const SDL_Event* event)
 		return_value = 0;
 		return 0;
 	case SDL_EVENT_KEY_UP:
-		pb::InputUp({InputTypes::Keyboard, static_cast<int>(event->key.key)});
+		pb::KeyUp(event->key.scancode, event->key.key);
 		break;
 	case SDL_EVENT_KEY_DOWN:
 		if (event->key.repeat)
 			break;
 
-		pb::InputDown({InputTypes::Keyboard, static_cast<int>(event->key.key)});
+		pb::KeyDown(event->key.scancode, event->key.key);
 		if (!pb::cheat_mode)
 			break;
 
@@ -1286,15 +1288,21 @@ int winmain::event_handler(const SDL_Event* event)
 		SDL_OpenGamepad(event->gdevice.which);
 		break;
 	case SDL_EVENT_GAMEPAD_REMOVED:
-		TriggerPressed.erase(event->gdevice.which);
+		// SDL normally sends the button up and axis 0 events before the removal; this releases whatever is left
+		if (auto held = GamepadHeld.find(event->gdevice.which); held != GamepadHeld.end())
+		{
+			for (auto value : held->second)
+				pb::InputUp({InputTypes::GameController, value});
+			GamepadHeld.erase(held);
+		}
 		if (auto gamepad = SDL_GetGamepadFromID(event->gdevice.which))
 			SDL_CloseGamepad(gamepad);
 		break;
 	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
-		pb::InputDown({InputTypes::GameController, event->gbutton.button});
+		GamepadInput(event->gbutton.which, event->gbutton.button, true);
 		break;
 	case SDL_EVENT_GAMEPAD_BUTTON_UP:
-		pb::InputUp({InputTypes::GameController, event->gbutton.button});
+		GamepadInput(event->gbutton.which, event->gbutton.button, false);
 		break;
 	case SDL_EVENT_GAMEPAD_AXIS_MOTION:
 		GamepadTrigger(event->gaxis);
@@ -1315,18 +1323,27 @@ void winmain::GamepadTrigger(const SDL_GamepadAxisEvent& event)
 	// A trigger is pressed past half way and released below a quarter, so it doesn't chatter in between
 	if (event.axis != SDL_GAMEPAD_AXIS_LEFT_TRIGGER && event.axis != SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
 		return;
-	auto left = event.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER;
-	auto& pressed = TriggerPressed[event.which][left ? 0 : 1];
-	GameInput input{InputTypes::GameController, left ? GamepadLeftTrigger : GamepadRightTrigger};
+	auto value = event.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ? GamepadLeftTrigger : GamepadRightTrigger;
+	auto pressed = GamepadHeld[event.which].count(value) > 0;
 	if (!pressed && event.value > SDL_JOYSTICK_AXIS_MAX / 2)
-	{
-		pressed = true;
-		pb::InputDown(input);
-	}
+		GamepadInput(event.which, value, true);
 	else if (pressed && event.value < SDL_JOYSTICK_AXIS_MAX / 4)
+		GamepadInput(event.which, value, false);
+}
+
+void winmain::GamepadInput(SDL_JoystickID gamepad, int value, bool down)
+{
+	// Remembers what is held, so unplugging the gamepad can release it
+	auto& held = GamepadHeld[gamepad];
+	if (down)
 	{
-		pressed = false;
-		pb::InputUp(input);
+		held.insert(value);
+		pb::InputDown({InputTypes::GameController, value});
+	}
+	else
+	{
+		held.erase(value);
+		pb::InputUp({InputTypes::GameController, value});
 	}
 }
 
@@ -1476,21 +1493,22 @@ void winmain::memalloc_failure()
 
 void winmain::a_dialog()
 {
+	auto aboutTitle = pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_About : Msg::STRING204);
 	if (ShowAboutDialog == true)
 	{
 		ShowAboutDialog = false;
-		ImGui::OpenPopup(pb::get_rc_string(Msg::STRING204));
+		ImGui::OpenPopup(aboutTitle);
 	}
 
 	bool unused_open = true;
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2{ 600, 300 });
-	if (ImGui::BeginPopupModal(pb::get_rc_string(Msg::STRING204), &unused_open, ImGuiWindowFlags_None))
+	if (ImGui::BeginPopupModal(aboutTitle, &unused_open, ImGuiWindowFlags_None))
 	{
 		if (ImGui::BeginTabBar("AboutTabBar", ImGuiTabBarFlags_None))
 		{
 			if (ImGui::BeginTabItem("3DPB"))
 			{
-				ImGui::TextUnformatted(pb::get_rc_string(Msg::STRING139));
+				ImGui::TextUnformatted(pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_Caption : Msg::STRING139));
 				ImGui::TextUnformatted("Original game by Cinematronics, Microsoft");
 				ImGui::Separator();
 

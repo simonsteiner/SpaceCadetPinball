@@ -111,6 +111,8 @@ public:
 	static constexpr int MaxSoundChannels = 32, MinSoundChannels = 1, DefSoundChannels = 8;
 	// SDL2_mixer's MIX_MAX_VOLUME, kept so that saved volumes keep their meaning
 	static constexpr int MaxVolume = 128, MinVolume = 0, DefVolume = MaxVolume;
+	// Key Bindings Version: keyboard bindings are scancodes; settings without it hold keycodes
+	static constexpr int KeyBindingsScancodes = 1;
 	static struct optionsStruct Options;
 	static std::vector<struct OptionBase*> AllOptions;
 
@@ -123,6 +125,15 @@ public:
 	static void SetSetting(const std::string& key, const std::string& value);
 	// Unlike GetSetting, doesn't add the key when it is missing
 	static bool HasSetting(const std::string& key);
+	static void RemoveSetting(const std::string& key);
+	// Settings kept for each table start with this: none for 3D Pinball, which keeps the original keys
+	static const char* TableKeyPrefix();
+	static constexpr const char* SpaceCadetKeyPrefix = "";
+	static constexpr const char* FullTiltKeyPrefix = "FullTilt.";
+	static constexpr const char* FullTiltDemoKeyPrefix = "FullTiltDemo.";
+	static constexpr std::array TableKeyPrefixes{SpaceCadetKeyPrefix, FullTiltKeyPrefix, FullTiltDemoKeyPrefix};
+	// TableKeyPrefix, or none while the table hasn't saved its own value for key yet
+	static std::string TableKeyPrefixToRead(const std::string& key);
 	static int get_int(LPCSTR lpValueName, int defaultValue);
 	static void set_int(LPCSTR lpValueName, int data);
 	static float get_float(LPCSTR lpValueName, float defaultValue);
@@ -137,8 +148,11 @@ public:
 	static std::vector<GameBindings> MapGameInput(GameInput key);
 	static void ResetAllOptions();
 private:
+	friend struct ControlOption;
+
 	static std::unordered_map<std::string, std::string> settings;
 	static bool ShowDialog;
+	static bool MigrateKeycodes;
 	static GameInput* ControlWaitingForInput;
 
 	static void MyUserData_ReadLine(ImGuiContext* ctx, ImGuiSettingsHandler* handler, void* entry, const char* line);
@@ -190,6 +204,20 @@ struct IntOption : OptionBaseT<int>
 	using OptionBaseT::operator=;
 };
 
+// An int kept for each table, under the table's key prefix
+struct TableIntOption : IntOption
+{
+	TableIntOption(LPCSTR name, int defaultValue) : IntOption(name, defaultValue)
+	{
+	}
+
+	// Loaded again once the table is known (options::InitSecondary)
+	void Load() override;
+	void Save() const override;
+	void Reset() override;
+	using OptionBaseT::operator=;
+};
+
 struct StringOption : OptionBaseT<std::string>
 {
 	StringOption(LPCSTR name, std::string defaultValue) : OptionBaseT(name, std::move(defaultValue))
@@ -236,16 +264,8 @@ struct ControlOption : OptionBase
 	{
 	}
 
-	void Load() override
-	{
-		for (auto i = 0u; i <= 2; i++)
-		{
-			auto name = std::string{ Name } + " " + std::to_string(i);
-			Inputs[i].Type = static_cast<InputTypes>(options::get_int((name + " type").c_str(),
-				static_cast<int>(Defaults[i].Type)));
-			Inputs[i].Value = options::get_int((name + " input").c_str(), Defaults[i].Value);
-		}
-	}
+	// Converts saved keycodes to scancodes while options::InitPrimary migrates old settings
+	void Load() override;
 
 	void Save() const override
 	{
@@ -273,7 +293,7 @@ struct optionsStruct
 	BoolOption Music;
 	BoolOption FullScreen;
 	IntOption Players;
-	IntOption Resolution;
+	TableIntOption Resolution;
 	FloatOption UIScale;
 	BoolOption UniformScaling;
 	BoolOption LinearFiltering;
@@ -308,4 +328,5 @@ struct optionsStruct
 	BoolOption MatchRefreshRate;
 	BoolOption UpscaledArt;
 	IntOption UpscaleFactor;
+	IntOption KeyBindingsVersion;
 };

@@ -12,6 +12,16 @@ MIX_Mixer* Sound::Mixer = nullptr;
 // Sound effect tracks carry this tag, so that pausing them leaves the music alone
 static constexpr const char* SoundTag = "sound";
 
+// Sound effects are full scale, so a loud effect over the music or another effect goes past full scale; the final mix
+// passes through a soft clipper instead of being cut off flat. Below the knee it passes unchanged.
+static constexpr float MixClipKnee = 0.9f, MixClipCeiling = 0.999f;
+
+static void SDLCALL SoftClipMix(void*, MIX_Mixer*, const SDL_AudioSpec*, float* pcm, int samples)
+{
+	for (auto i = 0; i < samples; i++)
+		pcm[i] = Sound::SoftClip(pcm[i], MixClipKnee, MixClipCeiling);
+}
+
 // The gains that SDL2_mixer's Mix_SetPosition gave a sound with equal channels on a stereo device:
 // the angle attenuates the side facing away from the sound, and the distance attenuates both.
 static MIX_StereoGains PositionGains(int angle, int distance)
@@ -43,6 +53,8 @@ void Sound::Init(MIX_Mixer* mixer, int channels, bool enableFlag, int volume)
 {
 	Mixer = mixer;
 	Volume = volume;
+	if (Mixer)
+		MIX_SetPostMixCallback(Mixer, SoftClipMix, nullptr);
 	SetChannels(channels);
 	Enable(enableFlag);
 }
@@ -221,4 +233,13 @@ void Sound::SetVolume(int volume)
 		if (channel.Track)
 			MIX_SetTrackGain(channel.Track, static_cast<float>(volume) / options::MaxVolume);
 	}
+}
+
+float Sound::SoftClip(float sample, float knee, float ceiling)
+{
+	auto level = std::fabs(sample);
+	if (level <= knee)
+		return sample;
+	auto range = ceiling - knee;
+	return std::copysign(knee + range * std::tanh((level - knee) / range), sample);
 }

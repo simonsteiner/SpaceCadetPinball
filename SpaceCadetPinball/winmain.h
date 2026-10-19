@@ -1,7 +1,7 @@
 #pragma once
 #include "gdrv.h"
 
-#include <array>
+#include <set>
 
 enum class GameBindings;
 enum class PostEffects : int;
@@ -94,6 +94,7 @@ public:
 	static bool CreateRenderer(bool gpu);
 	static void SetPostProcessing(PostEffects effect);
 	static void GamepadTrigger(const SDL_GamepadAxisEvent& event);
+	static void GamepadInput(SDL_JoystickID gamepad, int value, bool down);
 	static void TouchInput(const SDL_TouchFingerEvent& event);
 	static float ExpectedMenuHeight();
 
@@ -123,8 +124,8 @@ private:
 	static DurationMs UpdateTime, UpdateTimeAccumulator;
 	static int CurrentFps;
 	static bool RefreshRateUnknown;
-	// Left and right trigger state of each gamepad
-	static std::map<SDL_JoystickID, std::array<bool, 2>> TriggerPressed;
+	// Buttons and triggers held on each gamepad, released when it is unplugged
+	static std::map<SDL_JoystickID, std::set<int>> GamepadHeld;
 	static std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> TouchBindings;
 
 	static void RenderUi();

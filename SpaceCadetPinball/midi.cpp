@@ -4,6 +4,7 @@
 
 #include "options.h"
 #include "pb.h"
+#include "Sound.h"
 
 #include "tml.h"
 #include "tsf.h"
@@ -57,8 +58,12 @@ namespace
 	constexpr int SynthRate = 44100;
 	// Frames per render call; TinySoundFont updates its effects every 64 frames
 	constexpr int SynthBlock = 64;
-	// At 0 dB the theme's loud chords go past full scale with FluidR3 and clip; -6 dB keeps them at about -1 dBFS
-	constexpr float SynthGainDb = -6.0f;
+	// At -2 dB the theme's loudest chords reach +3 dBFS with FluidR3, so SoftClip limits them. 3D Pinball's theme
+	// spends under 1% of its samples above the knee; below it the music passes unchanged.
+	constexpr float SynthGainDb = -2.0f;
+	constexpr float SoftClipKnee = 0.7f;
+	// -1 dBFS, about the theme's peak at the old -6 dB, which leaves sound effects the same headroom
+	constexpr float SoftClipCeiling = 0.891f;
 	// Voices are allocated once at init, so the audio thread never reallocates them. The theme needs at most 49 with
 	// FluidR3; past the limit, a new note takes the voice furthest into its release.
 	constexpr int SynthMaxVoices = 64;
@@ -115,6 +120,8 @@ namespace
 			}
 
 			tsf_render_float(Synth, buffer, block, 0);
+			for (auto i = 0; i < block * 2; i++)
+				buffer[i] = Sound::SoftClip(buffer[i], SoftClipKnee, SoftClipCeiling);
 			SDL_PutAudioStreamData(stream, buffer, block * static_cast<int>(sizeof buffer[0] * 2));
 			frames -= block;
 		}
