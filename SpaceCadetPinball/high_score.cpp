@@ -27,6 +27,12 @@ int high_score::read()
 	char Buffer[40];
 	auto prefix = ScoreKeyPrefix();
 
+	// Before tables had their own keys, every table saved under the unprefixed ones.
+	// A table that never saved its own scores starts from those; write() then saves them under its prefix.
+	snprintf(Buffer, sizeof Buffer, "%sVerification", prefix);
+	if (*prefix && !options::HasSetting(Buffer) && options::HasSetting("Verification"))
+		prefix = "";
+
 	int checkSum = 0;
 	clear_table();
 	for (auto position = 0; position < 5; ++position)

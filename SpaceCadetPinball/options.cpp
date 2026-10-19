@@ -643,6 +643,11 @@ const std::string& options::GetSetting(const std::string& key, const std::string
 	return setting->second;
 }
 
+bool options::HasSetting(const std::string& key)
+{
+	return settings.find(key) != settings.end();
+}
+
 void options::SetSetting(const std::string& key, const std::string& value)
 {
 	settings[key] = value;
