@@ -725,7 +725,11 @@ void render::SetUpscale(int factor)
 	HiScale = 0;
 	SidebarCopy.clear();
 	if (factor < Upscale::MinFactor || !vscreen)
+	{
+		// Off, the upscaled art is freed too; turning it back on makes it again
+		Upscale::Clear();
 		return;
+	}
 
 	Upscale::Init(factor);
 	HiScale = factor;
