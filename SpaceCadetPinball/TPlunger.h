@@ -10,6 +10,7 @@ public:
 	void Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
 	               TEdgeSegment* edge) override;
 	int Message(MessageCode code, float value) override;
+	bool CanStartPull() const;
 
 	static void BallFeedTimer(int timerId, void* caller);
 	static void PullbackTimer(int timerId, void* caller);
