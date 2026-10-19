@@ -108,9 +108,11 @@ int fullscrn::GetMaxResolution()
 
 void fullscrn::window_size_changed()
 {
+	// The renderer works in pixels, ImGui and the menu height in window coordinates
 	int width, height;
 	SDL_GetRenderOutputSize(winmain::Renderer, &width, &height);
-	int menuHeight = options::Options.ShowMenu ? winmain::MainMenuHeight : 0;
+	int menuHeight =
+		options::Options.ShowMenu ? static_cast<int>(std::ceil(winmain::MainMenuHeight * PixelDensity())) : 0;
 	height -= menuHeight;
 	auto res = &resolution_array[resolution];
 	ScaleX = static_cast<float>(width) / res->TableWidth;
@@ -141,20 +143,68 @@ void fullscrn::window_size_changed()
 	};
 }
 
+void fullscrn::ResetWindowSize()
+{
+	// The largest whole multiple of the table, up to the display's scale, that fits on the display.
+	// A window that size shows the table at about the size the original had at 96 DPI, without blurring it.
+	auto res = &resolution_array[resolution];
+	auto density = PixelDensity();
+	auto menuHeight = options::Options.ShowMenu ? winmain::ExpectedMenuHeight() : 0.0f;
+
+	SDL_Rect usable{};
+	auto display = SDL_GetDisplayForWindow(winmain::MainWindow);
+	if (!display || !SDL_GetDisplayUsableBounds(display, &usable))
+	{
+		SDL_ClearError();
+		usable = {0, 0, res->TableWidth, res->TableHeight};
+	}
+
+	auto factor = std::max(1, static_cast<int>(std::lround(SDL_GetWindowDisplayScale(winmain::MainWindow))));
+	for (; factor > 1; factor--)
+	{
+		auto width = res->TableWidth * factor / density;
+		auto height = res->TableHeight * factor / density + menuHeight;
+		if (width <= usable.w && height <= usable.h)
+			break;
+	}
+
+	SDL_SetWindowSize(winmain::MainWindow, static_cast<int>(std::ceil(res->TableWidth * factor / density)),
+					  static_cast<int>(std::ceil(res->TableHeight * factor / density + menuHeight)));
+}
+
+float fullscrn::PixelDensity()
+{
+	// Pixels per window coordinate: 2 on a Retina display, 1 where windows are sized in pixels
+	auto density = SDL_GetWindowPixelDensity(winmain::MainWindow);
+	return density > 0 ? density : 1.0f;
+}
+
+float fullscrn::ContentScale()
+{
+	// How much larger than at 96 DPI the user wants things, in window coordinates.
+	// On macOS the pixel density already covers it; on Windows and X11 it is the display's scale setting.
+	auto scale = SDL_GetWindowDisplayScale(winmain::MainWindow) / PixelDensity();
+	return scale > 0 ? scale : 1.0f;
+}
+
 SDL_Rect fullscrn::GetScreenRectFromPinballRect(SDL_Rect rect)
 {
+	// In window coordinates, as ImGui uses them
+	auto density = PixelDensity();
+	auto& dst = render::DestinationRect;
 	SDL_Rect converted_rect;
 
-	converted_rect.x = rect.x * render::DestinationRect.w / render::vscreen->Width + render::DestinationRect.x;
-	converted_rect.y = rect.y * render::DestinationRect.h / render::vscreen->Height + render::DestinationRect.y;
+	converted_rect.x = static_cast<int>((rect.x * dst.w / render::vscreen->Width + dst.x) / density);
+	converted_rect.y = static_cast<int>((rect.y * dst.h / render::vscreen->Height + dst.y) / density);
 
-	converted_rect.w = rect.w * render::DestinationRect.w / render::vscreen->Width;
-	converted_rect.h = rect.h * render::DestinationRect.h / render::vscreen->Height;
+	converted_rect.w = static_cast<int>(rect.w * dst.w / render::vscreen->Width / density);
+	converted_rect.h = static_cast<int>(rect.h * dst.h / render::vscreen->Height / density);
 
 	return converted_rect;
 }
 
 float fullscrn::GetScreenToPinballRatio()
 {
-	return (float) render::DestinationRect.w / render::vscreen->Width;
+	// Window coordinates per table pixel
+	return static_cast<float>(render::DestinationRect.w) / render::vscreen->Width / PixelDensity();
 }

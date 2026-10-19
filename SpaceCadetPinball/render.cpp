@@ -19,6 +19,13 @@ gdrv_bitmap8 *render::vscreen, *render::background_bitmap, *render::ball_bitmap[
 zmap_header_type* render::zscreen;
 SDL_Rect render::DestinationRect{};
 
+#if SDL_VERSION_ATLEAST(3, 4, 0)
+// The same as nearest at whole multiples; at other scales it keeps every table pixel the same size
+static constexpr SDL_ScaleMode UnfilteredScaleMode = SDL_SCALEMODE_PIXELART;
+#else
+static constexpr SDL_ScaleMode UnfilteredScaleMode = SDL_SCALEMODE_NEAREST;
+#endif
+
 render_sprite::render_sprite(VisualTypes visualType, gdrv_bitmap8* bmp, zmap_header_type* zMap,
 	int xPosition, int yPosition, rectangle_type* boundingRect)
 {
@@ -139,8 +146,8 @@ void render::uninit()
 
 void render::recreate_screen_texture()
 {
-	vscreen->CreateTexture(options::Options.LinearFiltering ? SDL_SCALEMODE_LINEAR : SDL_SCALEMODE_NEAREST,
-	                       SDL_TEXTUREACCESS_STREAMING);
+	vscreen->CreateTexture(options::Options.LinearFiltering ? SDL_SCALEMODE_LINEAR : UnfilteredScaleMode,
+						   SDL_TEXTUREACCESS_STREAMING);
 }
 
 void render::update()

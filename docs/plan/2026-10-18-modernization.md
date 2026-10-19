@@ -89,7 +89,14 @@ Done when all presets build in CI and the determinism harness passes against the
 
 ## Phase 2: modern presentation
 
-1. Integer scaling with an optional "fit" mode, HiDPI-correct window sizing, and proper full screen on modern displays.
+1. Done: **Integer scaling with an optional "fit" mode, HiDPI-correct window sizing, and proper full screen on modern displays.**
+   - The window is created with `SDL_WINDOW_HIGH_PIXEL_DENSITY`, so on Retina and Wayland's scaled outputs the table renders at the full pixel resolution. The renderer works in pixels and ImGui in window coordinates; `fullscrn::PixelDensity` converts between them for the menu height and the text box windows.
+   - The UI follows the display's scale (`SDL_GetWindowDisplayScale` over the pixel density): `style.ScaleAllSizes` and `style.FontScaleDpi`, reapplied from an unscaled copy of the style when the window moves to another display. UI Scale stays `FontScaleMain` on top of it. The ImGui text boxes divide the DPI scale back out, because their size follows the table.
+   - The first window is the largest whole multiple of the table, up to the rounded display scale, that fits the display's usable area, plus the menu bar, whose height is computed from the font before the first frame. That is 600×435 at 100 % and 1200×870 at 200 %, so integer scaling fills it exactly.
+   - Integer Scaling is now on and Linear Filtering off by default; saved settings keep their values. With filtering off, the table texture uses `SDL_SCALEMODE_PIXELART` (SDL 3.4 and newer, nearest before), which matches nearest at whole multiples and keeps table pixels even in fit mode. A renderer without it falls back to nearest.
+   - Full screen was already SDL3's desktop full screen (borderless at the desktop's resolution, no mode change), so it needed no change.
+   - Verified with GCC 15: under Xvfb, a fresh start opens at 600×435; with `SDL_VIDEO_X11_SCALING_FACTOR=2` it opens at 1200×870 with the table at exactly 2× and the menus at 2×. On the WSLg desktop (3840×2160), `-fullscreen` and F4 fill the screen with the table at 5×. Replays match; scaling is drawing only.
+   - Not verified: a real pixel density above 1 (macOS Retina, Wayland scaling), Windows' display scaling, and moving the window between displays with different scales. WSLg reports a scale of 1 on its 4K display, so the windowed default there is 600×435.
 2. Widescreen layout: use the space beside the table for the score panel or artwork instead of black bars.
 3. Optional post-processing (CRT, xBR-style upscaling) using SDL3's GPU API, off by default.
 4. Gamepad support through the SDL3 gamepad API, including rumble on flipper and bumper hits. Touch controls, which the web build on tablets needs too.

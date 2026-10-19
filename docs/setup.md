@@ -132,6 +132,18 @@ tools/lint-changed.sh main build/lint
 
 Without the build folder argument, the script checks the formatting only. CI installs the same LLVM version from `tools/llvm-requirements.txt`, pinned with hashes; bump it there and in the script together.
 
+## Display
+
+The game opens its window at the largest whole multiple of the table that matches the display's scale setting and fits on the display: 600×416 plus the menu at 100 %, twice that at 200 %, and so on. On a Retina or other high-density display it draws at the full pixel resolution. The menus and dialogs follow the display's scale, and Options → Graphics → UI Scale works on top of that.
+
+Options → Graphics:
+
+- **Integer Scaling** (on by default): the table is drawn at a whole multiple of its size, so every pixel of the original art becomes an even block. Off, it fills the window ("fit"), and each table pixel is still drawn the same size (SDL's pixel-art scaling, with SDL 3.4 or newer).
+- **Uniform Scaling** (on by default): keeps the table's proportions. Off, it stretches to the window.
+- **Linear Filtering** (off by default): smooths the table instead of keeping its pixels sharp.
+
+Full screen (F4 or `-fullscreen`) uses the desktop's resolution, without a mode change. Settings saved by an earlier version keep their values, so a player who had Integer Scaling off or Linear Filtering on keeps that.
+
 ## Music
 
 SDL3_mixer can't be relied on for the MIDI music: it has no native MIDI, and some distributions build it without MIDI. The game picks the first of these that works when it starts:

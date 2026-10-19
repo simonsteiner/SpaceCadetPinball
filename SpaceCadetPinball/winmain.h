@@ -87,6 +87,9 @@ public:
 	static void Restart();
 	static void UpdateFrameRate();
 	static void HandleGameBinding(GameBindings binding, bool shortcut);
+	static void ApplyDisplayScale();
+	static float ExpectedMenuHeight();
+
 private:
 	static int return_value;
 	static int mouse_down, last_mouse_x, last_mouse_y;
@@ -107,6 +110,7 @@ private:
 	static unsigned gfrOffset;
 	static float gfrWindow;
 	static int CursorIdleCounter;
+	static std::unique_ptr<ImGuiStyle> BaseStyle;
 
 	static void RenderUi();
 	static void RenderFrameTimeDialog();

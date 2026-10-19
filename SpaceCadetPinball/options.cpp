@@ -18,6 +18,8 @@ bool options::ShowDialog = false;
 GameInput* options::ControlWaitingForInput = nullptr;
 std::vector<OptionBase*> options::AllOptions{};
 
+// The settings table is aligned by hand
+// clang-format off
 optionsStruct options::Options
 {
 	{
@@ -127,7 +129,7 @@ optionsStruct options::Options
 	{"Screen Resolution", -1},
 	{"UI Scale", 1.0f},
 	{"Uniform scaling", true},
-	{"Linear Filtering", true},
+	{"Linear Filtering", false},
 	{"Frames Per Second", DefFps},
 	{"Updates Per Second", DefUps},
 	{"ShowMenu", true},
@@ -135,7 +137,7 @@ optionsStruct options::Options
 	{"Sound Channels", DefSoundChannels},
 	{"HybridSleep", false},
 	{"Prefer 3DPB Game Data", false},
-	{"Integer Scaling", false},
+	{"Integer Scaling", true},
 	{"Sound Volume", DefVolume},
 	{"Music Volume", DefVolume},
 	{"Stereo Sound Effects", false},
@@ -153,6 +155,7 @@ optionsStruct options::Options
 	{"Language", translations::GetCurrentLanguage()->ShortName},
 	{"Hide Cursor", false},
 };
+// clang-format on
 
 void options::InitPrimary()
 {

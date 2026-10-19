@@ -58,6 +58,7 @@ optionsStruct& winmain::Options = options::Options;
 winmain::DurationMs winmain::SpinThreshold = DurationMs(0.005);
 WelfordState winmain::SleepState{};
 int winmain::CursorIdleCounter = 0;
+std::unique_ptr<ImGuiStyle> winmain::BaseStyle{};
 
 // Splits the command line at spaces and tabs; double quotes keep an argument with spaces together
 static std::vector<std::string> SplitArgs(LPCSTR cmdLine)
@@ -135,12 +136,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	pb::quickFlag = HasArg(args, "-quick");
 
 	// SDL window
-	SDL_Window* window = SDL_CreateWindow
-	(
-		pb::get_rc_string(Msg::STRING139),
-		800, 556,
-		SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE
-	);
+	SDL_Window* window = SDL_CreateWindow(pb::get_rc_string(Msg::STRING139), 800, 556,
+										  SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 	MainWindow = window;
 	if (!window)
 	{
@@ -248,6 +245,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		}
 		ImGui_ImplSDLRenderer3_Init(renderer);
 		ImGui::StyleColorsDark();
+		BaseStyle = std::make_unique<ImGuiStyle>(ImGui::GetStyle());
+		ApplyDisplayScale();
 
 		ImGui_ImplSDL3_InitForSDLRenderer(window, Renderer);
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
@@ -317,10 +316,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		}
 
 		if (!Options.FullScreen)
-		{
-			auto resInfo = &fullscrn::resolution_array[fullscrn::GetResolution()];
-			SDL_SetWindowSize(MainWindow, resInfo->TableWidth, resInfo->TableHeight);
-		}
+			fullscrn::ResetWindowSize();
 		if (replay::IsPlaying())
 		{
 			// The recording holds the command that started the game
@@ -1092,6 +1088,10 @@ int winmain::event_handler(const SDL_Event* event)
 		has_focus = false;
 		pb::loose_focus();
 		break;
+	case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
+		ApplyDisplayScale();
+		fullscrn::window_size_changed();
+		break;
 	case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
 	case SDL_EVENT_WINDOW_RESIZED:
 		fullscrn::window_size_changed();
@@ -1113,6 +1113,32 @@ int winmain::event_handler(const SDL_Event* event)
 	}
 
 	return 1;
+}
+
+void winmain::ApplyDisplayScale()
+{
+	// Scale the UI for the display, from the unscaled style; the UI Scale option stays on top of it
+	auto& style = ImGui::GetStyle();
+	auto fontScale = style.FontScaleMain;
+	auto scale = fullscrn::ContentScale();
+	style = *BaseStyle;
+	style.ScaleAllSizes(scale);
+	style.FontScaleDpi = scale;
+	style.FontScaleMain = fontScale;
+}
+
+float winmain::ExpectedMenuHeight()
+{
+	// The main menu bar is one frame high; before the first frame ImGui can't measure it,
+	if (MainMenuHeight > 0)
+		return static_cast<float>(MainMenuHeight);
+	// and the style gets its font size only then, so take it from the font: ImGui's own is 13 pixels
+	const auto& style = ImGui::GetStyle();
+	auto fonts = ImGui::GetIO().Fonts;
+	auto fontSize = style.FontSizeBase > 0  ? style.FontSizeBase
+					: fonts->Fonts.Size > 0 ? fonts->Fonts[0]->LegacySize
+											: 13.0f;
+	return std::ceil(fontSize * style.FontScaleMain * style.FontScaleDpi + style.FramePadding.y * 2);
 }
 
 int winmain::ProcessWindowMessages()

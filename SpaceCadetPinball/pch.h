@@ -23,6 +23,7 @@
 #include <iostream>
 //#include <iomanip>
 //#include <cstdlib>
+#include <memory>
 #include <vector>
 #include <algorithm>
 #include <cstring>
