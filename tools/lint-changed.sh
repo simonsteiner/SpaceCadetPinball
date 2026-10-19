@@ -53,7 +53,16 @@ fi
 
 if [ -n "$build_dir" ]; then
 	echo "clang-tidy on lines changed since $base ($base_ref)"
-	if ! git diff -U0 "$base" -- "${pathspec[@]}" | run_tool clang-tidy clang-tidy-diff.py -p1 -path "$build_dir" -iregex '.*\.cpp' -quiet -j "$(nproc 2>/dev/null || echo 2)"; then
+	changes=$(git diff -U0 "$base" -- "${pathspec[@]}")
+	jobs=$(nproc 2>/dev/null || echo 2)
+	# A .cpp runs with its compile command; .clang-tidy's empty HeaderFilterRegex keeps its headers' old warnings out
+	if ! run_tool clang-tidy clang-tidy-diff.py -p1 -path "$build_dir" -iregex '.*\.cpp' -quiet -j "$jobs" <<<"$changes"; then
+		status=1
+	fi
+	# A header has no compile command: clang-tidy borrows one from a similar .cpp, and the headers rely on the
+	# precompiled header for the standard library and SDL, so pch.h is included first
+	if ! run_tool clang-tidy clang-tidy-diff.py -p1 -path "$build_dir" -iregex '.*\.h' -quiet -j "$jobs" \
+		-extra-arg=-include -extra-arg="$repo/SpaceCadetPinball/pch.h" <<<"$changes"; then
 		status=1
 	fi
 fi
