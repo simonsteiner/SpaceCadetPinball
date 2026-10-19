@@ -2030,7 +2030,13 @@ void control::MissionSpotTargetControl(MessageCode code, TPinballComponent* call
 		lite->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 2.0);
 
 		TSound* sound;
-		if (!lite198->light_on() || lite198->FlasherOnFlag)
+		// FT: the special sound marks the third lit target, not the mission lamp
+		bool specialSound;
+		if (pb::FullTiltMode)
+			specialSound = ramp_tgt_lights->Message(MessageCode::TLightGroupGetOnCount, 0.0) == 3;
+		else
+			specialSound = !lite198->light_on() || lite198->FlasherOnFlag;
+		if (specialSound)
 		{
 			sound = soundwave52;
 		}
