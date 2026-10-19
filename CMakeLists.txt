@@ -124,6 +124,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/render.h
         SpaceCadetPinball/replay.cpp
         SpaceCadetPinball/replay.h
+        SpaceCadetPinball/Rumble.cpp
+        SpaceCadetPinball/Rumble.h
         SpaceCadetPinball/score.cpp
         SpaceCadetPinball/score.h
         SpaceCadetPinball/Sound.cpp

@@ -552,6 +552,30 @@ void pb::InputUp(GameInput input)
 	GameInputUp(bindings);
 }
 
+void pb::BindingUp(GameBindings binding)
+{
+	if (game_mode != GameModes::InGame || winmain::single_step || demo_mode)
+		return;
+
+	const std::vector<GameBindings> bindings{binding};
+	replay::RecordInput(false, GameInput{}, bindings);
+	GameInputUp(bindings);
+}
+
+void pb::BindingDown(GameBindings binding)
+{
+	if (options::WaitingForInput())
+		return;
+
+	winmain::HandleGameBinding(binding, true);
+	if (game_mode != GameModes::InGame || winmain::single_step || demo_mode)
+		return;
+
+	const std::vector<GameBindings> bindings{binding};
+	replay::RecordInput(true, GameInput{}, bindings);
+	GameInputDown(GameInput{}, bindings);
+}
+
 void pb::GameInputUp(const std::vector<GameBindings>& bindings)
 {
 	for (const auto binding : bindings)

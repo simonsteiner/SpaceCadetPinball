@@ -50,6 +50,9 @@ public:
 	static void loose_focus();
 	static void InputUp(GameInput input);
 	static void InputDown(GameInput input);
+	// Input that already is a binding, such as a touch on the table
+	static void BindingDown(GameBindings binding);
+	static void BindingUp(GameBindings binding);
 	// The part of InputUp and InputDown that acts on the table, also called by replay playback
 	static void GameInputUp(const std::vector<GameBindings>& bindings);
 	static void GameInputDown(GameInput input, const std::vector<GameBindings>& bindings);

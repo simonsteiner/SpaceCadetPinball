@@ -91,6 +91,8 @@ public:
 	static void ApplyDisplayScale();
 	static bool CreateRenderer(bool gpu);
 	static void SetPostProcessing(PostEffects effect);
+	static void GamepadTrigger(const SDL_GamepadAxisEvent& event);
+	static void TouchInput(const SDL_TouchFingerEvent& event);
 	static float ExpectedMenuHeight();
 
 private:
@@ -115,6 +117,8 @@ private:
 	static int CursorIdleCounter;
 	static std::unique_ptr<ImGuiStyle> BaseStyle;
 	static bool SoftwareRenderer;
+	static bool TriggerPressed[2];
+	static std::map<SDL_FingerID, GameBindings> TouchBindings;
 
 	static void RenderUi();
 	static void RenderFrameTimeDialog();

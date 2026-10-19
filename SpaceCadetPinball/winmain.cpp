@@ -61,6 +61,8 @@ WelfordState winmain::SleepState{};
 int winmain::CursorIdleCounter = 0;
 std::unique_ptr<ImGuiStyle> winmain::BaseStyle{};
 bool winmain::SoftwareRenderer = false;
+bool winmain::TriggerPressed[2]{};
+std::map<SDL_FingerID, GameBindings> winmain::TouchBindings{};
 
 // Splits the command line at spaces and tabs; double quotes keep an argument with spaces together
 static std::vector<std::string> SplitArgs(LPCSTR cmdLine)
@@ -622,6 +624,8 @@ void winmain::RenderUi()
 				ImGui::EndMenu();
 			}
 			ImGuiMenuItemWShortcut(GameBindings::ShowControlDialog);
+			if (ImGui::MenuItem("Gamepad Rumble", nullptr, Options.Rumble))
+				Options.Rumble ^= true;
 			if (ImGui::BeginMenu("Language"))
 			{
 				auto currentLanguage = translations::GetCurrentLanguage();
@@ -1051,6 +1055,9 @@ int winmain::event_handler(const SDL_Event* event)
 		break;
 	case SDL_EVENT_MOUSE_BUTTON_DOWN:
 		{
+			// SDL also reports touches as mouse clicks; ImGui uses those, the table takes the touches themselves
+			if (event->button.which == SDL_TOUCH_MOUSEID)
+				break;
 			bool noInput = false;
 			switch (event->button.button)
 			{
@@ -1074,6 +1081,8 @@ int winmain::event_handler(const SDL_Event* event)
 		break;
 	case SDL_EVENT_MOUSE_BUTTON_UP:
 		{
+			if (event->button.which == SDL_TOUCH_MOUSEID)
+				break;
 			bool noInput = false;
 			switch (event->button.button)
 			{
@@ -1133,10 +1142,70 @@ int winmain::event_handler(const SDL_Event* event)
 	case SDL_EVENT_GAMEPAD_BUTTON_UP:
 		pb::InputUp({InputTypes::GameController, event->gbutton.button});
 		break;
+	case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+		GamepadTrigger(event->gaxis);
+		break;
+	case SDL_EVENT_FINGER_DOWN:
+	case SDL_EVENT_FINGER_UP:
+	case SDL_EVENT_FINGER_CANCELED:
+		TouchInput(event->tfinger);
+		break;
 	default: ;
 	}
 
 	return 1;
+}
+
+void winmain::GamepadTrigger(const SDL_GamepadAxisEvent& event)
+{
+	// A trigger is pressed past half way and released below a quarter, so it doesn't chatter in between
+	if (event.axis != SDL_GAMEPAD_AXIS_LEFT_TRIGGER && event.axis != SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
+		return;
+	auto left = event.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER;
+	auto& pressed = TriggerPressed[left ? 0 : 1];
+	GameInput input{InputTypes::GameController, left ? GamepadLeftTrigger : GamepadRightTrigger};
+	if (!pressed && event.value > SDL_JOYSTICK_AXIS_MAX / 2)
+	{
+		pressed = true;
+		pb::InputDown(input);
+	}
+	else if (pressed && event.value < SDL_JOYSTICK_AXIS_MAX / 4)
+	{
+		pressed = false;
+		pb::InputUp(input);
+	}
+}
+
+void winmain::TouchInput(const SDL_TouchFingerEvent& event)
+{
+	// The left half of the table works the left flipper, the right half the right one, and the score panel the
+	// plunger, held to pull it back. Each finger keeps what it pressed until it lifts.
+	auto key = event.fingerID;
+	if (event.type != SDL_EVENT_FINGER_DOWN)
+	{
+		auto finger = TouchBindings.find(key);
+		if (finger != TouchBindings.end())
+		{
+			pb::BindingUp(finger->second);
+			TouchBindings.erase(finger);
+		}
+		return;
+	}
+	if (ImIO->WantCaptureMouse)
+		return;
+
+	int width, height;
+	SDL_GetRenderOutputSize(Renderer, &width, &height);
+	SDL_Point point{static_cast<int>(event.x * width), static_cast<int>(event.y * height)};
+	auto& board = render::BoardRect;
+	GameBindings binding;
+	if (SDL_PointInRect(&point, &render::SidebarRect))
+		binding = GameBindings::Plunger;
+	else
+		binding = point.x < board.x + board.w / 2 ? GameBindings::LeftFlipper : GameBindings::RightFlipper;
+
+	TouchBindings[key] = binding;
+	pb::BindingDown(binding);
 }
 
 void winmain::SetPostProcessing(PostEffects effect)

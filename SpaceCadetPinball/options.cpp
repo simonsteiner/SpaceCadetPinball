@@ -159,6 +159,7 @@ optionsStruct options::Options
 	{"Backdrop", true},
 	{"Stacked Layout", true},
 	{"Post Processing", 0},
+	{"Gamepad Rumble", true},
 };
 // clang-format on
 
@@ -595,6 +596,10 @@ std::string GameInput::GetShortInputDescription() const
 	case InputTypes::GameController:
 		if (Value >= SDL_GAMEPAD_BUTTON_SOUTH && Value < std::min(static_cast<int>(SDL_GAMEPAD_BUTTON_COUNT), 21))
 			keyName = controllerButtons[Value];
+		else if (Value == GamepadLeftTrigger)
+			keyName = "LeftTrigger";
+		else if (Value == GamepadRightTrigger)
+			keyName = "RightTrigger";
 		else
 			keyName = "CButton" + std::to_string(Value);
 		break;

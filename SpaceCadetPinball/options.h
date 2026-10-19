@@ -35,6 +35,9 @@ enum class Menu1:int
 	Prefer3DPBGameData = 700,
 };
 
+// The analog triggers, which SDL reports as axes, bind as two extra GameController inputs
+constexpr int GamepadLeftTrigger = 100, GamepadRightTrigger = 101;
+
 enum class InputTypes
 {
 	None = 0,
@@ -295,4 +298,5 @@ struct optionsStruct
 	BoolOption Backdrop;
 	BoolOption StackedLayout;
 	IntOption PostProcessing;
+	BoolOption Rumble;
 };

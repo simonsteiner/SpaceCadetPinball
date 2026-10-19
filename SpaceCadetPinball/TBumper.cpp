@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "TBumper.h"
 
+#include "Rumble.h"
+
 
 #include "control.h"
 #include "loader.h"
@@ -103,6 +105,7 @@ void TBumper::Collision(TBall* ball, vector2* nextPosition, vector2* direction, 
 	if (DefaultCollision(ball, nextPosition, direction))
 	{
 		Fire();
+		Rumble::Bumper();
 		control::handler(MessageCode::ControlCollision, this);
 	}
 }

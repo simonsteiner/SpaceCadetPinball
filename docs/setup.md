@@ -147,6 +147,12 @@ Options → Graphics:
 
 Full screen (F4 or `-fullscreen`) uses the desktop's resolution, without a mode change. Settings saved by an earlier version keep their values, so a player who had Integer Scaling off or Linear Filtering on keeps that.
 
+## Controls
+
+Options → Player Controls (F8) binds a key, a mouse button and a gamepad button to each action. Gamepads work through SDL's gamepad database: by default the shoulder buttons are the flippers, A launches the ball, and the D-pad nudges the table. The analog triggers can be bound too: they count as pressed past half way and released below a quarter. **Options → Gamepad Rumble** (on by default) shakes the gamepad when a flipper fires and when the ball hits a bumper; the demo doesn't rumble.
+
+On a touch screen, touching the left half of the table works the left flipper and the right half the right flipper, as long as the finger stays down. Touching the score panel pulls the plunger back, and lifting the finger launches the ball. Several fingers work at once. The menus take touches as mouse clicks.
+
 ## Music
 
 SDL3_mixer can't be relied on for the MIDI music: it has no native MIDI, and some distributions build it without MIDI. The game picks the first of these that works when it starts:
