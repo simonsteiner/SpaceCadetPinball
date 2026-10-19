@@ -130,7 +130,7 @@ cmake -S . -B build/lint -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_DIS
 tools/lint-changed.sh main build/lint
 ```
 
-Without the build folder argument, the script checks the formatting only. CI installs the same LLVM version from `tools/llvm-requirements.txt`, pinned with hashes; bump it there and in the script together.
+The script checks the lines changed since the branch left `main` (their merge base), so commits that landed on `main` afterwards don't count; CI passes the base side of the pull request's merge commit. Without the build folder argument, it checks the formatting only. CI installs the same LLVM version from `tools/llvm-requirements.txt`, pinned with hashes; bump it there and in the script together.
 
 ## Music
 
