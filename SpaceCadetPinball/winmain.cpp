@@ -1190,19 +1190,29 @@ void winmain::GamepadTrigger(const SDL_GamepadAxisEvent& event)
 void winmain::TouchInput(const SDL_TouchFingerEvent& event)
 {
 	// The left half of the table works the left flipper, the right half the right one, and the score panel the
-	// plunger, held to pull it back. Each finger keeps what it pressed until it lifts.
+	// plunger, held to pull it back. Each finger keeps what it pressed until it lifts, and a binding is held while
+	// any finger is on it, so it goes down with the first finger and up with the last.
 	// Finger IDs are unique only per touch device
 	auto key = std::pair{event.touchID, event.fingerID};
+	auto held = [](GameBindings binding)
+	{
+		return std::any_of(TouchBindings.begin(), TouchBindings.end(),
+						   [binding](const auto& finger) { return finger.second == binding; });
+	};
 	if (event.type != SDL_EVENT_FINGER_DOWN)
 	{
 		auto finger = TouchBindings.find(key);
 		if (finger != TouchBindings.end())
 		{
-			pb::BindingUp(finger->second);
+			auto binding = finger->second;
 			TouchBindings.erase(finger);
+			if (!held(binding))
+				pb::BindingUp(binding);
 		}
 		return;
 	}
+	if (TouchBindings.count(key))
+		return;
 	if (ImIO->WantCaptureMouse)
 		return;
 
@@ -1219,8 +1229,10 @@ void winmain::TouchInput(const SDL_TouchFingerEvent& event)
 	else
 		return;
 
+	auto first = !held(binding);
 	TouchBindings[key] = binding;
-	pb::BindingDown(binding);
+	if (first)
+		pb::BindingDown(binding);
 }
 
 void winmain::SetPostProcessing(PostEffects effect)
