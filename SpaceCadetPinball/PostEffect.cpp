@@ -6,6 +6,7 @@
 #endif
 
 bool PostEffect::Supported = false;
+bool PostEffect::GpuFailed = false;
 SDL_Renderer* PostEffect::Renderer = nullptr;
 PostEffects PostEffect::Effect = PostEffects::None;
 SDL_GPUShader* PostEffect::Shaders[static_cast<int>(PostEffects::Max)]{};
@@ -42,10 +43,11 @@ SDL_Renderer* PostEffect::CreateGpuRenderer(SDL_Window* window)
 		printf("Could not create the GPU renderer for post-processing.\nSDL Error: %s\n", SDL_GetError());
 		SDL_ClearError();
 	}
-	return renderer;
 #else
-	return nullptr;
+	SDL_Renderer* renderer = nullptr;
 #endif
+	GpuFailed = !renderer;
+	return renderer;
 }
 
 bool PostEffect::IsGpuRenderer(SDL_Renderer* renderer)

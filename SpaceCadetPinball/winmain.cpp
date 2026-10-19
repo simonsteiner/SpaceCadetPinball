@@ -216,8 +216,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		// Post-processing needs SDL's GPU renderer, the only one that takes custom shaders. No textures exist yet,
 		// so this is the place to switch. Turning an effect off keeps that renderer, so no restart is needed for it.
+		// Once the GPU renderer has failed, it isn't tried again.
 		auto effect = static_cast<PostEffects>(Options.PostProcessing.V);
-		auto wantGpu = !SoftwareRenderer && effect != PostEffects::None;
+		auto wantGpu = !SoftwareRenderer && effect != PostEffects::None && !PostEffect::GpuRendererFailed();
 		if (wantGpu && !PostEffect::IsGpuRenderer(Renderer) && !CreateRenderer(true) && !CreateRenderer(false))
 		{
 			pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not create renderer", SDL_GetError());
@@ -701,6 +702,7 @@ void winmain::RenderUi()
 				{
 					options::toggle(Menu1::WindowStackedLayout);
 				}
+#if SDL_VERSION_ATLEAST(3, 4, 0)
 				if (ImGui::BeginMenu("Post-Processing"))
 				{
 					constexpr const char* names[] = {"None", "CRT", "Smooth Edges"};
@@ -711,8 +713,11 @@ void winmain::RenderUi()
 					}
 					if (SoftwareRenderer)
 						ImGui::TextDisabled("Not with the software renderer");
+					else if (PostEffect::GpuRendererFailed())
+						ImGui::TextDisabled("Needs Vulkan, Direct3D 12 or Metal");
 					ImGui::EndMenu();
 				}
+#endif
 				if (ImGui::DragFloat("UI Scale", &Options.UIScale.V, 0.005f, 0.8f, 5,
 				                     "%.2f", ImGuiSliderFlags_AlwaysClamp))
 				{
@@ -1151,9 +1156,11 @@ void winmain::SetPostProcessing(PostEffects effect)
 		return;
 	Options.PostProcessing = static_cast<int>(effect);
 
-	// The GPU renderer switches effects on the fly; any other renderer has to be replaced, which needs a restart
+	// The GPU renderer switches effects on the fly; any other renderer has to be replaced, which needs a restart,
+	// unless the GPU renderer could not be created
 	PostEffect::SetEffect(effect);
-	if (!PostEffect::Available() && effect != PostEffects::None && !SoftwareRenderer)
+	if (!PostEffect::Available() && effect != PostEffects::None && !SoftwareRenderer &&
+		!PostEffect::GpuRendererFailed())
 		Restart();
 }
 

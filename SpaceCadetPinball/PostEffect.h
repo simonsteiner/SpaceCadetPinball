@@ -14,6 +14,7 @@ enum class PostEffects : int
 class PostEffect
 {
 public:
+	// Remembers a failure until the game exits, so restarts don't try again
 	static SDL_Renderer* CreateGpuRenderer(SDL_Window* window);
 	static bool IsGpuRenderer(SDL_Renderer* renderer);
 	// Creates every effect's shader for the renderer, once per renderer, so none is released while SDL's pipeline
@@ -26,6 +27,10 @@ public:
 	{
 		return Supported;
 	}
+	static bool GpuRendererFailed()
+	{
+		return GpuFailed;
+	}
 	// Draws until End through the effect, if there is one; the sizes are the texture's, in texels, and its scale on
 	// screen
 	static void Begin(float textureWidth, float textureHeight, float scaleX, float scaleY);
@@ -33,6 +38,7 @@ public:
 
 private:
 	static bool Supported;
+	static bool GpuFailed;
 	static SDL_Renderer* Renderer;
 	static PostEffects Effect;
 	static struct SDL_GPUShader* Shaders[static_cast<int>(PostEffects::Max)];
