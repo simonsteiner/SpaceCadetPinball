@@ -77,6 +77,12 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 			if (entryType == FieldTypes::Bitmap8bit)
 			{
 				Read(fileHandle, &bmpHeader, sizeof(dat8BitBmpHeader), abort);
+				if (abort)
+				{
+					// The header is partly read; don't size a bitmap from it
+					delete entryData;
+					break;
+				}
 				assertm(bmpHeader.Size + sizeof(dat8BitBmpHeader) == fieldSize, "partman: Wrong bitmap field size");
 				assertm(bmpHeader.Resolution <= 2, "partman: bitmap resolution out of bounds");
 
@@ -101,6 +107,12 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 				}
 
 				Read(fileHandle, &zMapHeader, sizeof(dat16BitBmpHeader), abort);
+				if (abort)
+				{
+					// The header is partly read; don't size a zMap from it
+					delete entryData;
+					break;
+				}
 				auto length = fieldSize - sizeof(dat16BitBmpHeader);
 
 				zmap_header_type* zMap;

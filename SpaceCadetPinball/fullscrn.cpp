@@ -177,7 +177,7 @@ void fullscrn::FitScale(int width, int height, int contentWidth, int contentHeig
 	}
 }
 
-void fullscrn::ResetWindowSize()
+void fullscrn::ResetWindowSize(bool center)
 {
 	// The largest whole multiple of the table, up to the display's scale, that fits on the display.
 	// A window that size shows the table at about the size the original had at 96 DPI, without blurring it.
@@ -204,6 +204,10 @@ void fullscrn::ResetWindowSize()
 
 	SDL_SetWindowSize(winmain::MainWindow, static_cast<int>(std::ceil(res->TableWidth * factor / density)),
 					  static_cast<int>(std::ceil(res->TableHeight * factor / density + menuHeight)));
+	// The window was centred for its creation size; growing it keeps the top-left corner
+	if (center)
+		SDL_SetWindowPosition(winmain::MainWindow, SDL_WINDOWPOS_CENTERED_DISPLAY(display),
+							  SDL_WINDOWPOS_CENTERED_DISPLAY(display));
 }
 
 float fullscrn::PixelDensity()

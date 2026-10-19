@@ -185,7 +185,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 	{
 		// Load SDL Game Controller definitions from DB
-		auto controllerDb = EmbeddedData::DecompressStb(EmbeddedData::SDL_GameControllerDB_compressed_data);
+		auto controllerDb = EmbeddedData::DecompressStb(EmbeddedData::SDL_GameControllerDB_compressed_data,
+		                                                 EmbeddedData::SDL_GameControllerDB_compressed_size);
 		auto io = SDL_IOFromConstMem(controllerDb.data(), controllerDb.size());
 		const auto added = SDL_AddGamepadMappingsFromIO(io, true);
 		if (added < 0)
@@ -196,6 +197,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	}
 
 	auto resetAllOptions = HasArg(args, "-reset");
+	auto firstOpen = true;
 	do
 	{
 		restart = false;
@@ -315,8 +317,10 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			Options.FullScreen = true;
 		}
 
-		if (!Options.FullScreen)
-			fullscrn::ResetWindowSize();
+		// Also in full screen, where it sets the size the window returns to.
+		// Only the first open centres it, so a restart keeps where the player put the window.
+		fullscrn::ResetWindowSize(firstOpen);
+		firstOpen = false;
 		if (replay::IsPlaying())
 		{
 			// The recording holds the command that started the game
