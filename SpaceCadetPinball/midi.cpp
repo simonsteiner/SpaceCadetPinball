@@ -59,6 +59,9 @@ namespace
 	constexpr int SynthBlock = 64;
 	// At 0 dB the theme's loud chords go past full scale with FluidR3 and clip; -6 dB keeps them at about -1 dBFS
 	constexpr float SynthGainDb = -6.0f;
+	// Voices are allocated once at init, so the audio thread never reallocates them. The theme needs at most 49 with
+	// FluidR3; past the limit, a new note takes the voice furthest into its release.
+	constexpr int SynthMaxVoices = 64;
 	tsf* Synth = nullptr;
 	SDL_AudioStream* SynthStream = nullptr;
 	tml_message* SynthSong = nullptr; // First message of the playing song, null when stopped
@@ -284,7 +287,8 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 			const SDL_AudioSpec synthSpec{SDL_AUDIO_F32, 2, SynthRate};
 			SynthStream = SDL_CreateAudioStream(&synthSpec, nullptr);
 			MusicTrack = MIX_CreateTrack(Mixer);
-			if (SynthStream && MusicTrack && MIX_SetTrackAudioStream(MusicTrack, SynthStream))
+			if (tsf_set_max_voices(Synth, SynthMaxVoices) && SynthStream && MusicTrack &&
+			    MIX_SetTrackAudioStream(MusicTrack, SynthStream))
 			{
 				SDL_SetAudioStreamGetCallback(SynthStream, RenderSynth, nullptr);
 				Backend = MidiBackend::SoundFont;
