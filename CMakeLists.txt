@@ -284,10 +284,11 @@ if(SCP_SANITIZERS)
         message(FATAL_ERROR "SCP_SANITIZERS needs GCC or Clang")
     endif()
     set(SCP_SANITIZER_FLAGS -fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer)
+    # Both targets are instrumented; only the executable is linked (a static library has no link step)
     foreach(target SpaceCadetPinball imgui)
         target_compile_options(${target} PRIVATE ${SCP_SANITIZER_FLAGS})
-        target_link_options(${target} PRIVATE ${SCP_SANITIZER_FLAGS})
     endforeach()
+    target_link_options(SpaceCadetPinball PRIVATE ${SCP_SANITIZER_FLAGS})
 endif()
 
 # On Windows with installed SDL packages, copy DLL to output
