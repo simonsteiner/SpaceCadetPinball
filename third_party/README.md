@@ -18,4 +18,8 @@ Libraries vendored as source, so that every build, including a distribution's of
 - `mmpx.h`: an `extern "C"` guard for C++, and a comment on what `mmpx_scale2x` expects.
 - `LICENSE`: added with the MIT text, because upstream states the licence only in `mmpx.c` and its README.
 
+`TinySoundFont/` differs from upstream in this edit, to re-apply after an upgrade unless upstream has it:
+
+- `tsf.h`: `tsf_decode_sf3_samples` treats a compressed sample whose `start`/`end` fall outside the `smpl` chunk (`start >= smplLength || end > smplLength || start >= end`) as empty, taking the existing zeroing branch, instead of reading `smplBuffer + start` out of bounds. Without it a SoundFont (SF2 or SF3) with a damaged compressed sample header crashes the game at startup, when it loads the SoundFonts it finds. Could be sent upstream.
+
 Dear ImGui is vendored too, in `SpaceCadetPinball/`; see `AGENTS.md`.
