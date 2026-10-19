@@ -28,7 +28,7 @@ public:
 	static void SetResolution(int value);
 	static int GetMaxResolution();
 	static void window_size_changed();
-	static void ResetWindowSize();
+	static void ResetWindowSize(bool center);
 	static float PixelDensity();
 	static float ContentScale();
 	static SDL_Rect GetScreenRectFromPinballRect(SDL_Rect rect);

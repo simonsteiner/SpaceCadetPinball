@@ -197,6 +197,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	}
 
 	auto resetAllOptions = HasArg(args, "-reset");
+	auto firstOpen = true;
 	do
 	{
 		restart = false;
@@ -316,8 +317,10 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			Options.FullScreen = true;
 		}
 
+		// Only the first open centres it, so a restart keeps where the player put the window
 		if (!Options.FullScreen)
-			fullscrn::ResetWindowSize();
+			fullscrn::ResetWindowSize(firstOpen);
+		firstOpen = false;
 		if (replay::IsPlaying())
 		{
 			// The recording holds the command that started the game
