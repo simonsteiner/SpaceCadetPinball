@@ -74,23 +74,16 @@ void TSink::TimerExpired(int timerId, void* caller)
 {
 	auto sink = static_cast<TSink*>(caller);
 	auto table = sink->PinballTable;
-	if (table->BallCountInRect(sink->BallPosition, table->CollisionCompOffset * 2.0f))
+	// AddBall fails only when all 20 ball slots are in use, which only cheats can cause; try again later
+	TBall* ball = nullptr;
+	if (table->BallCountInRect(sink->BallPosition, table->CollisionCompOffset * 2.0f) ||
+		!(ball = table->AddBall(sink->BallPosition)))
 	{
 		timer::set(0.5f, sink, TimerExpired);
+		return;
 	}
-	else 
-	{
-		auto ball = table->AddBall(sink->BallPosition);
-		if (!ball)
-		{
-			// All 20 ball slots are in use, which only cheats can cause; try again later, as when the sink is busy
-			timer::set(0.5f, sink, TimerExpired);
-			return;
-		}
-		ball->CollisionDisabledFlag = true;
-		ball->throw_ball(&sink->BallThrowDirection, sink->ThrowAngleMult, sink->ThrowSpeedMult1,
-			sink->ThrowSpeedMult2);
-		if (sink->SoundIndex3)
-			loader::play_sound(sink->SoundIndex3, ball, "TSink2");
-	}
+	ball->CollisionDisabledFlag = true;
+	ball->throw_ball(&sink->BallThrowDirection, sink->ThrowAngleMult, sink->ThrowSpeedMult1, sink->ThrowSpeedMult2);
+	if (sink->SoundIndex3)
+		loader::play_sound(sink->SoundIndex3, ball, "TSink2");
 }
