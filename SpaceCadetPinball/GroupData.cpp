@@ -123,7 +123,7 @@ void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, gdrv_bitmap8& bmp
 		// Stride is in terms of dst stride, hardcoded to match vScreen width in current resolution
 		if (stride > bmp.Width)
 		{
-			stride += bmp.Width - tableWidth;
+			stride = static_cast<int16_t>(stride + bmp.Width - tableWidth);
 			assertm(stride >= 0, "Spliced bitmap: negative computed stride");
 		}
 
@@ -284,14 +284,12 @@ void DatFile::Finalize()
 {
 	if (!pb::FullTiltMode)
 	{
-		int groupIndex = record_labeled("pbmsg_ft");
+		[[maybe_unused]] int groupIndex = record_labeled("pbmsg_ft");
 		assertm(groupIndex < 0, "DatFile: pbmsg_ft is already in .dat");
 
 		// Load 3DPB font into dat to simplify pipeline
-		auto rcData = reinterpret_cast<MsgFont*>(ImFontAtlas::DecompressCompressedBase85Data(
-			EmbeddedData::PB_MSGFT_bin_compressed_data_base85));
-		AddMsgFont(rcData, "pbmsg_ft");
-		IM_FREE(rcData);
+		auto rcData = EmbeddedData::DecompressBase85(EmbeddedData::PB_MSGFT_bin_compressed_data_base85);
+		AddMsgFont(reinterpret_cast<MsgFont*>(rcData.data()), "pbmsg_ft");
 
 		// PINBALL2.MID is an alternative font provided in 3DPB data
 		// Scaled down because it is too large for top text box
@@ -352,7 +350,7 @@ void DatFile::AddMsgFont(MsgFont* font, const std::string& fontName)
 		else
 		{
 			auto groupName = new char[30];
-			sprintf(groupName, "char %d='%c'", charInd, charInd);
+			snprintf(groupName, 30, "char %d='%c'", charInd, charInd);
 			group->AddEntry(new EntryData(FieldTypes::GroupName, groupName));
 		}
 

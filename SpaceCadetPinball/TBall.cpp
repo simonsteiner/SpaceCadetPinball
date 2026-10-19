@@ -47,7 +47,7 @@ TBall::TBall(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	groupIndex = loader::query_handle(ballGroupName);
 	if (groupIndex < 0)
 	{
-		ballGroupName[4] = '0' + fullscrn::GetResolution();
+		ballGroupName[4] = static_cast<char>('0' + fullscrn::GetResolution());
 		groupIndex = loader::query_handle(ballGroupName);
 	}
 

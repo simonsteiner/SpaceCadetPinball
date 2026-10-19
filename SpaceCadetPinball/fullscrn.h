@@ -28,11 +28,15 @@ public:
 	static void SetResolution(int value);
 	static int GetMaxResolution();
 	static void window_size_changed();
+	static void ResetWindowSize(bool center);
+	static float PixelDensity();
+	static float ContentScale();
 	static SDL_Rect GetScreenRectFromPinballRect(SDL_Rect rect);
 	static float GetScreenToPinballRatio();
 private :
 	static int resolution;
 
+	static void FitScale(int width, int height, int contentWidth, int contentHeight, float& scaleX, float& scaleY);
 	static int enableFullscreen();
 	static int disableFullscreen();
 };

@@ -1,0 +1,24 @@
+# CI runs these checks on the changed lines of each pull request (clang-tidy-diff.py); see docs/setup.md.
+# Bug-prone patterns only: the style of the decompiled code is not up for review. ArrayBound is off because the
+# decompiled structs read variable-length data through trailing arrays such as riff_block::AData[4].
+# throwing-static-initialization is off because the settings and component tables are static globals.
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-branch-clone,
+  -bugprone-reserved-identifier,
+  -bugprone-macro-parentheses,
+  -bugprone-integer-division,
+  -bugprone-switch-missing-default-case,
+  -bugprone-assignment-in-if-condition,
+  -bugprone-throwing-static-initialization,
+  clang-analyzer-*,
+  -clang-analyzer-security.insecureAPI.*,
+  -clang-analyzer-security.ArrayBound,
+  performance-*,
+  -performance-enum-size
+WarningsAsErrors: '*'
+HeaderFilterRegex: ''

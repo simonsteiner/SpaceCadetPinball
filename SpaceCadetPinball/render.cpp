@@ -10,6 +10,8 @@
 #include "winmain.h"
 #include "DebugOverlay.h"
 #include "proj.h"
+#include "PostEffect.h"
+#include "Upscale.h"
 
 std::vector<render_sprite*> render::sprite_list, render::ball_list;
 zmap_header_type* render::background_zmap;
@@ -17,7 +19,21 @@ int render::zmap_offsetX, render::zmap_offsetY, render::offset_x, render::offset
 rectangle_type render::vscreen_rect;
 gdrv_bitmap8 *render::vscreen, *render::background_bitmap, *render::ball_bitmap[20];
 zmap_header_type* render::zscreen;
-SDL_Rect render::DestinationRect{};
+SDL_Rect render::BoardRect{}, render::SidebarRect{};
+SDL_Texture* render::BackdropTexture = nullptr;
+bool render::BallsInterpolated = false;
+gdrv_bitmap8* render::InitialBackground = nullptr;
+gdrv_bitmap8 *render::vscreenHi = nullptr, *render::ball_bitmap_hi[20]{};
+zmap_header_type* render::zscreenHi = nullptr;
+int render::HiScale = 0;
+std::vector<ColorRgba> render::SidebarCopy{};
+
+#if SDL_VERSION_ATLEAST(3, 4, 0)
+// The same as nearest at whole multiples; at other scales it keeps every table pixel the same size
+static constexpr SDL_ScaleMode UnfilteredScaleMode = SDL_SCALEMODE_PIXELART;
+#else
+static constexpr SDL_ScaleMode UnfilteredScaleMode = SDL_SCALEMODE_NEAREST;
+#endif
 
 render_sprite::render_sprite(VisualTypes visualType, gdrv_bitmap8* bmp, zmap_header_type* zMap,
 	int xPosition, int yPosition, rectangle_type* boundingRect)
@@ -124,6 +140,9 @@ void render::init(gdrv_bitmap8* bmp, int width, int height)
 
 void render::uninit()
 {
+	SetUpscale(0);
+	Upscale::Clear();
+	InitialBackground = nullptr;
 	delete vscreen;
 	delete zscreen;
 
@@ -135,11 +154,17 @@ void render::uninit()
 	for (auto& ballBmp : ball_bitmap)
 		delete ballBmp;
 	DebugOverlay::UnInit();
+	if (BackdropTexture)
+		SDL_DestroyTexture(BackdropTexture);
+	BackdropTexture = nullptr;
 }
 
 void render::recreate_screen_texture()
 {
-	vscreen->CreateTexture(options::Options.LinearFiltering ? "linear" : "nearest", SDL_TEXTUREACCESS_STREAMING);
+	auto scaleMode = options::Options.LinearFiltering ? SDL_SCALEMODE_LINEAR : UnfilteredScaleMode;
+	vscreen->CreateTexture(scaleMode, SDL_TEXTUREACCESS_STREAMING);
+	if (vscreenHi)
+		vscreenHi->CreateTexture(scaleMode, SDL_TEXTUREACCESS_STREAMING);
 }
 
 void render::update()
@@ -184,6 +209,16 @@ void render::update()
 				gdrv::copy_bitmap(vscreen, width, height, xPos, yPos, background_bitmap, xPos, yPos);
 			else
 				gdrv::fill_bitmap(vscreen, width, height, xPos, yPos, 0);
+			if (HiScale)
+			{
+				auto s = HiScale;
+				zdrv::fill(zscreenHi, width * s, height * s, xPos * s, yPos * s, 0xFFFF);
+				if (background_bitmap)
+					gdrv::copy_bitmap(vscreenHi, width * s, height * s, xPos * s, yPos * s,
+									  Upscale::Bitmap(background_bitmap), xPos * s, yPos * s);
+				else
+					gdrv::fill_bitmap(vscreenHi, width * s, height * s, xPos * s, yPos * s, 0);
+			}
 		}
 	}
 
@@ -201,6 +236,57 @@ void render::update()
 	}
 
 	paint_balls();
+
+	for (auto ball : ball_list)
+	{
+		auto& interp = ball->Interp;
+		interp.PrevPaintedRect = interp.PaintedRect;
+		interp.PrevPainted = interp.Painted;
+		interp.PaintedRect = ball->BmpRect;
+		interp.Painted = ball->Bmp != nullptr;
+	}
+}
+
+void render::InterpolateBalls(float alpha)
+{
+	// Moves the balls on the frame to where they were between the last two updates, alpha of the way to the last.
+	// Only the picture changes: the table's own ball positions are untouched, and RestoreBalls puts the frame back.
+	if (BallsInterpolated || ball_list.empty())
+		return;
+
+	unpaint_balls();
+	for (auto ball : ball_list)
+	{
+		auto& interp = ball->Interp;
+		interp.SavedBmpRect = ball->BmpRect;
+		if (!interp.Painted || !interp.PrevPainted)
+			continue;
+
+		// A ball that jumped, such as into a hole or back to the plunger, isn't drawn in between
+		auto& from = interp.PrevPaintedRect;
+		auto& to = interp.PaintedRect;
+		constexpr int MaxStep = 24;
+		if (std::abs(to.XPosition - from.XPosition) > MaxStep || std::abs(to.YPosition - from.YPosition) > MaxStep)
+			continue;
+		ball->BmpRect.XPosition =
+			static_cast<int>(std::lround(from.XPosition + (to.XPosition - from.XPosition) * alpha));
+		ball->BmpRect.YPosition =
+			static_cast<int>(std::lround(from.YPosition + (to.YPosition - from.YPosition) * alpha));
+	}
+	paint_balls();
+	BallsInterpolated = true;
+}
+
+void render::RestoreBalls()
+{
+	if (!BallsInterpolated)
+		return;
+
+	unpaint_balls();
+	for (auto ball : ball_list)
+		ball->BmpRect = ball->Interp.SavedBmpRect;
+	paint_balls();
+	BallsInterpolated = false;
 }
 
 void render::AddSprite(render_sprite& sprite)
@@ -250,8 +336,22 @@ void render::repaint(const render_sprite& sprite)
 					refSprite->ZMap,
 					clipRect.XPosition + refSprite->ZMapOffestY - refSprite->BmpRect.XPosition,
 					clipRect.YPosition + refSprite->ZMapOffestX - refSprite->BmpRect.YPosition);
+			if (HiScale && maths::rectangle_clip(refSprite->BmpRect, sprite.DirtyRect, &clipRect))
+				PaintHi(*refSprite, clipRect);
 		}
 	}
+}
+
+void render::PaintHi(const render_sprite& sprite, const rectangle_type& clipRect)
+{
+	// The same paint as at 1x, with every coordinate and the art HiScale times larger
+	auto s = HiScale;
+	zdrv::paint(clipRect.Width * s, clipRect.Height * s, vscreenHi, clipRect.XPosition * s, clipRect.YPosition * s,
+				zscreenHi, clipRect.XPosition * s, clipRect.YPosition * s, Upscale::Bitmap(sprite.Bmp),
+				(clipRect.XPosition - sprite.BmpRect.XPosition) * s,
+				(clipRect.YPosition - sprite.BmpRect.YPosition) * s, Upscale::ZMap(sprite.ZMap),
+				(clipRect.XPosition + sprite.ZMapOffestY - sprite.BmpRect.XPosition) * s,
+				(clipRect.YPosition + sprite.ZMapOffestX - sprite.BmpRect.YPosition) * s);
 }
 
 
@@ -292,11 +392,47 @@ void render::paint_balls()
 			dirty->Width = -1;
 		}
 	}
+
+	if (HiScale)
+		paint_balls_hi();
+}
+
+void render::paint_balls_hi()
+{
+	// After paint_balls, so the list is sorted the same way
+	auto s = HiScale;
+	for (auto index = 0u; index < ball_list.size(); ++index)
+	{
+		auto ball = ball_list[index];
+		auto& dirty = ball->DirtyRectHi;
+		if (ball->Bmp && ball->DirtyRect.Width > 0)
+		{
+			auto& lowDirty = ball->DirtyRect;
+			dirty = {lowDirty.XPosition * s, lowDirty.YPosition * s, lowDirty.Width * s, lowDirty.Height * s};
+			gdrv::copy_bitmap(ball_bitmap_hi[index], dirty.Width, dirty.Height, 0, 0, vscreenHi, dirty.XPosition,
+							  dirty.YPosition);
+			zdrv::paint_flat(dirty.Width, dirty.Height, vscreenHi, dirty.XPosition, dirty.YPosition, zscreenHi,
+							 dirty.XPosition, dirty.YPosition, Upscale::Bitmap(ball->Bmp),
+							 dirty.XPosition - ball->BmpRect.XPosition * s,
+							 dirty.YPosition - ball->BmpRect.YPosition * s, ball->Depth);
+		}
+		else
+		{
+			dirty.Width = -1;
+		}
+	}
 }
 
 void render::unpaint_balls()
 {
 	// Restore portions of vScreen saved during previous paint_balls call.
+	for (int index = static_cast<int>(ball_list.size()) - 1; index >= 0 && HiScale; index--)
+	{
+		auto& dirty = ball_list[index]->DirtyRectHi;
+		if (dirty.Width > 0)
+			gdrv::copy_bitmap(vscreenHi, dirty.Width, dirty.Height, dirty.XPosition, dirty.YPosition,
+							  ball_bitmap_hi[index], 0, 0);
+	}
 	for (int index = static_cast<int>(ball_list.size()) - 1; index >= 0; index--)
 	{
 		auto curBall = ball_list[index];
@@ -372,17 +508,21 @@ void render::SpriteViewer(bool* show)
 	static float scale = 1.0f;
 	auto uv_min = ImVec2(0.0f, 0.0f); // Top-left
 	auto uv_max = ImVec2(1.0f, 1.0f); // Lower-right
-	auto tint_col = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // No tint
-	auto border_col = ImVec4(1.0f, 1.0f, 1.0f, 0.5f); // 50% opaque white
 
 	if (ImGui::Begin("Sprite viewer", show, ImGuiWindowFlags_HorizontalScrollbar | ImGuiWindowFlags_MenuBar))
 	{
+		// Images get a 50% opaque white border
+		ImGui::PushStyleVar(ImGuiStyleVar_ImageBorderSize, 1.0f);
+		ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(1.0f, 1.0f, 1.0f, 0.5f));
 		if (ImGui::BeginMenuBar())
 		{
 			ImGui::SliderFloat("Sprite scale", &scale, 0.1f, 10.0f, "scale = %.3f");
 			ImGui::EndMenuBar();
 		}
 
+		// The renderer backend samples linearly by default; keep the previews' own nearest scale mode
+		auto drawList = ImGui::GetWindowDrawList();
+		drawList->AddCallback(ImGui::GetPlatformIO().DrawCallback_SetSamplerFromTex, nullptr);
 		for (const auto group : pb::record_table->Groups)
 		{
 			bool emptyGroup = true;
@@ -425,8 +565,8 @@ void render::SpriteViewer(bool* show)
 					else
 						ImGui::SameLine();
 
-					ImGui::Image(bmp->Texture, ImVec2(bmp->Width * scale, bmp->Height * scale),
-					             uv_min, uv_max, tint_col, border_col);
+					ImGui::Image(reinterpret_cast<ImTextureID>(bmp->Texture),
+					             ImVec2(bmp->Width * scale, bmp->Height * scale), uv_min, uv_max);
 				}
 			}
 
@@ -443,84 +583,202 @@ void render::SpriteViewer(bool* show)
 						same = true;
 					else
 						ImGui::SameLine();
-					ImGui::Image(zMap->Texture, ImVec2(zMap->Width * scale, zMap->Height * scale),
-					             uv_min, uv_max, tint_col, border_col);
+					ImGui::Image(reinterpret_cast<ImTextureID>(zMap->Texture),
+					             ImVec2(zMap->Width * scale, zMap->Height * scale), uv_min, uv_max);
 				}
 			}
 		}
+		drawList->AddCallback(ImGui::GetPlatformIO().DrawCallback_ResetRenderState, nullptr);
+		ImGui::PopStyleColor();
+		ImGui::PopStyleVar();
 	}
 	ImGui::End();
 }
 
 void render::PresentVScreen()
 {
-	vscreen->BlitToTexture();
-
-	if (offset_x == 0 && offset_y == 0)
+	auto screen = vscreen;
+	if (HiScale)
 	{
-		SDL_RenderCopy(winmain::Renderer, vscreen->Texture, nullptr, &DestinationRect);
+		RefreshSidebarHi();
+		screen = vscreenHi;
 	}
-	else
-	{
-		auto tableWidthCoef = static_cast<float>(pb::MainTable->Width) / vscreen->Width;
-		auto srcSeparationX = static_cast<int>(round(vscreen->Width * tableWidthCoef));
-		auto srcBoardRect = SDL_Rect
-		{
-			0, 0,
-			srcSeparationX, vscreen->Height
-		};
-		auto srcSidebarRect = SDL_Rect
-		{
-			srcSeparationX, 0,
-			vscreen->Width - srcSeparationX, vscreen->Height
-		};
+	screen->BlitToTexture();
 
-#if SDL_VERSION_ATLEAST(2, 0, 10)
-		// SDL_RenderCopyF was added in 2.0.10
-		auto dstSeparationX = DestinationRect.w * tableWidthCoef;
-		auto dstBoardRect = SDL_FRect
-		{
-			DestinationRect.x + offset_x * fullscrn::ScaleX,
-			DestinationRect.y + offset_y * fullscrn::ScaleY,
-			dstSeparationX, static_cast<float>(DestinationRect.h)
-		};
-		auto dstSidebarRect = SDL_FRect
-		{
-			DestinationRect.x + dstSeparationX, static_cast<float>(DestinationRect.y),
-			DestinationRect.w - dstSeparationX, static_cast<float>(DestinationRect.h)
-		};
-
-		SDL_RenderCopyF(winmain::Renderer, vscreen->Texture, &srcBoardRect, &dstBoardRect);
-		SDL_RenderCopyF(winmain::Renderer, vscreen->Texture, &srcSidebarRect, &dstSidebarRect);
-#else
-		// SDL_RenderCopy cannot express sub pixel offset.
-		// Vscreen shift is required for that.
-		auto dstSeparationX = static_cast<int>(DestinationRect.w * tableWidthCoef);
-		auto scaledOffX = static_cast<int>(round(offset_x * fullscrn::ScaleX));
-		if (offset_x != 0 && scaledOffX == 0)
-			scaledOffX = Sign(offset_x);
-		auto scaledOffY = static_cast<int>(round(offset_y * fullscrn::ScaleY));
-		if (offset_y != 0 && scaledOffX == 0)
-			scaledOffY = Sign(offset_y);
-
-		auto dstBoardRect = SDL_Rect
-		{
-			DestinationRect.x + scaledOffX, DestinationRect.y + scaledOffY,
-			dstSeparationX, DestinationRect.h
-		};
-		auto dstSidebarRect = SDL_Rect
-		{
-			DestinationRect.x + dstSeparationX, DestinationRect.y,
-			DestinationRect.w - dstSeparationX, DestinationRect.h
-		};
-
-		SDL_RenderCopy(winmain::Renderer, vscreen->Texture, &srcBoardRect, &dstBoardRect);
-		SDL_RenderCopy(winmain::Renderer, vscreen->Texture, &srcSidebarRect, &dstSidebarRect);
-#endif
-	}
+	DrawBackdrop();
+	// Only the table goes through the post-processing effect, not the backdrop or the overlays
+	auto scale = HiScale ? HiScale : 1;
+	PostEffect::Begin(static_cast<float>(screen->Width), static_cast<float>(screen->Height),
+					  fullscrn::ScaleX / static_cast<float>(scale), fullscrn::ScaleY / static_cast<float>(scale));
+	DrawSplit(screen->Texture, static_cast<float>(offset_x), static_cast<float>(offset_y), scale);
+	PostEffect::End();
 
 	if (options::Options.DebugOverlay)
 	{
 		DebugOverlay::DrawOverlay();
 	}
+}
+
+int render::BoardWidth()
+{
+	// The table is the left part of the frame, the score panel the rest
+	return pb::MainTable ? pb::MainTable->Width : vscreen ? vscreen->Width : 0;
+}
+
+void render::DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, int textureScale)
+{
+	// Table and panel are drawn separately: the nudge shifts only the table, and the stacked layout moves the panel.
+	// The texture is the frame at textureScale times its size.
+	auto scale = static_cast<float>(textureScale);
+	auto boardWidth = static_cast<float>(BoardWidth()) * scale;
+	auto height = static_cast<float>(vscreen->Height) * scale;
+	auto width = static_cast<float>(vscreen->Width) * scale;
+	auto srcBoardRect = SDL_FRect{0, 0, boardWidth, height};
+	auto srcSidebarRect = SDL_FRect{boardWidth, 0, width - boardWidth, height};
+
+	SDL_FRect dstBoardRect, dstSidebarRect;
+	SDL_RectToFRect(&BoardRect, &dstBoardRect);
+	SDL_RectToFRect(&SidebarRect, &dstSidebarRect);
+	dstBoardRect.x += offsetX * fullscrn::ScaleX;
+	dstBoardRect.y += offsetY * fullscrn::ScaleY;
+
+	SDL_RenderTexture(winmain::Renderer, texture, &srcBoardRect, &dstBoardRect);
+	if (srcSidebarRect.w > 0)
+		SDL_RenderTexture(winmain::Renderer, texture, &srcSidebarRect, &dstSidebarRect);
+}
+
+void render::DrawBackdrop()
+{
+	if (!options::Options.Backdrop)
+		return;
+	if (!BackdropTexture)
+		CreateBackdrop();
+	if (!BackdropTexture)
+		return;
+
+	// Cover the whole window, keeping the art's proportions
+	int width, height;
+	float textureWidth, textureHeight;
+	SDL_GetRenderOutputSize(winmain::Renderer, &width, &height);
+	SDL_GetTextureSize(BackdropTexture, &textureWidth, &textureHeight);
+	auto scale = std::max(width / textureWidth, height / textureHeight);
+	auto dstRect = SDL_FRect{(width - textureWidth * scale) / 2, (height - textureHeight * scale) / 2,
+							 textureWidth * scale, textureHeight * scale};
+	SDL_RenderTexture(winmain::Renderer, BackdropTexture, nullptr, &dstRect);
+}
+
+void render::CreateBackdrop()
+{
+	// A blurred, darkened copy of the table as drawn the first time the backdrop is shown, from the player's own data.
+	// Averaging blocks of pixels and scaling the result up with linear filtering blurs it.
+	constexpr int Block = 16;
+	constexpr unsigned Brightness = 90; // Out of 255
+	auto boardWidth = BoardWidth();
+	auto width = std::max(1, boardWidth / Block), height = std::max(1, vscreen->Height / Block);
+	std::vector<ColorRgba> pixels(width * height);
+	for (int y = 0; y < height; y++)
+	{
+		for (int x = 0; x < width; x++)
+		{
+			unsigned red = 0, green = 0, blue = 0;
+			for (int j = 0; j < Block; j++)
+			{
+				auto src = &vscreen->BmpBufPtr1[(y * Block + j) * vscreen->Stride + x * Block];
+				for (int i = 0; i < Block; i++, src++)
+				{
+					red += src->GetRed();
+					green += src->GetGreen();
+					blue += src->GetBlue();
+				}
+			}
+			constexpr unsigned divisor = Block * Block * 255;
+			pixels[y * width + x] = ColorRgba{static_cast<uint8_t>(red * Brightness / divisor),
+											  static_cast<uint8_t>(green * Brightness / divisor),
+											  static_cast<uint8_t>(blue * Brightness / divisor), 255};
+		}
+	}
+
+	BackdropTexture =
+		SDL_CreateTexture(winmain::Renderer, SDL_PIXELFORMAT_BGRA32, SDL_TEXTUREACCESS_STATIC, width, height);
+	if (!BackdropTexture)
+		return;
+	SDL_SetTextureScaleMode(BackdropTexture, SDL_SCALEMODE_LINEAR);
+	SDL_SetTextureBlendMode(BackdropTexture, SDL_BLENDMODE_NONE);
+	SDL_UpdateTexture(BackdropTexture, nullptr, pixels.data(), width * static_cast<int>(sizeof(ColorRgba)));
+}
+
+void render::SetUpscale(int factor)
+{
+	// factor 0 turns the upscaled frame off; the 1x frame is always kept, because the panel's text is drawn into it
+	if (factor == HiScale)
+		return;
+
+	delete vscreenHi;
+	delete zscreenHi;
+	for (auto& ballBmp : ball_bitmap_hi)
+	{
+		delete ballBmp;
+		ballBmp = nullptr;
+	}
+	vscreenHi = nullptr;
+	zscreenHi = nullptr;
+	HiScale = 0;
+	SidebarCopy.clear();
+	if (factor < Upscale::MinFactor || !vscreen)
+	{
+		// Off, the upscaled art is freed too; turning it back on makes it again
+		Upscale::Clear();
+		return;
+	}
+
+	Upscale::Init(factor);
+	HiScale = factor;
+	vscreenHi = new gdrv_bitmap8(vscreen->Width * factor, vscreen->Height * factor, false);
+	zscreenHi = new zmap_header_type(vscreenHi->Width, vscreenHi->Height, vscreenHi->Width);
+	for (auto& ballBmp : ball_bitmap_hi)
+		ballBmp = new gdrv_bitmap8(64 * factor, 64 * factor, false);
+
+	// Compose the whole frame once: the background the table started with, then every sprite and the balls
+	zdrv::fill(zscreenHi, zscreenHi->Width, zscreenHi->Height, 0, 0, 0xFFFF);
+	if (InitialBackground)
+	{
+		auto bmp = Upscale::Bitmap(InitialBackground);
+		gdrv::copy_bitmap(vscreenHi, bmp->Width, bmp->Height, InitialBackground->XPosition * factor,
+						  InitialBackground->YPosition * factor, bmp, 0, 0);
+	}
+	else
+		gdrv::fill_bitmap(vscreenHi, vscreenHi->Width, vscreenHi->Height, 0, 0, 0);
+	rectangle_type clipRect{};
+	for (auto sprite : sprite_list)
+	{
+		if (!sprite->DeleteFlag && sprite->Bmp && sprite->VisualType != VisualTypes::Ball &&
+			maths::rectangle_clip(sprite->BmpRect, vscreen_rect, &clipRect))
+			PaintHi(*sprite, clipRect);
+	}
+	paint_balls_hi();
+	recreate_screen_texture();
+}
+
+void render::RefreshSidebarHi()
+{
+	// Text boxes and score digits draw straight into the 1x frame, so the panel is magnified from there when it changes
+	auto boardWidth = BoardWidth();
+	auto width = vscreen->Width - boardWidth;
+	if (width <= 0)
+		return;
+
+	auto size = static_cast<size_t>(width) * vscreen->Height;
+	auto changed = SidebarCopy.size() != size;
+	SidebarCopy.resize(size);
+	for (int y = 0; y < vscreen->Height; y++)
+	{
+		auto src = &vscreen->BmpBufPtr1[y * vscreen->Stride + boardWidth];
+		auto dst = &SidebarCopy[y * width];
+		if (!changed && memcmp(src, dst, width * sizeof(ColorRgba)) == 0)
+			continue;
+		changed = true;
+		std::copy_n(src, width, dst);
+	}
+	if (changed)
+		Upscale::Region(*vscreen, boardWidth, 0, width, vscreen->Height, *vscreenHi);
 }

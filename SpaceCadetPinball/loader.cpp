@@ -157,17 +157,20 @@ int loader::get_sound_id(int groupIndex)
 				{
 					if (i == 1)
 						std::transform(fileName.begin(), fileName.end(), fileName.begin(),
-						               [](unsigned char c) { return std::toupper(c); });
+						               [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
 
 					filePath = pb::make_path_name(fileName);
 					auto file = fopenu(filePath.c_str(), "rb");
 					if (file)
 					{
-						fread(&wavHeader, 1, sizeof wavHeader, file);
+						auto headerRead = fread(&wavHeader, 1, sizeof wavHeader, file) == sizeof wavHeader;
 						fclose(file);
-						auto sampleCount = wavHeader.data_size / (wavHeader.channels * (wavHeader.bits_per_sample /
-							8.0));
-						duration = static_cast<float>(sampleCount / wavHeader.sample_rate);
+						if (headerRead)
+						{
+							auto sampleCount = wavHeader.data_size / (wavHeader.channels * (wavHeader.bits_per_sample /
+								8.0));
+							duration = static_cast<float>(sampleCount / wavHeader.sample_rate);
+						}
 						break;
 					}
 				}
@@ -192,7 +195,7 @@ short loader::query_visual_states(int groupIndex)
 {
 	short result;
 	if (groupIndex < 0)
-		return error(0, 17);
+		return static_cast<short>(error(0, 17));
 	auto shortArr = reinterpret_cast<int16_t*>(loader_table->field(groupIndex, FieldTypes::ShortArray));
 	if (shortArr && *shortArr == 100)
 		result = shortArr[1];

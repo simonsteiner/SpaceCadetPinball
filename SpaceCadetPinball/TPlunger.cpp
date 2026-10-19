@@ -66,8 +66,8 @@ int TPlunger::Message(MessageCode code, float value)
 	switch (code)
 	{
 	case MessageCode::PlungerInputPressed:
-		if (!PullbackStartedFlag && (!pb::FullTiltMode || PinballTable->MultiballCount > 0 && !PinballTable->
-			TiltLockFlag))
+		if (!PullbackStartedFlag && (!pb::FullTiltMode || (PinballTable->MultiballCount > 0 && !PinballTable->
+			TiltLockFlag)))
 		{
 			PullbackStartedFlag = true;
 			Boost = 0.0;
@@ -84,7 +84,7 @@ int TPlunger::Message(MessageCode code, float value)
 			}
 			else
 			{
-				auto ball = PinballTable->AddBall(PinballTable->PlungerPosition);
+				[[maybe_unused]] auto ball = PinballTable->AddBall(PinballTable->PlungerPosition);
 				assertm(ball, "Failure to create ball in plunger");
 				PinballTable->MultiballCount++;
 				PinballTable->BallInDrainFlag = 0;

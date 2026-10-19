@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Space Cadet Pinball</title>
+<style>
+  :root { color-scheme: dark; --fg: #e8e6f0; --muted: #a8a4b8; --accent: #8f7cff; --panel: #17151f; }
+  html, body { margin: 0; height: 100%; background: #000; color: var(--fg);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  /* The game sizes the canvas to the page */
+  canvas { display: none; position: fixed; top: 0; left: 0; outline: none; }
+  #start { box-sizing: border-box; max-width: 40rem; margin: 0 auto; padding: 2rem 1.25rem; }
+  h1 { font-size: 1.75rem; margin: 0 0 .5rem; }
+  p { margin: .5rem 0; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  .panel { background: var(--panel); border: 1px solid #2c2838; border-radius: .5rem; padding: 1rem; margin: 1rem 0; }
+  label.button, button { display: inline-block; margin: .25rem .5rem .25rem 0; padding: .55rem 1rem; border-radius: .4rem;
+    border: 1px solid #3a3550; background: #221f2e; color: var(--fg); font: inherit; cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #0d0b14; font-weight: 600; }
+  button:disabled { opacity: .45; cursor: default; }
+  input[type=file] { display: none; }
+  #files { font-family: ui-monospace, monospace; font-size: .85rem; color: var(--muted); max-height: 8rem; overflow: auto; }
+  #status { min-height: 1.5em; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="start">
+  <h1>Space Cadet Pinball</h1>
+  <p>A port of 3D Pinball for Windows, running in your browser. It needs the original game data, which isn't included.</p>
+
+  <div class="panel">
+    <p><strong>1. Add the game data.</strong> Choose <code>PINBALL.DAT</code> with its <code>.WAV</code> and <code>.MID</code> files
+      from 3D Pinball for Windows, or the folder of Full Tilt! Pinball (<code>CADET.DAT</code>).</p>
+    <label class="button" for="pickFiles">Choose files…</label>
+    <label class="button" for="pickFolder">Choose a folder…</label>
+    <input id="pickFiles" type="file" multiple accept=".dat,.wav,.mid,.mds,.sf2,.sf3">
+    <input id="pickFolder" type="file" webkitdirectory>
+    <div id="files"></div>
+    <p class="muted">The files stay in this browser (IndexedDB). They are never uploaded anywhere.
+      <button id="forget" type="button">Forget the game data</button></p>
+  </div>
+
+  <div class="panel">
+    <p><strong>2. Music.</strong> The music is MIDI and needs a SoundFont.</p>
+    <p><label><input id="music" type="checkbox" checked> Download the free FluidR3 Mono SoundFont (14.5 MB)</label>
+      <span class="muted">(<a href="FluidR3Mono_License.md">MIT licence</a>, by Frank Wen and Michael Cowgill)</span></p>
+    <p class="muted">Or add your own <code>.sf2</code> or <code>.sf3</code> with the game files above. Music needs a lot of memory.</p>
+  </div>
+
+  <p><button id="play" class="primary" type="button" disabled>Play</button> <span id="status"></span></p>
+  <p class="muted">Source: <a href="https://github.com/simonsteiner/SpaceCadetPinball">github.com/simonsteiner/SpaceCadetPinball</a>.
+    3D Pinball for Windows is Microsoft's; this page contains none of its files.</p>
+</div>
+<canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+
+<script>
+  "use strict";
+  const DataDir = "/data", PrefDir = "/libsdl", SoundFontUrl = "FluidR3Mono_GM.sf3";
+  // The player's own SoundFont first, then the downloaded one; the game reads this list when it starts
+  const SoundFonts = [DataDir + "/soundfont.sf2", DataDir + "/soundfont.sf3", "/soundfont/" + SoundFontUrl];
+  const GameExtensions = /\.(dat|wav|mid|mds)$/i, SoundFontExtensions = /\.(sf2|sf3)$/i;
+  const $ = id => document.getElementById(id);
+
+  function setStatus(text) { $("status").textContent = text; }
+
+  function sync(populate) {
+    return new Promise((resolve, reject) => FS.syncfs(populate, err => err ? reject(err) : resolve()));
+  }
+
+  function listFiles(dir = DataDir, prefix = "") {
+    let files = [];
+    for (const name of FS.readdir(dir)) {
+      if (name === "." || name === "..") continue;
+      const path = dir + "/" + name;
+      if (FS.isDir(FS.stat(path).mode)) files = files.concat(listFiles(path, prefix + name + "/"));
+      else files.push(prefix + name);
+    }
+    return files;
+  }
+
+  function refresh() {
+    const files = listFiles();
+    $("files").textContent = files.length ? files.join("  ") : "No game data yet.";
+    const hasTable = files.some(name => /^(pinball|cadet|demo)\.dat$/i.test(name));
+    $("play").disabled = !hasTable;
+    setStatus(hasTable ? "" : "Add a .DAT file to play.");
+  }
+
+  function makeDirs(path) {
+    let dir = "";
+    for (const part of path.split("/").slice(0, -1)) {
+      dir += "/" + part;
+      if (!FS.analyzePath(dir).exists) FS.mkdir(dir);
+    }
+  }
+
+  async function addFiles(input) {
+    // A copy, so that the input can be cleared: it fires "change" again only for a different selection
+    const fileList = Array.from(input.files);
+    input.value = "";
+    let added = 0;
+    for (const file of fileList) {
+      // A folder's own name is dropped; subfolders such as Full Tilt's SOUND stay
+      const parts = (file.webkitRelativePath || file.name).split("/");
+      let relative = parts.length > 1 ? parts.slice(1).join("/") : parts[0];
+      if (SoundFontExtensions.test(relative)) relative = "soundfont." + relative.split(".").pop().toLowerCase();
+      else if (!GameExtensions.test(relative)) continue;
+      const path = DataDir + "/" + relative;
+      makeDirs(path);
+      FS.writeFile(path, new Uint8Array(await file.arrayBuffer()));
+      added++;
+    }
+    let message = added ? `Added ${added} file${added > 1 ? "s" : ""}.` : "No game files among those.";
+    try {
+      await sync(false);
+    } catch (err) {
+      message = "Couldn't keep the files in this browser: " + err;
+    } finally {
+      refresh();
+    }
+    setStatus(message);
+  }
+
+  async function forget() {
+    for (const name of listFiles().reverse()) FS.unlink(DataDir + "/" + name);
+    let message = "";
+    try {
+      await sync(false);
+    } catch (err) {
+      message = "Couldn't remove the files from this browser: " + err;
+    } finally {
+      refresh();
+    }
+    if (message) setStatus(message);
+  }
+
+  // The game writes its settings and high scores only when asked, then they go to IndexedDB
+  function saveSettings() {
+    try {
+      Module._SaveSettings();
+    } catch (err) {
+      console.warn("Couldn't save the settings", err);
+    }
+    return sync(false).catch(err => console.warn(err));
+  }
+
+  async function play() {
+    $("play").disabled = true;
+    if ($("music").checked && !SoundFonts.slice(0, 2).some(path => FS.analyzePath(path).exists)) {
+      setStatus("Downloading the SoundFont…");
+      try {
+        const response = await fetch(SoundFontUrl);
+        if (response.ok) {
+          FS.writeFile(SoundFonts[2], new Uint8Array(await response.arrayBuffer()));
+        }
+      } catch (err) {
+        console.warn("No SoundFont", err);
+      }
+    }
+
+    // Settings and high scores are written to the preferences folder; keep them in IndexedDB too
+    setInterval(saveSettings, 5000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") saveSettings();
+    });
+    window.addEventListener("pagehide", saveSettings);
+
+    $("start").style.display = "none";
+    Module.canvas.style.display = "block";
+    Module.canvas.focus();
+    FS.chdir(DataDir);
+    // Started from the click, so the browser lets the game start its audio
+    Module.callMain([]);
+  }
+
+  var Module = {
+    canvas: $("canvas"),
+    noInitialRun: true,
+    print: text => console.log(text),
+    printErr: text => console.warn(text),
+    preRun: [() => {
+      // The C environment is built before main, so the SoundFont list goes in now
+      ENV.SDL_SOUNDFONTS = SoundFonts.join(":");
+      FS.mkdir("/soundfont");
+      FS.mkdir(DataDir);
+      FS.mount(IDBFS, {}, DataDir);
+      FS.mkdir(PrefDir);
+      FS.mount(IDBFS, {}, PrefDir);
+      Module.addRunDependency("syncfs");
+      FS.syncfs(true, err => {
+        if (err) console.warn(err);
+        Module.removeRunDependency("syncfs");
+      });
+    }],
+    onRuntimeInitialized: () => {
+      refresh();
+      $("pickFiles").addEventListener("change", event => addFiles(event.target));
+      $("pickFolder").addEventListener("change", event => addFiles(event.target));
+      $("forget").addEventListener("click", forget);
+      $("play").addEventListener("click", play);
+    },
+  };
+  setStatus("Loading…");
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>

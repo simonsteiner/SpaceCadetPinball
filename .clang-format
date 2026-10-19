@@ -1,0 +1,33 @@
+# Close to the existing Visual Studio style. Only changed lines get formatted (git clang-format), never whole files; see docs/setup.md.
+BasedOnStyle: Microsoft
+UseTab: ForContinuationAndIndentation
+TabWidth: 4
+IndentWidth: 4
+ColumnLimit: 120
+IndentCaseLabels: false
+IndentCaseBlocks: true
+MaxEmptyLinesToKeep: 2
+SortIncludes: Never
+PointerAlignment: Left
+DerivePointerAlignment: false
+AccessModifierOffset: -4
+BreakInheritanceList: AfterColon
+BreakConstructorInitializers: AfterColon
+NamespaceIndentation: All
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: true
+  AfterClass: true
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: true
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: true
+  BeforeCatch: true
+  BeforeElse: true
+  BeforeLambdaBody: true
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
