@@ -20,7 +20,7 @@ In each folder it tries `CADET.DAT`, then `PINBALL.DAT`, then `DEMO.DAT`, in upp
 
 ## Build
 
-The project uses C++11, CMake 3.24 or newer, and `SDL2` and `SDL2_mixer`. `CMakePresets.json` has one preset per platform. Configure and build with the same preset name:
+The project uses C++20, CMake 3.24 or newer, and `SDL3` and `SDL3_mixer` (3.2 or newer each). `CMakePresets.json` has one preset per platform. Configure and build with the same preset name:
 
 ```bash
 cmake --preset <preset>
@@ -33,25 +33,30 @@ Each preset builds in `build/<preset>/`. The executable is written to `bin/` in 
 | --- | --- | --- |
 | `linux` | Linux | system packages, Release |
 | `linux-debug` | Linux | system packages, Debug |
+| `linux-sanitize` | Linux | system packages, Debug with AddressSanitizer and UBSan |
 | `linux-vendored` | Linux | built from source |
-| `windows-x64`, `windows-x86` | Windows, Visual Studio 2022 | built from source |
-| `windows-x86-xp` | Windows, Visual Studio 2022 with the `v141_xp` toolset | built from source |
+| `windows-x64` | Windows, Visual Studio 2022 | built from source |
 | `mingw` | Linux, cross-compiling to Windows x64 | built from source |
 | `macos` | macOS, universal `arm64` and `x86_64` | built from source |
+| `web` | Linux or macOS with Emscripten, for browsers | built from source |
 
-The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL2 2.32.10 and SDL2_mixer 2.8.1 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity and the platform's native MIDI. Its other codecs and FluidSynth are left out. When it is `OFF` (the default on Linux), CMake uses the installed `SDL2` and `SDL2_mixer` development packages. CI builds every preset except `linux-debug` and `windows-x86-xp` on each pull request. The GitHub runners have no `v141_xp` toolset, so the XP preset has never been built.
+The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL3 3.4.18 and SDL3_mixer 3.2.4 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity. Its other codecs and FluidSynth are left out; the game brings its own MIDI playback (see [Music](#music)). When it is `OFF` (the default on Linux), CMake uses the installed `SDL3` and `SDL3_mixer` development packages through their CMake config files. CI builds every preset except `linux-debug` and `linux-sanitize` on each pull request. Windows builds are 64-bit only: the 32-bit build was dropped by decision, and the Windows XP build because its `v141_xp` toolset lacks full C++20 support.
 
 Plain `cmake -S . -B build` without a preset still works and follows the same defaults.
 
-Add `-DSCP_WARNINGS=ON` to the configure command to build the game with extra warnings: `-Wall -Wextra`, or `/W4` with MSVC. It applies only to the game, not to SDL, and is off by default. CI turns it on, but warnings don't fail the build yet.
+Add `-DSCP_WARNINGS=ON` to the configure command to build the game with extra warnings, `-Wall -Wextra` or `/W4` with MSVC, and treat them as errors. Unused parameters are allowed, because overrides and callbacks keep the signatures their interfaces set. The option applies only to the game, not to SDL or ImGui, and is off by default, so a newer compiler with new warnings doesn't break a packager's build. CI turns it on. To see the warnings without failing the build, add `--compile-no-warning-as-error` to the configure command.
+
+`SCP_SANITIZERS=ON`, which the `linux-sanitize` preset sets, builds the game and ImGui with AddressSanitizer and UndefinedBehaviorSanitizer. It needs GCC or Clang. Run the replays with this build after a change to memory handling (`tools/check-replays.sh`, see `docs/replays.md`). The window, renderer, sound effects and options are clean too. With SDL2_mixer and FluidSynth, the game used to crash on exit under ASan, because `Mix_Quit` unloaded FluidSynth while one of its threads still ran. Debian's SDL3_mixer has no FluidSynth; with a build that does (Arch or Homebrew, for example), preload it if the exit crashes. With a GCC build, the ASan runtime is a shared library and has to come first: `LD_PRELOAD="$(g++ -print-file-name=libasan.so) /usr/lib/x86_64-linux-gnu/libfluidsynth.so.3"`. Clang links its ASan runtime into the executable, so a Clang build preloads only FluidSynth. The FluidSynth path is the one on Debian and Ubuntu x86_64; other distributions put it elsewhere, and `ldconfig -p | grep libfluidsynth` shows where.
 
 ### Linux
 
+SDL3 is packaged in Debian testing (forky) and sid, Ubuntu 26.04, Fedora and Arch, but SDL3_mixer only in Debian testing and sid and Arch. Where there is no SDL3_mixer package, Ubuntu 24.04 and 26.04 and Fedora among them, use the `linux-vendored` preset below.
+
 ```bash
-# Debian and Ubuntu
-sudo apt install cmake build-essential ninja-build libsdl2-dev libsdl2-mixer-dev libsdl2-mixer-2.0-0 libsdl2-2.0-0 fluidsynth
-# Fedora
-sudo dnf install cmake ninja-build SDL2 SDL2-devel SDL2_mixer SDL2_mixer-devel fluidsynth fluidsynth-libs mscore-fonts g++
+# Debian testing or sid
+sudo apt install cmake build-essential ninja-build libsdl3-dev libsdl3-mixer-dev fluid-soundfont-gm
+# Arch
+sudo pacman -S cmake ninja gcc sdl3 sdl3_mixer soundfont-fluid
 
 cmake --preset linux
 cmake --build --preset linux
@@ -60,9 +65,22 @@ cmake --build --preset linux
 
 Distribution packages should keep `SCP_VENDORED_SDL=OFF`, the Linux default, so the game links against the system SDL. Ubuntu 22.04 ships CMake 3.22, which is too old: install a newer one from [Kitware's APT repository](https://apt.kitware.com/) or with `pip install cmake`.
 
-Tested upstream with GCC 10 and Clang 11. The `linux` preset builds with GCC 15 and CMake 4.2. GCC warns about right-to-left marks in `translations.cpp` and, in optimized builds, about unchecked `fread` return values; both are harmless. `cmake --install build/linux` installs the binary, the `.desktop` file, the AppStream metadata and the icons from `Platform/Linux/`.
+**Music:** see [Music](#music); on Linux it needs a General MIDI SoundFont, such as Debian's and Ubuntu's `fluid-soundfont-gm` package.
 
-The `linux-vendored` preset builds SDL from source instead and needs no SDL packages. SDL loads X11, Wayland, PulseAudio, PipeWire and ALSA at run time, but it can only use the ones whose development headers were installed when it was built. That build plays MIDI through Timidity only, so music needs a `timidity.cfg` with patches.
+Tested upstream with GCC 10 and Clang 11. The `linux` preset builds with GCC 15 and CMake 4.2. `cmake --install build/linux` installs the binary, the `.desktop` file, the AppStream metadata and the icons from `Platform/Linux/`.
+
+The `linux-vendored` preset builds SDL from source instead and needs no SDL packages, only SDL's build dependencies. SDL loads X11, Wayland, PulseAudio, PipeWire and ALSA at run time, but it can only use the ones whose development headers were installed when it was built, and it stops configuring when a header for an X11 extension it wants is missing. On Debian and Ubuntu:
+
+```bash
+sudo apt install cmake build-essential ninja-build \
+  libasound2-dev libpulse-dev libpipewire-0.3-dev libx11-dev libxext-dev libxrandr-dev \
+  libxcursor-dev libxfixes-dev libxi-dev libxss-dev libxtst-dev libxkbcommon-dev \
+  libwayland-dev libdecor-0-dev libegl-dev libgl-dev libdrm-dev libgbm-dev libudev-dev libdbus-1-dev
+cmake --preset linux-vendored
+cmake --build --preset linux-vendored
+```
+
+To leave out a missing X11 extension instead, pass its option, for example `-DSDL_X11_XTEST=OFF`.
 
 Some distributions package the game, and it is on [Flathub](https://flathub.org/apps/details/com.github.k4zmu2a.spacecadetpinball): see [Repology](https://repology.org/project/spacecadetpinball/versions).
 
@@ -75,7 +93,25 @@ cmake --preset windows-x64
 cmake --build --preset windows-x64
 ```
 
-SDL is downloaded and linked statically, so the executable needs no `SDL2.dll` or `SDL2_mixer.dll`. The `windows-*` presets build a GUI-subsystem executable with no console window. To see the console output, add `-DCMAKE_WIN32_EXECUTABLE=OFF`.
+SDL is downloaded and linked statically, so the executable needs no `SDL3.dll` or `SDL3_mixer.dll`. The `windows-*` presets build a GUI-subsystem executable with no console window. To see the console output, add `-DCMAKE_WIN32_EXECUTABLE=OFF`.
+
+### Web
+
+The `web` preset builds the game with [Emscripten](https://emscripten.org/) into one page: `bin/SpaceCadetPinball.html`, `.js` and `.wasm`. `tools/install-emsdk.sh <folder>` installs the pinned Emscripten SDK; set `EMSDK` to that folder before configuring.
+
+```bash
+tools/install-emsdk.sh ~/emsdk
+export EMSDK=~/emsdk
+cmake --preset web
+cmake --build --preset web
+```
+
+To try it, copy the three files into a folder, rename the page to `index.html`, add `FluidR3Mono_GM.sf3` for music if you like, and serve the folder over HTTP (`python3 -m http.server`); browsers don't run it from a `file:` URL. The page asks for the game data with a file picker. The files are kept in the browser's IndexedDB, so they are only asked for once, and are never uploaded; "Forget the game data" removes them. Settings and high scores are kept the same way.
+
+- The game's loop yields to the browser after every frame (`-sASYNCIFY` and `emscripten_sleep`), so the browser shows the frame and delivers input in between. It runs without threads, because GitHub Pages can't send the headers that threads need.
+- Music plays with TinySoundFont and the SoundFont the player adds with the game files (`.sf2` or `.sf3`), or else the free `FluidR3Mono_GM.sf3` that the page offers to download. It takes about 400 MB of memory once loaded.
+- The browser lets the game start audio only after a click, so the game starts from the Play button.
+- There is no Exit in the menu; closing the tab ends the game. Post-processing isn't available, because SDL's GPU renderer doesn't run in browsers.
 
 ### Cross-compiling for Windows from Linux
 
@@ -93,9 +129,66 @@ The preset uses `mingwcc.cmake` as its toolchain file, builds SDL from source an
 Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake 3.24 or newer.
 
 - **Packaged app:** run `bash build-mac-app.sh` from the repository root. It builds the `macos` preset and produces `SpaceCadetPinball-<version>-mac.dmg`. See [deployment.md](deployment.md).
-- **Manual build:** `cmake --preset macos && cmake --build --preset macos` builds a universal binary with SDL linked statically. To use SDL from Homebrew (`sdl2`, `sdl2_mixer`) or MacPorts (`libsdl2`, `libsdl2_mixer`) instead, configure without the preset and pass `-DSCP_VENDORED_SDL=OFF`. That build targets only the host architecture unless `CMAKE_OSX_ARCHITECTURES` is set.
+- **Manual build:** `cmake --preset macos && cmake --build --preset macos` builds a universal binary with SDL linked statically. To use SDL from Homebrew (`sdl3`, `sdl3_mixer`) instead, configure without the preset and pass `-DSCP_VENDORED_SDL=OFF`. That build targets only the host architecture unless `CMAKE_OSX_ARCHITECTURES` is set.
 - **Tested upstream with:** the earlier framework-based script on macOS Ventura (Apple Silicon) with Command Line Tools 14 and on a GitHub Intel runner with Xcode 13; manual builds on macOS Big Sur (Intel) and Monterey beta (Apple Silicon) with Xcode 13. CI builds the `macos` preset on a `macos-26` runner, but nobody has run the resulting app yet.
 - **Prebuilt:** `brew tap draftbrew/tap && brew install --no-quarantine space-cadet-pinball`. `--no-quarantine` bypasses Gatekeeper for this install.
+
+## Formatting and linting
+
+`.clang-format` describes the existing Visual Studio style (tabs, braces on their own line, 120 columns), but the code isn't formatted as a whole: that would rewrite about 1,200 lines in 107 of 126 game files and make every merge from upstream conflict. Only the lines a change touches get formatted. `.clang-format-ignore` leaves out ImGui, `third_party/`, `EmbeddedData.cpp` and `translations.cpp`.
+
+```bash
+uvx --from clang-format==23.1.3 git-clang-format --staged   # format the staged lines before committing
+uvx --from clang-format==23.1.3 git-clang-format main       # or the lines changed since main
+```
+
+`uvx` comes with [uv](https://docs.astral.sh/uv/) and fetches the pinned clang-format, so nothing else needs installing. `.clang-tidy` lists a small set of bug-prone and performance checks. CI's `lint` job runs both on the lines each pull request changes, with `tools/lint-changed.sh`; to run it locally, configure a build with a compile database first:
+
+```bash
+cmake -S . -B build/lint -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
+tools/lint-changed.sh main build/lint
+```
+
+The script checks the lines changed since the branch left `main` (their merge base), so commits that landed on `main` afterwards don't count; CI passes the base side of the pull request's merge commit. Without the build folder argument, it checks the formatting only. clang-tidy checks changed lines in `.cpp` files and in game headers; a header has no compile command of its own, so it is parsed with `pch.h` included first, as the build does.
+
+The LLVM version is set once, in `tools/llvm-requirements.txt`: CI installs it from there with hashes, and the script reads it for `uvx`. To bump it, regenerate that file's hashes, then update the version in the `uvx` commands above and in `AGENTS.md`.
+
+## Display
+
+The game opens its window at the largest whole multiple of the table that matches the display's scale setting and fits on the display: one table's size (600×416 for 3D Pinball, or the chosen Full Tilt resolution) plus the menu at 100 %, twice that at 200 %, and so on. On a Retina or other high-density display it draws at the full pixel resolution. The menus and dialogs follow the display's scale, and Options → Graphics → UI Scale works on top of that.
+
+Options → Graphics:
+
+- **Integer Scaling** (on by default): the table is drawn at a whole multiple of its size, so every pixel of the original art becomes an even block. Off, it fills the window ("fit"), and each table pixel is still drawn the same size (SDL's pixel-art scaling, with SDL 3.4 or newer).
+- **Uniform Scaling** (on by default): keeps the table's proportions. Off, it stretches to the window.
+- **Linear Filtering** (off by default): smooths the table instead of keeping its pixels sharp.
+- **Backdrop** (on by default): fills the space around the table with a blurred, darkened copy of the table, made from the player's own data the first time it is shown, instead of black bars.
+- **Upscaled Art** (off by default, F7 switches it at any time, also during a game): draws the table from upscaled copies of its art, made with [MMPX](https://casual-effects.com/research/McGuire2021PixelArt/) when the option is turned on, from the player's own data file. **Upscaled Art Size** picks 2× or 4×; the frame is then that much larger, so it looks best with the window at a matching multiple. Depth maps are scaled without smoothing, so sprites still overlap exactly as in the original. The upscaled art lives only in memory; nothing is written.
+  - **Replacing sprites:** a PNG named after a sprite in the `sprites` folder of the user preferences folder (`~/.local/share/SpaceCadetPinball/sprites/` on Linux) replaces the generated copy of that sprite. It must be exactly 2× or 4× the original's size, matching Upscaled Art Size. Pixels less than half opaque are transparent and the rest are drawn solid, because the table has no blending. **Upscaled Art Size → Export Original Sprites** writes every sprite of the current table resolution to `sprites/originals/`, under the names the game looks for, for example to feed an AI upscaler, and says how many it wrote. Replacing and exporting sprites need SDL 3.4 or newer; with an older SDL the export item is greyed out and replacement PNGs are ignored. These files come from the player's own data and are theirs to keep; don't share them.
+- **Post-Processing** (None by default): **CRT** adds scanlines and an aperture grille, **Smooth Edges** rounds the steps of diagonal edges (EPX, the edge-directed scaler xBR grew out of). Both draw through SDL's GPU renderer, the only one that takes custom shaders, so they need SDL 3.4 or newer and Vulkan, Direct3D 12 or Metal. Choosing an effect while another renderer runs restarts the game on the GPU renderer, which ends a game in progress; after that, switching effects is instant. If the GPU renderer can't be created, the menu says so, the table is drawn plain and choosing an effect restarts nothing. With SDL older than 3.4 the menu isn't there. Not with `-sw`.
+- **Panel Under Table in Tall Windows** (on by default): in a tall window, such as a portrait screen, the score panel moves under the table when that lets the table be drawn larger. It needs Uniform Scaling.
+
+Full screen (F4 or `-fullscreen`) uses the desktop's resolution, without a mode change. Settings saved by an earlier version keep their values, so a player who had Integer Scaling off or Linear Filtering on keeps that.
+
+## Frame rate
+
+Options → Graphics sets how often the table updates (UPS, 120 by default) and how often it is drawn (FPS, 60 by default). Updates are the physics: keep UPS at 120 to play as the original data was tuned. FPS can go higher than UPS for a high-refresh display: the table still updates 120 times a second, in equal steps, and the ball is drawn between its last two positions in the frames in between, which delays it by at most one update (8 ms). In this mode **Uncapped UPS** reads **Uncapped FPS**: it lifts the frame limit, and the table still updates at UPS. **Match Display Refresh Rate** (off by default) sets FPS to the display's refresh rate, also after the window moves to another display.
+
+## Controls
+
+Options → Player Controls (F8) binds a key, a mouse button and a gamepad button to each action. Gamepads work through SDL's gamepad database: by default the shoulder buttons are the flippers, A launches the ball, and the D-pad nudges the table. The analog triggers can be bound too: they count as pressed past half way and released below a quarter. **Options → Gamepad Rumble** (on by default) shakes the gamepad when a flipper fires and when the ball hits a bumper; the demo doesn't rumble.
+
+On a touch screen, touching the left half of the table works the left flipper and the right half the right flipper, as long as the finger stays down. Touching the score panel pulls the plunger back, and lifting the finger launches the ball. Several fingers work at once. Touches elsewhere, such as the margins, do nothing to the table, and the menus take touches as mouse clicks.
+
+## Music
+
+SDL3_mixer can't be relied on for the MIDI music: it has no native MIDI, and some distributions build it without MIDI. The game picks the first of these that works when it starts:
+
+1. **Native MIDI** on Windows and macOS (vendored [SDL_native_midi](https://github.com/libsdl-org/SDL_native_midi)): the system's own synth, which is what the original game used.
+2. **TinySoundFont** (vendored) with a SoundFont: the files in `SDL_SOUNDFONTS` (separated by `;`, or also `:` outside Windows), then `/usr/share/sounds/sf3/default-GM.sf3`, `/usr/share/sounds/sf2/default-GM.sf2`, `/usr/share/sounds/sf2/FluidR3_GM.sf2`, `/usr/share/soundfonts/default.sf2`, `/usr/share/soundfonts/FluidR3_GM.sf2` and `/usr/share/sounds/sf2/TimGM6mb.sf2`. SF2 and SF3 (compressed) files both load; Debian's newer default `/usr/share/sounds/sf3/default-GM.sf3` comes first. The whole SoundFont is held in memory as floating point, so FluidR3 (148 MB on disk) takes about 400 MB (loading `FluidR3_GM.sf2` with SF3 support on peaks at 570 MB before settling back to 288 MB, because TinySoundFont keeps the raw copy while sizing its first float buffer); TimGM6mb (6 MB) is lighter.
+3. **SDL3_mixer's own MIDI decoders,** if it has any: Timidity in the vendored build (needs a `timidity.cfg` with GUS patches; set `TIMIDITY_CFG` if it isn't in `/etc/timidity.cfg` or `/etc/timidity/`), FluidSynth in some distribution builds.
+
+No SoundFont ships with the game. Music needs an audio device, so `-noaudio` and `-quick` turn it off.
 
 ## Command-line options
 
@@ -113,8 +206,8 @@ Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake 3.2
 ## Troubleshooting
 
 - **No background music:** music is on by default (the original game had it off), but a saved `Music=0` in `imgui_pb.ini` from an earlier run keeps it off. Turn it on with F6 or Options → Music.
-- **Still no music on Linux:** SDL_mixer plays MIDI through FluidSynth, which needs a SoundFont. Debian and Ubuntu builds find `/usr/share/sounds/sf2/FluidR3_GM.sf2` (package `fluid-soundfont-gm`) on their own. Elsewhere, point `SDL_SOUNDFONTS` at one before launching, for example `export SDL_SOUNDFONTS=/usr/share/soundfonts/FluidR3_GM.sf2` (Fedora).
+- **Still no music:** the console says which synth plays the music, `Playing music with SoundFont: <path>`, or why none could start. On Linux, install a General MIDI SoundFont or point `SDL_SOUNDFONTS` at one; see [Music](#music).
 - **"Could not create renderer" or a black window:** try `-sw`.
 - **WSL2:** WSLg provides both a display and a PulseAudio device, so the game runs without extra setup and without `-noaudio`.
-- **`SDL Error: Couldn't open timidity.cfg` in the console:** the main loop prints any pending SDL error, including errors that SDL_mixer recovered from internally. This line alone is not proof that music is broken.
+- **An `SDL Error:` line in the console:** the main loop prints any pending SDL error, including errors that SDL or SDL_mixer recovered from internally. This line alone is not proof that music is broken.
 - **"Could not load game data":** no data file was found. The message lists the folders searched; see [Game data](#game-data). When a file is found, the console prints `Loading game from: <path>`.

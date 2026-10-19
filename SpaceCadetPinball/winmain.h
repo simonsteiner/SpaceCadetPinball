@@ -1,7 +1,10 @@
 #pragma once
 #include "gdrv.h"
 
+#include <array>
+
 enum class GameBindings;
+enum class PostEffects : int;
 
 struct SdlTickClock
 {
@@ -87,6 +90,13 @@ public:
 	static void Restart();
 	static void UpdateFrameRate();
 	static void HandleGameBinding(GameBindings binding, bool shortcut);
+	static void ApplyDisplayScale();
+	static bool CreateRenderer(bool gpu);
+	static void SetPostProcessing(PostEffects effect);
+	static void GamepadTrigger(const SDL_GamepadAxisEvent& event);
+	static void TouchInput(const SDL_TouchFingerEvent& event);
+	static float ExpectedMenuHeight();
+
 private:
 	static int return_value;
 	static int mouse_down, last_mouse_x, last_mouse_y;
@@ -107,6 +117,15 @@ private:
 	static unsigned gfrOffset;
 	static float gfrWindow;
 	static int CursorIdleCounter;
+	static std::unique_ptr<ImGuiStyle> BaseStyle;
+	static bool SoftwareRenderer;
+	static bool HighRefresh;
+	static DurationMs UpdateTime, UpdateTimeAccumulator;
+	static int CurrentFps;
+	static bool RefreshRateUnknown;
+	// Left and right trigger state of each gamepad
+	static std::map<SDL_JoystickID, std::array<bool, 2>> TriggerPressed;
+	static std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> TouchBindings;
 
 	static void RenderUi();
 	static void RenderFrameTimeDialog();

@@ -2,7 +2,7 @@
 
 # SpaceCadetPinball
 
-Reverse engineering of `3D Pinball for Windows - Space Cadet`, the pinball game bundled with Windows, as a cross-platform C++ port on SDL2.
+Reverse engineering of `3D Pinball for Windows - Space Cadet`, the pinball game bundled with Windows, as a cross-platform C++ port on SDL3.
 It runs on desktop Windows, Linux and macOS and plays the original data files from either the Windows or the Full Tilt! Pinball release.
 
 This is [simonsteiner's fork](https://github.com/simonsteiner/SpaceCadetPinball) of [k4zmu2a/SpaceCadetPinball](https://github.com/k4zmu2a/SpaceCadetPinball). Work happens on `main`; `master` tracks upstream. See the [modernization plan](docs/plan/2026-10-18-modernization.md).
@@ -10,13 +10,13 @@ This is [simonsteiner's fork](https://github.com/simonsteiner/SpaceCadetPinball)
 ## Quickstart
 
 ```bash
-sudo apt install cmake build-essential ninja-build libsdl2-dev libsdl2-mixer-dev
+sudo apt install cmake build-essential ninja-build libsdl3-dev libsdl3-mixer-dev  # Debian testing; Ubuntu has no SDL3_mixer yet
 cmake --preset linux && cmake --build --preset linux
 cp -r /path/to/original-game/. bin/  # PINBALL.DAT with its .WAV and .MID files
 ./bin/SpaceCadetPinball
 ```
 
-The game data is not included. Other platforms, data search paths and troubleshooting are in [docs/setup.md](docs/setup.md).
+The game data is not included. Ubuntu, Fedora and other platforms, data search paths and troubleshooting are in [docs/setup.md](docs/setup.md).
 
 ## Docs
 
@@ -70,7 +70,7 @@ Platforms covered by this project: desktop Windows, Linux and macOS.
 * ~~Decompile original game~~
 * ~~Resizable window, scaled graphics~~
 * ~~Loader for high-res sprites from CADET.DAT~~
-* ~~Cross-platform port using SDL2, SDL2_mixer, ImGui~~
+* ~~Cross-platform port using SDL2, SDL2_mixer, ImGui~~ (now SDL3 and SDL3_mixer)
 * Full Tilt Cadet features
 * Localization support
 * Maybe: Support for the other two tables - Dragon and Pirate

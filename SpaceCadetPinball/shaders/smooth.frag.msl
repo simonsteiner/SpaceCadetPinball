@@ -1,0 +1,72 @@
+// The Metal version of smooth.frag.hlsl, with the bindings SDL's Metal backend expects
+#include <metal_stdlib>
+using namespace metal;
+
+struct Context
+{
+    float2 texture_size;
+    float2 output_scale;
+};
+
+struct main0_in
+{
+    float4 v_color [[user(locn0)]];
+    float2 v_uv [[user(locn1)]];
+};
+
+struct main0_out
+{
+    float4 o_color [[color(0)]];
+};
+
+static float4 Texel(texture2d<float> tex, float2 size, int2 position)
+{
+    int2 last = int2(size) - 1;
+    return tex.read(uint2(clamp(position, int2(0), last)));
+}
+
+static bool Same(float4 a, float4 b)
+{
+    return all(abs(a - b) < 1.0 / 512.0);
+}
+
+fragment main0_out main0(main0_in in [[stage_in]], constant Context& context [[buffer(0)]],
+                         texture2d<float> u_texture [[texture(0)]], sampler u_sampler [[sampler(0)]])
+{
+    main0_out out = {};
+    float2 position = in.v_uv * context.texture_size;
+    int2 cell = int2(floor(position));
+    float2 inside = position - floor(position);
+    float2 size = context.texture_size;
+
+    float4 center = Texel(u_texture, size, cell);
+    float4 up = Texel(u_texture, size, cell + int2(0, -1));
+    float4 right = Texel(u_texture, size, cell + int2(1, 0));
+    float4 left = Texel(u_texture, size, cell + int2(-1, 0));
+    float4 down = Texel(u_texture, size, cell + int2(0, 1));
+
+    float4 color = center;
+    if (inside.y < 0.5)
+    {
+        if (inside.x < 0.5)
+        {
+            if (Same(left, up) && !Same(left, down) && !Same(up, right))
+                color = up;
+        }
+        else if (Same(up, right) && !Same(up, left) && !Same(right, down))
+            color = right;
+    }
+    else
+    {
+        if (inside.x < 0.5)
+        {
+            if (Same(down, left) && !Same(down, right) && !Same(left, up))
+                color = left;
+        }
+        else if (Same(right, down) && !Same(right, up) && !Same(down, left))
+            color = down;
+    }
+
+    out.o_color = color * in.v_color;
+    return out;
+}

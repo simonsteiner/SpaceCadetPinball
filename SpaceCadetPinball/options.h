@@ -30,8 +30,14 @@ enum class Menu1:int
 	WindowUniformScale = 600,
 	WindowLinearFilter = 601,
 	WindowIntegerScale = 602,
+	WindowBackdrop = 603,
+	WindowStackedLayout = 604,
+	WindowUpscaledArt = 605,
 	Prefer3DPBGameData = 700,
 };
+
+// The analog triggers, which SDL reports as axes, bind as two extra GameController inputs
+constexpr int GamepadLeftTrigger = 100, GamepadRightTrigger = 101;
 
 enum class InputTypes
 {
@@ -81,6 +87,7 @@ enum class GameBindings
 	ShowControlDialog,
 	ToggleMenuDisplay,
 	Exit,
+	ToggleUpscaledArt,
 	Max
 };
 
@@ -102,13 +109,16 @@ public:
 	                     DefUps = 120, DefFps = 60;
 	// Original uses 8 sound channels
 	static constexpr int MaxSoundChannels = 32, MinSoundChannels = 1, DefSoundChannels = 8;
-	static constexpr int MaxVolume = MIX_MAX_VOLUME, MinVolume = 0, DefVolume = MaxVolume;
+	// SDL2_mixer's MIX_MAX_VOLUME, kept so that saved volumes keep their meaning
+	static constexpr int MaxVolume = 128, MinVolume = 0, DefVolume = MaxVolume;
 	static struct optionsStruct Options;
 	static std::vector<struct OptionBase*> AllOptions;
 
 	static void InitPrimary();
 	static void InitSecondary();
 	static void uninit();
+	// Writes every option into the settings, which ImGui keeps in its .ini
+	static void Save();
 	static const std::string& GetSetting(const std::string& key, const std::string& defaultValue);
 	static void SetSetting(const std::string& key, const std::string& value);
 	static int get_int(LPCSTR lpValueName, int defaultValue);
@@ -289,4 +299,11 @@ struct optionsStruct
 	StringOption FontFileName;
 	StringOption Language;
 	BoolOption HideCursor;
+	BoolOption Backdrop;
+	BoolOption StackedLayout;
+	IntOption PostProcessing;
+	BoolOption Rumble;
+	BoolOption MatchRefreshRate;
+	BoolOption UpscaledArt;
+	IntOption UpscaleFactor;
 };

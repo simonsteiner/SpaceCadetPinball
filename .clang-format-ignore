@@ -1,0 +1,8 @@
+# Vendored and generated files keep their upstream formatting
+SpaceCadetPinball/imgui*
+SpaceCadetPinball/imstb_*
+SpaceCadetPinball/imconfig.h
+SpaceCadetPinball/EmbeddedData.cpp
+SpaceCadetPinball/translations.cpp
+third_party/**
+SpaceCadetPinball/shaders/PostEffectShaders.h

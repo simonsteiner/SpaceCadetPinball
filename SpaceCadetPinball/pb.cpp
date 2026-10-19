@@ -93,6 +93,7 @@ int pb::init()
 		backgroundBmp,
 		0,
 		0);
+	render::InitialBackground = backgroundBmp;
 
 	loader::loadfrom(record_table);
 
@@ -162,7 +163,7 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 			{
 				if (i == 1)
 					std::transform(fileName.begin(), fileName.end(), fileName.begin(),
-					               [](unsigned char c) { return std::tolower(c); });
+					               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
 				auto datFilePath = make_path_name(fileName);
 				auto datFile = fopenu(datFilePath.c_str(), "r");
@@ -544,12 +545,48 @@ void pb::loose_focus()
 
 void pb::InputUp(GameInput input)
 {
-	if (game_mode != GameModes::InGame || winmain::single_step || demo_mode)
+	BindingsUp(input, options::MapGameInput(input));
+}
+
+void pb::BindingUp(GameBindings binding)
+{
+	BindingsUp(GameInput{}, {binding});
+}
+
+void pb::BindingDown(GameBindings binding)
+{
+	if (options::WaitingForInput())
 		return;
 
-	const auto bindings = options::MapGameInput(input);
+	BindingsDown(GameInput{}, {binding});
+}
+
+bool pb::TableTakesInput()
+{
+	return game_mode == GameModes::InGame && !winmain::single_step && !demo_mode;
+}
+
+void pb::BindingsUp(GameInput input, const std::vector<GameBindings>& bindings)
+{
+	if (!TableTakesInput())
+		return;
+
 	replay::RecordInput(false, input, bindings);
 	GameInputUp(bindings);
+}
+
+void pb::BindingsDown(GameInput input, const std::vector<GameBindings>& bindings)
+{
+	for (const auto binding : bindings)
+	{
+		winmain::HandleGameBinding(binding, true);
+	}
+
+	if (!TableTakesInput())
+		return;
+
+	replay::RecordInput(true, input, bindings);
+	GameInputDown(input, bindings);
 }
 
 void pb::GameInputUp(const std::vector<GameBindings>& bindings)
@@ -589,17 +626,7 @@ void pb::InputDown(GameInput input)
 		return;
 	}
 
-	const auto bindings = options::MapGameInput(input);
-	for (const auto binding : bindings)
-	{
-		winmain::HandleGameBinding(binding, true);
-	}
-
-	if (game_mode != GameModes::InGame || winmain::single_step || demo_mode)
-		return;
-
-	replay::RecordInput(true, input, bindings);
-	GameInputDown(input, bindings);
+	BindingsDown(input, options::MapGameInput(input));
 }
 
 void pb::GameInputDown(GameInput input, const std::vector<GameBindings>& bindings)

@@ -222,6 +222,7 @@ enum class Msg : int
 	Menu1_UseMaxResolution_640x480,
 	Menu1_UseMaxResolution_800x600,
 	Menu1_UseMaxResolution_1024x768,
+	Menu1_ToggleUpscaledArt,
 
 	Max,
 };
@@ -298,7 +299,7 @@ struct TextArray
 	}
 
 private:
-	LPCSTR Store[static_cast<int>(Msg::Max )][static_cast<int>(Lang::Max)]{ nullptr };
+	LPCSTR Store[static_cast<int>(Msg::Max )][static_cast<int>(Lang::Max)]{};
 
 	void Set(Msg msgId, Lang langId, LPCSTR value)
 	{
@@ -323,7 +324,6 @@ public:
 	static const char* GetTranslation(Msg id);
 	static void SetCurrentLanguage(const char* short_name);
 	static const LanguageInfo* GetCurrentLanguage();
-	static void GetGlyphRange(ImVector<ImWchar>* ranges);
 
 private:
 	static const TextArray Translations;

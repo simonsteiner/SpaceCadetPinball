@@ -273,10 +273,6 @@ __pycache__/
 out/
 /cmake-build-debug
 
-# Windows XP stuff
-DebugWinXp/
-ReleaseWinXp/
-
 ### CMake ###
 CMakeLists.txt.user
 CMakeCache.txt

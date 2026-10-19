@@ -17,30 +17,6 @@ enum class GameModes
 	GameOver = 2,
 };
 
-class UsingSdlHint
-{
-public:
-	explicit UsingSdlHint(const char* name, const char* value)
-		: HintName(name)
-	{
-		auto originalValue = SDL_GetHint(name);
-		if (originalValue)
-			strncpy(OriginalValue, originalValue, sizeof OriginalValue - 1);
-
-		SDL_SetHint(name, value);
-	}
-
-	~UsingSdlHint()
-	{
-		if (OriginalValue[0])
-			SDL_SetHint(HintName, OriginalValue);
-	}
-
-private:
-	char OriginalValue[40]{};
-	const char* HintName;
-};
-
 class pb
 {
 public:
@@ -74,6 +50,9 @@ public:
 	static void loose_focus();
 	static void InputUp(GameInput input);
 	static void InputDown(GameInput input);
+	// Input that already is a binding, such as a touch on the table
+	static void BindingDown(GameBindings binding);
+	static void BindingUp(GameBindings binding);
 	// The part of InputUp and InputDown that acts on the table, also called by replay playback
 	static void GameInputUp(const std::vector<GameBindings>& bindings);
 	static void GameInputDown(GameInput input, const std::vector<GameBindings>& bindings);
@@ -90,5 +69,10 @@ public:
 private:
 	static bool demo_mode;
 	static float IdleTimerMs;
+
+	// The shared path of InputUp/Down and BindingUp/Down: shortcuts, then, while a game runs, record and act
+	static bool TableTakesInput();
+	static void BindingsUp(GameInput input, const std::vector<GameBindings>& bindings);
+	static void BindingsDown(GameInput input, const std::vector<GameBindings>& bindings);
 	static float BallToBallCollision(const ray_type& ray, const TBall& ball, TEdgeSegment** edge, float collisionDistance);
 };

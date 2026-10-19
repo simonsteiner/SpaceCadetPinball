@@ -91,10 +91,21 @@ enum class MidiTracks
 	Track3
 };
 
+// What plays the music: the system's synth, TinySoundFont with a SoundFont, or SDL_mixer's own MIDI decoders
+enum class MidiBackend
+{
+	None,
+	Native,
+	SoundFont,
+	Mixer
+};
+
+struct MidiSong;
+
 class midi
 {
 public:
-	static int music_init(bool mixOpen, int volume);
+	static int music_init(MIX_Mixer* mixer, int volume);
 	static void music_shutdown();
 	static void music_play();
 	static void music_stop();
@@ -102,15 +113,21 @@ public:
 	static bool play_track(MidiTracks track, bool replay);
 	static MidiTracks get_active_track();
 private:
-	static std::vector<Mix_Music*> LoadedTracks;
-	static Mix_Music* track1, * track2, * track3;
+	static std::vector<MidiSong*> LoadedTracks;
+	static MidiSong* track1, * track2, * track3;
 	static MidiTracks active_track, NextTrack;
 	static int Volume;
-	static bool IsPlaying, MixOpen;
+	static bool IsPlaying;
+	static MIX_Mixer* Mixer;
+	static MIX_Track* MusicTrack;
+	static MidiBackend Backend;
 
 	static void StopPlayback();
-	static Mix_Music* load_track(std::string fileName);
-	static Mix_Music* load_track_sub(std::string fileName, bool isMidi);
-	static Mix_Music* TrackToMidi(MidiTracks track);
+	static bool StartPlayback(MidiSong* song);
+	static void ShutdownBackend();
+	static MidiSong* load_track(std::string fileName);
+	static std::vector<uint8_t>* load_track_sub(std::string fileName, bool isMidi);
+	static std::vector<uint8_t>* ReadFile(const std::string& path);
+	static MidiSong* TrackToMidi(MidiTracks track);
 	static std::vector<uint8_t>* MdsToMidi(std::string file);
 };

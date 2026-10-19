@@ -25,6 +25,12 @@
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
     },
     {
+      "name": "linux-sanitize",
+      "displayName": "Linux debug with AddressSanitizer and UBSan, system SDL packages",
+      "inherits": "linux-debug",
+      "cacheVariables": { "SCP_SANITIZERS": "ON" }
+    },
+    {
       "name": "linux-vendored",
       "displayName": "Linux, SDL built from source",
       "inherits": "linux",
@@ -41,18 +47,6 @@
         "SCP_VENDORED_SDL": "ON"
       },
       "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
-    },
-    {
-      "name": "windows-x86",
-      "displayName": "Windows x86, Visual Studio 2022",
-      "inherits": "windows-x64",
-      "architecture": "Win32"
-    },
-    {
-      "name": "windows-x86-xp",
-      "displayName": "Windows x86 for XP, Visual Studio 2022 with the v141_xp toolset",
-      "inherits": "windows-x86",
-      "toolset": "v141_xp"
     },
     {
       "name": "mingw",
@@ -76,16 +70,27 @@
         "SCP_VENDORED_SDL": "ON"
       },
       "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Darwin" }
+    },
+    {
+      "name": "web",
+      "displayName": "Web (Emscripten), SDL built from source; needs EMSDK set",
+      "inherits": "base",
+      "generator": "Ninja",
+      "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "SCP_VENDORED_SDL": "ON"
+      }
     }
   ],
   "buildPresets": [
     { "name": "linux", "configurePreset": "linux" },
     { "name": "linux-debug", "configurePreset": "linux-debug" },
+    { "name": "linux-sanitize", "configurePreset": "linux-sanitize" },
     { "name": "linux-vendored", "configurePreset": "linux-vendored" },
     { "name": "windows-x64", "configurePreset": "windows-x64", "configuration": "Release" },
-    { "name": "windows-x86", "configurePreset": "windows-x86", "configuration": "Release" },
-    { "name": "windows-x86-xp", "configurePreset": "windows-x86-xp", "configuration": "Release" },
     { "name": "mingw", "configurePreset": "mingw" },
-    { "name": "macos", "configurePreset": "macos" }
+    { "name": "macos", "configurePreset": "macos" },
+    { "name": "web", "configurePreset": "web" }
   ]
 }

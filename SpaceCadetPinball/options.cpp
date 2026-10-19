@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "options.h"
 
+#include "PostEffect.h"
+
 #include "fullscrn.h"
 #include "midi.h"
 #include "pb.h"
@@ -18,50 +20,52 @@ bool options::ShowDialog = false;
 GameInput* options::ControlWaitingForInput = nullptr;
 std::vector<OptionBase*> options::AllOptions{};
 
+// The settings table is aligned by hand
+// clang-format off
 optionsStruct options::Options
 {
 	{
 		{
 			"Left Flipper key",
 			Msg::KEYMAPPER_FlipperL,
-			{InputTypes::Keyboard, SDLK_z},
+			{InputTypes::Keyboard, SDLK_Z},
 			{InputTypes::Mouse, SDL_BUTTON_LEFT},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_LEFTSHOULDER}
+			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER}
 		},
 		{
 			"Right Flipper key",
 			Msg::KEYMAPPER_FlipperR,
 			{InputTypes::Keyboard, SDLK_SLASH},
 			{InputTypes::Mouse,SDL_BUTTON_RIGHT},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER}
+			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER}
 		},
 		{
 			"Plunger key",
 			Msg::KEYMAPPER_Plunger,
 			{InputTypes::Keyboard, SDLK_SPACE},
 			{InputTypes::Mouse,SDL_BUTTON_MIDDLE},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_A}
+			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_SOUTH}
 		},
 		{
 			"Left Table Bump key",
 			Msg::KEYMAPPER_BumpLeft,
-			{InputTypes::Keyboard, SDLK_x},
+			{InputTypes::Keyboard, SDLK_X},
 			{InputTypes::Mouse,SDL_BUTTON_X1},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_LEFT}
+			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_DPAD_LEFT}
 		},
 		{
 			"Right Table Bump key",
 			Msg::KEYMAPPER_BumpRight,
 			{InputTypes::Keyboard, SDLK_PERIOD},
 			{InputTypes::Mouse,SDL_BUTTON_X2},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_RIGHT}
+			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_DPAD_RIGHT}
 		},
 		{
 			"Bottom Table Bump key",
 			Msg::KEYMAPPER_BumpBottom,
 			{InputTypes::Keyboard, SDLK_UP},
 			{InputTypes::Mouse,SDL_BUTTON_X2 + 1},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_DPAD_UP}
+			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_DPAD_UP}
 		},
 		{
 			"New Game",
@@ -75,7 +79,7 @@ optionsStruct options::Options
 			Msg::Menu1_Pause_Resume_Game,
 			{InputTypes::Keyboard, SDLK_F3},
 			{},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_START}
+			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_START}
 		},
 		{
 			"Toggle FullScreen",
@@ -117,7 +121,14 @@ optionsStruct options::Options
 			Msg::Menu1_Exit,
 			{InputTypes::Keyboard, SDLK_ESCAPE},
 			{},
-			{InputTypes::GameController, SDL_CONTROLLER_BUTTON_BACK}
+			{InputTypes::GameController, SDL_GAMEPAD_BUTTON_BACK}
+		},
+		{
+			"Toggle Upscaled Art",
+			Msg::Menu1_ToggleUpscaledArt,
+			{InputTypes::Keyboard, SDLK_F7},
+			{},
+			{}
 		},
 	},
 	{"Sounds", true},
@@ -127,7 +138,7 @@ optionsStruct options::Options
 	{"Screen Resolution", -1},
 	{"UI Scale", 1.0f},
 	{"Uniform scaling", true},
-	{"Linear Filtering", true},
+	{"Linear Filtering", false},
 	{"Frames Per Second", DefFps},
 	{"Updates Per Second", DefUps},
 	{"ShowMenu", true},
@@ -135,7 +146,7 @@ optionsStruct options::Options
 	{"Sound Channels", DefSoundChannels},
 	{"HybridSleep", false},
 	{"Prefer 3DPB Game Data", false},
-	{"Integer Scaling", false},
+	{"Integer Scaling", true},
 	{"Sound Volume", DefVolume},
 	{"Music Volume", DefVolume},
 	{"Stereo Sound Effects", false},
@@ -152,7 +163,15 @@ optionsStruct options::Options
 	{"FontFileName", ""},
 	{"Language", translations::GetCurrentLanguage()->ShortName},
 	{"Hide Cursor", false},
+	{"Backdrop", true},
+	{"Stacked Layout", true},
+	{"Post Processing", 0},
+	{"Gamepad Rumble", true},
+	{"Match Display Refresh Rate", false},
+	{"Upscaled Art", false},
+	{"Upscale Factor", 2},
 };
+// clang-format on
 
 void options::InitPrimary()
 {
@@ -186,6 +205,11 @@ void options::InitSecondary()
 }
 
 void options::uninit()
+{
+	Save();
+}
+
+void options::Save()
 {
 	Options.Language.V = translations::GetCurrentLanguage()->ShortName;
 	for (const auto opt : AllOptions)
@@ -310,6 +334,17 @@ void options::toggle(Menu1 uIDCheckItem)
 		break;
 	case Menu1::WindowIntegerScale:
 		Options.IntegerScaling ^= true;
+		fullscrn::window_size_changed();
+		break;
+	case Menu1::WindowBackdrop:
+		Options.Backdrop ^= true;
+		break;
+	case Menu1::WindowUpscaledArt:
+		Options.UpscaledArt ^= true;
+		render::SetUpscale(Options.UpscaledArt ? Options.UpscaleFactor.V : 0);
+		break;
+	case Menu1::WindowStackedLayout:
+		Options.StackedLayout ^= true;
 		fullscrn::window_size_changed();
 		break;
 	default:
@@ -494,12 +529,13 @@ void options::MyUserData_WriteAll(ImGuiContext* ctx, ImGuiSettingsHandler* handl
 
 void options::PostProcessOptions()
 {
-	winmain::ImIO->FontGlobalScale = Options.UIScale;
+	ImGui::GetStyle().FontScaleMain = Options.UIScale;
 	Options.FramesPerSecond = Clamp(Options.FramesPerSecond.V, MinFps, MaxFps);
 	Options.UpdatesPerSecond = Clamp(Options.UpdatesPerSecond.V, MinUps, MaxUps);
-	Options.UpdatesPerSecond = std::max(Options.UpdatesPerSecond.V, Options.FramesPerSecond.V);
 	Options.SoundChannels = Clamp(Options.SoundChannels.V, MinSoundChannels, MaxSoundChannels);
 	Options.SoundVolume = Clamp(Options.SoundVolume.V, MinVolume, MaxVolume);
+	Options.UpscaleFactor = Options.UpscaleFactor.V >= 4 ? 4 : 2;
+	Options.PostProcessing = Clamp(Options.PostProcessing.V, 0, static_cast<int>(PostEffects::Max) - 1);
 	Options.MusicVolume = Clamp(Options.MusicVolume.V, MinVolume, MaxVolume);
 	translations::SetCurrentLanguage(Options.Language.V.c_str());
 	winmain::UpdateFrameRate();
@@ -568,7 +604,7 @@ std::string GameInput::GetShortInputDescription() const
 	switch (Type)
 	{
 	case InputTypes::Keyboard:
-		keyName = SDL_GetKeyName(Value);
+		keyName = SDL_GetKeyName(static_cast<SDL_Keycode>(Value));
 		break;
 	case InputTypes::Mouse:
 		if (Value >= SDL_BUTTON_LEFT && Value <= SDL_BUTTON_X2)
@@ -577,8 +613,12 @@ std::string GameInput::GetShortInputDescription() const
 			keyName = "MButton" + std::to_string(Value);
 		break;
 	case InputTypes::GameController:
-		if (Value >= SDL_CONTROLLER_BUTTON_A && Value < std::min(static_cast<int>(SDL_CONTROLLER_BUTTON_MAX), 21))
+		if (Value >= SDL_GAMEPAD_BUTTON_SOUTH && Value < std::min(static_cast<int>(SDL_GAMEPAD_BUTTON_COUNT), 21))
 			keyName = controllerButtons[Value];
+		else if (Value == GamepadLeftTrigger)
+			keyName = "LeftTrigger";
+		else if (Value == GamepadRightTrigger)
+			keyName = "RightTrigger";
 		else
 			keyName = "CButton" + std::to_string(Value);
 		break;

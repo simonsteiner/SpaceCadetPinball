@@ -1,17 +1,41 @@
 #include "pch.h"
 #include "winmain.h"
 
+// The game has its own main function
+#define SDL_MAIN_HANDLED
+#include <SDL3/SDL_main.h>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <emscripten/html5.h>
+
+// The window fills the browser's viewport
+static void FitWindowToPage(int width, int height)
+{
+	SDL_SetWindowSize(winmain::MainWindow, width, height);
+}
+
+static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* userData)
+{
+	FitWindowToPage(event->windowInnerWidth, event->windowInnerHeight);
+	return false;
+}
+#endif
+
 #include "control.h"
 #include "EmbeddedData.h"
 #include "fullscrn.h"
 #include "midi.h"
 #include "options.h"
 #include "pb.h"
+#include "PostEffect.h"
+#include "Upscale.h"
 #include "render.h"
 #include "replay.h"
 #include "Sound.h"
 #include "translations.h"
 #include "font_selection.h"
+#include "high_score.h"
 
 #include <new>
 
@@ -35,6 +59,23 @@ bool winmain::no_time_loss = false;
 
 bool winmain::restart = false;
 
+#ifdef __EMSCRIPTEN__
+// True while a game runs and its settings may be saved
+static bool GameRunning = false;
+
+// The page calls this before it copies the preference folder to IndexedDB. The browser never lets MainLoop
+// return, so the options, high scores and ImGui's .ini would otherwise only reach the file at a shutdown that
+// doesn't happen.
+extern "C" EMSCRIPTEN_KEEPALIVE void SaveSettings()
+{
+	if (!GameRunning || !winmain::ImIO || !winmain::ImIO->IniFilename)
+		return;
+	options::Save();
+	high_score::write();
+	ImGui::SaveIniSettingsToDisk(winmain::ImIO->IniFilename);
+}
+#endif
+
 std::vector<float> winmain::gfrDisplay{};
 unsigned winmain::gfrOffset = 0;
 float winmain::gfrWindow = 5.0f;
@@ -54,6 +95,15 @@ optionsStruct& winmain::Options = options::Options;
 winmain::DurationMs winmain::SpinThreshold = DurationMs(0.005);
 WelfordState winmain::SleepState{};
 int winmain::CursorIdleCounter = 0;
+std::unique_ptr<ImGuiStyle> winmain::BaseStyle{};
+bool winmain::SoftwareRenderer = false;
+bool winmain::HighRefresh = false;
+winmain::DurationMs winmain::UpdateTime;
+winmain::DurationMs winmain::UpdateTimeAccumulator;
+int winmain::CurrentFps = 0;
+bool winmain::RefreshRateUnknown = false;
+std::map<SDL_JoystickID, std::array<bool, 2>> winmain::TriggerPressed{};
+std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> winmain::TouchBindings{};
 
 // Splits the command line at spaces and tabs; double quotes keep an argument with spaces together
 static std::vector<std::string> SplitArgs(LPCSTR cmdLine)
@@ -105,9 +155,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 	printf("Game version: %s\n", Version);
 	printf("Command line: %s\n", lpCmdLine);
-	printf("Compiled with: SDL %d.%d.%d;", SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL);
-	printf(" SDL_mixer %d.%d.%d;", SDL_MIXER_MAJOR_VERSION, SDL_MIXER_MINOR_VERSION, SDL_MIXER_PATCHLEVEL);
-	printf(" ImGui %s %s\n", IMGUI_VERSION, ImGuiRender);
+	printf("Compiled with: SDL %d.%d.%d;", SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_MICRO_VERSION);
+	printf(" SDL_mixer %d.%d.%d;", SDL_MIXER_MAJOR_VERSION, SDL_MIXER_MINOR_VERSION, SDL_MIXER_MICRO_VERSION);
+	printf(" ImGui %s\n", IMGUI_VERSION);
 
 	const auto args = SplitArgs(lpCmdLine);
 	auto recordPath = GetArgValue(args, "-record");
@@ -117,28 +167,22 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		if (!replay::StartPlayback(replayPath))
 			return 1;
 		// Playback is headless; the SDL_VIDEODRIVER environment variable still takes precedence
-		SDL_SetHint(SDL_HINT_VIDEODRIVER, "dummy");
+		SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
 	}
 
 	// SDL init
 	SDL_SetMainReady();
-	if (SDL_Init(SDL_INIT_TIMER | SDL_INIT_AUDIO | SDL_INIT_VIDEO |
-		SDL_INIT_EVENTS | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER) < 0)
+	if (!SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO | SDL_INIT_EVENTS | SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD))
 	{
-		pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not initialize SDL2", SDL_GetError());
+		pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not initialize SDL3", SDL_GetError());
 		return 1;
 	}
 
 	pb::quickFlag = HasArg(args, "-quick");
 
 	// SDL window
-	SDL_Window* window = SDL_CreateWindow
-	(
-		pb::get_rc_string(Msg::STRING139),
-		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-		800, 556,
-		SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE
-	);
+	SDL_Window* window = SDL_CreateWindow(pb::get_rc_string(Msg::STRING139), 800, 556,
+										  SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 	MainWindow = window;
 	if (!window)
 	{
@@ -146,60 +190,41 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		return 1;
 	}
 
-	// If HW fails, fallback to SW SDL renderer.
-	SDL_Renderer* renderer = nullptr;
-	auto swOffset = HasArg(args, "-sw") || replay::IsPlaying() ? 1 : 0;
-	for (int i = swOffset; i < 2 && !renderer; i++)
-	{
-		Renderer = renderer = SDL_CreateRenderer
-		(
-			window,
-			-1,
-			i == 0 ? SDL_RENDERER_ACCELERATED : SDL_RENDERER_SOFTWARE
-		);
-	}
-	if (!renderer)
+	SoftwareRenderer = HasArg(args, "-sw") || replay::IsPlaying();
+	if (!CreateRenderer(false))
 	{
 		pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not create renderer", SDL_GetError());
 		return 1;
 	}
-	SDL_RendererInfo rendererInfo{};
-	if (!SDL_GetRendererInfo(renderer, &rendererInfo))
-		printf("Using SDL renderer: %s\n", rendererInfo.name);
-	SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 
 	auto prefPath = SDL_GetPrefPath("", "SpaceCadetPinball");
 	auto basePath = SDL_GetBasePath();
 
 	// SDL mixer init
-	bool mixOpened = false, noAudio = HasArg(args, "-noaudio") || replay::IsPlaying();
+	MIX_Mixer* mixer = nullptr;
+	bool noAudio = HasArg(args, "-noaudio") || replay::IsPlaying();
 	if (!noAudio)
 	{
-		if ((Mix_Init(MIX_INIT_MID_Proxy) & MIX_INIT_MID_Proxy) == 0)
+		if (!MIX_Init())
 		{
-			printf("Could not initialize SDL MIDI, music might not work.\nSDL Error: %s\n", SDL_GetError());
+			printf("Could not initialize SDL_mixer, continuing without audio.\nSDL Error: %s\n", SDL_GetError());
 			SDL_ClearError();
+			noAudio = true;
 		}
-		if (Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 1024) != 0)
+		else if (!(mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr)))
 		{
 			printf("Could not open audio device, continuing without audio.\nSDL Error: %s\n", SDL_GetError());
 			SDL_ClearError();
 		}
-		else
-			mixOpened = true;
 	}
+	auto mixOpened = mixer != nullptr;
 
 	{
 		// Load SDL Game Controller definitions from DB
-		unsigned decompressedSize{};
-		const auto controllerDb = ImFontAtlas::DecompressCompressedStbData(
-			EmbeddedData::SDL_GameControllerDB_compressed_data,
-			EmbeddedData::SDL_GameControllerDB_compressed_size,
-			decompressedSize);
-		auto rw = SDL_RWFromMem(controllerDb, decompressedSize);
-		const auto added = SDL_GameControllerAddMappingsFromRW(rw, 1);
-		IM_FREE(controllerDb);
+		auto controllerDb = EmbeddedData::DecompressStb(EmbeddedData::SDL_GameControllerDB_compressed_data,
+		                                                 EmbeddedData::SDL_GameControllerDB_compressed_size);
+		auto io = SDL_IOFromConstMem(controllerDb.data(), controllerDb.size());
+		const auto added = SDL_AddGamepadMappingsFromIO(io, true);
 		if (added < 0)
 		{
 			printf("Could not load game controller DB.\nSDL Error: %s\n", SDL_GetError());
@@ -208,6 +233,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	}
 
 	auto resetAllOptions = HasArg(args, "-reset");
+#ifndef __EMSCRIPTEN__
+	auto firstOpen = true;
+#endif
 	do
 	{
 		restart = false;
@@ -231,10 +259,21 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			options::ResetAllOptions();
 		}
 
+		// Post-processing needs SDL's GPU renderer, the only one that takes custom shaders. No textures exist yet,
+		// so this is the place to switch. Turning an effect off keeps that renderer, so no restart is needed for it.
+		// Once the GPU renderer has failed, it isn't tried again.
+		auto effect = static_cast<PostEffects>(Options.PostProcessing.V);
+		auto wantGpu = !SoftwareRenderer && effect != PostEffects::None && !PostEffect::GpuRendererFailed();
+		if (wantGpu && !PostEffect::IsGpuRenderer(Renderer) && !CreateRenderer(true) && !CreateRenderer(false))
+		{
+			pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not create renderer", SDL_GetError());
+			return 1;
+		}
+		PostEffect::Init(Renderer);
+		PostEffect::SetEffect(effect);
+
 		if (!Options.FontFileName.V.empty())
 		{
-			ImVector<ImWchar> ranges;
-			translations::GetGlyphRange(&ranges);
 			ImFontConfig fontConfig{};
 
 			// ToDo: further tweak font options, maybe try imgui_freetype
@@ -249,19 +288,20 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			{
 				fclose(fileHandle);
 
-				// ToDo: Bind font size to UI scale
-				if (io.Fonts->AddFontFromFileTTF(fileName, 13.f, &fontConfig, ranges.Data))
+				// ImGui loads glyphs as text needs them, so no glyph ranges are passed
+				if (io.Fonts->AddFontFromFileTTF(fileName, 13.f, &fontConfig))
 					fontLoaded = true;
 			}
 
 			if (!fontLoaded)
 				printf("Failed to load font: %s, using embedded font.\n", fileName);
-			io.Fonts->Build();
 		}
-		ImGui_Render_Init(renderer);
+		ImGui_ImplSDLRenderer3_Init(Renderer);
 		ImGui::StyleColorsDark();
+		BaseStyle = std::make_unique<ImGuiStyle>(ImGui::GetStyle());
+		ApplyDisplayScale();
 
-		ImGui_ImplSDL2_InitForSDLRenderer(window, Renderer);
+		ImGui_ImplSDL3_InitForSDLRenderer(window, Renderer);
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
 
 		// Data search order: WD, executable path, user pref path, platform specific paths.
@@ -295,13 +335,13 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		if (replay::IsRecording() || replay::IsPlaying())
 			srand(replay::Seed());
 
-		Sound::Init(mixOpened, Options.SoundChannels, Options.Sounds, Options.SoundVolume);
+		Sound::Init(mixer, Options.SoundChannels, Options.Sounds, Options.SoundVolume);
 		if (!mixOpened)
 			Options.Sounds = false;
 
 		// Keep Options.Music as saved: playback is a no-op without a loaded track,
 		// and clearing it here would persist Music=0 after a -noaudio or -quick run.
-		midi::music_init(mixOpened, Options.MusicVolume);
+		midi::music_init(mixer, Options.MusicVolume);
 
 		if (pb::init())
 		{
@@ -319,6 +359,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		}
 
 		fullscrn::init();
+		render::SetUpscale(Options.UpscaledArt ? Options.UpscaleFactor.V : 0);
 
 		pb::reset_table();
 		pb::firsttime_setup();
@@ -328,11 +369,12 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			Options.FullScreen = true;
 		}
 
-		if (!Options.FullScreen)
-		{
-			auto resInfo = &fullscrn::resolution_array[fullscrn::GetResolution()];
-			SDL_SetWindowSize(MainWindow, resInfo->TableWidth, resInfo->TableHeight);
-		}
+#ifndef __EMSCRIPTEN__
+		// Also in full screen, where it sets the size the window returns to.
+		// Only the first open centres it, so a restart keeps where the player put the window.
+		fullscrn::ResetWindowSize(firstOpen);
+		firstOpen = false;
+#endif
 		if (replay::IsPlaying())
 		{
 			// The recording holds the command that started the game
@@ -345,6 +387,10 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		else
 		{
 			SDL_ShowWindow(window);
+#ifdef __EMSCRIPTEN__
+			FitWindowToPage(EM_ASM_INT({ return window.innerWidth; }), EM_ASM_INT({ return window.innerHeight; }));
+			emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, false, PageResized);
+#endif
 			fullscrn::set_screen_mode(Options.FullScreen);
 
 			if (HasArg(args, "-demo"))
@@ -352,7 +398,13 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			else
 				pb::replay_level(false);
 
+#ifdef __EMSCRIPTEN__
+			GameRunning = true;
 			MainLoop();
+			GameRunning = false;
+#else
+			MainLoop();
+#endif
 		}
 		auto played = replay::IsPlaying();
 		replay::Stop();
@@ -363,22 +415,22 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		Sound::Close();
 		pb::uninit();
 
-		ImGui_Render_Shutdown();
-		ImGui_ImplSDL2_Shutdown();
+		ImGui_ImplSDLRenderer3_Shutdown();
+		ImGui_ImplSDL3_Shutdown();
 		ImGui::DestroyContext();
 	}
 	while (restart);
 
 	if (!noAudio)
 	{
-		if (mixOpened)
-			Mix_CloseAudio();
-		Mix_Quit();
+		if (mixer)
+			MIX_DestroyMixer(mixer);
+		MIX_Quit();
 	}
 
-	SDL_free(basePath);
 	SDL_free(prefPath);
-	SDL_DestroyRenderer(renderer);
+	PostEffect::Uninit();
+	SDL_DestroyRenderer(Renderer);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
 
@@ -419,8 +471,10 @@ void winmain::MainLoop()
 		{
 			if (mouse_down)
 			{
-				int x, y, w, h;
-				SDL_GetMouseState(&x, &y);
+				float mouseX, mouseY;
+				int w, h;
+				SDL_GetMouseState(&mouseX, &mouseY);
+				auto x = static_cast<int>(mouseX), y = static_cast<int>(mouseY);
 				SDL_GetWindowSize(MainWindow, &w, &h);
 				float dx = static_cast<float>(last_mouse_x - x) / static_cast<float>(w);
 				float dy = static_cast<float>(y - last_mouse_y) / static_cast<float>(h);
@@ -438,37 +492,56 @@ void winmain::MainLoop()
 					// Mouse warp does not work over remote desktop or in some VMs
 					x = abs(x - xMod);
 					y = abs(y - yMod);
-					SDL_WarpMouseInWindow(MainWindow, x, y);
+					SDL_WarpMouseInWindow(MainWindow, static_cast<float>(x), static_cast<float>(y));
 				}
 
 				last_mouse_x = x;
 				last_mouse_y = y;
 			}
+			auto ballAlpha = 1.0f;
 			if (!single_step && !no_time_loss)
 			{
+				// Normally one update per loop. With more frames than updates per second, the loop runs at the frame
+				// rate and the table still advances in steps of 1000/UPS ms, so the physics see the same time steps.
+				auto updates = 1;
 				auto dt = static_cast<float>(frameDuration.count());
-				pb::frame(dt);
-				if (DispGRhistory)
+				if (HighRefresh)
 				{
-					auto targetSize = static_cast<unsigned>(static_cast<float>(Options.UpdatesPerSecond) * gfrWindow);
-					if (gfrDisplay.size() != targetSize)
-					{
-						gfrDisplay.resize(targetSize, static_cast<float>(TargetFrameTime.count()));
-						gfrOffset = 0;
-					}
-					gfrDisplay[gfrOffset] = dt;
-					gfrOffset = (gfrOffset + 1) % gfrDisplay.size();
+					dt = static_cast<float>(UpdateTime.count());
+					UpdateTimeAccumulator += frameDuration;
+					updates = static_cast<int>(UpdateTimeAccumulator / UpdateTime);
+					// At most 2: the accumulator was below UpdateTime and frameDuration is capped at 2 * UpdateTime
+					UpdateTimeAccumulator -= UpdateTime * updates;
+					ballAlpha = static_cast<float>(UpdateTimeAccumulator / UpdateTime);
 				}
-				updateCounter++;
+				for (auto update = 0; update < updates; update++)
+				{
+					pb::frame(dt);
+					if (DispGRhistory)
+					{
+						auto targetSize =
+							static_cast<unsigned>(static_cast<float>(Options.UpdatesPerSecond) * gfrWindow);
+						if (gfrDisplay.size() != targetSize)
+						{
+							gfrDisplay.resize(targetSize, static_cast<float>(UpdateTime.count()));
+							gfrOffset = 0;
+						}
+						gfrDisplay[gfrOffset] = dt;
+						gfrOffset = (gfrOffset + 1) % gfrDisplay.size();
+					}
+					updateCounter++;
+				}
 			}
+			else
+				UpdateTimeAccumulator = DurationMs::zero();
 			no_time_loss = false;
 
 			if (UpdateToFrameCounter >= UpdateToFrameRatio)
 			{
 				if (Options.HideCursor && CursorIdleCounter <= 0)
 					ImGui::SetMouseCursor(ImGuiMouseCursor_None);
-				ImGui_ImplSDL2_NewFrame();
-				ImGui_Render_NewFrame();
+				ImGui_ImplSDLRenderer3_NewFrame();
+				ImGui_ImplSDL3_NewFrame();
 				ImGui::NewFrame();
 				RenderUi();
 
@@ -476,10 +549,13 @@ void winmain::MainLoop()
 				// Alternative clear hack, clear might fail on some systems
 				// Todo: remove original clear, if save for all platforms
 				SDL_RenderFillRect(Renderer, nullptr);
+				if (HighRefresh && ballAlpha < 1.0f)
+					render::InterpolateBalls(ballAlpha);
 				render::PresentVScreen();
+				render::RestoreBalls();
 
 				ImGui::Render();
-				ImGui_Render_RenderDrawData(ImGui::GetDrawData());
+				ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), Renderer);
 
 				SDL_RenderPresent(Renderer);
 				frameCounter++;
@@ -515,6 +591,14 @@ void winmain::MainLoop()
 			auto targetTimeDelta = TargetFrameTime - DurationMs(updateEnd - frameStart) - sleepRemainder;
 
 			TimePoint frameEnd;
+#ifdef __EMSCRIPTEN__
+			// The browser draws the canvas and delivers events only while the loop yields, so it yields every time
+			if (targetTimeDelta > DurationMs::zero() && !Options.UncappedUpdatesPerSecond)
+				emscripten_sleep(static_cast<unsigned>(targetTimeDelta.count()));
+			else
+				emscripten_sleep(0);
+			frameEnd = Clock::now();
+#else
 			if (targetTimeDelta > DurationMs::zero() && !Options.UncappedUpdatesPerSecond)
 			{
 				if (Options.HybridSleep)
@@ -527,11 +611,13 @@ void winmain::MainLoop()
 			{
 				frameEnd = updateEnd;
 			}
+#endif
 
 			// Limit duration to 2 * target time
 			sleepRemainder = Clamp(DurationMs(frameEnd - updateEnd) - targetTimeDelta, -TargetFrameTime,
 			                       TargetFrameTime);
-			frameDuration = std::min<DurationMs>(DurationMs(frameEnd - frameStart), 2 * TargetFrameTime);
+			frameDuration = std::min<DurationMs>(DurationMs(frameEnd - frameStart),
+												 2 * (HighRefresh ? UpdateTime : TargetFrameTime));
 			frameStart = frameEnd;
 			UpdateToFrameCounter++;
 
@@ -600,7 +686,10 @@ void winmain::RenderUi()
 				end_pause();
 				pb::toggle_demo();
 			}
+#ifndef __EMSCRIPTEN__
+			// A browser tab closes the game itself
 			ImGuiMenuItemWShortcut(GameBindings::Exit);
+#endif
 			ImGui::EndMenu();
 		}
 
@@ -633,6 +722,8 @@ void winmain::RenderUi()
 				ImGui::EndMenu();
 			}
 			ImGuiMenuItemWShortcut(GameBindings::ShowControlDialog);
+			if (ImGui::MenuItem("Gamepad Rumble", nullptr, Options.Rumble))
+				Options.Rumble ^= true;
 			if (ImGui::BeginMenu("Language"))
 			{
 				auto currentLanguage = translations::GetCurrentLanguage();
@@ -698,10 +789,64 @@ void winmain::RenderUi()
 				{
 					options::toggle(Menu1::WindowIntegerScale);
 				}
+				if (ImGui::MenuItem("Backdrop", nullptr, Options.Backdrop))
+				{
+					options::toggle(Menu1::WindowBackdrop);
+				}
+				if (ImGui::MenuItem("Panel Under Table in Tall Windows", nullptr, Options.StackedLayout))
+				{
+					options::toggle(Menu1::WindowStackedLayout);
+				}
+				ImGuiMenuItemWShortcut(GameBindings::ToggleUpscaledArt, Options.UpscaledArt);
+				if (ImGui::BeginMenu("Upscaled Art Size"))
+				{
+					for (auto factor : {2, 4})
+					{
+						char label[8];
+						snprintf(label, sizeof label, "%dx", factor);
+						if (ImGui::MenuItem(label, nullptr, Options.UpscaleFactor == factor))
+						{
+							Options.UpscaleFactor = factor;
+							if (Options.UpscaledArt)
+								render::SetUpscale(factor);
+						}
+					}
+#if SDL_VERSION_ATLEAST(3, 4, 0)
+					if (ImGui::MenuItem("Export Original Sprites"))
+					{
+						auto count = Upscale::ExportOriginals();
+						auto folder = Upscale::OriginalsFolder();
+						auto message = count ? "Exported " + std::to_string(count) + " sprites to " + folder
+											 : "Could not export the sprites to " + folder;
+						SDL_ShowSimpleMessageBox(count ? SDL_MESSAGEBOX_INFORMATION : SDL_MESSAGEBOX_WARNING,
+												 "Export Original Sprites", message.c_str(), MainWindow);
+					}
+#else
+					ImGui::MenuItem("Export Original Sprites", nullptr, false, false);
+					ImGui::TextDisabled("Needs SDL 3.4 or newer");
+#endif
+					ImGui::EndMenu();
+				}
+#if SDL_VERSION_ATLEAST(3, 4, 0)
+				if (ImGui::BeginMenu("Post-Processing"))
+				{
+					constexpr const char* names[] = {"None", "CRT", "Smooth Edges"};
+					for (int i = 0; i < static_cast<int>(PostEffects::Max); i++)
+					{
+						if (ImGui::MenuItem(names[i], nullptr, Options.PostProcessing == i))
+							SetPostProcessing(static_cast<PostEffects>(i));
+					}
+					if (SoftwareRenderer)
+						ImGui::TextDisabled("Not with the software renderer");
+					else if (PostEffect::GpuRendererFailed())
+						ImGui::TextDisabled("Needs Vulkan, Direct3D 12 or Metal");
+					ImGui::EndMenu();
+				}
+#endif
 				if (ImGui::DragFloat("UI Scale", &Options.UIScale.V, 0.005f, 0.8f, 5,
 				                     "%.2f", ImGuiSliderFlags_AlwaysClamp))
 				{
-					ImIO->FontGlobalScale = Options.UIScale;
+					ImGui::GetStyle().FontScaleMain = Options.UIScale;
 				}
 				ImGui::Separator();
 
@@ -717,15 +862,31 @@ void winmain::RenderUi()
 				                     ImGuiSliderFlags_AlwaysClamp))
 				{
 					changed = true;
-					Options.FramesPerSecond = std::min(Options.UpdatesPerSecond.V, Options.FramesPerSecond.V);
 				}
+				ImGui::BeginDisabled(Options.MatchRefreshRate);
 				if (ImGui::SliderInt("FPS", &Options.FramesPerSecond.V, options::MinFps, options::MaxFps, "%d",
 				                     ImGuiSliderFlags_AlwaysClamp))
 				{
 					changed = true;
-					Options.UpdatesPerSecond = std::max(Options.UpdatesPerSecond.V, Options.FramesPerSecond.V);
 				}
-				snprintf(buffer, sizeof buffer - 1, "Uncapped UPS (FPS ratio %02.02f)", UpdateToFrameRatio);
+				ImGui::EndDisabled();
+				if (ImGui::MenuItem("Match Display Refresh Rate", nullptr, Options.MatchRefreshRate))
+				{
+					Options.MatchRefreshRate ^= true;
+					changed = true;
+				}
+				// The frame rate in use: the display's, the slider's if the display's is unknown, or above UPS
+				if (Options.MatchRefreshRate && RefreshRateUnknown)
+					ImGui::TextDisabled("Refresh rate unknown, using %d FPS", CurrentFps);
+				else if (HighRefresh)
+					ImGui::TextDisabled("%d FPS, the ball drawn between updates", CurrentFps);
+				else if (Options.MatchRefreshRate)
+					ImGui::TextDisabled("%d FPS", CurrentFps);
+				// With FPS above UPS, the updates keep their pace and only the frames are uncapped
+				if (HighRefresh)
+					snprintf(buffer, sizeof buffer - 1, "Uncapped FPS");
+				else
+					snprintf(buffer, sizeof buffer - 1, "Uncapped UPS (FPS ratio %02.02f)", UpdateToFrameRatio);
 				if (ImGui::MenuItem(buffer, nullptr, Options.UncappedUpdatesPerSecond))
 				{
 					Options.UncappedUpdatesPerSecond ^= true;
@@ -906,7 +1067,7 @@ void winmain::RenderUi()
 
 		if (ImGui::Button(pb::get_rc_string(Msg::GenericOk), ImVec2(120, 0)))
 		{
-			SDL_Event event{SDL_QUIT};
+			SDL_Event event{SDL_EVENT_QUIT};
 			SDL_PushEvent(&event);
 			ImGui::CloseCurrentPopup();
 		}
@@ -933,23 +1094,23 @@ int winmain::event_handler(const SDL_Event* event)
 	auto inputDown = false;
 	switch (event->type)
 	{
-	case SDL_KEYDOWN:
-	case SDL_MOUSEBUTTONDOWN:
-	case SDL_CONTROLLERBUTTONDOWN:
+	case SDL_EVENT_KEY_DOWN:
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
+	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
 		inputDown = true;
 		break;
 	default: break;
 	}
 	if (!options::WaitingForInput() || !inputDown)
-		ImGui_ImplSDL2_ProcessEvent(event);
+		ImGui_ImplSDL3_ProcessEvent(event);
 
 	bool mouseEvent;
 	switch (event->type)
 	{
-	case SDL_MOUSEMOTION:
-	case SDL_MOUSEBUTTONDOWN:
-	case SDL_MOUSEBUTTONUP:
-	case SDL_MOUSEWHEEL:
+	case SDL_EVENT_MOUSE_MOTION:
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
+	case SDL_EVENT_MOUSE_BUTTON_UP:
+	case SDL_EVENT_MOUSE_WHEEL:
 		CursorIdleCounter = 1000;
 		mouseEvent = true;
 		break;
@@ -963,7 +1124,7 @@ int winmain::event_handler(const SDL_Event* event)
 		if (mouse_down)
 		{
 			mouse_down = 0;
-			SDL_SetWindowGrab(MainWindow, SDL_FALSE);
+			SDL_SetWindowMouseGrab(MainWindow, false);
 		}
 		if (mouseEvent)
 			return 1;
@@ -972,10 +1133,10 @@ int winmain::event_handler(const SDL_Event* event)
 	{
 		switch (event->type)
 		{
-		case SDL_KEYDOWN:
-		case SDL_KEYUP:
-		case SDL_CONTROLLERBUTTONDOWN:
-		case SDL_CONTROLLERBUTTONUP:
+		case SDL_EVENT_KEY_DOWN:
+		case SDL_EVENT_KEY_UP:
+		case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+		case SDL_EVENT_GAMEPAD_BUTTON_UP:
 			return 1;
 		default: ;
 		}
@@ -983,39 +1144,39 @@ int winmain::event_handler(const SDL_Event* event)
 
 	switch (event->type)
 	{
-	case SDL_QUIT:
+	case SDL_EVENT_QUIT:
 		end_pause();
 		bQuit = true;
 		fullscrn::shutdown();
 		return_value = 0;
 		return 0;
-	case SDL_KEYUP:
-		pb::InputUp({InputTypes::Keyboard, event->key.keysym.sym});
+	case SDL_EVENT_KEY_UP:
+		pb::InputUp({InputTypes::Keyboard, static_cast<int>(event->key.key)});
 		break;
-	case SDL_KEYDOWN:
+	case SDL_EVENT_KEY_DOWN:
 		if (event->key.repeat)
 			break;
 
-		pb::InputDown({InputTypes::Keyboard, event->key.keysym.sym});
+		pb::InputDown({InputTypes::Keyboard, static_cast<int>(event->key.key)});
 		if (!pb::cheat_mode)
 			break;
 
-		switch (event->key.keysym.sym)
+		switch (event->key.key)
 		{
-		case SDLK_g:
+		case SDLK_G:
 			DispGRhistory ^= true;
 			break;
-		case SDLK_o:
+		case SDLK_O:
 			{
 				auto plt = new ColorRgba[4 * 256];
 				auto pltPtr = &plt[10]; // first 10 entries are system colors hardcoded in display_palette()
 				for (int i1 = 0, i2 = 0; i1 < 256 - 10; ++i1, i2 += 8)
 				{
-					unsigned char blue = i2, redGreen = i2;
+					auto blue = static_cast<unsigned char>(i2), redGreen = static_cast<unsigned char>(i2);
 					if (i2 > 255)
 					{
 						blue = 255;
-						redGreen = i1;
+						redGreen = static_cast<unsigned char>(i1);
 					}
 
 					*pltPtr++ = ColorRgba{blue, redGreen, redGreen, 0};
@@ -1024,7 +1185,7 @@ int winmain::event_handler(const SDL_Event* event)
 				delete[] plt;
 			}
 			break;
-		case SDLK_y:
+		case SDLK_Y:
 			SDL_SetWindowTitle(MainWindow, "Pinball");
 			DispFrameRate ^= true;
 			break;
@@ -1040,8 +1201,11 @@ int winmain::event_handler(const SDL_Event* event)
 			break;
 		}
 		break;
-	case SDL_MOUSEBUTTONDOWN:
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
 		{
+			// SDL also reports touches as mouse clicks; ImGui uses those, the table takes the touches themselves
+			if (event->button.which == SDL_TOUCH_MOUSEID)
+				break;
 			bool noInput = false;
 			switch (event->button.button)
 			{
@@ -1049,9 +1213,9 @@ int winmain::event_handler(const SDL_Event* event)
 				if (pb::cheat_mode)
 				{
 					mouse_down = 1;
-					last_mouse_x = event->button.x;
-					last_mouse_y = event->button.y;
-					SDL_SetWindowGrab(MainWindow, SDL_TRUE);
+					last_mouse_x = static_cast<int>(event->button.x);
+					last_mouse_y = static_cast<int>(event->button.y);
+					SDL_SetWindowMouseGrab(MainWindow, true);
 					noInput = true;
 				}
 				break;
@@ -1063,8 +1227,10 @@ int winmain::event_handler(const SDL_Event* event)
 				pb::InputDown({InputTypes::Mouse, event->button.button});
 		}
 		break;
-	case SDL_MOUSEBUTTONUP:
+	case SDL_EVENT_MOUSE_BUTTON_UP:
 		{
+			if (event->button.which == SDL_TOUCH_MOUSEID)
+				break;
 			bool noInput = false;
 			switch (event->button.button)
 			{
@@ -1072,7 +1238,7 @@ int winmain::event_handler(const SDL_Event* event)
 				if (mouse_down)
 				{
 					mouse_down = 0;
-					SDL_SetWindowGrab(MainWindow, SDL_FALSE);
+					SDL_SetWindowMouseGrab(MainWindow, false);
 					noInput = true;
 				}
 				break;
@@ -1084,61 +1250,192 @@ int winmain::event_handler(const SDL_Event* event)
 				pb::InputUp({InputTypes::Mouse, event->button.button});
 		}
 		break;
-	case SDL_WINDOWEVENT:
-		switch (event->window.event)
-		{
-		case SDL_WINDOWEVENT_FOCUS_GAINED:
-		case SDL_WINDOWEVENT_TAKE_FOCUS:
-		case SDL_WINDOWEVENT_SHOWN:
-			activated = true;
-			Sound::Activate();
-			if (Options.Music && !single_step)
-				midi::music_play();
-			no_time_loss = true;
-			has_focus = true;
-			break;
-		case SDL_WINDOWEVENT_FOCUS_LOST:
-		case SDL_WINDOWEVENT_HIDDEN:
-			activated = false;
-			fullscrn::activate(0);
-			Options.FullScreen = false;
-			Sound::Deactivate();
-			midi::music_stop();
-			has_focus = false;
-			pb::loose_focus();
-			break;
-		case SDL_WINDOWEVENT_SIZE_CHANGED:
-		case SDL_WINDOWEVENT_RESIZED:
-			fullscrn::window_size_changed();
-			break;
-		default: ;
-		}
+	case SDL_EVENT_WINDOW_FOCUS_GAINED:
+	case SDL_EVENT_WINDOW_SHOWN:
+		activated = true;
+		Sound::Activate();
+		if (Options.Music && !single_step)
+			midi::music_play();
+		no_time_loss = true;
+		has_focus = true;
 		break;
-	case SDL_JOYDEVICEADDED:
-		if (SDL_IsGameController(event->jdevice.which))
-		{
-			SDL_GameControllerOpen(event->jdevice.which);
-		}
+	case SDL_EVENT_WINDOW_FOCUS_LOST:
+	case SDL_EVENT_WINDOW_HIDDEN:
+		activated = false;
+		fullscrn::activate(0);
+		Options.FullScreen = false;
+		Sound::Deactivate();
+		midi::music_stop();
+		has_focus = false;
+		pb::loose_focus();
 		break;
-	case SDL_JOYDEVICEREMOVED:
-		{
-			SDL_GameController* controller = SDL_GameControllerFromInstanceID(event->jdevice.which);
-			if (controller)
-			{
-				SDL_GameControllerClose(controller);
-			}
-		}
+	case SDL_EVENT_WINDOW_DISPLAY_CHANGED:
+	case SDL_EVENT_DISPLAY_CURRENT_MODE_CHANGED:
+		if (Options.MatchRefreshRate)
+			UpdateFrameRate();
 		break;
-	case SDL_CONTROLLERBUTTONDOWN:
-		pb::InputDown({InputTypes::GameController, event->cbutton.button});
+	case SDL_EVENT_WINDOW_DISPLAY_SCALE_CHANGED:
+		ApplyDisplayScale();
+		fullscrn::window_size_changed();
 		break;
-	case SDL_CONTROLLERBUTTONUP:
-		pb::InputUp({InputTypes::GameController, event->cbutton.button});
+	case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+	case SDL_EVENT_WINDOW_RESIZED:
+		fullscrn::window_size_changed();
+		break;
+	case SDL_EVENT_GAMEPAD_ADDED:
+		SDL_OpenGamepad(event->gdevice.which);
+		break;
+	case SDL_EVENT_GAMEPAD_REMOVED:
+		TriggerPressed.erase(event->gdevice.which);
+		if (auto gamepad = SDL_GetGamepadFromID(event->gdevice.which))
+			SDL_CloseGamepad(gamepad);
+		break;
+	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+		pb::InputDown({InputTypes::GameController, event->gbutton.button});
+		break;
+	case SDL_EVENT_GAMEPAD_BUTTON_UP:
+		pb::InputUp({InputTypes::GameController, event->gbutton.button});
+		break;
+	case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+		GamepadTrigger(event->gaxis);
+		break;
+	case SDL_EVENT_FINGER_DOWN:
+	case SDL_EVENT_FINGER_UP:
+	case SDL_EVENT_FINGER_CANCELED:
+		TouchInput(event->tfinger);
 		break;
 	default: ;
 	}
 
 	return 1;
+}
+
+void winmain::GamepadTrigger(const SDL_GamepadAxisEvent& event)
+{
+	// A trigger is pressed past half way and released below a quarter, so it doesn't chatter in between
+	if (event.axis != SDL_GAMEPAD_AXIS_LEFT_TRIGGER && event.axis != SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
+		return;
+	auto left = event.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER;
+	auto& pressed = TriggerPressed[event.which][left ? 0 : 1];
+	GameInput input{InputTypes::GameController, left ? GamepadLeftTrigger : GamepadRightTrigger};
+	if (!pressed && event.value > SDL_JOYSTICK_AXIS_MAX / 2)
+	{
+		pressed = true;
+		pb::InputDown(input);
+	}
+	else if (pressed && event.value < SDL_JOYSTICK_AXIS_MAX / 4)
+	{
+		pressed = false;
+		pb::InputUp(input);
+	}
+}
+
+void winmain::TouchInput(const SDL_TouchFingerEvent& event)
+{
+	// The left half of the table works the left flipper, the right half the right one, and the score panel the
+	// plunger, held to pull it back. Each finger keeps what it pressed until it lifts, and a binding is held while
+	// any finger is on it, so it goes down with the first finger and up with the last.
+	// Finger IDs are unique only per touch device
+	auto key = std::pair{event.touchID, event.fingerID};
+	auto held = [](GameBindings binding)
+	{
+		return std::any_of(TouchBindings.begin(), TouchBindings.end(),
+						   [binding](const auto& finger) { return finger.second == binding; });
+	};
+	if (event.type != SDL_EVENT_FINGER_DOWN)
+	{
+		auto finger = TouchBindings.find(key);
+		if (finger != TouchBindings.end())
+		{
+			auto binding = finger->second;
+			TouchBindings.erase(finger);
+			if (!held(binding))
+				pb::BindingUp(binding);
+		}
+		return;
+	}
+	if (TouchBindings.count(key))
+		return;
+	if (ImIO->WantCaptureMouse)
+		return;
+
+	int width, height;
+	SDL_GetRenderOutputSize(Renderer, &width, &height);
+	SDL_Point point{static_cast<int>(event.x * width), static_cast<int>(event.y * height)};
+	// Only the table and the panel bind, not the menu bar or the margins: the ImGui capture flag is last frame's
+	auto& board = render::BoardRect;
+	GameBindings binding;
+	if (SDL_PointInRect(&point, &render::SidebarRect))
+		binding = GameBindings::Plunger;
+	else if (SDL_PointInRect(&point, &board))
+		binding = point.x < board.x + board.w / 2 ? GameBindings::LeftFlipper : GameBindings::RightFlipper;
+	else
+		return;
+
+	auto first = !held(binding);
+	TouchBindings[key] = binding;
+	if (first)
+		pb::BindingDown(binding);
+}
+
+void winmain::SetPostProcessing(PostEffects effect)
+{
+	if (Options.PostProcessing == static_cast<int>(effect))
+		return;
+	Options.PostProcessing = static_cast<int>(effect);
+
+	// The GPU renderer switches effects on the fly; any other renderer has to be replaced, which needs a restart,
+	// unless the GPU renderer could not be created
+	PostEffect::SetEffect(effect);
+	if (!PostEffect::Available() && effect != PostEffects::None && !SoftwareRenderer &&
+		!PostEffect::GpuRendererFailed())
+		Restart();
+}
+
+bool winmain::CreateRenderer(bool gpu)
+{
+	// The GPU renderer, for post-processing; otherwise the default, falling back to the software renderer
+	PostEffect::Uninit();
+	if (Renderer)
+		SDL_DestroyRenderer(Renderer);
+	Renderer = nullptr;
+	if (gpu)
+		Renderer = PostEffect::CreateGpuRenderer(MainWindow);
+	for (int i = SoftwareRenderer ? 1 : 0; i < 2 && !Renderer && !gpu; i++)
+		Renderer = SDL_CreateRenderer(MainWindow, i == 0 ? nullptr : SDL_SOFTWARE_RENDERER);
+	if (!Renderer)
+		return false;
+
+	if (auto rendererName = SDL_GetRendererName(Renderer))
+		printf("Using SDL renderer: %s\n", rendererName);
+	SDL_SetRenderDrawColor(Renderer, 0, 0, 0, 255);
+	return true;
+}
+
+void winmain::ApplyDisplayScale()
+{
+	// Scale the UI for the display, from the unscaled style; the UI Scale option stays on top of it
+	auto& style = ImGui::GetStyle();
+	auto fontScale = style.FontScaleMain;
+	auto scale = fullscrn::ContentScale();
+	style = *BaseStyle;
+	style.ScaleAllSizes(scale);
+	style.FontScaleDpi = scale;
+	style.FontScaleMain = fontScale;
+}
+
+float winmain::ExpectedMenuHeight()
+{
+	// The main menu bar is one frame high; before the first frame ImGui can't measure it,
+	if (MainMenuHeight > 0)
+		return static_cast<float>(MainMenuHeight);
+	// and the style gets its font size only then, so take it from the font: ImGui's own is 13 pixels
+	const auto& style = ImGui::GetStyle();
+	auto fonts = ImGui::GetIO().Fonts;
+	auto fontSize = style.FontSizeBase > 0  ? style.FontSizeBase
+					: fonts->Fonts.Size > 0 ? fonts->Fonts[0]->LegacySize
+											: 13.0f;
+	return std::ceil(fontSize * style.FontScaleMain * style.FontScaleDpi + style.FramePadding.y * 2);
 }
 
 int winmain::ProcessWindowMessages()
@@ -1201,10 +1498,7 @@ void winmain::a_dialog()
 				ImGui::Text("Version %s", Version);
 				if (ImGui::SmallButton("Project home: https://github.com/k4zmu2a/SpaceCadetPinball"))
 				{
-#if SDL_VERSION_ATLEAST(2, 0, 14)
-					// Relatively new feature, skip with older SDL
 					SDL_OpenURL("https://github.com/k4zmu2a/SpaceCadetPinball");
-#endif
 				}
 				ImGui::EndTabItem();
 			}
@@ -1383,16 +1677,34 @@ void winmain::pause(bool toggle)
 void winmain::Restart()
 {
 	restart = true;
-	SDL_Event event{SDL_QUIT};
+	SDL_Event event{SDL_EVENT_QUIT};
 	SDL_PushEvent(&event);
 }
 
 void winmain::UpdateFrameRate()
 {
-	// UPS >= FPS
 	auto fps = Options.FramesPerSecond.V, ups = Options.UpdatesPerSecond.V;
-	UpdateToFrameRatio = static_cast<double>(ups) / fps;
-	TargetFrameTime = DurationMs(1000.0 / ups);
+	RefreshRateUnknown = false;
+	if (Options.MatchRefreshRate)
+	{
+		// The display's refresh rate, if SDL knows it, within the FPS limits
+		auto mode = SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(MainWindow));
+		if (mode && mode->refresh_rate > 0)
+			fps = Clamp(static_cast<int>(std::lround(mode->refresh_rate)), options::MinFps, options::MaxFps);
+		else
+		{
+			RefreshRateUnknown = true;
+			SDL_ClearError();
+		}
+	}
+
+	// With FPS above UPS, the loop runs at the frame rate and the table updates every 1000/UPS ms of it
+	HighRefresh = fps > ups;
+	UpdateToFrameRatio = HighRefresh ? 1.0 : static_cast<double>(ups) / fps;
+	TargetFrameTime = DurationMs(1000.0 / std::max(ups, fps));
+	UpdateTime = DurationMs(1000.0 / ups);
+	UpdateTimeAccumulator = DurationMs::zero();
+	CurrentFps = fps;
 }
 
 void winmain::HandleGameBinding(GameBindings binding, bool shortcut)
@@ -1411,6 +1723,9 @@ void winmain::HandleGameBinding(GameBindings binding, bool shortcut)
 	case GameBindings::ToggleSounds:
 		options::toggle(Menu1::Sounds);
 		break;
+	case GameBindings::ToggleUpscaledArt:
+		options::toggle(Menu1::WindowUpscaledArt);
+		break;
 	case GameBindings::ToggleMusic:
 		options::toggle(Menu1::Music);
 		break;
@@ -1422,9 +1737,12 @@ void winmain::HandleGameBinding(GameBindings binding, bool shortcut)
 		options::toggle(Menu1::Show_Menu);
 		break;
 	case GameBindings::Exit:
+#ifdef __EMSCRIPTEN__
+		break;
+#endif
 		if (!shortcut)
 		{
-			SDL_Event event{SDL_QUIT};
+			SDL_Event event{SDL_EVENT_QUIT};
 			SDL_PushEvent(&event);
 		}
 		else
@@ -1463,7 +1781,7 @@ void winmain::RenderFrameTimeDialog()
 			average /= static_cast<float>(gfrDisplay.size());
 			dev /= static_cast<float>(gfrDisplay.size());
 			char overlay[64];
-			sprintf(overlay, "avg %.3fms, dev %.3fms", average, dev);
+			snprintf(overlay, sizeof overlay, "avg %.3fms, dev %.3fms", average, dev);
 
 			auto region = ImGui::GetContentRegionAvail();
 			ImGui::PlotLines("Lines", gfrDisplay.data(), static_cast<int>(gfrDisplay.size()),

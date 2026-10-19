@@ -63,11 +63,18 @@ public:
 private:
 	static short _field_size[];
 
+	// Sets failed when the file ends early
+	static void Read(FILE* file, void* buffer, size_t size, bool& failed)
+	{
+		if (fread(buffer, 1, size, file) != size)
+			failed = true;
+	}
+
 	template <typename T>
-	static T LRead(FILE* file)
+	static T LRead(FILE* file, bool& failed)
 	{
 		T Buffer{};
-		fread(&Buffer, 1, sizeof(T), file);
+		Read(file, &Buffer, sizeof(T), failed);
 		return Buffer;
 	}
 };

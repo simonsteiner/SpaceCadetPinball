@@ -77,23 +77,6 @@ const char* translations::GetTranslation(Msg id)
 	return text;
 }
 
-void translations::GetGlyphRange(ImVector<ImWchar>* ranges)
-{
-	ImFontGlyphRangesBuilder builder;
-
-	for (int i = 0; i < (int)Msg::Max; i++)
-	{
-		const char* translation = GetTranslation((Msg)i);
-		if (translation)
-		{
-			builder.AddText(translation);
-		}
-	}
-
-	builder.AddRanges(ImGui::GetIO().Fonts->GetGlyphRangesDefault());
-	builder.BuildRanges(ranges);
-}
-
 const TextArray translations::Translations =
 {
 	{
@@ -1172,7 +1155,7 @@ const TextArray translations::Translations =
 	{
 		Msg::STRING141,
 		{
-			{ Lang::Arabic, "‏‏هل تريد مسح أفضل النتائج؟" },
+			{ Lang::Arabic, "\u200F\u200Fهل تريد مسح أفضل النتائج؟" },
 			{ Lang::Czech, "Chcete smazat nejlepší výsledky?" },
 			{ Lang::Danish, "Ryd pointtavlen?" },
 			{ Lang::German, "Bestenliste löschen?" },
@@ -1181,7 +1164,7 @@ const TextArray translations::Translations =
 			{ Lang::Spanish, "¿Borrar las máximas puntuaciones?" },
 			{ Lang::Finnish, "Tyhjennetäänkö parhaat tulokset?" },
 			{ Lang::French, "Effacer les meilleurs scores ?" },
-			{ Lang::Hebrew, "‏‏האם לנקות את נתוני הניקוד הגבוה?" },
+			{ Lang::Hebrew, "\u200F\u200Fהאם לנקות את נתוני הניקוד הגבוה?" },
 			{ Lang::Hungarian, "Törli a legjobb eredményeket?" },
 			{ Lang::Italian, "Cancellare i punteggi migliori?" },
 			{ Lang::Japanese, "ハイスコアをクリアしますか?" },
@@ -1230,7 +1213,7 @@ const TextArray translations::Translations =
 	{
 		Msg::STRING144,
 		{
-			{ Lang::Arabic, "‏‏تحذير:" },
+			{ Lang::Arabic, "\u200F\u200Fتحذير:" },
 			{ Lang::Czech, "Upozornění:" },
 			{ Lang::Danish, "Advarsel:" },
 			{ Lang::German, "Warnung:" },
@@ -2912,7 +2895,7 @@ const TextArray translations::Translations =
 	{
 		Msg::STRING204,
 		{
-			{ Lang::Arabic, "حول ‎3D Pinball" },
+			{ Lang::Arabic, "حول \u200E3D Pinball" },
 			{ Lang::Czech, "Co je hra 3D Pinball" },
 			{ Lang::Danish, "Om 3D Pinball" },
 			{ Lang::German, "Info" },
@@ -4478,7 +4461,7 @@ const TextArray translations::Translations =
 	{
 		Msg::STRING270,
 		{
-			{ Lang::Arabic, "‏‏خطأ:" },
+			{ Lang::Arabic, "\u200F\u200Fخطأ:" },
 			{ Lang::Czech, "Chyba:" },
 			{ Lang::Danish, "Fejl:" },
 			{ Lang::German, "Fehler:" },
@@ -4487,7 +4470,7 @@ const TextArray translations::Translations =
 			{ Lang::Spanish, "Error:" },
 			{ Lang::Finnish, "Virhe:" },
 			{ Lang::French, "Erreur :" },
-			{ Lang::Hebrew, "‏‏שגיאה:" },
+			{ Lang::Hebrew, "\u200F\u200Fשגיאה:" },
 			{ Lang::Hungarian, "Hiba:" },
 			{ Lang::Italian, "Errore:" },
 			{ Lang::Japanese, "エラー:" },
@@ -4507,7 +4490,7 @@ const TextArray translations::Translations =
 	{
 		Msg::STRING271,
 		{
-			{ Lang::Arabic, "‏‏لا يمكن العثور على طاولات أخرى." },
+			{ Lang::Arabic, "\u200F\u200Fلا يمكن العثور على طاولات أخرى." },
 			{ Lang::Czech, "Nelze nalézt další stoly." },
 			{ Lang::Danish, "Det er ikke muligt at finde andre borde." },
 			{ Lang::German, "Es wurde kein anderer Tisch gefunden." },
@@ -4516,7 +4499,7 @@ const TextArray translations::Translations =
 			{ Lang::Spanish, "No se pueden encontrar otras mesas." },
 			{ Lang::Finnish, "Muita pöytiä ei löytynyt." },
 			{ Lang::French, "Impossible de trouver d'autres flippers." },
-			{ Lang::Hebrew, "‏‏לא נמצאו שולחנות אחרים." },
+			{ Lang::Hebrew, "\u200F\u200Fלא נמצאו שולחנות אחרים." },
 			{ Lang::Hungarian, "Nincs másik asztal." },
 			{ Lang::Italian, "Impossibile trovare altre tabelle." },
 			{ Lang::Japanese, "ほかのテーブルが見つかりません。" },
@@ -4536,7 +4519,7 @@ const TextArray translations::Translations =
 	{
 		Msg::STRING272,
 		{
-			{ Lang::Arabic, "‎3D Pinball\nSpace Cadet" },
+			{ Lang::Arabic, "\u200E3D Pinball\nSpace Cadet" },
 			{ Lang::Czech, "3D Pinball\nSpace Cadet" },
 			{ Lang::Danish, "3D Pinball\nSpace Cadet" },
 			{ Lang::German, "3D-Pinball\nSpace Cadet" },
@@ -4710,7 +4693,7 @@ const TextArray translations::Translations =
 	{
 		Msg::STRING279,
 		{
-			{ Lang::Arabic, "‏‏لا توجد ذاكرة كافية لتشغيل ‎3D Pinball." },
+			{ Lang::Arabic, "\u200F\u200Fلا توجد ذاكرة كافية لتشغيل \u200E3D Pinball." },
 			{ Lang::Czech, "Ke spuštění hry 3D Pinball není dostatek paměti." },
 			{ Lang::Danish, "Der er ikke tilstrækkelig hukommelse til at køre 3D Pinball." },
 			{ Lang::German, "Für 3D-Pinball ist nicht genügend Arbeitsspeicher verfügbar." },
@@ -4719,7 +4702,7 @@ const TextArray translations::Translations =
 			{ Lang::Spanish, "Memoria insuficiente para ejecutar 3D Pinball." },
 			{ Lang::Finnish, "Liian vähän muistia 3D Pinballin suorittamiseen." },
 			{ Lang::French, "Mémoire insuffisante pour exécuter Pinball 3D." },
-			{ Lang::Hebrew, "‏‏אין די זיכרון להפעלת Pinball תלת-מימדי." },
+			{ Lang::Hebrew, "\u200F\u200Fאין די זיכרון להפעלת Pinball תלת-מימדי." },
 			{ Lang::Hungarian, "Nincs elég memória a 3D-flipper futtatásához." },
 			{ Lang::Italian, "Memoria insufficiente per eseguire 3D Pinball." },
 			{ Lang::Japanese, "メモリ不足のため 3D ピンボールを起動できません" },
@@ -5239,7 +5222,7 @@ const TextArray translations::Translations =
 	{
 		Msg::KEYMAPPER_Caption,
 		{
-			{ Lang::Arabic, "‎3D Pinball: عناصر تحكم اللاعب" },
+			{ Lang::Arabic, "\u200E3D Pinball: عناصر تحكم اللاعب" },
 			{ Lang::Czech, "Ovládání hry 3D Pinball" },
 			{ Lang::Danish, "3D Pinball: Styreredskaber for spiller" },
 			{ Lang::German, "3D-Pinball: Bedienelemente" },
@@ -5500,7 +5483,7 @@ const TextArray translations::Translations =
 	{
 		Msg::KEYMAPPER_Help2,
 		{
-			{ Lang::Arabic, "لاستعادة ‎3D Pinball إلى الإعدادات الأصلية، اختر \"الافتراضي\" ثم اختر \"موافق\". لاستخدام مفاتيح الأسهم الموجودة في لوحة المفاتيح الرقمية، تأكد أن NUMLOCK مغلق" },
+			{ Lang::Arabic, "لاستعادة \u200E3D Pinball إلى الإعدادات الأصلية، اختر \"الافتراضي\" ثم اختر \"موافق\". لاستخدام مفاتيح الأسهم الموجودة في لوحة المفاتيح الرقمية، تأكد أن NUMLOCK مغلق" },
 			{ Lang::Czech, "Původní nastavení hry 3D Pinball obnovíte klepnutím na tlačítko Výchozí a poté OK. Pokud chcete používat šipkové klávesy na numerické klávesnici, musí být indikátor Num Lock vypnutý." },
 			{ Lang::Danish, "Hvis du vil gendanne de oprindelige indstillinger for 3D Pinball, skal du klikke på Standard og derefter på OK. Hvis du vil bruge tasterne på det numeriske tastatur, skal NumLock være slået fra." },
 			{ Lang::German, "Klicken Sie auf \"Standard\" und auf \"OK\", um die ursprünglichen Einstellungen von 3D-Pinball wiederherzustellen. Stellen Sie sicher, dass die Num-Taste ausgeschaltet ist, um mit den Pfeiltasten der Zehnertastatur arbeiten zu können." },
@@ -6242,6 +6225,13 @@ const TextArray translations::Translations =
 		Msg::Menu1_ToggleShowMenu,
 		{
 			{ Lang::English, "Show Menu"},
+		}
+	},
+	{
+		Msg::Menu1_ToggleUpscaledArt,
+		{
+			{ Lang::English, "Upscaled Art"},
+			{ Lang::German, "Hochskalierte Grafik"},
 		}
 	}
 };
