@@ -26,9 +26,11 @@ struct render_sprite
 	rectangle_type BoundingRect{};
 	bool DirtyFlag{};
 	// Balls only: where the last two updates painted the ball, for drawing frames in between
-	rectangle_type PaintedRect{}, PrevPaintedRect{};
-	bool Painted{}, PrevPainted{};
-	rectangle_type SavedBmpRect{}, SavedDirtyRectPrev{};
+	struct
+	{
+		rectangle_type PaintedRect{}, PrevPaintedRect{}, SavedBmpRect{};
+		bool Painted{}, PrevPainted{};
+	} Interp{};
 
 	render_sprite(VisualTypes visualType, gdrv_bitmap8* bmp, zmap_header_type* zMap,
 	              int xPosition, int yPosition, rectangle_type* boundingRect);

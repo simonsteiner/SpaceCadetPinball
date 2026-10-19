@@ -218,10 +218,11 @@ void render::update()
 
 	for (auto ball : ball_list)
 	{
-		ball->PrevPaintedRect = ball->PaintedRect;
-		ball->PrevPainted = ball->Painted;
-		ball->PaintedRect = ball->BmpRect;
-		ball->Painted = ball->Bmp != nullptr;
+		auto& interp = ball->Interp;
+		interp.PrevPaintedRect = interp.PaintedRect;
+		interp.PrevPainted = interp.Painted;
+		interp.PaintedRect = ball->BmpRect;
+		interp.Painted = ball->Bmp != nullptr;
 	}
 }
 
@@ -235,14 +236,14 @@ void render::InterpolateBalls(float alpha)
 	unpaint_balls();
 	for (auto ball : ball_list)
 	{
-		ball->SavedBmpRect = ball->BmpRect;
-		ball->SavedDirtyRectPrev = ball->DirtyRectPrev;
-		if (!ball->Painted || !ball->PrevPainted)
+		auto& interp = ball->Interp;
+		interp.SavedBmpRect = ball->BmpRect;
+		if (!interp.Painted || !interp.PrevPainted)
 			continue;
 
 		// A ball that jumped, such as into a hole or back to the plunger, isn't drawn in between
-		auto& from = ball->PrevPaintedRect;
-		auto& to = ball->PaintedRect;
+		auto& from = interp.PrevPaintedRect;
+		auto& to = interp.PaintedRect;
 		constexpr int MaxStep = 24;
 		if (std::abs(to.XPosition - from.XPosition) > MaxStep || std::abs(to.YPosition - from.YPosition) > MaxStep)
 			continue;
@@ -262,10 +263,8 @@ void render::RestoreBalls()
 
 	unpaint_balls();
 	for (auto ball : ball_list)
-		ball->BmpRect = ball->SavedBmpRect;
+		ball->BmpRect = ball->Interp.SavedBmpRect;
 	paint_balls();
-	for (auto ball : ball_list)
-		ball->DirtyRectPrev = ball->SavedDirtyRectPrev;
 	BallsInterpolated = false;
 }
 
