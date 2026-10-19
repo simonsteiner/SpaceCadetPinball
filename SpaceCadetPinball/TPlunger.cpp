@@ -125,6 +125,7 @@ int TPlunger::Message(MessageCode code, float value)
 		SomeCounter = 0;
 		timer::kill(BallFeedTimer);
 		timer::kill(PullbackTimer);
+		PullbackTimer_ = 0;
 		timer::kill(ReleasedTimer);
 		break;
 	case MessageCode::SetTiltLock:
@@ -141,6 +142,7 @@ int TPlunger::Message(MessageCode code, float value)
 
 			timer::kill(BallFeedTimer);
 			timer::kill(PullbackTimer);
+			PullbackTimer_ = 0;
 			timer::kill(ReleasedTimer);
 
 			SpriteSet(0);
