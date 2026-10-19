@@ -69,3 +69,40 @@ jobs:
           PRESET: ${{ matrix.preset }}
         run: cmake --build --preset "$PRESET" --parallel 4
         shell: bash
+
+  # clang-format and clang-tidy on the lines a pull request changes; the code is never reformatted as a whole
+  lint:
+    name: lint
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    container: "debian:forky-slim@sha256:3c80e257eff6274d593eb33a94bda5174ccd619836e6a728a73e11c97f2213e3"
+    timeout-minutes: 20
+    steps:
+      # git must be there before checkout, or it downloads the files without history
+      - name: Install build tools and SDL packages
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates git cmake ninja-build g++ python3-venv libsdl3-dev libsdl3-mixer-dev
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Install clang-format and clang-tidy
+        run: |
+          python3 -m venv /opt/llvm
+          /opt/llvm/bin/pip install --require-hashes --no-deps --only-binary :all: -r tools/llvm-requirements.txt
+
+      # The compile database is all clang-tidy needs; without the precompiled header, each file parses on its own
+      - name: Configure
+        run: cmake -S . -B build/lint -G Ninja -DSCP_VENDORED_SDL=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
+
+      - name: Check changed lines
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          CLANG_FORMAT_DIR: /opt/llvm/bin
+          CLANG_TIDY_DIR: /opt/llvm/bin
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          tools/lint-changed.sh "origin/$BASE_REF" build/lint

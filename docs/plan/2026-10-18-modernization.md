@@ -1,6 +1,6 @@
 # Modernization plan
 
-Date: 2026-10-18. Status: Phase 0 done; Phase 1 steps 1 to 5 done. Decisions of 2026-10-19 are under [Open decisions](#open-decisions).
+Date: 2026-10-18. Status: Phase 0 and Phase 1 done. Decisions of 2026-10-19 are under [Open decisions](#open-decisions).
 
 The goal is to bring this fork of k4zmu2a/SpaceCadetPinball up to a current toolchain and a better presentation without changing how the game plays. Phases 1, 2 and 4 are the recommended path. Phase 3 stays parked unless there is a specific reason for it.
 
@@ -76,10 +76,13 @@ Gameplay must stay byte-for-byte equivalent. Each step is its own pull request.
      - TinySoundFont keeps the whole SoundFont in memory as floats: with FluidR3 (148 MB on disk) the game uses about 420 MB, against 300 MB with SDL2_mixer and FluidSynth; with TimGM6mb (6 MB), 140 MB. Only SF2 loads, not SF3.
      - Verified with GCC 15 on Linux: the vendored and the system-package builds play the theme through TinySoundFont with Debian's `default-GM.sf2`, F6 stops and restarts it, the three replays match, and a sanitized windowed run with music, toggling it three times, exits clean.
      - Not verified: native MIDI on Windows and macOS, which CI only compiles; Full Tilt's MDS tracks with TinySoundFont; whether the theme's loop point sounds right after the first pass.
-6. **Tooling:** a `.clang-format` as close to the current style as possible, and `clang-tidy` in CI on changed files.
-   - The code is never reformatted as a whole. It already follows one Visual Studio style (tabs, braces on their own line), and even a tuned config rewrites about 1,600 lines in 114 of 124 game files, not counting `translations.cpp`. That would make every upstream merge conflict.
-   - Only changed lines get formatted: `git clang-format --staged` in the lefthook `pre-commit` hook, and `git clang-format --diff` against the base branch in CI. The version is pinned through `uvx --from clang-format==<version>`, so nobody installs it by hand.
-   - A starting config: `BasedOnStyle: Microsoft`, `UseTab: ForContinuationAndIndentation`, `TabWidth: 4`, `ColumnLimit: 120`, `IndentCaseLabels: false`, `MaxEmptyLinesToKeep: 2`, and `SortIncludes: Never`, because `pch.h` must stay first. `translations.cpp` is excluded.
+6. Done: **Tooling:** a `.clang-format` as close to the current style as possible, and `clang-tidy` in CI on changed files.
+   - The code is never reformatted as a whole. It already follows one Visual Studio style (tabs, braces on their own line), and even the tuned config rewrites about 1,200 lines in 107 of 126 game files, not counting `translations.cpp`, ImGui and `third_party/`. That would make every upstream merge conflict.
+   - The config is `BasedOnStyle: Microsoft` with tabs for indentation and continuation, 120 columns, case labels unindented with their braces on their own line, left-aligned pointers, `public:` at the class's indentation, `SortIncludes: Never` (`pch.h` must stay first) and `MaxEmptyLinesToKeep: 2`. The plan's starting config rewrote 3,675 lines in all 126 files; the remaining differences are mostly braced initializer lists, which clang-format can't put on their own line, and continuation lines, which the code indents both ways.
+   - Only changed lines get formatted: `git clang-format` locally, and `tools/lint-changed.sh` in CI's new `lint` job, which runs `git clang-format --diff` and `clang-tidy-diff.py` against the pull request's base. LLVM 23.1.3 is pinned: `uvx --from clang-format==23.1.3` locally, and `tools/llvm-requirements.txt` with hashes in CI. The job runs in the same Debian container as `linux`, because clang-tidy needs a compile database and the SDL3 headers; it configures without the precompiled header, so each file parses on its own.
+   - `.clang-tidy` enables `bugprone-*`, `clang-analyzer-*` and `performance-*`, minus checks that only flag the decompiled code's style (swappable parameters, narrowing, branch clones and the like) and `clang-analyzer-security.ArrayBound`, which fires on the trailing-array structs such as `riff_block::AData[4]`. Findings fail the job. Run against the whole SDL3 stack, it found an `fread` loop that read past the end of the file and two assignments in conditions in the new `midi.cpp`; both are fixed in the music pull request.
+   - The pre-commit hook isn't there yet: lefthook arrives with PR #9. Once it merges, add to `lefthook.yml` under `pre-commit` a `clang-format` command that runs `uvx --from clang-format==23.1.3 git-clang-format --staged` and fails when it changes anything.
+   - Verified locally: `git clang-format` formats a changed game line and skips changed lines in ImGui and `third_party/`; `tools/lint-changed.sh` passes on this branch and reports the formatting of the earlier, unformatted pull requests in the stack when run against their base. The `lint` job itself only runs in CI.
 
 Done when all presets build in CI and the determinism harness passes against the Phase 0 baseline.
 

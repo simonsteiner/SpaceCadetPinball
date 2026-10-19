@@ -11,9 +11,11 @@ cmake --build --preset linux  # build; the executable lands in bin/ in the sourc
 cmake --preset linux-vendored && cmake --build --preset linux-vendored  # build with SDL fetched from source, as the Windows and macOS presets do
 ./bin/SpaceCadetPinball -noaudio  # run; needs game data, see docs/setup.md
 tools/check-replays.sh ../replays ../gamedata  # play back recorded sessions and report any that play differently
+uvx --from clang-format==23.1.3 git-clang-format main  # format only the lines changed since main; never a whole file
+tools/lint-changed.sh main build/lint  # clang-format and clang-tidy on changed lines, as CI runs them (docs/setup.md)
 ```
 
-There are no automated tests or linters yet. A change is checked by building it and playing it with real game data. Before a change that could affect play, record sessions with `-record` and check them with `tools/check-replays.sh` afterwards (`docs/replays.md`). The `Build` workflow (`.github/workflows/Build.yml`) builds every preset except `linux-debug` and `linux-sanitize` on each pull request, with `SCP_WARNINGS=ON`, which makes warnings errors. After a change to memory handling, run the replays with a `linux-sanitize` build (AddressSanitizer and UBSan).
+There are no automated tests yet. A change is checked by building it and playing it with real game data. The `lint` job checks only the lines a pull request changes, with clang-format and clang-tidy; don't reformat code you didn't change, because whole-file formatting would make every upstream merge conflict. Before a change that could affect play, record sessions with `-record` and check them with `tools/check-replays.sh` afterwards (`docs/replays.md`). The `Build` workflow (`.github/workflows/Build.yml`) builds every preset except `linux-debug` and `linux-sanitize` on each pull request, with `SCP_WARNINGS=ON`, which makes warnings errors. After a change to memory handling, run the replays with a `linux-sanitize` build (AddressSanitizer and UBSan).
 
 ## Conventions
 

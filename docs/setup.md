@@ -114,6 +114,24 @@ Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake 3.2
 - **Tested upstream with:** the earlier framework-based script on macOS Ventura (Apple Silicon) with Command Line Tools 14 and on a GitHub Intel runner with Xcode 13; manual builds on macOS Big Sur (Intel) and Monterey beta (Apple Silicon) with Xcode 13. CI builds the `macos` preset on a `macos-26` runner, but nobody has run the resulting app yet.
 - **Prebuilt:** `brew tap draftbrew/tap && brew install --no-quarantine space-cadet-pinball`. `--no-quarantine` bypasses Gatekeeper for this install.
 
+## Formatting and linting
+
+`.clang-format` describes the existing Visual Studio style (tabs, braces on their own line, 120 columns), but the code isn't formatted as a whole: that would rewrite about 1,200 lines in 107 of 126 game files and make every merge from upstream conflict. Only the lines a change touches get formatted. `.clang-format-ignore` leaves out ImGui, `third_party/`, `EmbeddedData.cpp` and `translations.cpp`.
+
+```bash
+uvx --from clang-format==23.1.3 git-clang-format --staged   # format the staged lines before committing
+uvx --from clang-format==23.1.3 git-clang-format main       # or the lines changed since main
+```
+
+`uvx` comes with [uv](https://docs.astral.sh/uv/) and fetches the pinned clang-format, so nothing else needs installing. `.clang-tidy` lists a small set of bug-prone and performance checks. CI's `lint` job runs both on the lines each pull request changes, with `tools/lint-changed.sh`; to run it locally, configure a build with a compile database first:
+
+```bash
+cmake -S . -B build/lint -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
+tools/lint-changed.sh main build/lint
+```
+
+Without the build folder argument, the script checks the formatting only. CI installs the same LLVM version from `tools/llvm-requirements.txt`, pinned with hashes; bump it there and in the script together.
+
 ## Music
 
 SDL3_mixer can't be relied on for the MIDI music: it has no native MIDI, and some distributions build it without MIDI. The game picks the first of these that works when it starts:
