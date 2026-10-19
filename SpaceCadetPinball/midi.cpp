@@ -155,15 +155,15 @@ namespace
 
 		for (const auto& path : paths)
 		{
-			// tsf_load_filename uses fopen, which can't open UTF-8 paths on Windows
-			auto fileHandle = fopenu(path.c_str(), "rb");
-			if (!fileHandle)
-				continue;
-			fclose(fileHandle);
-
+			// tsf_load_filename uses fopen, which can't open UTF-8 paths on Windows; SDL_LoadFile can
 			size_t size;
 			auto data = SDL_LoadFile(path.c_str(), &size);
-			auto synth = data ? tsf_load_memory(data, static_cast<int>(size)) : nullptr;
+			if (!data)
+			{
+				SDL_ClearError();
+				continue;
+			}
+			auto synth = tsf_load_memory(data, static_cast<int>(size));
 			SDL_free(data);
 			if (synth)
 			{
@@ -274,7 +274,9 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 			SDL_ClearError();
 		}
 #endif
-		if (Backend == MidiBackend::None && (Synth = LoadSoundFont()))
+		if (Backend == MidiBackend::None)
+			Synth = LoadSoundFont();
+		if (Synth)
 		{
 			tsf_set_output(Synth, TSF_STEREO_INTERLEAVED, SynthRate, 0.0f);
 			const SDL_AudioSpec synthSpec{SDL_AUDIO_F32, 2, SynthRate};
@@ -289,8 +291,12 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 				ShutdownBackend();
 		}
 		// Last, whatever MIDI decoder SDL_mixer has, if any
-		if (Backend == MidiBackend::None && (MusicTrack = MIX_CreateTrack(Mixer)))
-			Backend = MidiBackend::Mixer;
+		if (Backend == MidiBackend::None)
+		{
+			MusicTrack = MIX_CreateTrack(Mixer);
+			if (MusicTrack)
+				Backend = MidiBackend::Mixer;
+		}
 	}
 	SetVolume(volume);
 
@@ -443,16 +449,17 @@ std::vector<uint8_t>* midi::load_track_sub(std::string fileName, bool isMidi)
 
 std::vector<uint8_t>* midi::ReadFile(const std::string& path)
 {
-	auto fileHandle = fopenu(path.c_str(), "rb");
-	if (!fileHandle)
+	// SDL takes UTF-8 paths on every platform
+	size_t size;
+	auto contents = static_cast<uint8_t*>(SDL_LoadFile(path.c_str(), &size));
+	if (!contents)
+	{
+		SDL_ClearError();
 		return nullptr;
+	}
 
-	auto data = new std::vector<uint8_t>();
-	uint8_t buffer[4096];
-	size_t count;
-	while ((count = fread(buffer, 1, sizeof buffer, fileHandle)) > 0)
-		data->insert(data->end(), buffer, buffer + count);
-	fclose(fileHandle);
+	auto data = new std::vector<uint8_t>(contents, contents + size);
+	SDL_free(contents);
 	return data;
 }
 
