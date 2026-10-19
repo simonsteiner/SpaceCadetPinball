@@ -1518,6 +1518,10 @@ void winmain::a_dialog()
 				{
 					SDL_OpenURL("https://github.com/k4zmu2a/SpaceCadetPinball");
 				}
+				if (ImGui::SmallButton("This fork: https://github.com/simonsteiner/SpaceCadetPinball"))
+				{
+					SDL_OpenURL("https://github.com/simonsteiner/SpaceCadetPinball");
+				}
 				ImGui::EndTabItem();
 			}
 			ImGui::PushStyleColor(ImGuiCol_Button, 0);
@@ -1541,6 +1545,8 @@ void winmain::a_dialog()
 				{
 					ImGui::TableNextRow();
 					ImGui::TableNextColumn();
+					// Both columns have a "SPECIAL THANKS" button, so give each its own ID scope.
+					ImGui::PushID("Cinematronics");
 					ImGui::Button("Cinematronics", buttonCenter);
 					ImGui::Separator();
 					if (ImGui::BeginTable("Cinematronics", 2))
@@ -1593,8 +1599,10 @@ void winmain::a_dialog()
 						ImGui::EndTable();
 					}
 					ImGui::TextUnformatted("Dan and Mitchell Roth");
+					ImGui::PopID();
 
 					ImGui::TableNextColumn();
+					ImGui::PushID("Maxis");
 					ImGui::Button("Maxis", buttonCenter);
 					ImGui::Separator();
 					if (ImGui::BeginTable("Maxis", 2))
@@ -1649,6 +1657,7 @@ void winmain::a_dialog()
 						ImGui::EndTable();
 					}
 					ImGui::Button("Will \"Burr\" Wright", buttonCenter);
+					ImGui::PopID();
 					ImGui::EndTable();
 				}
 
