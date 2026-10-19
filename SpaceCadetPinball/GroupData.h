@@ -125,4 +125,6 @@ public:
 
 private:
 	void AddMsgFont(MsgFont* font, const std::string& fontName);
+	static std::vector<uint8_t> LoadMsgFontFromExe();
+	static bool IsValidMsgFont(const std::vector<uint8_t>& data);
 };

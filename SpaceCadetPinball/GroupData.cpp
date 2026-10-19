@@ -2,10 +2,10 @@
 
 #include "GroupData.h"
 
-#include "EmbeddedData.h"
 #include "fullscrn.h"
 #include "gdrv.h"
 #include "pb.h"
+#include "PeResource.h"
 #include "zdrv.h"
 
 
@@ -280,6 +280,55 @@ zmap_header_type* DatFile::GetZMap(int groupIndex)
 	return group->GetZMap(fullscrn::GetResolution());
 }
 
+// The 3D Pinball message font isn't in PINBALL.DAT but in pinball.exe, as the PBMSG_FT resource. Look for the
+// executable next to the DAT in the usual letter cases and take the font from it. Without it, text boxes draw their
+// text with ImGui.
+std::vector<uint8_t> DatFile::LoadMsgFontFromExe()
+{
+	for (const char* exeName : {"PINBALL.EXE", "pinball.exe", "Pinball.exe"})
+	{
+		auto exePath = pb::make_path_name(exeName);
+		auto exeFile = fopenu(exePath.c_str(), "rb");
+		if (!exeFile)
+			continue;
+		fclose(exeFile);
+
+		auto font = PeResource::Load(exePath, PeResource::TypeRcData, "PBMSG_FT");
+		if (IsValidMsgFont(font))
+		{
+			printf("Loading message font from: %s\n", exePath.c_str());
+			return font;
+		}
+		printf("No message font in %s, text boxes use the ImGui font\n", exePath.c_str());
+		return {};
+	}
+	printf("No pinball.exe next to the game data for the message font, text boxes use the ImGui font\n");
+	return {};
+}
+
+// Check that the font holds all the characters AddMsgFont reads, so a foreign resource can't make it overrun
+bool DatFile::IsValidMsgFont(const std::vector<uint8_t>& data)
+{
+	constexpr size_t headerSize = offsetof(MsgFont, Data);
+	if (data.size() < headerSize)
+		return false;
+	auto font = reinterpret_cast<const MsgFont*>(data.data());
+	if (font->Height <= 0)
+		return false;
+	size_t offset = headerSize;
+	for (auto charInd = 32; charInd < 128; charInd++)
+	{
+		if (offset >= data.size())
+			return false;
+		uint8_t width = data[offset];
+		size_t charSize = 1 + static_cast<size_t>(width) * static_cast<size_t>(font->Height);
+		if (width != font->CharWidths[charInd] || charSize > data.size() - offset)
+			return false;
+		offset += charSize;
+	}
+	return true;
+}
+
 void DatFile::Finalize()
 {
 	if (!pb::FullTiltMode)
@@ -288,8 +337,9 @@ void DatFile::Finalize()
 		assertm(groupIndex < 0, "DatFile: pbmsg_ft is already in .dat");
 
 		// Load 3DPB font into dat to simplify pipeline
-		auto rcData = EmbeddedData::DecompressBase85(EmbeddedData::PB_MSGFT_bin_compressed_data_base85);
-		AddMsgFont(reinterpret_cast<MsgFont*>(rcData.data()), "pbmsg_ft");
+		auto rcData = LoadMsgFontFromExe();
+		if (!rcData.empty())
+			AddMsgFont(reinterpret_cast<MsgFont*>(rcData.data()), "pbmsg_ft");
 
 		// PINBALL2.MID is an alternative font provided in 3DPB data
 		// Scaled down because it is too large for top text box
