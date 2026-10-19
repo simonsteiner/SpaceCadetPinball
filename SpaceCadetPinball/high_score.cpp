@@ -24,14 +24,12 @@ static const char* ScoreKeyPrefix()
 
 int high_score::read()
 {
-	char Buffer[40];
-	auto prefix = ScoreKeyPrefix();
+	std::string prefix = ScoreKeyPrefix();
 
 	// Before tables had their own keys, every table saved under the unprefixed ones.
 	// A table that never saved its own scores starts from those; write() then saves them under its prefix.
-	snprintf(Buffer, sizeof Buffer, "%sVerification", prefix);
-	if (*prefix && !options::HasSetting(Buffer) && options::HasSetting("Verification"))
-		prefix = "";
+	if (!prefix.empty() && !options::HasSetting(prefix + "Verification") && options::HasSetting("Verification"))
+		prefix.clear();
 
 	int checkSum = 0;
 	clear_table();
@@ -39,12 +37,11 @@ int high_score::read()
 	{
 		auto& tablePtr = highscore_table[position];
 
-		snprintf(Buffer, sizeof Buffer, "%s%d.Name", prefix, position);
-		auto name = options::GetSetting(Buffer, "");
+		auto name = options::GetSetting(prefix + std::to_string(position) + ".Name", "");
 		strncpy(tablePtr.Name, name.c_str(), sizeof tablePtr.Name);
 
-		snprintf(Buffer, sizeof Buffer, "%s%d.Score", prefix, position);
-		tablePtr.Score = options::get_int(Buffer, tablePtr.Score);
+		auto scoreKey = prefix + std::to_string(position) + ".Score";
+		tablePtr.Score = options::get_int(scoreKey.c_str(), tablePtr.Score);
 
 		for (int i = static_cast<int>(strlen(tablePtr.Name)); --i >= 0; checkSum += tablePtr.Name[i])
 		{
@@ -52,8 +49,7 @@ int high_score::read()
 		checkSum += tablePtr.Score;
 	}
 
-	snprintf(Buffer, sizeof Buffer, "%sVerification", prefix);
-	auto verification = options::get_int(Buffer, 7);
+	auto verification = options::get_int((prefix + "Verification").c_str(), 7);
 	if (checkSum != verification)
 		clear_table();
 	return 0;
@@ -61,19 +57,15 @@ int high_score::read()
 
 int high_score::write()
 {
-	char Buffer[40];
-	auto prefix = ScoreKeyPrefix();
+	std::string prefix = ScoreKeyPrefix();
 
 	int checkSum = 0;
 	for (auto position = 0; position < 5; ++position)
 	{
 		auto& tablePtr = highscore_table[position];
 
-		snprintf(Buffer, sizeof Buffer, "%s%d.Name", prefix, position);
-		options::SetSetting(Buffer, tablePtr.Name);
-
-		snprintf(Buffer, sizeof Buffer, "%s%d.Score", prefix, position);
-		options::set_int(Buffer, tablePtr.Score);
+		options::SetSetting(prefix + std::to_string(position) + ".Name", tablePtr.Name);
+		options::set_int((prefix + std::to_string(position) + ".Score").c_str(), tablePtr.Score);
 
 		for (int i = static_cast<int>(strlen(tablePtr.Name)); --i >= 0; checkSum += tablePtr.Name[i])
 		{
@@ -81,8 +73,7 @@ int high_score::write()
 		checkSum += tablePtr.Score;
 	}
 
-	snprintf(Buffer, sizeof Buffer, "%sVerification", prefix);
-	options::set_int(Buffer, checkSum);
+	options::set_int((prefix + "Verification").c_str(), checkSum);
 	return 0;
 }
 

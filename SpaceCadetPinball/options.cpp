@@ -645,7 +645,7 @@ const std::string& options::GetSetting(const std::string& key, const std::string
 
 bool options::HasSetting(const std::string& key)
 {
-	return settings.find(key) != settings.end();
+	return settings.contains(key);
 }
 
 void options::SetSetting(const std::string& key, const std::string& value)
