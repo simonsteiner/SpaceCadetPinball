@@ -222,8 +222,21 @@ void options::InitPrimary()
 
 	// Settings saved before Key Bindings Version existed hold keyboard bindings as keycodes
 	MigrateKeycodes = !HasSetting(Options.KeyBindingsVersion.Name);
+	auto& toggleEdition = Options.Key[~GameBindings::ToggleEdition];
+	auto newToggleEdition = !HasSetting(std::string{toggleEdition.Name} + " 0 input");
 	for (const auto opt : AllOptions)
 		opt->Load();
+	if (newToggleEdition)
+	{
+		// Settings from before the switch existed may already use its default key; then it starts unbound
+		const auto& tab = toggleEdition.Defaults[0];
+		for (const auto& control : Options.Key)
+		{
+			if (&control != &toggleEdition &&
+				std::find(std::begin(control.Inputs), std::end(control.Inputs), tab) != std::end(control.Inputs))
+				toggleEdition.Inputs[0] = {};
+		}
+	}
 	if (MigrateKeycodes)
 	{
 		// Write the scancodes now, as ImGui may save the new version before options::Save runs

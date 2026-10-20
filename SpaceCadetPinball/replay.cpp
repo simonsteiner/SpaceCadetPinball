@@ -226,6 +226,11 @@ bool replay::PlayStep()
 			}
 
 			GameInput input{static_cast<InputTypes>(type), value};
+			// The edition switch is the one shortcut that recordings replay, so switching mid-game is checked too
+			if (key == "d" &&
+				std::find(bindings.begin(), bindings.end(), GameBindings::ToggleEdition) != bindings.end())
+				options::SetEdition(options::GetEdition() == Editions::Definitive ? Editions::Classic
+																				  : Editions::Definitive);
 			if (key == "d")
 				pb::GameInputDown(input, bindings);
 			else

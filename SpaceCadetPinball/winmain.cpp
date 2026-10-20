@@ -1430,14 +1430,18 @@ void winmain::RenderEditionHint()
 	char text[256];
 	snprintf(text, sizeof text, pb::get_rc_string(Msg::EditionHint), toggle.c_str());
 
-	// Centred over the top of the table, wrapped to the window; the board is in pixels, ImGui in window coordinates
+	// Centred over the top of the table and kept inside the window; the board is in pixels, ImGui in window
+	// coordinates
 	auto viewport = ImGui::GetMainViewport();
 	auto& board = render::BoardRect;
-	auto top = (static_cast<float>(board.y) + static_cast<float>(board.h) / 8) / ImIO->DisplayFramebufferScale.y;
-	auto wrapWidth = viewport->Size.x * 0.8f;
-	auto textSize = ImGui::CalcTextSize(text, nullptr, false, wrapWidth);
+	auto fbScale = ImIO->DisplayFramebufferScale;
+	auto centre = (static_cast<float>(board.x) + static_cast<float>(board.w) / 2) / fbScale.x;
+	auto top = (static_cast<float>(board.y) + static_cast<float>(board.h) / 8) / fbScale.y;
 	auto padding = ImGui::GetStyle().WindowPadding;
-	ImVec2 textPos{viewport->GetCenter().x - textSize.x / 2, top - textSize.y / 2};
+	auto wrapWidth = viewport->Size.x - padding.x * 4;
+	auto textSize = ImGui::CalcTextSize(text, nullptr, false, wrapWidth);
+	auto left = Clamp(centre - textSize.x / 2, padding.x * 2, viewport->Size.x - padding.x * 2 - textSize.x);
+	ImVec2 textPos{viewport->Pos.x + left, top - textSize.y / 2};
 	auto drawList = ImGui::GetForegroundDrawList();
 	drawList->AddRectFilled(ImVec2{textPos.x - padding.x, textPos.y - padding.y},
 							ImVec2{textPos.x + textSize.x + padding.x, textPos.y + textSize.y + padding.y},

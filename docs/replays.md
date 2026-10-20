@@ -54,6 +54,8 @@ Everything that reaches the table from outside goes through a handful of `pb` fu
 - table input after the key bindings are resolved (`pb::GameInputDown`, `pb::GameInputUp`), so a replay doesn't depend on the player's key bindings or keyboard layout. Bindings match keys by scancode, but a key press is recorded with its keycode, which the cheat codes read
 - new game, demo toggle, pause, focus loss, ball launch, cheats, the cheat-mode F10 freeze and mouse ball control (the cheat-mode drag)
 
+Other shortcuts, such as full screen or sound, aren't played back, except the edition switch (Tab by default): a recorded press of it switches editions in playback too, so a recording that switches during a game checks that switching leaves the table alone.
+
 The time step comes from the wall clock, so it differs from frame to frame and from run to run. That is why the demo plays out differently between runs, and why a replay records each step instead of assuming a fixed rate. The game's random numbers come from `rand()`, which is never seeded, so it always starts at 1; a replay records that seed and applies it before the table loads.
 
 Each recorded function opens a `replay::Scope`. Only the outermost scope writes a line, so a command that calls another one (`toggle_demo` calls `replay_level`, for example) is played back once. **A new entry point that changes table state from outside `pb::frame` needs a scope too,** or replays of sessions that use it will diverge.
