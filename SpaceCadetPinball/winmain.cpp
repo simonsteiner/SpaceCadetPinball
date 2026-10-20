@@ -104,6 +104,7 @@ int winmain::CurrentFps = 0;
 bool winmain::RefreshRateUnknown = false;
 std::map<SDL_JoystickID, std::set<int>> winmain::GamepadHeld{};
 std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> winmain::TouchBindings{};
+Uint64 winmain::EditionHintEnd = 0;
 
 // Splits the command line at spaces and tabs; double quotes keep an argument with spaces together
 static std::vector<std::string> SplitArgs(LPCSTR cmdLine)
@@ -190,8 +191,10 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		return 1;
 	}
 
+	// The GPU renderer when it can be had, for post-processing and Space Cadet 2026, so neither needs a restart.
+	// Created once: options can't change it, and once it has failed it isn't tried again.
 	SoftwareRenderer = HasArg(args, "-sw") || replay::IsPlaying();
-	if (!CreateRenderer(false))
+	if (!(!SoftwareRenderer && CreateRenderer(true)) && !CreateRenderer(false))
 	{
 		pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not create renderer", SDL_GetError());
 		return 1;
@@ -261,18 +264,10 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			options::ResetAllOptions();
 		}
 
-		// Post-processing needs SDL's GPU renderer, the only one that takes custom shaders. No textures exist yet,
-		// so this is the place to switch. Turning an effect off keeps that renderer, so no restart is needed for it.
-		// Once the GPU renderer has failed, it isn't tried again.
-		auto effect = static_cast<PostEffects>(Options.PostProcessing.V);
-		auto wantGpu = !SoftwareRenderer && effect != PostEffects::None && !PostEffect::GpuRendererFailed();
-		if (wantGpu && !PostEffect::IsGpuRenderer(Renderer) && !CreateRenderer(true) && !CreateRenderer(false))
-		{
-			pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not create renderer", SDL_GetError());
-			return 1;
-		}
+		// Post-processing needs SDL's GPU renderer, the only one that takes custom shaders; without it the table is
+		// drawn plain
 		PostEffect::Init(Renderer);
-		PostEffect::SetEffect(effect);
+		PostEffect::SetEffect(static_cast<PostEffects>(Options.PostProcessing.V));
 
 		if (!Options.FontFileName.V.empty())
 		{
@@ -702,6 +697,8 @@ void winmain::RenderUi()
 
 		if (ImGui::BeginMenu(pb::get_rc_string(Msg::Menu1_Options)))
 		{
+			ImGuiMenuItemWShortcut(GameBindings::ToggleEdition, options::GetEdition() == Editions::Definitive);
+			ImGui::Separator();
 			ImGuiMenuItemWShortcut(GameBindings::ToggleMenuDisplay, Options.ShowMenu);
 			ImGuiMenuItemWShortcut(GameBindings::ToggleFullScreen, Options.FullScreen);
 			if (ImGui::BeginMenu(pb::get_rc_string(Msg::Menu1_Select_Players)))
@@ -1058,6 +1055,7 @@ void winmain::RenderUi()
 	options::RenderControlDialog();
 	if (DispGRhistory)
 		RenderFrameTimeDialog();
+	RenderEditionHint();
 
 	const auto exitText = translations::GetTranslation(Msg::Menu1_Exit);
 	if (ShowExitPopup)
@@ -1402,16 +1400,50 @@ void winmain::TouchInput(const SDL_TouchFingerEvent& event)
 
 void winmain::SetPostProcessing(PostEffects effect)
 {
-	if (Options.PostProcessing == static_cast<int>(effect))
-		return;
+	// The GPU renderer switches effects on the fly; without it the option is only saved
 	Options.PostProcessing = static_cast<int>(effect);
-
-	// The GPU renderer switches effects on the fly; any other renderer has to be replaced, which needs a restart,
-	// unless the GPU renderer could not be created
 	PostEffect::SetEffect(effect);
-	if (!PostEffect::Available() && effect != PostEffects::None && !SoftwareRenderer &&
-		!PostEffect::GpuRendererFailed())
-		Restart();
+}
+
+void winmain::RenderEditionHint()
+{
+	// Once, at the first start in Space Cadet 2026, also for settings from before editions existed
+	if (!Options.EditionHintShown)
+	{
+		Options.EditionHintShown = true;
+		if (options::GetEdition() == Editions::Definitive)
+			EditionHintEnd = SDL_GetTicks() + 10000;
+	}
+	if (!EditionHintEnd)
+		return;
+	if (SDL_GetTicks() >= EditionHintEnd || options::GetEdition() != Editions::Definitive)
+	{
+		EditionHintEnd = 0;
+		return;
+	}
+
+	// Names the key, or the menu item when the switch has no key
+	auto toggle = Options.Key[~GameBindings::ToggleEdition].GetShortcutDescription();
+	if (toggle.empty())
+		toggle =
+			std::string{pb::get_rc_string(Msg::Menu1_Options)} + " > " + pb::get_rc_string(Msg::Menu1_ToggleEdition);
+	char text[256];
+	snprintf(text, sizeof text, pb::get_rc_string(Msg::EditionHint), toggle.c_str());
+
+	// Centred over the top of the table, wrapped to the window; the board is in pixels, ImGui in window coordinates
+	auto viewport = ImGui::GetMainViewport();
+	auto& board = render::BoardRect;
+	auto top = (static_cast<float>(board.y) + static_cast<float>(board.h) / 8) / ImIO->DisplayFramebufferScale.y;
+	auto wrapWidth = viewport->Size.x * 0.8f;
+	auto textSize = ImGui::CalcTextSize(text, nullptr, false, wrapWidth);
+	auto padding = ImGui::GetStyle().WindowPadding;
+	ImVec2 textPos{viewport->GetCenter().x - textSize.x / 2, top - textSize.y / 2};
+	auto drawList = ImGui::GetForegroundDrawList();
+	drawList->AddRectFilled(ImVec2{textPos.x - padding.x, textPos.y - padding.y},
+							ImVec2{textPos.x + textSize.x + padding.x, textPos.y + textSize.y + padding.y},
+							ImGui::GetColorU32(ImGuiCol_WindowBg, 0.8f), ImGui::GetStyle().WindowRounding);
+	drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(), textPos, ImGui::GetColorU32(ImGuiCol_Text), text, nullptr,
+					  wrapWidth);
 }
 
 bool winmain::CreateRenderer(bool gpu)
@@ -1757,6 +1789,9 @@ void winmain::HandleGameBinding(GameBindings binding, bool shortcut)
 		break;
 	case GameBindings::ToggleUpscaledArt:
 		options::toggle(Menu1::WindowUpscaledArt);
+		break;
+	case GameBindings::ToggleEdition:
+		options::SetEdition(options::GetEdition() == Editions::Definitive ? Editions::Classic : Editions::Definitive);
 		break;
 	case GameBindings::ToggleMusic:
 		options::toggle(Menu1::Music);

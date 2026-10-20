@@ -88,6 +88,8 @@ enum class GameBindings
 	ToggleMenuDisplay,
 	Exit,
 	ToggleUpscaledArt,
+	// Last, so saved and recorded bindings keep their numbers
+	ToggleEdition,
 	Max
 };
 
@@ -100,6 +102,14 @@ constexpr int operator~(const GameBindings& value)
 {
 	return static_cast<int>(value);
 }
+
+// Options.Edition: Definitive is Space Cadet 2026, Classic the game as it was
+enum class Editions : int
+{
+	Classic = 0,
+	Definitive = 1,
+	Max
+};
 
 class options
 {
@@ -147,6 +157,12 @@ public:
 	static bool WaitingForInput() { return ControlWaitingForInput; }
 	static std::vector<GameBindings> MapGameInput(GameInput key);
 	static void ResetAllOptions();
+	static Editions GetEdition();
+	// Switches to the edition's drawing options and applies them, also during a game
+	static void SetEdition(Editions edition);
+	// Settings kept for each edition start with this; Classic keeps the original keys
+	static constexpr const char* DefinitiveKeyPrefix = "Definitive.";
+
 private:
 	friend struct ControlOption;
 
@@ -171,6 +187,10 @@ struct OptionBase
 	virtual void Load() = 0;
 	virtual void Save() const = 0;
 	virtual void Reset() = 0;
+	// Only options kept for each edition act on it
+	virtual void ShowEdition(Editions edition)
+	{
+	}
 };
 
 template <typename T>
@@ -249,6 +269,64 @@ struct BoolOption : OptionBaseT<bool>
 	using OptionBaseT::operator=;
 };
 
+// A drawing option kept for each edition. V is the value of the edition on show and Other the other edition's;
+// switching swaps them. Classic saves under Name, as before editions existed, and Definitive under
+// options::DefinitiveKeyPrefix + Name.
+template <typename T> struct EditionOptionT : OptionBaseT<T>
+{
+	const T DefinitiveDefault;
+	T Other;
+
+	EditionOptionT(LPCSTR name, T classicDefault, T definitiveDefault) :
+		OptionBaseT<T>(name, classicDefault), DefinitiveDefault(definitiveDefault), Other()
+	{
+	}
+
+	void ShowEdition(Editions edition) override
+	{
+		if (edition != Shown)
+		{
+			std::swap(this->V, Other);
+			Shown = edition;
+		}
+	}
+
+	void Load() override
+	{
+		Value(Editions::Classic) = static_cast<T>(options::get_int(this->Name, this->DefaultValue));
+		Value(Editions::Definitive) = static_cast<T>(options::get_int(DefinitiveKey().c_str(), DefinitiveDefault));
+	}
+
+	void Save() const override
+	{
+		options::set_int(this->Name, Shown == Editions::Classic ? this->V : Other);
+		options::set_int(DefinitiveKey().c_str(), Shown == Editions::Definitive ? this->V : Other);
+	}
+
+	void Reset() override
+	{
+		Value(Editions::Classic) = this->DefaultValue;
+		Value(Editions::Definitive) = DefinitiveDefault;
+	}
+
+	using OptionBaseT<T>::operator=;
+
+private:
+	Editions Shown = Editions::Classic;
+
+	T& Value(Editions edition)
+	{
+		return edition == Shown ? this->V : Other;
+	}
+	std::string DefinitiveKey() const
+	{
+		return options::DefinitiveKeyPrefix + std::string{this->Name};
+	}
+};
+
+using EditionBoolOption = EditionOptionT<bool>;
+using EditionIntOption = EditionOptionT<int>;
+
 struct ControlOption : OptionBase
 {
 	const Msg Description;
@@ -296,7 +374,7 @@ struct optionsStruct
 	TableIntOption Resolution;
 	FloatOption UIScale;
 	BoolOption UniformScaling;
-	BoolOption LinearFiltering;
+	EditionBoolOption LinearFiltering;
 	IntOption FramesPerSecond;
 	IntOption UpdatesPerSecond;
 	BoolOption ShowMenu;
@@ -304,7 +382,7 @@ struct optionsStruct
 	IntOption SoundChannels;
 	BoolOption HybridSleep;
 	BoolOption Prefer3DPBGameData;
-	BoolOption IntegerScaling;
+	EditionBoolOption IntegerScaling;
 	IntOption SoundVolume;
 	IntOption MusicVolume;
 	BoolOption SoundStereo;
@@ -321,12 +399,15 @@ struct optionsStruct
 	StringOption FontFileName;
 	StringOption Language;
 	BoolOption HideCursor;
-	BoolOption Backdrop;
-	BoolOption StackedLayout;
+	EditionBoolOption Backdrop;
+	EditionBoolOption StackedLayout;
 	IntOption PostProcessing;
 	BoolOption Rumble;
 	BoolOption MatchRefreshRate;
-	BoolOption UpscaledArt;
-	IntOption UpscaleFactor;
+	EditionBoolOption UpscaledArt;
+	EditionIntOption UpscaleFactor;
 	IntOption KeyBindingsVersion;
+	IntOption Edition;
+	// The one-time hint that names the key for switching editions
+	BoolOption EditionHintShown;
 };

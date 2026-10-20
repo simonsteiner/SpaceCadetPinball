@@ -224,6 +224,8 @@ enum class Msg : int
 	Menu1_UseMaxResolution_800x600,
 	Menu1_UseMaxResolution_1024x768,
 	Menu1_ToggleUpscaledArt,
+	Menu1_ToggleEdition,
+	EditionHint,
 
 	// Full Tilt's CADET.EXE strings, shown instead of 3D Pinball's in Full Tilt mode
 	FullTilt_Caption,
