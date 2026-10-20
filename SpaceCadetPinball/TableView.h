@@ -8,10 +8,13 @@ struct TableView
 	struct Ball
 	{
 		bool Active;
-		// Table coordinates; Z is the height the depth sorting uses
+		// Table coordinates; Z is the ball's height
 		float X, Y, Z;
 		// The direction is a unit vector
 		float DirectionX, DirectionY, Speed;
+		// The depth the renderer tests the ball's sprite against the depth maps with, on their 0 to 0xFFFF scale
+		// (proj::NormalizeDepth of the ball's distance from the camera); 0 while the ball has no sprite
+		int Depth;
 		// Where the ball's sprite is in the 1x frame, in pixels; empty while it has none
 		SDL_Rect Sprite;
 	};

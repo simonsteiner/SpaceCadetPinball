@@ -158,9 +158,11 @@ void TableView::Fill()
 	for (auto index = 0u; index < Table->BallList.size(); index++)
 	{
 		auto ball = Table->BallList[index];
+		auto sprite = ball->RenderSprite;
 		View.Balls[index] = {
 			ball->ActiveFlag != 0, ball->Position.X,  ball->Position.Y, ball->Position.Z,
-			ball->Direction.X,     ball->Direction.Y, ball->Speed,      SpriteRect(ball->RenderSprite)};
+			ball->Direction.X,     ball->Direction.Y, ball->Speed,      sprite && sprite->Bmp ? sprite->Depth : 0,
+			SpriteRect(sprite)};
 	}
 
 	View.Flippers.resize(Table->FlipperList.size());
@@ -173,9 +175,11 @@ void TableView::Fill()
 	for (auto index = 0u; index < TableLights.size(); index++)
 	{
 		auto& light = View.Lights[index];
-		light.On = TableLights[index]->LightOnFlag;
-		light.Flashing = TableLights[index]->FlasherOnFlag;
-		light.Sprite = SpriteRect(TableLights[index]->RenderSprite);
+		// As shown: a timed override shows a light on or off without changing LightOnFlag
+		auto source = TableLights[index];
+		light.On = !source->ToggledOffFlag && (source->ToggledOnFlag || source->LightOnFlag);
+		light.Flashing = source->FlasherOnFlag;
+		light.Sprite = SpriteRect(source->RenderSprite);
 	}
 
 	View.InfoText = Text(pb::InfoTextBox);

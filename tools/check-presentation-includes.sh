@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Checks that Space Cadet 2026's presentation code, the SpaceCadetPinball/Definitive*.cpp and .h files, reads the
-# table only through the table view: it may include pch.h, TableView.h, translations.h, options.h, ImGui, SDL, the
+# table only through the table view: it may include pch.h, TableView.h, translations.h, options.h, ImGui (imgui*.h), SDL, the
 # standard library and other Definitive files, but not the table's or the components' headers (AGENTS.md).
 # Usage: tools/check-presentation-includes.sh [file]...
 #   with files, checks those that are presentation code (lefthook passes the staged files); without, checks them all
@@ -17,9 +17,12 @@ is_presentation() {
 }
 
 files=()
+# With files, as from the pre-commit hook, the staged versions are read, so unstaged edits don't hide a problem
+staged=0
 if [ $# -gt 0 ]; then
+    staged=1
     for file in "$@"; do
-        if is_presentation "$file" && [ -f "$file" ]; then
+        if is_presentation "$file" && git cat-file -e ":$file" 2>/dev/null; then
             files+=("$file")
         fi
     done
@@ -31,6 +34,9 @@ fi
 
 # In a variable, because bash can't take the quotes and angle brackets literally inside [[ =~ ]]
 include_pattern='^[[:space:]]*#[[:space:]]*include[[:space:]]*(["<])([^">]+)[">]'
+# Bash before 4.4 treats an empty array as unset under set -u
+[ ${#files[@]} -eq 0 ] && exit 0
+
 failed=0
 for file in "${files[@]}"; do
     line_number=0
@@ -49,7 +55,7 @@ for file in "${files[@]}"; do
             esac
         else
             case "$header" in
-                pch.h | TableView.h | translations.h | options.h | imgui.h | imgui_internal.h) allowed=1 ;;
+                pch.h | TableView.h | translations.h | options.h | imgui*.h) allowed=1 ;;
                 Definitive*.h) [[ $header != */* ]] && allowed=1 ;;
             esac
         fi
@@ -59,6 +65,6 @@ for file in "${files[@]}"; do
             echo "$file:$line_number: presentation code may not include ${kind}${header}${closing}; read the table through TableView.h" >&2
             failed=1
         fi
-    done <"$file"
+    done < <(if [ "$staged" -eq 1 ]; then git show ":$file"; else cat "$file"; fi)
 done
 exit "$failed"
