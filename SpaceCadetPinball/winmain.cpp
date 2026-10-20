@@ -175,7 +175,14 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		edition = Editions::Definitive;
 	else if (!editionArg.empty() || HasArg(args, "-edition"))
 	{
-		printf("Unknown edition: %s; use -edition classic or -edition definitive\n", editionArg.c_str());
+		auto message = (editionArg.empty() || editionArg[0] == '-' ? std::string{"-edition needs a value"}
+																   : "Unknown edition: " + editionArg) +
+					   "; use -edition classic or -edition definitive";
+		// Windows builds have no console, so play shows a message box; headless playback only prints
+		if (replayPath.empty())
+			pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not start", message.c_str());
+		else
+			printf("%s\n", message.c_str());
 		return 1;
 	}
 	if (!replayPath.empty())
@@ -284,6 +291,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			options::SelectEdition(*edition);
 			edition.reset();
 		}
+		// tools/check-replays.sh checks that playback ran the edition it asked for
+		if (replay::IsPlaying())
+			printf("Edition: %s\n", options::GetEdition() == Editions::Definitive ? "definitive" : "classic");
 
 		// Post-processing needs SDL's GPU renderer, the only one that takes custom shaders; without it the table is
 		// drawn plain
@@ -535,9 +545,7 @@ void winmain::MainLoop()
 				}
 				for (auto update = 0; update < updates; update++)
 				{
-					pb::frame(dt);
-					if (options::GetEdition() == Editions::Definitive)
-						DefinitiveEdition::Update(TableView::Get());
+					TableFrame(dt);
 					if (DispGRhistory)
 					{
 						auto targetSize =
@@ -655,6 +663,13 @@ void winmain::MainLoop()
 	{
 		printf("SDL Error: ^ Previous Error Repeated %u Times\n", PrevSdlErrorCount);
 	}
+}
+
+void winmain::TableFrame(float dtMilliSec)
+{
+	pb::frame(dtMilliSec);
+	if (options::GetEdition() == Editions::Definitive)
+		DefinitiveEdition::Update(TableView::Get());
 }
 
 void winmain::RenderUi()
@@ -1219,7 +1234,7 @@ int winmain::event_handler(const SDL_Event* event)
 			DispFrameRate ^= true;
 			break;
 		case SDLK_F1:
-			pb::frame(10);
+			TableFrame(10);
 			break;
 		case SDLK_F10:
 			pb::toggle_single_step();

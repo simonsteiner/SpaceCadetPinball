@@ -136,5 +136,7 @@ private:
 	static void RenderEditionHint();
 	static void HybridSleep(DurationMs seconds);
 	static void MainLoop();
+	// One table update, then Space Cadet 2026's, while it is on
+	static void TableFrame(float dtMilliSec);
 	static void ImGuiMenuItemWShortcut(GameBindings binding, bool selected = false);
 };
