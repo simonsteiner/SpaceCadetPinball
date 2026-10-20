@@ -3,6 +3,7 @@
 
 #include <cstdarg>
 
+#include "DefinitiveEdition.h"
 #include "fullscrn.h"
 #include "options.h"
 #include "pb.h"
@@ -10,6 +11,7 @@
 #include "winmain.h"
 #include "TBall.h"
 #include "TPinballTable.h"
+#include "TableView.h"
 
 namespace
 {
@@ -199,6 +201,11 @@ bool replay::PlayStep()
 			std::string expected;
 			auto dt = std::strtof(SplitFirst(rest, expected).c_str(), nullptr);
 			pb::frame(dt);
+			// Space Cadet 2026 updates as it does in play, and the view's hash lets two editions' runs be compared
+			const auto& view = TableView::Get();
+			if (options::GetEdition() == Editions::Definitive)
+				DefinitiveEdition::Update(view);
+			printf("view %u %016llx\n", FrameIndex, static_cast<unsigned long long>(view.Hash()));
 			auto actual = FormatState();
 			if (actual != expected)
 			{

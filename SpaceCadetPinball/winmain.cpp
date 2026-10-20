@@ -23,6 +23,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #endif
 
 #include "control.h"
+#include "DefinitiveEdition.h"
 #include "EmbeddedData.h"
 #include "fullscrn.h"
 #include "midi.h"
@@ -33,11 +34,13 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "render.h"
 #include "replay.h"
 #include "Sound.h"
+#include "TableView.h"
 #include "translations.h"
 #include "font_selection.h"
 #include "high_score.h"
 
 #include <new>
+#include <optional>
 
 constexpr const char* winmain::Version;
 
@@ -163,6 +166,18 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	const auto args = SplitArgs(lpCmdLine);
 	auto recordPath = GetArgValue(args, "-record");
 	auto replayPath = GetArgValue(args, "-replay");
+	// Playback runs Classic unless told otherwise, so its result doesn't depend on the saved settings
+	auto editionArg = GetArgValue(args, "-edition");
+	auto edition = replayPath.empty() ? std::optional<Editions>{} : Editions::Classic;
+	if (editionArg == "classic")
+		edition = Editions::Classic;
+	else if (editionArg == "definitive")
+		edition = Editions::Definitive;
+	else if (!editionArg.empty() || HasArg(args, "-edition"))
+	{
+		printf("Unknown edition: %s; use -edition classic or -edition definitive\n", editionArg.c_str());
+		return 1;
+	}
 	if (!replayPath.empty())
 	{
 		if (!replay::StartPlayback(replayPath))
@@ -262,6 +277,12 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		{
 			resetAllOptions = false;
 			options::ResetAllOptions();
+		}
+		// Only the first run; a restart keeps the edition the player switched to
+		if (edition)
+		{
+			options::SelectEdition(*edition);
+			edition.reset();
 		}
 
 		// Post-processing needs SDL's GPU renderer, the only one that takes custom shaders; without it the table is
@@ -412,6 +433,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		midi::music_shutdown();
 		Sound::Close();
 		pb::uninit();
+		DefinitiveEdition::Reset();
 
 		ImGui_ImplSDLRenderer3_Shutdown();
 		ImGui_ImplSDL3_Shutdown();
@@ -514,6 +536,8 @@ void winmain::MainLoop()
 				for (auto update = 0; update < updates; update++)
 				{
 					pb::frame(dt);
+					if (options::GetEdition() == Editions::Definitive)
+						DefinitiveEdition::Update(TableView::Get());
 					if (DispGRhistory)
 					{
 						auto targetSize =

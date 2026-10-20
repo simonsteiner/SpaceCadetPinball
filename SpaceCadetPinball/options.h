@@ -160,6 +160,8 @@ public:
 	static Editions GetEdition();
 	// Switches to the edition's drawing options and applies them, also during a game
 	static void SetEdition(Editions edition);
+	// Switches to the edition's drawing options without applying them, before the table is drawn
+	static void SelectEdition(Editions edition);
 	// Settings kept for each edition start with this; Classic keeps the original keys
 	static constexpr const char* DefinitiveKeyPrefix = "Definitive.";
 

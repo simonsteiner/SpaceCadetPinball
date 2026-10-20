@@ -2,6 +2,7 @@
 #include "options.h"
 
 #include "PostEffect.h"
+#include "DefinitiveEdition.h"
 
 #include "fullscrn.h"
 #include "midi.h"
@@ -549,14 +550,21 @@ void options::SetEdition(Editions edition)
 		return;
 
 	auto linearFiltering = Options.LinearFiltering.V;
-	Options.Edition = static_cast<int>(edition);
-	ShowEditionOptions(edition);
+	SelectEdition(edition);
+	// Its state from before was left behind while Classic was on
+	DefinitiveEdition::Reset();
 
 	// What toggling each drawing option that differs would do
 	render::SetUpscale(Options.UpscaledArt ? Options.UpscaleFactor.V : 0);
 	if (Options.LinearFiltering != linearFiltering)
 		render::recreate_screen_texture();
 	fullscrn::window_size_changed();
+}
+
+void options::SelectEdition(Editions edition)
+{
+	Options.Edition = static_cast<int>(edition);
+	ShowEditionOptions(edition);
 }
 
 void options::MyUserData_ReadLine(ImGuiContext* ctx, ImGuiSettingsHandler* handler, void* entry, const char* line)

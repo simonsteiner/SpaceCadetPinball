@@ -49,6 +49,9 @@ struct TableView
 	// Msg::STRING193
 	int Rank;
 
+	// 64-bit FNV-1a over every field, so two runs can compare their views frame by frame
+	uint64_t Hash() const;
+
 	// The view of the table in play
 	static const TableView& Get();
 	// Called only by pb: Fill after each update, Clear when the table goes away

@@ -46,6 +46,49 @@ namespace
 		return nullptr;
 	}
 
+	// FNV-1a, fed field by field so padding never counts
+	struct Hasher
+	{
+		uint64_t Value = 14695981039346656037ull;
+
+		void Bytes(const void* data, size_t size)
+		{
+			auto bytes = static_cast<const unsigned char*>(data);
+			for (size_t index = 0; index < size; index++)
+			{
+				Value ^= bytes[index];
+				Value *= 1099511628211ull;
+			}
+		}
+
+		void Add(int value)
+		{
+			Bytes(&value, sizeof value);
+		}
+		void Add(bool value)
+		{
+			Add(static_cast<int>(value));
+		}
+		void Add(float value)
+		{
+			Bytes(&value, sizeof value);
+		}
+
+		void Add(const std::string& text)
+		{
+			Add(static_cast<int>(text.size()));
+			Bytes(text.data(), text.size());
+		}
+
+		void Add(const SDL_Rect& rect)
+		{
+			Add(rect.x);
+			Add(rect.y);
+			Add(rect.w);
+			Add(rect.h);
+		}
+	};
+
 	void FindComponents()
 	{
 		Table = pb::MainTable;
@@ -63,6 +106,41 @@ namespace
 		RankCircle = dynamic_cast<TLightGroup*>(FindComponent("middle_circle"));
 	}
 } // namespace
+
+uint64_t TableView::Hash() const
+{
+	Hasher hash;
+	hash.Add(static_cast<int>(Balls.size()));
+	for (const auto& ball : Balls)
+	{
+		hash.Add(ball.Active);
+		for (auto value : {ball.X, ball.Y, ball.Z, ball.DirectionX, ball.DirectionY, ball.Speed})
+			hash.Add(value);
+		hash.Add(ball.Sprite);
+	}
+	hash.Add(static_cast<int>(Flippers.size()));
+	for (const auto& flipper : Flippers)
+	{
+		hash.Add(flipper.Angle);
+		hash.Add(flipper.AngleMax);
+	}
+	hash.Add(static_cast<int>(Lights.size()));
+	for (const auto& light : Lights)
+	{
+		hash.Add(light.Name);
+		hash.Add(light.On);
+		hash.Add(light.Flashing);
+		hash.Add(light.Sprite);
+	}
+	hash.Add(InfoText);
+	hash.Add(MissionText);
+	for (auto value :
+		 {PlayerCount, CurrentPlayer, Scores[0], Scores[1], Scores[2], Scores[3], BallCount, Mission, Rank})
+		hash.Add(value);
+	for (auto value : {GameOver, Demo, Tilted})
+		hash.Add(value);
+	return hash.Value;
+}
 
 const TableView& TableView::Get()
 {
