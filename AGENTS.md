@@ -26,6 +26,7 @@ There are no automated tests yet. A change is checked by building it and playing
 - **Outside input reaches the table only through `pb` functions that open a `replay::Scope`.** A new entry point that changes table state from outside `pb::frame` needs one, or replays diverge (`docs/replays.md`).
 - **Events between components are `Message(MessageCode, float)` calls.** Add a `MessageCode` value for a new event instead of a new cross-component method.
 - **Text shown on the table goes through `pb::get_rc_string(Msg::...)`.** Its translations live in `SpaceCadetPinball/translations.cpp`; never pass a literal to a text box.
+- **Space Cadet 2026 reads the table only through `TableView`.** Its presentation code lives in `SpaceCadetPinball/Definitive*.cpp` and `.h` and may include `TableView.h`, `translations.h`, `options.h`, other `Definitive*.h`, SDL, ImGui and the standard library, but not the table's or the components' headers; it never calls into components or sends messages. `pb::frame` fills the view after each update. `tools/check-presentation-includes.sh` checks the includes, in the pre-commit hook and the `lint` job.
 - **Settings live only in `optionsStruct` (`SpaceCadetPinball/options.h`).** Add new ones there and clamp them in `options.cpp`, not as globals elsewhere.
 - **Open files with `fopenu`, not `fopen`.** It handles UTF-8 paths on Windows (`SpaceCadetPinball/pch.h`).
 - **Every game `.cpp` starts with `#include "pch.h"`.** It is the shared precompiled header; only vendored ImGui files and the generated `EmbeddedData.cpp` skip it.

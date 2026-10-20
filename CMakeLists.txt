@@ -206,6 +206,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/TSound.h
         SpaceCadetPinball/TTableLayer.cpp
         SpaceCadetPinball/TTableLayer.h
+        SpaceCadetPinball/TableView.cpp
+        SpaceCadetPinball/TableView.h
         SpaceCadetPinball/TTextBox.cpp
         SpaceCadetPinball/TTextBox.h
         SpaceCadetPinball/TTextBoxMessage.cpp

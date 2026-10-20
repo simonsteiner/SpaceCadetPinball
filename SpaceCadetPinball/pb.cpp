@@ -27,6 +27,7 @@
 #include "TFlipper.h"
 #include "TPinballTable.h"
 #include "TTextBox.h"
+#include "TableView.h"
 #include "translations.h"
 
 TPinballTable* pb::MainTable = nullptr;
@@ -122,6 +123,7 @@ int pb::init()
 
 int pb::uninit()
 {
+	TableView::Clear();
 	score::unload_msg_font();
 	loader::unload();
 	delete record_table;
@@ -338,6 +340,7 @@ void pb::frame(float dtMilliSec)
 		if (nudge::nudge_count > 1.0f)
 			MainTable->tilt(time_now);
 	}
+	TableView::Fill();
 }
 
 void pb::timed_frame(float timeDelta)
