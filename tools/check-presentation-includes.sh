@@ -6,8 +6,8 @@
 #   with files, checks those that are presentation code (lefthook passes the staged files); without, checks them all
 set -u
 
-repo=$(git rev-parse --show-toplevel)
-cd "$repo" || exit 2
+# From the script's own path, not git, which CI's container doesn't trust before safe.directory is set
+cd "$(dirname "$0")/.." || exit 2
 
 is_presentation() {
     case "$1" in
