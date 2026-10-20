@@ -65,5 +65,5 @@ There are no automated tests yet. A change is checked by building it and playing
 - `docs/deployment.md` — producing release builds and where the version number lives.
 - `docs/replays.md` — recording and checking sessions, and the replay file format.
 - `docs/reference/` — DAT file format and dumps of the original DAT and PDB; read before touching `loader.cpp` or `partman.cpp`.
-- `docs/plan/` — dated work plans; read the latest before starting modernization work.
+- `docs/plan/` — dated work plans; read the latest before starting new work.
 - `GLOSSARY.md` — game and data terms.
