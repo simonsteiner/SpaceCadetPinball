@@ -30,7 +30,7 @@ play() {
 # Prints why a run failed
 report() {
     local reason
-    reason=$(grep -E '^(Replay|Expected|Actual|Recorded|Loaded|Not a|Could not|Unknown)' <<<"$output")
+    reason=$(grep -E '^(Replay|Expected|Actual|Recorded|Loaded|Not a|Could not|Unknown|-edition)' <<<"$output")
     if [ -z "$reason" ]; then
         # Not a replay result, such as a crash: show how the game ended
         reason=$(printf 'Exit status %s\n%s' "$status" "$(grep -v '^view ' <<<"$output" | tail -n 5)")
@@ -61,16 +61,37 @@ for replay in "$replays"/*.replay; do
         failed=$((failed + 1))
         continue
     fi
+    definitive=$output
+
+    # Each run must have played its own edition and printed a view hash for every frame it matched,
+    # or the comparison below would have nothing to compare
+    incomplete=""
+    for edition in classic definitive; do
+        if [ "$edition" = classic ]; then run=$classic; else run=$definitive; fi
+        frames=$(sed -n 's/^Replay matched all \([0-9]*\) frames\.$/\1/p' <<<"$run")
+        views=$(grep -c '^view ' <<<"$run")
+        if ! grep -qx "Edition: $edition" <<<"$run"; then
+            incomplete="$incomplete      The $edition run didn't report playing that edition."$'\n'
+        elif [ -z "$frames" ] || [ "$views" != "$frames" ]; then
+            incomplete="$incomplete      The $edition run printed $views view hashes for ${frames:-an unknown number of} frames."$'\n'
+        fi
+    done
+    if [ -n "$incomplete" ]; then
+        echo "FAIL  $name"
+        printf '%s' "$incomplete"
+        failed=$((failed + 1))
+        continue
+    fi
 
     # The first frame whose view differs between the editions
-    first=$(diff <(grep '^view ' <<<"$classic") <(grep '^view ' <<<"$output") | grep -m 1 '^[<>] view ' | cut -d' ' -f3)
+    first=$(diff <(grep '^view ' <<<"$classic") <(grep '^view ' <<<"$definitive") | grep -m 1 '^[<>] view ' | cut -d' ' -f3)
     if [ -n "$first" ]; then
         echo "FAIL  $name"
         echo "      The table view differs between Classic and Space Cadet 2026 from frame $first on."
         failed=$((failed + 1))
         continue
     fi
-    echo "ok    $name: $(tail -n 1 <<<"$output") Both editions match."
+    echo "ok    $name: $(tail -n 1 <<<"$definitive") Both editions match."
 done
 
 if [ "$count" -eq 0 ]; then

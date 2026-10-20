@@ -50,13 +50,15 @@ view 390 3a7f0c2e9b14d856
 
 The view holds the balls, flippers, lights, text box messages, scores, ball count, players, mission and rank, so the two editions' hashes are equal on every frame unless presentation code changed the table.
 
+Playback also prints the edition it starts in (`Edition: classic` or `Edition: definitive`).
+
 To check a whole folder:
 
 ```bash
 tools/check-replays.sh ../replays ../gamedata
 ```
 
-The script plays every `.replay` file in the first folder twice, in Classic and in Space Cadet 2026, with the second folder as the working directory. A replay passes when both runs match the recording and their view hashes are equal on every frame; otherwise the script names the edition that diverged, or the first frame whose view differs between them. It prints one line per replay and exits non-zero if any of them fail. A third argument picks a different executable; the default is `bin/SpaceCadetPinball`.
+The script plays every `.replay` file in the first folder twice, in Classic and in Space Cadet 2026, with the second folder as the working directory. A replay passes when both runs match the recording, each reports the edition it was asked for and printed a view hash for every frame, and the hashes are equal on every frame; otherwise the script names the edition that diverged, or the first frame whose view differs between them. It prints one line per replay and exits non-zero if any of them fail. A third argument picks a different executable; the default is `bin/SpaceCadetPinball`.
 
 For Full Tilt data, a `linux-sanitize` build currently stops while loading `CADET.DAT`, at a misaligned 16-bit read in `GroupData::SplitSplicedBitmap` that UBSan reports. It happens before any replay command runs, and on `main` too. To check the rest with the sanitizers, build with `-fno-sanitize=alignment` added to `SCP_SANITIZER_FLAGS` in `CMakeLists.txt`, locally.
 

@@ -116,6 +116,7 @@ uint64_t TableView::Hash() const
 		hash.Add(ball.Active);
 		for (auto value : {ball.X, ball.Y, ball.Z, ball.DirectionX, ball.DirectionY, ball.Speed})
 			hash.Add(value);
+		hash.Add(ball.Depth);
 		hash.Add(ball.Sprite);
 	}
 	hash.Add(static_cast<int>(Flippers.size()));
