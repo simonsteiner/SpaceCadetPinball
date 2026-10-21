@@ -27,6 +27,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "DefinitiveFrontEnd.h"
 #include "DefinitiveText.h"
 #include "DefinitiveTheme.h"
+#include "DefinitiveUi.h"
 #include "EmbeddedData.h"
 #include "fullscrn.h"
 #include "midi.h"
@@ -1618,6 +1619,9 @@ void winmain::RenderEditionHint()
 	auto lampSpace = lampRadius * 2 + padding.x;
 	auto wrapWidth = viewport->Size.x - padding.x * 4 - lampSpace;
 	auto textSize = ImGui::CalcTextSize(text, nullptr, false, wrapWidth);
+	// Over a Space Cadet 2026 screen, low down above its key hints, so it leaves the screen's name in view
+	if (DefinitiveFrontEnd::ScreenOpen())
+		top = viewport->Pos.y + viewport->Size.y - 64 * DefinitiveUi::Scale() - textSize.y / 2 - padding.y;
 	auto width = lampSpace + textSize.x;
 	auto left = Clamp(centre - width / 2, padding.x * 2, viewport->Size.x - padding.x * 2 - width);
 	ImVec2 panelMin{viewport->Pos.x + left - padding.x, top - textSize.y / 2 - padding.y};
