@@ -60,6 +60,9 @@ public:
 	static void ShowSettings(bool controls = false);
 	// Whether a screen is open, rather than the game in play
 	static bool ScreenOpen();
+	// Whether a key the game binds to a shortcut should still reach the game although a screen has the keyboard: while
+	// a screen had the focus in the last frame, and for Escape only on the title, the one screen it doesn't take back
+	static bool PassesShortcut(bool escape);
 
 private:
 	enum class Screen
@@ -73,7 +76,7 @@ private:
 
 	static DefinitiveHost Host;
 	static Screen Current, SettingsFrom;
-	static bool Opened, ConfirmClear;
+	static bool Opened, ConfirmClear, Focused;
 	static float CreditsScroll;
 
 	static void Open(Screen screen);

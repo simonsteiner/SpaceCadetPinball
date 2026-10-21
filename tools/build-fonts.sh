@@ -15,7 +15,8 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 fetch() { # URL, SHA-256, file name in $tmp
-	curl -sSfL -o "$tmp/$3" "$1"
+	# HTTPS only, redirects included
+	curl --proto '=https' --proto-redir '=https' -sSfL -o "$tmp/$3" "$1"
 	echo "$2  $tmp/$3" | sha256sum -c --quiet
 }
 
@@ -28,12 +29,15 @@ fetch "$google_fonts/notosanshebrew/NotoSansHebrew%5Bwdth,wght%5D.ttf" \
 fetch "$google_fonts/notosansarabic/NotoSansArabic%5Bwdth,wght%5D.ttf" \
 	63111b5b2e074dd48cc67692e0a2726d86ee94c1c37fe8598257b7b4e87e869e NotoSansArabic.ttf
 fetch "$dseg_zip" "$dseg_sha256" dseg.zip
-curl -sSfL -o "$out/OFL-Exo2.txt" "$google_fonts/exo2/OFL.txt"
-curl -sSfL -o "$out/OFL-Noto.txt" "$google_fonts/notosans/OFL.txt"
+fetch "$google_fonts/exo2/OFL.txt" \
+	7f95a8eeecc6904ffc81cd10cc8ebc7fcee72a67922924bf45f02dff03b88127 OFL-Exo2.txt
+fetch "$google_fonts/notosans/OFL.txt" \
+	cee9892f9f0cc8fe882c9e9537ee6a89621d86ee7ceaf70b02e2b2b1c25c061a OFL-Noto.txt
 
 unzip -q -o "$tmp/dseg.zip" -d "$tmp/dseg"
 install -m 644 "$tmp/dseg/fonts-DSEG_v046/DSEG7-Classic/DSEG7Classic-Bold.ttf" "$out/"
 install -m 644 "$tmp/dseg/fonts-DSEG_v046/DSEG-LICENSE.txt" "$out/OFL-DSEG.txt"
+install -m 644 "$tmp/OFL-Exo2.txt" "$tmp/OFL-Noto.txt" "$out/"
 
 uv run -q --no-project --with fonttools==4.67.0 python - "$tmp" "$out" <<'PY'
 import sys

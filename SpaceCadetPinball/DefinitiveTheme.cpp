@@ -67,15 +67,28 @@ namespace
 	std::vector<unsigned char> FallbackData;
 	unsigned int FallbackIndex = 0;
 
+	// Larger than any font a player would choose: Noto Sans CJK's collection is about 20 MB
+	constexpr long MaxFontFileSize = 64L * 1024 * 1024;
+
 	bool ReadFile(const std::string& path, std::vector<unsigned char>& data)
 	{
+		data.clear();
+		// Only a regular file: on Linux a directory opens, and its size reads as LONG_MAX
+		SDL_PathInfo info{};
+		if (!SDL_GetPathInfo(path.c_str(), &info) || info.type != SDL_PATHTYPE_FILE)
+			return false;
 		auto file = fopenu(path.c_str(), "rb");
 		if (!file)
 			return false;
 		fseek(file, 0, SEEK_END);
 		auto size = ftell(file);
 		fseek(file, 0, SEEK_SET);
-		data.resize(size > 0 ? static_cast<size_t>(size) : 0);
+		if (size <= 0 || size > MaxFontFileSize)
+		{
+			fclose(file);
+			return false;
+		}
+		data.resize(static_cast<size_t>(size));
 		auto read = !data.empty() && fread(data.data(), 1, data.size(), file) == data.size();
 		fclose(file);
 		if (!read)
@@ -108,18 +121,26 @@ namespace
 	}
 
 	// A font's line height (hhea ascender to descender) in ems, or 0 if the file can't be read. ImGui sizes a font by
-	// its line height, so fonts with taller lines come out smaller at the same size.
-	float LineHeightInEms(const unsigned char* data, size_t size)
+	// its line height, so fonts with taller lines come out smaller at the same size. Index is the face within a
+	// collection (.ttc), whose tables are found through the collection's header.
+	float LineHeightInEms(const unsigned char* data, size_t size, unsigned int index = 0)
 	{
 		auto read16 = [&](size_t offset) -> unsigned
 		{ return offset + 2 <= size ? static_cast<unsigned>(data[offset]) << 8U | data[offset + 1] : 0U; };
 		auto read32 = [&](size_t offset) -> size_t
 		{ return offset + 4 <= size ? static_cast<size_t>(read16(offset)) << 16U | read16(offset + 2) : 0U; };
+		size_t face = 0;
+		if (size >= 12 && !memcmp(data, "ttcf", 4))
+		{
+			if (index >= read32(8))
+				return 0;
+			face = read32(12 + static_cast<size_t>(index) * 4);
+		}
 		size_t head = 0, hhea = 0;
-		auto tables = static_cast<size_t>(read16(4));
+		auto tables = static_cast<size_t>(read16(face + 4));
 		for (size_t i = 0; i < tables; i++)
 		{
-			auto entry = 12 + i * 16;
+			auto entry = face + 12 + i * 16;
 			if (entry + 16 > size)
 				return 0;
 			if (!memcmp(data + entry, "head", 4))
@@ -134,44 +155,45 @@ namespace
 		return static_cast<float>(ascender - descender) / static_cast<float>(unitsPerEm);
 	}
 
-	ImFont* AddEmbedded(ImFontAtlas* atlas, const char* name, const unsigned char* data, unsigned int size, bool merge)
+	ImFont* AddFont(ImFontAtlas* atlas, const char* name, const unsigned char* data, size_t size,
+					ImFontConfig config = {})
 	{
-		// A merged font is scaled to the main one's em, so every script has letters of the same size
-		static float mainLineHeight = 0;
-		auto lineHeight = LineHeightInEms(data, size);
-		if (!merge)
-			mainLineHeight = lineHeight;
-		ImFontConfig config{};
-		if (merge && mainLineHeight > 0 && lineHeight > 0)
-			config.ExtraSizeScale = lineHeight / mainLineHeight;
-		// The arrays are the program's; the atlas only reads them
+		// The arrays are the program's or FallbackData; the atlas only reads them
 		config.FontDataOwnedByAtlas = false;
-		config.MergeMode = merge;
 		// ImGui's own font is 13 pixels, and table text boxes drawn with ImGui size themselves from the base size
 		config.SizePixels = 13;
 		ImFormatString(config.Name, IM_COUNTOF(config.Name), "%s", name);
 		return atlas->AddFontFromMemoryTTF(const_cast<unsigned char*>(data), static_cast<int>(size), 0, &config);
 	}
 
+	// Merges a font, face index of it if it is a collection, into the last font added. It is scaled to the main font's
+	// em, given as that font's line height in ems, so every script has letters of the same size
+	void MergeFont(ImFontAtlas* atlas, const char* name, const unsigned char* data, size_t size, float mainLineHeight,
+				   unsigned int index = 0)
+	{
+		ImFontConfig config{};
+		config.MergeMode = true;
+		config.FontNo = index;
+		auto lineHeight = LineHeightInEms(data, size, index);
+		if (mainLineHeight > 0 && lineHeight > 0)
+			config.ExtraSizeScale = lineHeight / mainLineHeight;
+		AddFont(atlas, name, data, size, config);
+	}
+
 	ImFont* AddTextFont(ImFontAtlas* atlas, const char* name, const unsigned char* data, unsigned int size)
 	{
-		auto font = AddEmbedded(atlas, name, data, size, false);
-		AddEmbedded(atlas, "Noto Sans Greek", DefinitiveFont_NotoSans_Greek, DefinitiveFont_NotoSans_Greek_Size, true);
-		AddEmbedded(atlas, "Noto Sans Hebrew", DefinitiveFont_NotoSansHebrew_Regular,
-					DefinitiveFont_NotoSansHebrew_Regular_Size, true);
-		AddEmbedded(atlas, "Noto Sans Arabic", DefinitiveFont_NotoSansArabic_Regular,
-					DefinitiveFont_NotoSansArabic_Regular_Size, true);
+		auto font = AddFont(atlas, name, data, size);
+		auto lineHeight = LineHeightInEms(data, size);
+		MergeFont(atlas, "Noto Sans Greek", DefinitiveFont_NotoSans_Greek, DefinitiveFont_NotoSans_Greek_Size,
+				  lineHeight);
+		MergeFont(atlas, "Noto Sans Hebrew", DefinitiveFont_NotoSansHebrew_Regular,
+				  DefinitiveFont_NotoSansHebrew_Regular_Size, lineHeight);
+		MergeFont(atlas, "Noto Sans Arabic", DefinitiveFont_NotoSansArabic_Regular,
+				  DefinitiveFont_NotoSansArabic_Regular_Size, lineHeight);
 
 		// Last, so it only fills in what the embedded fonts lack
 		if (!FallbackData.empty())
-		{
-			ImFontConfig config{};
-			config.FontDataOwnedByAtlas = false;
-			config.MergeMode = true;
-			config.SizePixels = 13;
-			config.FontNo = FallbackIndex;
-			atlas->AddFontFromMemoryTTF(FallbackData.data(), static_cast<int>(FallbackData.size()), 0, &config);
-		}
+			MergeFont(atlas, "Fallback", FallbackData.data(), FallbackData.size(), lineHeight, FallbackIndex);
 		return font;
 	}
 
@@ -197,8 +219,8 @@ void DefinitiveTheme::AddFonts(ImFontAtlas* atlas, const std::string& fontFile)
 	ReadFallback(fontFile);
 	Text = AddTextFont(atlas, "Exo 2", DefinitiveFont_Exo2_Regular, DefinitiveFont_Exo2_Regular_Size);
 	Heading = AddTextFont(atlas, "Exo 2 SemiBold", DefinitiveFont_Exo2_SemiBold, DefinitiveFont_Exo2_SemiBold_Size);
-	Digits = AddEmbedded(atlas, "DSEG7 Classic Bold", DefinitiveFont_DSEG7Classic_Bold,
-						 DefinitiveFont_DSEG7Classic_Bold_Size, false);
+	Digits =
+		AddFont(atlas, "DSEG7 Classic Bold", DefinitiveFont_DSEG7Classic_Bold, DefinitiveFont_DSEG7Classic_Bold_Size);
 }
 
 ImFont* DefinitiveTheme::TextFont()

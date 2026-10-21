@@ -182,8 +182,20 @@ namespace
 				directions[i] = Direction::Number;
 		}
 
-		// Left to right means a level of 2 and right to left 1. Neutrals between two left-to-right letters go left to
-		// right, all others right to left: next to a neutral, a number counts as right to left.
+		// A number after left-to-right text, with only neutrals and numbers in between, reads as part of it, as in
+		// "Space Cadet 2026" (Unicode rule W7)
+		auto strong = Direction::RightToLeft;
+		for (auto& direction : directions)
+		{
+			if (direction == Direction::LeftToRight || direction == Direction::RightToLeft)
+				strong = direction;
+			else if (direction == Direction::Number && strong == Direction::LeftToRight)
+				direction = Direction::LeftToRight;
+		}
+
+		// Left to right means a level of 2 and right to left 1. Neutrals between two left-to-right letters or numbers
+		// that follow them go left to right, all others right to left: next to a neutral, any other number counts as
+		// right to left.
 		std::vector<int> levels(line.size(), 1);
 		for (size_t i = 0; i < line.size();)
 		{
