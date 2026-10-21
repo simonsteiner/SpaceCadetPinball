@@ -255,13 +255,23 @@ void DefinitiveSettings::RenderEdition(const DefinitiveHost& host, bool gameRunn
 	if (Ui::MenuRow("language", Text(Msg::Definitive_Language), false, translations::GetCurrentLanguage()->DisplayName))
 		Languages = true;
 
-	// The folder the data came from; choosing another reads the data from there, after a restart
+	// The folder the data came from; choosing another reads the data from there, after a restart. Why a choice
+	// changed nothing takes the folder's place until the next one: no dialog, or no data in the folder chosen.
 	if (host.ChooseDataFolder)
 	{
 		auto folder = host.DataFolder ? host.DataFolder() : std::string{};
-		Ui::NextRowNote(folder.c_str());
-		if (Ui::MenuRow("datafolder", Text(Msg::Definitive_DataFolder), false,
-						Text(gameRunning ? Msg::Definitive_EndsGame : Msg::Definitive_Restarts)))
+		auto dialogError = host.FolderDialogError ? host.FolderDialogError() : std::string{};
+		auto failed = !dialogError.empty() || (host.ChosenFolderEmpty && host.ChosenFolderEmpty());
+		char failure[512];
+		if (!dialogError.empty())
+			snprintf(failure, sizeof failure, Text(Msg::Definitive_DataDialogFailed), dialogError.c_str());
+		else
+			snprintf(failure, sizeof failure, "%s", Text(Msg::Definitive_DataNotThere));
+		Ui::NextRowNote(failed ? failure : folder.c_str());
+		// Without a dialog the row can't restart anything, and the error needs the room
+		auto aside =
+			dialogError.empty() ? Text(gameRunning ? Msg::Definitive_EndsGame : Msg::Definitive_Restarts) : nullptr;
+		if (Ui::MenuRow("datafolder", Text(Msg::Definitive_DataFolder), failed, aside))
 			host.ChooseDataFolder();
 	}
 

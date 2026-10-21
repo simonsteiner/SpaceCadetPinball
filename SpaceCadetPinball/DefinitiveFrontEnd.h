@@ -62,6 +62,8 @@ struct DefinitiveHost
 	void (*ChooseDataFolder)();
 	// Why the folder dialog couldn't open, or an empty string
 	std::string (*FolderDialogError)();
+	// Whether the folder chosen last had no game data, so the one in use stays
+	bool (*ChosenFolderEmpty)();
 	// The folder the game data was loaded from
 	std::string (*DataFolder)();
 };

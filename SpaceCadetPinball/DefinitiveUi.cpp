@@ -151,8 +151,11 @@ bool DefinitiveUi::MenuRow(const char* id, const char* label, bool warning, cons
 		// The label moves up to make room for the note under it
 		auto noteSize = TextSize(DefinitiveTheme::TextFont(), DefinitiveTheme::LabelSize - 1, Note);
 		labelY -= noteSize.y / 2;
+		// Cut at the controls on its right too
+		drawList->PushClipRect(ImVec2{textX, Row.Min.y}, ImVec2{textRight, Row.Max.y}, true);
 		DrawText(drawList, DefinitiveTheme::TextFont(), DefinitiveTheme::LabelSize - 1,
 				 ImVec2{textX, labelY + labelHeight}, DefinitiveTheme::Chrome400, Note, textRight - textX);
+		drawList->PopClipRect();
 		Note = nullptr;
 	}
 	// A label too long for its room is cut at the controls on its right

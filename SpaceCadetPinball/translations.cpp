@@ -6699,6 +6699,12 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_DataDialogFailed,
+		{
+			{ Lang::English, "The folder dialog could not open (%s)." },
+		}
+	},
+	{
 		Msg::FullTilt_Caption,
 		{
 			{ Lang::English, "Full Tilt! - Space Cadet" },

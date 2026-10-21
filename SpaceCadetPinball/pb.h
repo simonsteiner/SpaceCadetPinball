@@ -38,6 +38,8 @@ public:
 
 	static int init();
 	static int uninit();
+	// The DAT file in a folder that ends in a separator, as SelectDatFile would pick it there, or an empty string
+	static std::string FindDatFile(const std::string& folder);
 	static void SelectDatFile(const std::vector<const char*>& dataSearchPaths);
 	static void reset_table();
 	static void firsttime_setup();

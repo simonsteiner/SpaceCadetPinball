@@ -136,11 +136,8 @@ int pb::uninit()
 	return 0;
 }
 
-void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
+std::string pb::FindDatFile(const std::string& folder)
 {
-	DatFileName.clear();
-	FullTiltDemoMode = FullTiltMode = false;
-
 	std::string datFileNames[3]
 	{
 		"CADET.DAT",
@@ -153,36 +150,51 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 	{
 		std::swap(datFileNames[0], datFileNames[1]);
 	}
+	for (const auto& datFileName : datFileNames)
+	{
+		auto fileName = datFileName;
+		for (int i = 0; i < 2; i++)
+		{
+			if (i == 1)
+				std::transform(fileName.begin(), fileName.end(), fileName.begin(),
+							   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+			auto datFile = fopenu((folder + fileName).c_str(), "r");
+			if (datFile)
+			{
+				fclose(datFile);
+				return fileName;
+			}
+		}
+	}
+	return {};
+}
+
+void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
+{
+	DatFileName.clear();
+	FullTiltDemoMode = FullTiltMode = false;
+
 	for (auto path : dataSearchPaths)
 	{
 		if (!path)
 			continue;
 
 		BasePath = path;
-		for (const auto& datFileName : datFileNames)
-		{
-			auto fileName = datFileName;
-			for (int i = 0; i < 2; i++)
-			{
-				if (i == 1)
-					std::transform(fileName.begin(), fileName.end(), fileName.begin(),
-					               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+		auto fileName = FindDatFile(BasePath);
+		if (fileName.empty())
+			continue;
 
-				auto datFilePath = make_path_name(fileName);
-				auto datFile = fopenu(datFilePath.c_str(), "r");
-				if (datFile)
-				{
-					fclose(datFile);
-					DatFileName = fileName;
-					if (datFileName == "CADET.DAT")
-						FullTiltMode = true;
-					if (datFileName == "DEMO.DAT")
-						FullTiltDemoMode = FullTiltMode = true;
-					printf("Loading game from: %s\n", datFilePath.c_str());
-					return;
-				}
-			}
-		}
+		DatFileName = fileName;
+		auto upper = fileName;
+		std::transform(upper.begin(), upper.end(), upper.begin(),
+					   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+		if (upper == "CADET.DAT")
+			FullTiltMode = true;
+		if (upper == "DEMO.DAT")
+			FullTiltDemoMode = FullTiltMode = true;
+		printf("Loading game from: %s\n", make_path_name(fileName).c_str());
+		return;
 	}
 }
 

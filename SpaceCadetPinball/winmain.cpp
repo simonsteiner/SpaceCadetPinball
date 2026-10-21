@@ -164,6 +164,8 @@ static std::string GetArgValue(const std::vector<std::string>& args, LPCSTR flag
 // The folder chosen in the system's folder dialog, which may answer from another thread
 static std::mutex ChosenFolderMutex;
 static std::string ChosenFolder, FolderDialogError;
+// Whether the last folder chosen had no game data, so the saved one stayed; only the main thread uses it
+static bool ChosenFolderEmpty = false;
 
 #ifndef __EMSCRIPTEN__
 static void SDLCALL FolderChosen(void* userData, const char* const* files, int filter)
@@ -181,15 +183,27 @@ static void SDLCALL FolderChosen(void* userData, const char* const* files, int f
 }
 #endif
 
-// The folder chosen since the last call, with a separator at its end, or an empty string
-static std::string TakeChosenFolder()
+// Whether a folder was chosen since the last call that has game data; it becomes the Game Data Folder. A folder
+// without data leaves the saved one as it was and sets ChosenFolderEmpty.
+static bool TakeChosenFolder()
 {
-	std::lock_guard lock{ChosenFolderMutex};
-	auto folder = std::move(ChosenFolder);
-	ChosenFolder.clear();
-	if (!folder.empty() && folder.back() != '/' && folder.back() != '\\')
-		folder += '/';
-	return folder;
+	std::string folder;
+	{
+		std::lock_guard lock{ChosenFolderMutex};
+		folder = std::move(ChosenFolder);
+		ChosenFolder.clear();
+	}
+	if (folder.empty())
+		return false;
+	folder = options::FolderPath(std::move(folder));
+	ChosenFolderEmpty = pb::FindDatFile(folder).empty();
+	if (ChosenFolderEmpty)
+	{
+		printf("No game data in the folder chosen: %s\n", folder.c_str());
+		return false;
+	}
+	options::Options.GameDataFolder.V = std::move(folder);
+	return true;
 }
 
 // What Space Cadet 2026's screens can ask for, through the entry points the Classic menus use
@@ -277,6 +291,11 @@ static DefinitiveHost MakeDefinitiveHost()
 	// The browser has its own way to give the game its files
 	host.ChooseDataFolder = []
 	{
+		{
+			std::lock_guard lock{ChosenFolderMutex};
+			FolderDialogError.clear();
+		}
+		ChosenFolderEmpty = false;
 		auto& folder = options::Options.GameDataFolder.V;
 		SDL_ShowOpenFolderDialog(FolderChosen, nullptr, winmain::MainWindow, folder.empty() ? nullptr : folder.c_str(),
 								 false);
@@ -287,6 +306,7 @@ static DefinitiveHost MakeDefinitiveHost()
 		std::lock_guard lock{ChosenFolderMutex};
 		return FolderDialogError;
 	};
+	host.ChosenFolderEmpty = [] { return ChosenFolderEmpty; };
 	host.DataFolder = []
 	{ return pb::BasePath.empty() ? std::string{pb::get_rc_string(Msg::Definitive_DataStartFolder)} : pb::BasePath; };
 	return host;
@@ -649,11 +669,8 @@ void winmain::MainLoop()
 	while (true)
 	{
 		// A game data folder chosen in Settings: the game restarts and loads from it
-		if (auto folder = TakeChosenFolder(); !folder.empty())
-		{
-			Options.GameDataFolder.V = std::move(folder);
+		if (TakeChosenFolder())
 			Restart();
-		}
 
 		if (DispFrameRate)
 		{
@@ -1832,7 +1849,8 @@ bool winmain::FindGameData(const std::vector<const char*>& searchPaths)
 		if (path)
 			looked.emplace_back(path[0] ? path : pb::get_rc_string(Msg::Definitive_DataStartFolder));
 	}
-	auto chosenBefore = !Options.GameDataFolder.V.empty();
+	// A folder chosen before that has lost its data gets the same note as one chosen now without any
+	ChosenFolderEmpty = !Options.GameDataFolder.V.empty();
 
 	// The window was waiting for the table to size it
 	SDL_SetWindowSize(MainWindow, 1100, 700);
@@ -1847,17 +1865,14 @@ bool winmain::FindGameData(const std::vector<const char*>& searchPaths)
 			if (event.type == SDL_EVENT_QUIT)
 				return false;
 		}
-		if (auto folder = TakeChosenFolder(); !folder.empty())
-		{
-			Options.GameDataFolder.V = std::move(folder);
+		if (TakeChosenFolder())
 			return true;
-		}
 
 		ImGui_ImplSDLRenderer3_NewFrame();
 		ImGui_ImplSDL3_NewFrame();
 		ApplyEditionLook();
 		ImGui::NewFrame();
-		DefinitiveFrontEnd::RenderMissingData(looked, chosenBefore);
+		DefinitiveFrontEnd::RenderMissingData(looked, ChosenFolderEmpty);
 		ImGui::Render();
 		SDL_RenderClear(Renderer);
 		auto fbScale = ImIO->DisplayFramebufferScale;
