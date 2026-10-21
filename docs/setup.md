@@ -155,6 +155,8 @@ tools/lint-changed.sh main build/lint
 
 The script checks the lines changed since the branch left `main` (their merge base), so commits that landed on `main` afterwards don't count; CI passes the base side of the pull request's merge commit. Without the build folder argument, it checks the formatting only. clang-tidy checks changed lines in `.cpp` files and in game headers; a header has no compile command of its own, so it is parsed with `pch.h` included first, as the build does.
 
+The `lint` job also runs `tools/check-bidi.sh build/lint`, which builds a small harness around `DefinitiveText::Shape` and compares its right-to-left text with python-bidi and arabic-reshaper, pinned in `tools/bidi/requirements.txt`, on every Hebrew and Arabic string in `translations.cpp`, the edition hint and a few made-up cases. It needs no game data; locally it fetches the packages through `uv`. Run it after changing `DefinitiveText.cpp` or a Hebrew or Arabic string.
+
 The LLVM version is set once, in `tools/llvm-requirements.txt`: CI installs it from there with hashes, and the script reads it for `uvx`. To bump it, regenerate that file's hashes, then update the version in the `uvx` commands above and in `AGENTS.md`.
 
 ## Editions

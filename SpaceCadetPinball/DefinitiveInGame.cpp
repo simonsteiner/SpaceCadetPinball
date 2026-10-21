@@ -30,6 +30,9 @@ namespace
 		return Text(static_cast<Msg>(static_cast<int>(Msg::STRING127) + std::clamp(player, 0, 3)));
 	}
 
+	// The most characters a name takes, whatever their script, as long as the high score table has room for their bytes
+	constexpr size_t MaxNameLength = 16;
+
 	bool ConfirmRestart = false, ConfirmQuit = false, FocusConfirm = false;
 	int PauseFrame = 0;
 
@@ -58,8 +61,8 @@ namespace
 		return confirmed;
 	}
 
-	// Escape, or the pad's Start or right button. Not in the frame the screen opened: the key that opened it reaches
-	// ImGui in that frame too.
+	// Escape, or the pad's Start or right button; the screen passes the pause key to the game, which resumes through
+	// TogglePause. Not in the frame the screen opened: the key that opened it reaches ImGui in that frame too.
 	bool ResumePressed()
 	{
 		return ImGui::GetFrameCount() > PauseFrame + 1 &&
@@ -75,6 +78,19 @@ void DefinitiveFrontEnd::ShowPause()
 	ConfirmRestart = ConfirmQuit = false;
 	PauseFrame = ImGui::GetFrameCount();
 	Open(Screen::Pause);
+}
+
+void DefinitiveFrontEnd::TogglePause()
+{
+	auto paused = Host.Paused && Host.Paused();
+	if (paused && (Current == Screen::Pause || (Current == Screen::Settings && SettingsFrom == Screen::Pause)))
+	{
+		Current = Screen::None;
+		if (Host.Resume)
+			Host.Resume();
+	}
+	else
+		ShowPause();
 }
 
 bool DefinitiveFrontEnd::NextName()
@@ -104,7 +120,9 @@ ImVec2 DefinitiveFrontEnd::BeginCentred(const char* name, ImVec2 size)
 	ImGui::SetNextWindowSize(scaled);
 	if (Opened || (!ImGui::GetTopMostPopupModal() && !GImGui->NavWindow))
 		ImGui::SetNextWindowFocus();
-	if (Opened)
+	// So does one whose row lost the focus to ImGui's cancel, as in BeginColumn
+	auto window = ImGui::FindWindowByName(name);
+	if (Opened || (window && GImGui->NavWindow == window && GImGui->NavId == 0))
 		Ui::FocusNextRow();
 	Opened = false;
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{});
@@ -115,9 +133,6 @@ ImVec2 DefinitiveFrontEnd::BeginCentred(const char* name, ImVec2 size)
 				 Ui::Combine(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoMove,
 							 ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoScrollWithMouse));
 	Theme::DrawPanel(ImGui::GetWindowDrawList(), min, ImVec2{min.x + scaled.x, min.y + scaled.y});
-	// ImGui's Escape takes the focus off the rows; the screen gives it back to the first
-	if (ImGui::IsWindowFocused() && !GImGui->NavId)
-		Ui::FocusNextRow();
 	return min;
 }
 
@@ -172,7 +187,7 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 		resume = Ui::MenuRow("resume", Text(Msg::Definitive_Resume));
 		if (Ui::MenuRow("settings", Text(Msg::Definitive_Settings)))
 			ShowSettings();
-		// Tab is ImGui's here, so the switch is an item; the game stays paused in Classic
+		// The edition key passes to the game here, as on the title, and switches too; the game stays paused in Classic
 		auto key = Host.EditionKey ? Host.EditionKey() : std::string{};
 		if (Ui::MenuRow("classic", Text(Msg::Definitive_SwitchToClassic), false, key.empty() ? nullptr : key.c_str()))
 			options::SetEdition(Editions::Classic);
@@ -195,6 +210,8 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 		drawList, ImVec2{min.x + padding * 2, min.y + ImGui::GetWindowSize().y - 44 * scale},
 		{{Ui::Action::Select, Text(Msg::Definitive_Select)},
 		 {Ui::Action::Back, Text(ConfirmRestart || ConfirmQuit ? Msg::Definitive_Back : Msg::Definitive_Resume)}});
+	// The game's shortcuts, such as the pause key that resumes and the edition key, pass while it has the focus
+	Focused = ImGui::IsWindowFocused() && !ImGui::GetTopMostPopupModal();
 	ImGui::End();
 	ImGui::PopStyleColor();
 	ImGui::PopStyleVar(3);
@@ -219,19 +236,20 @@ void DefinitiveFrontEnd::RenderGameOver(const TableView& view)
 	Ui::DrawText(drawList, Theme::HeadingFont(), Theme::TitleSize, ImVec2{min.x + padding * 2, min.y + 24 * scale},
 				 Theme::Chrome50, Text(Msg::STRING135), width - padding * 2);
 
-	// Each player's score, the ones that made the high score table marked and lit
+	// Each player's score, the ones that made the high score table marked and lit. Found by the player's name, which
+	// each saved score had by default, rather than by the score, which another player can share without making it.
 	auto y = min.y + (24 + 40 + 24) * scale;
 	for (auto player = 0; player < players; player++)
 	{
 		auto score = view.Scores[static_cast<size_t>(player)];
-		auto record = std::find(NewRecords.begin(), NewRecords.end(), score) != NewRecords.end() && score > 0;
+		auto name = PlayerName(player);
+		auto record = std::find(NewRecords.begin(), NewRecords.end(), name) != NewRecords.end();
 		auto rowHeight = 56 * scale;
 		auto left = min.x + padding * 2, right = min.x + padding + width - padding;
 		drawList->AddLine(ImVec2{left, y}, ImVec2{right, y}, WithAlpha(Theme::Chrome600, 0.6f));
 		auto centre = y + rowHeight / 2;
 		Theme::DrawLamp(drawList, ImVec2{left + 6 * scale, centre}, 6 * scale,
 						record ? Theme::Lamp::Lit : Theme::Lamp::Off);
-		auto name = PlayerName(player);
 		auto nameSize = Ui::TextSize(Theme::TextFont(), Theme::BodySize, name);
 		Ui::DrawText(drawList, Theme::TextFont(), Theme::BodySize, ImVec2{left + 24 * scale, centre - nameSize.y / 2},
 					 Theme::Chrome50, name);
@@ -274,7 +292,6 @@ void DefinitiveFrontEnd::RenderNameEntry()
 	// The letters a pad or a finger picks from; a keyboard types the name instead
 	static const char letters[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -.!";
 	constexpr int columns = 10, letterRows = 4;
-	constexpr size_t maxLength = 16;
 	auto min = BeginCentred("##DefinitiveNameEntry",
 							ImVec2{520, 24 + 40 + 28 + 24 + 52 + 24 + (letterRows + 1) * 44.0f + 24 + 32});
 	auto scale = Ui::Scale();
@@ -285,8 +302,8 @@ void DefinitiveFrontEnd::RenderNameEntry()
 				 Theme::Chrome50, Text(Msg::Definitive_NewHighScore), width);
 
 	// Who it is for, the score and the place it takes
-	char place[64];
-	snprintf(place, sizeof place, Text(Msg::Definitive_Place), EntryPlace + 1);
+	char place[128];
+	snprintf(place, sizeof place, Text(Msg::Definitive_Place), Entry.Name.c_str(), EntryPlace + 1);
 	auto y = min.y + (24 + 44) * scale;
 	Ui::DrawText(drawList, Theme::TextFont(), Theme::LabelSize, ImVec2{min.x + padding, y}, Theme::Chrome200, place,
 				 width);
@@ -296,14 +313,23 @@ void DefinitiveFrontEnd::RenderNameEntry()
 				   digits.c_str());
 
 	auto& io = ImGui::GetIO();
+	// A character more, while the name has room for it; never a leading space, so a held Space makes no blank name
+	auto add = [](const char* utf8, size_t size)
+	{
+		auto length = std::count_if(EntryName.begin(), EntryName.end(),
+									[](char byte) { return (static_cast<unsigned char>(byte) & 0xC0U) != 0x80U; });
+		if (static_cast<size_t>(length) < MaxNameLength &&
+			EntryName.size() + size <= DefinitiveHost::Record::MaxNameBytes && !(EntryName.empty() && *utf8 == ' '))
+			EntryName.append(utf8, size);
+	};
 	auto typedSpace = false;
 	for (auto character : io.InputQueueCharacters)
 	{
-		if (character < 0x20 || character == 0x7F || EntryName.size() >= maxLength)
+		if (character < 0x20 || character == 0x7F)
 			continue;
-		char utf8[5];
-		EntryName.append(utf8, static_cast<size_t>(ImTextCharToUtf8(utf8, character)));
 		typedSpace |= character == ' ';
+		char utf8[5];
+		add(utf8, static_cast<size_t>(ImTextCharToUtf8(utf8, character)));
 	}
 	auto erase = []
 	{
@@ -378,8 +404,8 @@ void DefinitiveFrontEnd::RenderNameEntry()
 		ImVec2 at{min.x + padding + static_cast<float>(column) * (cellWidth + gap),
 				  y + static_cast<float>(row) * (cellHeight + gap)};
 		char label[2] = {letters[index] == ' ' ? '_' : letters[index], 0};
-		if (cell(index, at, ImVec2{cellWidth, cellHeight}, label, opened && index == 0) && EntryName.size() < maxLength)
-			EntryName += letters[index];
+		if (cell(index, at, ImVec2{cellWidth, cellHeight}, label, opened && index == 0))
+			add(&letters[index], 1);
 	}
 	auto lastRow = y + static_cast<float>(letterRows) * (cellHeight + gap);
 	auto half = (width - gap) / 2;
@@ -406,11 +432,13 @@ void DefinitiveFrontEnd::RenderNameEntry()
 
 	if (done)
 	{
-		// An empty name keeps the player's default one
-		DefinitiveHost::Record record{EntryName.empty() ? Entry.Name : EntryName, Entry.Score};
+		// An empty name keeps the player's default one; trailing spaces go
+		auto end = EntryName.find_last_not_of(' ');
+		DefinitiveHost::Record record{end == std::string::npos ? Entry.Name : EntryName.substr(0, end + 1),
+									  Entry.Score};
 		if (Host.SaveRecord)
 			Host.SaveRecord(record, EntryPlace);
-		NewRecords.push_back(Entry.Score);
+		NewRecords.push_back(Entry.Name);
 		if (!NextName())
 		{
 			SummaryShown = true;

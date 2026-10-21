@@ -104,7 +104,8 @@ public:
 	static const char* PostProcessingUnavailable();
 	// Starts measuring sleep again, after Precise Sleep is switched
 	static void ResetPreciseSleep();
-	// Opens Space Cadet 2026's pause screen for the game in play; false when there is none to pause
+	// Opens or closes Space Cadet 2026's pause screen for the game in play, or ignores the key while a game ends; false
+	// when Classic's pause should handle it
 	static bool DefinitivePause();
 	// Space Cadet 2026's screen for missing game data, in place of the table; true once the player has chosen a
 	// folder to load from, false when they quit

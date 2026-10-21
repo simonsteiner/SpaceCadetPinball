@@ -9,16 +9,19 @@
 #include "TableView.h"
 #include "translations.h"
 
+#include <string_view>
+
 DefinitiveHost DefinitiveFrontEnd::Host{};
 DefinitiveFrontEnd::Screen DefinitiveFrontEnd::Current = Screen::None;
 DefinitiveFrontEnd::Screen DefinitiveFrontEnd::SettingsFrom = Screen::Title;
 bool DefinitiveFrontEnd::Opened = false;
 bool DefinitiveFrontEnd::ConfirmClear = false;
 bool DefinitiveFrontEnd::SummaryShown = false;
+bool DefinitiveFrontEnd::Focused = false;
 DefinitiveHost::Record DefinitiveFrontEnd::Entry{};
 int DefinitiveFrontEnd::EntryPlace = 0;
 std::string DefinitiveFrontEnd::EntryName;
-std::vector<int> DefinitiveFrontEnd::NewRecords;
+std::vector<std::string> DefinitiveFrontEnd::NewRecords;
 float DefinitiveFrontEnd::CreditsScroll = 0;
 
 namespace
@@ -41,8 +44,24 @@ namespace
 	struct CreditLine
 	{
 		bool Heading;
-		const char* Text;
+		std::string Text;
 	};
+
+	// The credits' lines, from text with one per line and the headings marked with a leading #
+	std::vector<CreditLine> SplitCredits(std::string_view text)
+	{
+		std::vector<CreditLine> lines;
+		while (true)
+		{
+			auto end = text.find('\n');
+			auto line = text.substr(0, end);
+			auto heading = !line.empty() && line.front() == '#';
+			lines.push_back({heading, std::string{heading ? line.substr(1) : line}});
+			if (end == std::string_view::npos)
+				return lines;
+			text.remove_prefix(end + 1);
+		}
+	}
 } // namespace
 
 void DefinitiveFrontEnd::SetHost(const DefinitiveHost& host)
@@ -68,6 +87,16 @@ bool DefinitiveFrontEnd::ScreenOpen()
 	return Current != Screen::None;
 }
 
+bool DefinitiveFrontEnd::PassesShortcut(bool escape)
+{
+	return Focused && (!escape || Current == Screen::Title);
+}
+
+bool DefinitiveFrontEnd::WaitsForBinding()
+{
+	return Current == Screen::Settings && DefinitiveSettings::WaitsForBinding();
+}
+
 void DefinitiveFrontEnd::Open(Screen screen)
 {
 	Current = screen;
@@ -79,6 +108,8 @@ void DefinitiveFrontEnd::Open(Screen screen)
 void DefinitiveFrontEnd::Render(const TableView& view)
 {
 	Ui::NewFrame();
+	// EndColumn sets it again while a screen shows
+	Focused = false;
 
 	auto playing = !view.GameOver && !view.Demo;
 	auto paused = Host.Paused && Host.Paused();
@@ -159,7 +190,9 @@ float DefinitiveFrontEnd::BeginColumn(const char* name, float width)
 	// A screen that opens takes the keyboard and gamepad; so does one that lost them to a click on the table
 	if (Opened || (!ImGui::GetTopMostPopupModal() && !GImGui->NavWindow))
 		ImGui::SetNextWindowFocus();
-	if (Opened)
+	// So does one whose row lost the focus to ImGui's cancel, which keeps the window focused but no row lit
+	auto window = ImGui::FindWindowByName(name);
+	if (Opened || (window && GImGui->NavWindow == window && GImGui->NavId == 0))
 		Ui::FocusNextRow();
 	Opened = false;
 
@@ -171,14 +204,12 @@ float DefinitiveFrontEnd::BeginColumn(const char* name, float width)
 	ImGui::Begin(name, nullptr,
 				 Ui::Combine(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoMove,
 							 ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoScrollWithMouse));
-	// ImGui's Escape takes the focus off the rows; the screen gives it back to the first
-	if (ImGui::IsWindowFocused() && !GImGui->NavId)
-		Ui::FocusNextRow();
 	return columnWidth;
 }
 
 void DefinitiveFrontEnd::EndColumn()
 {
+	Focused = ImGui::IsWindowFocused() && !ImGui::GetTopMostPopupModal();
 	ImGui::End();
 	ImGui::PopStyleColor();
 	ImGui::PopStyleVar(3);
@@ -388,60 +419,59 @@ void DefinitiveFrontEnd::RenderRecords()
 
 void DefinitiveFrontEnd::RenderCredits()
 {
-	static const CreditLine credits[] = {
-		{true, "Space Cadet 2026"},
-		{false, "A definitive edition of 3D Pinball for Windows - Space Cadet,"},
-		{false, "built on the decompiled game."},
-		{false, "github.com/simonsteiner/SpaceCadetPinball"},
-		{false, ""},
-		{true, "Decompiled and ported to SDL"},
-		{false, "k4zmu2a and contributors"},
-		{false, "github.com/k4zmu2a/SpaceCadetPinball"},
-		{false, ""},
-		{true, "Original game"},
-		{false, "Full Tilt! Pinball, created by Cinematronics for Maxis;"},
-		{false, "3D Pinball for Windows - Space Cadet, Microsoft"},
-		{false, ""},
-		{true, "Cinematronics"},
-		{false, "Programming: Michael Sandige, John Taylor"},
-		{false, "Art: John Frantz, Ryan Medeiros"},
-		{false, "Design: Kevin Gliner"},
-		{false, "Design consultant: Mark Sprenger"},
-		{false, "Producer: Kevin Gliner"},
-		{false, "Sound effects: Matt Ridgeway, Donald S. Griffin"},
-		{false, "Music: Matt Ridgeway"},
-		{false, "Voices: Mike McGeary, William Rice"},
-		{false, "Grand poobah: David Stafford"},
-		{false, "Special thanks: Paula Sandige, Alex St. John, Brad Silverberg,"},
-		{false, "Jeff Camp, Danny Thorpe, Greg Hospelhorn, Keith Johnson,"},
-		{false, "Sean Grant, Bob McAnn, Michael Kelley, Rob Rosenhouse,"},
-		{false, "Lisa Acton, Dan and Mitchell Roth"},
-		{false, ""},
-		{true, "Maxis"},
-		{false, "Producer: John Csicsery"},
-		{false, "Product manager: Larry Lee"},
-		{false, "Lead tester and QA manager: Scott Shicoff"},
-		{false, "Additional testing: Cathy Castro, Robin Hines,"},
-		{false, "John \"Jussi\" Ylinen, Keith Meyer, Marc Meyer, Owen Nelson,"},
-		{false, "Joe Longworth, Peter Saylor, Michael Gilmartin"},
-		{false, "Additional art: Ocean Quigley, Rick Macaraeg, Charlie Aquilina"},
-		{false, "Art director: Sharon Barr"},
-		{false, "Install program: Kevin O'Hare"},
-		{false, "Intro music: Brian Conrad, John Csicsery"},
-		{false, "Documentation: David Caggiano, Michael Bremer, Bob Sombrio"},
-		{false, "Special thanks: Sam Poole, Joe Scirica, Jeff Braun, Bob Derber,"},
-		{false, "Ashley Csicsery, Tom Forge, Will \"Burr\" Wright"},
-		{false, ""},
-		{true, "Fonts"},
-		{false, "Exo 2: The Exo 2 Project Authors"},
-		{false, "Noto Sans: The Noto Project Authors"},
-		{false, "DSEG7 Classic: keshikan"},
-		{false, "All under the SIL Open Font License 1.1"},
-		{false, ""},
-		{true, "Libraries"},
-		{false, "SDL and SDL_mixer, Dear ImGui, TinySoundFont, stb_vorbis,"},
-		{false, "SDL_native_midi, MMPX"},
-	};
+	// One line per credit; a heading starts with #
+	static const std::vector<CreditLine> credits = SplitCredits(R"(#Space Cadet 2026
+A definitive edition of 3D Pinball for Windows - Space Cadet,
+built on the decompiled game.
+github.com/simonsteiner/SpaceCadetPinball
+
+#Decompiled and ported to SDL
+k4zmu2a and contributors
+github.com/k4zmu2a/SpaceCadetPinball
+
+#Original game
+Full Tilt! Pinball, created by Cinematronics for Maxis;
+3D Pinball for Windows - Space Cadet, Microsoft
+
+#Cinematronics
+Programming: Michael Sandige, John Taylor
+Art: John Frantz, Ryan Medeiros
+Design: Kevin Gliner
+Design consultant: Mark Sprenger
+Producer: Kevin Gliner
+Sound effects: Matt Ridgeway, Donald S. Griffin
+Music: Matt Ridgeway
+Voices: Mike McGeary, William Rice
+Grand poobah: David Stafford
+Special thanks: Paula Sandige, Alex St. John, Brad Silverberg,
+Jeff Camp, Danny Thorpe, Greg Hospelhorn, Keith Johnson,
+Sean Grant, Bob McAnn, Michael Kelley, Rob Rosenhouse,
+Lisa Acton, Dan and Mitchell Roth
+
+#Maxis
+Producer: John Csicsery
+Product manager: Larry Lee
+Lead tester and QA manager: Scott Shicoff
+Additional testing: Cathy Castro, Robin Hines,
+John "Jussi" Ylinen, Keith Meyer, Marc Meyer, Owen Nelson,
+Joe Longworth, Peter Saylor, Michael Gilmartin
+Additional art: Ocean Quigley, Rick Macaraeg, Charlie Aquilina
+Art director: Sharon Barr
+Install program: Kevin O'Hare
+Intro music: Brian Conrad, John Csicsery
+Documentation: David Caggiano, Michael Bremer, Bob Sombrio
+Special thanks: Sam Poole, Joe Scirica, Jeff Braun, Bob Derber,
+Ashley Csicsery, Tom Forge, Will "Burr" Wright
+
+#Fonts
+Exo 2: The Exo 2 Project Authors
+Noto Sans: The Noto Project Authors
+DSEG7 Classic: keshikan
+All under the SIL Open Font License 1.1
+
+#Libraries
+SDL and SDL_mixer, Dear ImGui, TinySoundFont, stb_vorbis,
+SDL_native_midi, MMPX)");
 
 	auto viewport = ImGui::GetMainViewport();
 	auto scale = Ui::Scale();
@@ -490,7 +520,7 @@ void DefinitiveFrontEnd::RenderCredits()
 		if (line.Heading)
 			y += lineHeight * 0.3f;
 		drawList->AddText(font, size * scale, ImVec2{origin.x + 16 * scale, y},
-						  line.Heading ? Theme::LedOrange : Theme::Chrome200, line.Text);
+						  line.Heading ? Theme::LedOrange : Theme::Chrome200, line.Text.c_str());
 		y += lineHeight;
 	}
 	drawList->PopClipRect();

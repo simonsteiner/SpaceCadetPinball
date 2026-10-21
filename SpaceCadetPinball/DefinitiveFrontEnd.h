@@ -11,6 +11,9 @@ struct DefinitiveHost
 {
 	struct Record
 	{
+		// The longest name the high score table keeps, in bytes of UTF-8
+		static constexpr size_t MaxNameBytes = 31;
+
 		std::string Name;
 		int Score;
 	};
@@ -23,7 +26,8 @@ struct DefinitiveHost
 	void (*Quit)();
 	std::vector<Record> (*Records)();
 	void (*ClearRecords)();
-	// The next new high score that needs a name, with its default name and its place from 0; false when none is left
+	// The next new high score that needs a name, with its default name, which is its player's, and its place from 0;
+	// false when none is left
 	bool (*NextRecord)(Record& record, int& place);
 	void (*SaveRecord)(const Record& record, int place);
 	// Pausing and resuming the game in play, as the pause key does
@@ -49,6 +53,8 @@ struct DefinitiveHost
 	void (*SetLanguage)(const char* shortName);
 	// The largest table resolution the data has, 0 for 640 by 480 only
 	int (*MaxResolution)();
+	// Opens the dialog that asks for a font file, as the Classic menu's Change Font does
+	void (*ChangeFont)();
 	// The key or button that switches editions, empty when none is bound
 	std::string (*EditionKey)();
 	// Opens the system's folder dialog for the game data; once one is chosen, the game restarts and loads from it.
@@ -77,8 +83,16 @@ public:
 	// The first-run screen when no game data was found: where it looked and a way to choose the folder; the game
 	// runs it in place of the table until a folder is chosen or the player quits
 	static void RenderMissingData(const std::vector<std::string>& looked, bool chosenFolderFailed);
+	// The pause key: the pause screen, or back to the game from it and from Settings opened there
+	static void TogglePause();
 	// Whether a screen is open, rather than the game in play
 	static bool ScreenOpen();
+	// Whether a key the game binds to a shortcut should still reach the game although a screen has the keyboard: while
+	// a screen had the focus in the last frame, and for Escape only on the title, the one screen it doesn't take back.
+	// The name entry types every key and the summary keeps them, so neither passes any.
+	static bool PassesShortcut(bool escape);
+	// Whether Settings waits for a key or button to bind to a control, which Escape and a tap cancel instead
+	static bool WaitsForBinding();
 
 private:
 	enum class Screen
@@ -95,13 +109,14 @@ private:
 
 	static DefinitiveHost Host;
 	static Screen Current, SettingsFrom;
-	static bool Opened, ConfirmClear, SummaryShown;
+	static bool Opened, ConfirmClear, SummaryShown, Focused;
 	static float CreditsScroll;
-	// The high score whose name is being entered, its place, the name so far, and the scores that made the table
+	// The high score whose name is being entered, its place, the name so far, and the default names, one per player, of
+	// the scores that made the table
 	static DefinitiveHost::Record Entry;
 	static int EntryPlace;
 	static std::string EntryName;
-	static std::vector<int> NewRecords;
+	static std::vector<std::string> NewRecords;
 
 	static void Open(Screen screen);
 	static void RenderTitle(const TableView& view);

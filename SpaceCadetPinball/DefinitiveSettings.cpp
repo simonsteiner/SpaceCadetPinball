@@ -11,7 +11,10 @@ DefinitiveSettings::Group DefinitiveSettings::Current = Group::Edition;
 bool DefinitiveSettings::Opened = false;
 bool DefinitiveSettings::Languages = false;
 bool DefinitiveSettings::ShownLanguages = false;
+bool DefinitiveSettings::BackChosen = false;
+bool DefinitiveSettings::FocusLanguage = false;
 int DefinitiveSettings::Slot = 0;
+GameInput* DefinitiveSettings::Waited = nullptr;
 
 namespace
 {
@@ -61,7 +64,13 @@ void DefinitiveSettings::Open(Group group)
 	Current = group;
 	Opened = true;
 	Languages = false;
+	FocusLanguage = false;
 	Slot = 0;
+}
+
+bool DefinitiveSettings::WaitsForBinding()
+{
+	return options::WaitingForInput() && options::InputWaitedFor() == Waited;
 }
 
 bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
@@ -103,9 +112,11 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 	{
 		auto count = static_cast<int>(Group::Count);
 		auto index = static_cast<int>(Current);
-		if (ImGui::IsKeyPressed(ImGuiKey_Q, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false))
+		// Not while a dialog over the screen, such as the font file's, has the keyboard
+		auto focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+		if (focused && (ImGui::IsKeyPressed(ImGuiKey_Q, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false)))
 			index = (index + count - 1) % count;
-		if (ImGui::IsKeyPressed(ImGuiKey_E, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false))
+		if (focused && (ImGui::IsKeyPressed(ImGuiKey_E, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false)))
 			index = (index + 1) % count;
 		auto x = min.x + padding;
 		auto tabFontSize = Theme::LabelSize + 1;
@@ -155,6 +166,8 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 		ImGui::SetScrollY(0);
 		Slot = 0;
 	}
+	else if (FocusLanguage)
+		ImGui::SetScrollY(0);
 	ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - (ImGui::GetScrollMaxY() > 0 ? 12 * scale : 0));
 	if (Languages)
 		RenderLanguages(host, Languages != ShownLanguages);
@@ -182,20 +195,27 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 			break;
 		}
 	}
+	// Every tab and the language list end in Back, for a mouse or touch, which have no hints
+	if (Ui::MenuRow("back", Text(Msg::Definitive_Back)))
+		BackChosen = true;
 	ImGui::PopItemWidth();
 	ImGui::EndChild();
 	ShownLanguages = showedLanguages && Languages;
 
-	auto back = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !options::WaitingForInput() &&
-				(ImGui::IsKeyPressed(ImGuiKey_Escape, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) ||
-				 ImGui::IsMouseClicked(ImGuiMouseButton_Right));
+	auto back =
+		BackChosen ||
+		(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !options::WaitingForInput() &&
+		 (ImGui::IsKeyPressed(ImGuiKey_Escape, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) ||
+		  ImGui::IsMouseClicked(ImGuiMouseButton_Right)));
+	BackChosen = false;
 	ImVec2 hints{min.x + padding, min.y + size.y - padding - 26 * scale};
 	if (Languages)
 		Ui::DrawHints(drawList, hints,
 					  {{Ui::Action::Choose, Text(Msg::Definitive_Choose)},
 					   {Ui::Action::Select, Text(Msg::Definitive_Select)},
 					   {Ui::Action::Back, Text(Msg::Definitive_Back)}});
-	else
+	// While a slot waits, those keys and buttons would be bound; its row says how to cancel instead
+	else if (!WaitsForBinding())
 		Ui::DrawHints(drawList, hints,
 					  {{Ui::Action::Group, Text(Msg::Definitive_Group)},
 					   {Ui::Action::Change, Text(Msg::Definitive_Change)},
@@ -204,10 +224,11 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 	ImGui::PopStyleColor(2);
 	ImGui::PopStyleVar(3);
 
+	// Back from the list lands on the Language row that opened it
 	if (back && Languages)
 	{
 		Languages = false;
-		Opened = true;
+		FocusLanguage = true;
 		return true;
 	}
 	if (back)
@@ -228,6 +249,9 @@ void DefinitiveSettings::RenderEdition(const DefinitiveHost& host, bool gameRunn
 	if (chosen != edition)
 		options::SetEdition(chosen ? Editions::Definitive : Editions::Classic);
 
+	if (FocusLanguage)
+		Ui::FocusNextRow();
+	FocusLanguage = false;
 	if (Ui::MenuRow("language", Text(Msg::Definitive_Language), false, translations::GetCurrentLanguage()->DisplayName))
 		Languages = true;
 
@@ -241,8 +265,10 @@ void DefinitiveSettings::RenderEdition(const DefinitiveHost& host, bool gameRunn
 			host.ChooseDataFolder();
 	}
 
+	// Rows that restart the game change only when chosen, so a Left or Right that passes over them restarts nothing
 	Ui::NextRowNote(Text(gameRunning ? Msg::Definitive_EndsGame : Msg::Definitive_Restarts));
-	if (Ui::ToggleRow("prefer3dpb", Text(Msg::Definitive_Prefer3DPB), options::Options.Prefer3DPBGameData))
+	if (Ui::ToggleRow("prefer3dpb", Text(Msg::Definitive_Prefer3DPB), options::Options.Prefer3DPBGameData) &&
+		!Ui::RowStep())
 		options::toggle(Menu1::Prefer3DPBGameData);
 }
 
@@ -272,7 +298,7 @@ void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunn
 	if (Ui::ToggleRow("fullscreen", Text(Msg::Menu1_Full_Screen), options.FullScreen))
 		options::toggle(Menu1::Full_Screen);
 
-	// Full Tilt's art comes in three sizes; changing it reloads the table
+	// Full Tilt's art comes in three sizes; changing it reloads the table, so only choosing the row does
 	auto maxResolution = host.MaxResolution ? host.MaxResolution() : 0;
 	if (maxResolution > 0)
 	{
@@ -280,8 +306,10 @@ void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunn
 		auto current = options.Resolution.V < 0 ? 0 : options.Resolution.V + 1;
 		auto chosen = Ui::ChoiceRow("resolution", Text(Msg::Menu1_Table_Resolution),
 									{Text(Msg::Definitive_Largest), "640 x 480", "800 x 600", "1024 x 768"}, current);
-		chosen = std::min(chosen, maxResolution + 1);
-		if (chosen != current)
+		// A size the data lacks goes round to Largest, the largest it has; choosing the row steps on through the sizes
+		if (chosen > maxResolution + 1)
+			chosen = 0;
+		if (chosen != current && !Ui::RowStep())
 			options::toggle(chosen == 0 ? Menu1::MaximumResolution
 										: static_cast<Menu1>(static_cast<int>(Menu1::R640x480) + chosen - 1));
 	}
@@ -347,6 +375,15 @@ void DefinitiveSettings::RenderGraphics(const DefinitiveHost& host)
 		{Text(Msg::Definitive_None), Text(Msg::Definitive_Crt), Text(Msg::Definitive_SmoothEdges)}, effect);
 	if (chosenEffect != effect && host.SetPostProcessing)
 		host.SetPostProcessing(chosenEffect);
+
+	// A font for the text the built-in fonts lack, such as Chinese, Japanese and Korean; the row shows its file name
+	const auto& font = options.FontFileName.V;
+	auto slash = font.find_last_of("/\\");
+	auto fontName =
+		font.empty() ? Text(Msg::Definitive_None) : font.c_str() + (slash == std::string::npos ? 0 : slash + 1);
+	Ui::NextRowNote(Text(Msg::Definitive_FontNote));
+	if (Ui::MenuRow("font", Text(Msg::Definitive_FontFile), false, fontName) && host.ChangeFont)
+		host.ChangeFont();
 }
 
 void DefinitiveSettings::RenderAudio(const DefinitiveHost& host)
@@ -383,6 +420,9 @@ void DefinitiveSettings::RenderControls()
 	{
 		auto& control = options::Options.Key[~binding];
 		ImGui::PushID(~binding);
+		auto waited = options::InputWaitedFor();
+		if (waiting && waited >= std::begin(control.Inputs) && waited < std::end(control.Inputs))
+			Ui::NextRowNote(Text(Msg::Definitive_CancelInput));
 		auto chosen = Ui::MenuRow("binding", Text(control.Description), false, nullptr, true, slotsWidth + 8 * scale);
 		auto row = Ui::LastRow();
 		auto focused = Ui::LastRowFocused();
@@ -420,7 +460,8 @@ void DefinitiveSettings::RenderControls()
 		{
 			if (tapped >= 0 && ImGui::IsMouseReleased(0))
 				Slot = tapped;
-			options::WaitForInput(&control.Inputs[Slot]);
+			Waited = &control.Inputs[Slot];
+			options::WaitForInput(Waited);
 		}
 		if (focused && !waiting &&
 			(ImGui::IsKeyPressed(ImGuiKey_Delete, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceLeft, false)))
