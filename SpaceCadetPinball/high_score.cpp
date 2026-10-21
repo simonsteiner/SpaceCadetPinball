@@ -99,6 +99,11 @@ void high_score::place_new_score_into(high_score_entry data)
 	}
 }
 
+bool high_score::DialogPending()
+{
+	return ShowDialog || !ScoreQueue.empty() || ImGui::IsPopupOpen(pb::get_rc_string(Msg::HIGHSCORES_Caption));
+}
+
 void high_score::show_high_score_dialog()
 {
 	ShowDialog = true;

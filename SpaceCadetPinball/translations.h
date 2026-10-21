@@ -227,6 +227,16 @@ enum class Msg : int
 	Menu1_ToggleEdition,
 	EditionHint,
 
+	// Space Cadet 2026's front end
+	Definitive_Play,
+	Definitive_Controls,
+	Definitive_Credits,
+	Definitive_Back,
+	Definitive_Choose,
+	Definitive_Select,
+	Definitive_Scroll,
+	Definitive_Version,
+
 	// Full Tilt's CADET.EXE strings, shown instead of 3D Pinball's in Full Tilt mode
 	FullTilt_Caption,
 	FullTilt_About,

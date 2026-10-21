@@ -37,6 +37,7 @@ GameModes pb::game_mode = GameModes::GameOver;
 float pb::time_now = 0, pb::time_next = 0, pb::time_ticks_remainder = 0;
 float pb::BallMaxSpeed, pb::BallHalfRadius, pb::BallToBallCollisionDistance;
 float pb::IdleTimerMs = 0;
+bool pb::GameEnded = true;
 bool pb::FullTiltMode = false, pb::FullTiltDemoMode = false, pb::cheat_mode = false, pb::demo_mode = false, pb::CreditsActive = false;
 std::string pb::DatFileName, pb::BasePath;
 ImU32 pb::TextBoxColor;
@@ -270,6 +271,7 @@ void pb::replay_level(bool demoMode)
 	if (options::Options.Music)
 		midi::music_play();
 	MainTable->Message(MessageCode::NewGame, static_cast<float>(options::Options.Players));
+	GameEnded = false;
 }
 
 void pb::ballset(float dx, float dy)
@@ -735,6 +737,7 @@ void pb::end_game()
 	int scoreIndex[4]{};
 
 	mode_change(GameModes::GameOver);
+	GameEnded = true;
 	int playerCount = MainTable->PlayerCount;
 
 	score_struct_super* scorePtr = MainTable->PlayerScores;

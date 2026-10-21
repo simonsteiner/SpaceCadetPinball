@@ -6255,6 +6255,54 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_Play,
+		{
+			{ Lang::English, "Play" },
+		}
+	},
+	{
+		Msg::Definitive_Controls,
+		{
+			{ Lang::English, "Controls" },
+		}
+	},
+	{
+		Msg::Definitive_Credits,
+		{
+			{ Lang::English, "Credits" },
+		}
+	},
+	{
+		Msg::Definitive_Back,
+		{
+			{ Lang::English, "Back" },
+		}
+	},
+	{
+		Msg::Definitive_Choose,
+		{
+			{ Lang::English, "Choose" },
+		}
+	},
+	{
+		Msg::Definitive_Select,
+		{
+			{ Lang::English, "Select" },
+		}
+	},
+	{
+		Msg::Definitive_Scroll,
+		{
+			{ Lang::English, "Scroll" },
+		}
+	},
+	{
+		Msg::Definitive_Version,
+		{
+			{ Lang::English, "Version %s" },
+		}
+	},
+	{
 		Msg::FullTilt_Caption,
 		{
 			{ Lang::English, "Full Tilt! - Space Cadet" },

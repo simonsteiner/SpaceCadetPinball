@@ -28,6 +28,9 @@ public:
 	static DatFile* record_table;
 	static TPinballTable* MainTable;
 	static bool FullTiltMode, FullTiltDemoMode;
+	// False from the start of a game until end_game has checked its high scores, which the table does a few seconds
+	// after it shows Game Over
+	static bool GameEnded;
 	static std::string DatFileName, BasePath;
 	static ImU32 TextBoxColor;
 	static int quickFlag;

@@ -98,6 +98,8 @@ public:
 	static void GamepadInput(SDL_JoystickID gamepad, int value, bool down);
 	static void TouchInput(const SDL_TouchFingerEvent& event);
 	static float ExpectedMenuHeight();
+	// Whether the menu bar is up: Classic's, when the Show Menu option is on; Space Cadet 2026 has none
+	static bool MenuBarShown();
 
 private:
 	static int return_value;

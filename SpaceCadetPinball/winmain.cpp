@@ -24,6 +24,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 
 #include "control.h"
 #include "DefinitiveEdition.h"
+#include "DefinitiveFrontEnd.h"
 #include "DefinitiveText.h"
 #include "DefinitiveTheme.h"
 #include "EmbeddedData.h"
@@ -156,6 +157,39 @@ static std::string GetArgValue(const std::vector<std::string>& args, LPCSTR flag
 {
 	auto arg = std::find(args.begin(), args.end(), flag);
 	return arg != args.end() && ++arg != args.end() ? *arg : std::string();
+}
+
+// What Space Cadet 2026's screens can ask for, through the entry points the Classic menus use
+static DefinitiveHost MakeDefinitiveHost()
+{
+	DefinitiveHost host{};
+	host.Play = [] { winmain::new_game(); };
+	host.StartDemo = []
+	{
+		if (!winmain::DemoActive)
+			pb::toggle_demo();
+	};
+#ifndef __EMSCRIPTEN__
+	// A browser tab closes the game itself
+	host.Quit = []
+	{
+		SDL_Event event{SDL_EVENT_QUIT};
+		SDL_PushEvent(&event);
+	};
+#endif
+	host.ShowControls = [] { options::ShowControlDialog(); };
+	host.Records = []
+	{
+		std::vector<DefinitiveHost::Record> records;
+		for (auto& entry : high_score::highscore_table)
+			records.push_back({entry.Name, entry.Score});
+		return records;
+	};
+	host.ClearRecords = [] { high_score::clear_table(); };
+	host.Busy = []
+	{ return !pb::GameEnded || high_score::DialogPending() || ImGui::GetTopMostPopupModal() != nullptr; };
+	host.Version = winmain::Version;
+	return host;
 }
 
 int winmain::WinMain(LPCSTR lpCmdLine)
@@ -339,6 +373,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		ImGui_ImplSDL3_InitForSDLRenderer(window, Renderer);
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
+		DefinitiveFrontEnd::SetHost(MakeDefinitiveHost());
 
 		// Data search order: WD, executable path, user pref path, platform specific paths.
 		std::vector<const char*> searchPaths
@@ -430,7 +465,13 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 #endif
 			fullscrn::set_screen_mode(Options.FullScreen);
 
-			if (HasArg(args, "-demo"))
+			// Space Cadet 2026 opens on its title, with the demo behind it
+			if (options::GetEdition() == Editions::Definitive)
+			{
+				pb::toggle_demo();
+				DefinitiveFrontEnd::ShowTitle();
+			}
+			else if (HasArg(args, "-demo"))
 				pb::toggle_demo();
 			else
 				pb::replay_level(false);
@@ -702,11 +743,16 @@ void winmain::ApplyEditionLook()
 
 void winmain::RenderUi()
 {
+	// Space Cadet 2026's screens take the menu bar's place
+	auto definitive = options::GetEdition() == Editions::Definitive;
+	if (definitive)
+		DefinitiveFrontEnd::Render(TableView::Get());
+
 	// Transparent menu bar with a button for preventing menu lockout.
 	ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4{});
 	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4{});
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-	if (!Options.ShowMenu && ImGui::BeginMainMenuBar())
+	if (!definitive && !Options.ShowMenu && ImGui::BeginMainMenuBar())
 	{
 		if (ImGui::MenuItem("Menu"))
 		{
@@ -724,7 +770,7 @@ void winmain::RenderUi()
 		ImGui::ShowDemoWindow(&ShowImGuiDemo);
 #endif
 
-	if (Options.ShowMenu && ImGui::BeginMainMenuBar())
+	if (MenuBarShown() && ImGui::BeginMainMenuBar())
 	{
 		int currentMenuHeight = static_cast<int>(ImGui::GetWindowSize().y);
 		if (MainMenuHeight != currentMenuHeight)
@@ -1556,6 +1602,11 @@ void winmain::ApplyDisplayScale()
 	style.ScaleAllSizes(scale);
 	style.FontScaleDpi = scale;
 	style.FontScaleMain = fontScale;
+}
+
+bool winmain::MenuBarShown()
+{
+	return Options.ShowMenu && options::GetEdition() == Editions::Classic;
 }
 
 float winmain::ExpectedMenuHeight()

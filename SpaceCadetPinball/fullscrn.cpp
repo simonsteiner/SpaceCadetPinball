@@ -115,7 +115,7 @@ void fullscrn::window_size_changed()
 	int width, height;
 	SDL_GetRenderOutputSize(winmain::Renderer, &width, &height);
 	int menuHeight =
-		options::Options.ShowMenu ? static_cast<int>(std::ceil(winmain::MainMenuHeight * PixelDensity())) : 0;
+		winmain::MenuBarShown() ? static_cast<int>(std::ceil(winmain::MainMenuHeight * PixelDensity())) : 0;
 	height -= menuHeight;
 	auto res = &resolution_array[resolution];
 	auto boardWidth = render::BoardWidth();
@@ -181,7 +181,7 @@ void fullscrn::ResetWindowSize(bool center)
 	// A window that size shows the table at about the size the original had at 96 DPI, without blurring it.
 	auto res = &resolution_array[resolution];
 	auto density = PixelDensity();
-	auto menuHeight = options::Options.ShowMenu ? winmain::ExpectedMenuHeight() : 0.0f;
+	auto menuHeight = winmain::MenuBarShown() ? winmain::ExpectedMenuHeight() : 0.0f;
 
 	SDL_Rect usable{};
 	auto display = SDL_GetDisplayForWindow(winmain::MainWindow);

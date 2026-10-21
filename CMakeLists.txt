@@ -227,10 +227,14 @@ set(SOURCE_FILES
         SpaceCadetPinball/DefinitiveEdition.cpp
         SpaceCadetPinball/DefinitiveEdition.h
         SpaceCadetPinball/DefinitiveFontData.h
+        SpaceCadetPinball/DefinitiveFrontEnd.cpp
+        SpaceCadetPinball/DefinitiveFrontEnd.h
         SpaceCadetPinball/DefinitiveText.cpp
         SpaceCadetPinball/DefinitiveText.h
         SpaceCadetPinball/DefinitiveTheme.cpp
         SpaceCadetPinball/DefinitiveTheme.h
+        SpaceCadetPinball/DefinitiveUi.cpp
+        SpaceCadetPinball/DefinitiveUi.h
         )
 
 # Space Cadet 2026's fonts, vendored in third_party/fonts, become byte arrays at build time (DefinitiveFontData.h)
