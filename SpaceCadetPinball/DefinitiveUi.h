@@ -59,6 +59,20 @@ public:
 	// controls. A warning row lights its lamp red, for choices that end something.
 	static bool MenuRow(const char* id, const char* label, bool warning = false, const char* aside = nullptr,
 						bool enabled = true, float trailing = 0);
+	// A second line under the next row's label, for a short explanation
+	static void NextRowNote(const char* note);
+	// A row with an on/off switch at its end; true when it should flip: chosen, or left or right toward the other state
+	static bool ToggleRow(const char* id, const char* label, bool on, bool enabled = true);
+	// A row with its choices side by side; returns the choice made, else current. Left and right step through them,
+	// choosing the row steps on, and a tap picks one.
+	static int ChoiceRow(const char* id, const char* label, std::initializer_list<const char*> choices, int current,
+						 bool enabled = true);
+	// A row with a slider; returns the new value. Left and right step, and a tap or a drag on the track sets it.
+	static int SliderRow(const char* id, const char* label, int value, int min, int max, int step,
+						 const char* format = "%d");
+	// -1 or 1 when left or right was pressed this frame while the last row has focus, else 0
+	static int RowStep();
+
 	// The row the last MenuRow drew, and whether it has focus; for rows with their own controls on the right
 	static ImRect LastRow();
 	static bool LastRowFocused();
@@ -74,4 +88,5 @@ private:
 	static Device Last;
 	static ImRect Row;
 	static bool RowFocused, FocusNext;
+	static const char* Note;
 };

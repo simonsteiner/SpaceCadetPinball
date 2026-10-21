@@ -155,6 +155,15 @@ public:
 	static void ShowControlDialog();
 	static void RenderControlDialog();
 	static bool WaitingForInput() { return ControlWaitingForInput; }
+	// The input the next key, mouse or gamepad button is bound to, as when the controls dialog waits; null to stop
+	static void WaitForInput(GameInput* input)
+	{
+		ControlWaitingForInput = input;
+	}
+	static GameInput* InputWaitedFor()
+	{
+		return ControlWaitingForInput;
+	}
 	static std::vector<GameBindings> MapGameInput(GameInput key);
 	static void ResetAllOptions();
 	static Editions GetEdition();

@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "DefinitiveFrontEnd.h"
 
+#include "DefinitiveSettings.h"
+
 #include "DefinitiveTheme.h"
 #include "DefinitiveUi.h"
 #include "options.h"
@@ -9,6 +11,7 @@
 
 DefinitiveHost DefinitiveFrontEnd::Host{};
 DefinitiveFrontEnd::Screen DefinitiveFrontEnd::Current = Screen::None;
+DefinitiveFrontEnd::Screen DefinitiveFrontEnd::SettingsFrom = Screen::Title;
 bool DefinitiveFrontEnd::Opened = false;
 bool DefinitiveFrontEnd::ConfirmClear = false;
 float DefinitiveFrontEnd::CreditsScroll = 0;
@@ -63,6 +66,14 @@ void DefinitiveFrontEnd::ShowTitle()
 	Open(Screen::Title);
 }
 
+void DefinitiveFrontEnd::ShowSettings(bool controls)
+{
+	if (Current != Screen::Settings)
+		SettingsFrom = Current == Screen::None ? Screen::Title : Current;
+	Current = Screen::Settings;
+	DefinitiveSettings::Open(controls ? DefinitiveSettings::Group::Controls : DefinitiveSettings::Group::Edition);
+}
+
 bool DefinitiveFrontEnd::ScreenOpen()
 {
 	return Current != Screen::None;
@@ -98,6 +109,10 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 		break;
 	case Screen::Records:
 		RenderRecords();
+		break;
+	case Screen::Settings:
+		if (!DefinitiveSettings::Render(Host, playing))
+			Open(SettingsFrom);
 		break;
 	case Screen::Credits:
 		RenderCredits();
@@ -160,7 +175,7 @@ bool DefinitiveFrontEnd::BackPressed()
 void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 {
 	auto viewport = ImGui::GetMainViewport();
-	auto rows = Host.Quit ? 6 : 5;
+	auto rows = Host.Quit ? 7 : 6;
 	// Margins, the name, the year, the rows and the hints, shrunk to fit a small window
 	auto needed = 56 + 60 + 14 + 40 + 48 + rows * (Theme::RowHeight + 2) + 24 + 26 + 24;
 	Ui::SetScale(std::min(Ui::Scale(), viewport->Size.y / needed));
@@ -233,8 +248,10 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 		}
 	}
 
-	if (Ui::MenuRow("controls", Text(Msg::Definitive_Controls)) && Host.ShowControls)
-		Host.ShowControls();
+	if (Ui::MenuRow("settings", Text(Msg::Definitive_Settings)))
+		ShowSettings();
+	if (Ui::MenuRow("controls", Text(Msg::Definitive_Controls)))
+		ShowSettings(true);
 	if (Ui::MenuRow("records", Text(Msg::HIGHSCORES_Caption)))
 		Open(Screen::Records);
 	if (Ui::MenuRow("credits", Text(Msg::Definitive_Credits)))

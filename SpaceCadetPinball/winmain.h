@@ -100,6 +100,10 @@ public:
 	static float ExpectedMenuHeight();
 	// Whether the menu bar is up: Classic's, when the Show Menu option is on; Space Cadet 2026 has none
 	static bool MenuBarShown();
+	// Why post-processing can't show, or null when it can
+	static const char* PostProcessingUnavailable();
+	// Starts measuring sleep again, after Precise Sleep is switched
+	static void ResetPreciseSleep();
 
 private:
 	static int return_value;

@@ -177,7 +177,6 @@ static DefinitiveHost MakeDefinitiveHost()
 		SDL_PushEvent(&event);
 	};
 #endif
-	host.ShowControls = [] { options::ShowControlDialog(); };
 	host.Records = []
 	{
 		std::vector<DefinitiveHost::Record> records;
@@ -189,6 +188,38 @@ static DefinitiveHost MakeDefinitiveHost()
 	host.Busy = []
 	{ return !pb::GameEnded || high_score::DialogPending() || ImGui::GetTopMostPopupModal() != nullptr; };
 	host.Version = winmain::Version;
+	host.SetPostProcessing = [](int effect) { winmain::SetPostProcessing(static_cast<PostEffects>(effect)); };
+	host.PostProcessingUnavailable = winmain::PostProcessingUnavailable;
+	host.SetUpscaleFactor = [](int factor)
+	{
+		options::Options.UpscaleFactor = factor;
+		if (options::Options.UpscaledArt)
+			render::SetUpscale(factor);
+	};
+	host.SetSoundVolume = [](int volume)
+	{
+		options::Options.SoundVolume = volume;
+		Sound::SetVolume(volume);
+	};
+	host.SetSoundChannels = [](int channels)
+	{
+		options::Options.SoundChannels = channels;
+		Sound::SetChannels(channels);
+	};
+	host.SetMusicVolume = [](int volume)
+	{
+		options::Options.MusicVolume = volume;
+		midi::SetVolume(volume);
+	};
+	host.FrameRateChanged = winmain::UpdateFrameRate;
+	host.PreciseSleepChanged = winmain::ResetPreciseSleep;
+	host.SetLanguage = [](const char* shortName)
+	{
+		translations::SetCurrentLanguage(shortName);
+		winmain::Restart();
+	};
+	host.MaxResolution = fullscrn::GetMaxResolution;
+	host.EditionKey = [] { return options::Options.Key[~GameBindings::ToggleEdition].GetShortcutDescription(); };
 	return host;
 }
 
@@ -465,10 +496,11 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 #endif
 			fullscrn::set_screen_mode(Options.FullScreen);
 
-			// Space Cadet 2026 opens on its title, with the demo behind it
+			// Space Cadet 2026 opens on its title, with the demo behind it. Not toggle_demo: after a restart its flag
+			// still says the demo of the run before is on.
 			if (options::GetEdition() == Editions::Definitive)
 			{
-				pb::toggle_demo();
+				pb::replay_level(true);
 				DefinitiveFrontEnd::ShowTitle();
 			}
 			else if (HasArg(args, "-demo"))
@@ -1602,6 +1634,27 @@ void winmain::ApplyDisplayScale()
 	style.ScaleAllSizes(scale);
 	style.FontScaleDpi = scale;
 	style.FontScaleMain = fontScale;
+}
+
+const char* winmain::PostProcessingUnavailable()
+{
+#ifdef __EMSCRIPTEN__
+	return pb::get_rc_string(Msg::Definitive_NoGpuWeb);
+#elif !SDL_VERSION_ATLEAST(3, 4, 0)
+	return pb::get_rc_string(Msg::Definitive_OldSdl);
+#else
+	if (SoftwareRenderer)
+		return pb::get_rc_string(Msg::Definitive_NoGpuSoftware);
+	if (PostEffect::GpuRendererFailed())
+		return pb::get_rc_string(Msg::Definitive_NoGpu);
+	return nullptr;
+#endif
+}
+
+void winmain::ResetPreciseSleep()
+{
+	SleepState = WelfordState{};
+	SpinThreshold = DurationMs::zero();
 }
 
 bool winmain::MenuBarShown()

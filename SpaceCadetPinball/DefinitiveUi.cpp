@@ -9,6 +9,7 @@ DefinitiveUi::Device DefinitiveUi::Last = DefinitiveUi::Device::Keyboard;
 ImRect DefinitiveUi::Row{};
 bool DefinitiveUi::RowFocused = false;
 bool DefinitiveUi::FocusNext = false;
+const char* DefinitiveUi::Note = nullptr;
 
 void DefinitiveUi::NewFrame()
 {
@@ -120,9 +121,150 @@ bool DefinitiveUi::MenuRow(const char* id, const char* label, bool warning, cons
 				 : RowFocused ? DefinitiveTheme::Chrome50
 							  : DefinitiveTheme::Chrome200;
 	auto labelHeight = TextSize(DefinitiveTheme::TextFont(), textSize, label).y;
-	DrawText(drawList, DefinitiveTheme::TextFont(), textSize, ImVec2{textX, centreY - labelHeight / 2}, color, label,
-			 textRight - textX);
+	auto labelY = centreY - labelHeight / 2;
+	if (Note)
+	{
+		// The label moves up to make room for the note under it
+		auto noteSize = TextSize(DefinitiveTheme::TextFont(), DefinitiveTheme::LabelSize - 1, Note);
+		labelY -= noteSize.y / 2;
+		DrawText(drawList, DefinitiveTheme::TextFont(), DefinitiveTheme::LabelSize - 1,
+				 ImVec2{textX, labelY + labelHeight}, DefinitiveTheme::Chrome400, Note, textRight - textX);
+		Note = nullptr;
+	}
+	// A label too long for its room is cut at the controls on its right
+	drawList->PushClipRect(ImVec2{textX, Row.Min.y}, ImVec2{textRight, Row.Max.y}, true);
+	DrawText(drawList, DefinitiveTheme::TextFont(), textSize, ImVec2{textX, labelY}, color, label, textRight - textX);
+	drawList->PopClipRect();
 	return chosen && enabled;
+}
+
+void DefinitiveUi::NextRowNote(const char* note)
+{
+	Note = note;
+}
+
+int DefinitiveUi::RowStep()
+{
+	if (!RowFocused)
+		return 0;
+	if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow) || ImGui::IsKeyPressed(ImGuiKey_GamepadDpadLeft))
+		return -1;
+	if (ImGui::IsKeyPressed(ImGuiKey_RightArrow) || ImGui::IsKeyPressed(ImGuiKey_GamepadDpadRight))
+		return 1;
+	return 0;
+}
+
+bool DefinitiveUi::ToggleRow(const char* id, const char* label, bool on, bool enabled)
+{
+	auto scale = LayoutScale;
+	ImVec2 size{52 * scale, 28 * scale};
+	auto chosen = MenuRow(id, label, false, nullptr, enabled, size.x + 8 * scale);
+	auto step = RowStep();
+	auto drawList = ImGui::GetWindowDrawList();
+	ImVec2 min{Row.Max.x - 16 * scale - size.x, (Row.Min.y + Row.Max.y - size.y) / 2};
+	ImVec2 max{min.x + size.x, min.y + size.y};
+	auto radius = size.y / 2;
+	auto knob = size.y / 2 - 4 * scale;
+	if (on && enabled)
+	{
+		drawList->AddRectFilled(min, max, DefinitiveColor(0xFF, 0x8C, 0x1A, 0x2E), radius);
+		drawList->AddRect(min, max, DefinitiveTheme::LedOrange, radius);
+		DefinitiveTheme::DrawLamp(drawList, ImVec2{max.x - radius, min.y + radius}, knob, DefinitiveTheme::Lamp::Lit);
+	}
+	else
+	{
+		drawList->AddRectFilled(min, max, DefinitiveTheme::Space950, radius);
+		drawList->AddRect(min, max, DefinitiveTheme::Chrome600, radius);
+		drawList->AddCircleFilled(ImVec2{min.x + radius, min.y + radius}, knob,
+								  enabled ? DefinitiveTheme::Chrome200 : DefinitiveTheme::Chrome600);
+	}
+	return enabled && (chosen || (step < 0 && on) || (step > 0 && !on));
+}
+
+int DefinitiveUi::ChoiceRow(const char* id, const char* label, std::initializer_list<const char*> choices, int current,
+							bool enabled)
+{
+	auto scale = LayoutScale;
+	auto font = DefinitiveTheme::TextFont();
+	auto padding = 12 * scale, height = 34 * scale;
+	std::vector<float> widths;
+	auto total = 6 * scale;
+	for (auto choice : choices)
+	{
+		widths.push_back(std::max(36 * scale, TextSize(font, DefinitiveTheme::BodySize - 1, choice).x + padding * 2));
+		total += widths.back();
+	}
+	auto chosen = MenuRow(id, label, false, nullptr, enabled, total + 8 * scale);
+	auto count = static_cast<int>(choices.size());
+	auto result = current;
+	auto step = RowStep();
+	if (enabled && step)
+		result = std::clamp(current + step, 0, count - 1);
+
+	auto drawList = ImGui::GetWindowDrawList();
+	ImVec2 min{Row.Max.x - 16 * scale - total, (Row.Min.y + Row.Max.y - height) / 2};
+	ImVec2 max{min.x + total, min.y + height};
+	drawList->AddRectFilled(min, max, DefinitiveTheme::Space950, 6 * scale);
+	drawList->AddRect(min, max, DefinitiveTheme::Chrome600, 6 * scale);
+	auto x = min.x + 3 * scale;
+	auto mouse = ImGui::GetIO().MousePos;
+	auto tapped = -1;
+	auto index = 0;
+	for (auto choice : choices)
+	{
+		auto width = widths[static_cast<size_t>(index)];
+		ImVec2 segmentMin{x, min.y + 3 * scale}, segmentMax{x + width, max.y - 3 * scale};
+		if (mouse.x >= segmentMin.x && mouse.x < segmentMax.x && mouse.y >= segmentMin.y && mouse.y < segmentMax.y)
+			tapped = index;
+		if (index == current)
+			drawList->AddRectFilled(segmentMin, segmentMax,
+									enabled ? DefinitiveTheme::Space600 : DefinitiveTheme::Space800, 4 * scale);
+		auto textSize = TextSize(font, DefinitiveTheme::BodySize - 1, choice);
+		DrawText(drawList, font, DefinitiveTheme::BodySize - 1,
+				 ImVec2{x + (width - textSize.x) / 2, (segmentMin.y + segmentMax.y - textSize.y) / 2},
+				 index == current && enabled ? DefinitiveTheme::Chrome50 : DefinitiveTheme::Chrome400, choice);
+		x += width;
+		index++;
+	}
+	if (enabled && chosen)
+		result = tapped >= 0 && ImGui::IsMouseReleased(0) ? tapped : (current + 1) % count;
+	return result;
+}
+
+int DefinitiveUi::SliderRow(const char* id, const char* label, int value, int min, int max, int step,
+							const char* format)
+{
+	auto scale = LayoutScale;
+	auto trackWidth = 180 * scale, valueWidth = 56 * scale;
+	MenuRow(id, label, false, nullptr, true, trackWidth + valueWidth + 16 * scale);
+	auto result = std::clamp(value + RowStep() * step, min, max);
+
+	auto drawList = ImGui::GetWindowDrawList();
+	auto centreY = (Row.Min.y + Row.Max.y) / 2;
+	ImVec2 trackMin{Row.Max.x - 16 * scale - trackWidth, centreY - 3 * scale};
+	ImVec2 trackMax{trackMin.x + trackWidth, centreY + 3 * scale};
+	// A press on the row near the track, and a drag from there, moves the knob to the pointer
+	auto& io = ImGui::GetIO();
+	if (ImGui::IsItemActive() && io.MouseClickedPos[0].x >= trackMin.x - 12 * scale)
+	{
+		auto fraction = std::clamp((io.MousePos.x - trackMin.x) / trackWidth, 0.0f, 1.0f);
+		auto steps = std::lround(fraction * static_cast<float>(max - min) / static_cast<float>(step));
+		result = std::clamp(min + static_cast<int>(steps) * step, min, max);
+	}
+	auto fraction = static_cast<float>(result - min) / static_cast<float>(std::max(max - min, 1));
+	drawList->AddRectFilled(trackMin, trackMax, DefinitiveTheme::Space950, 3 * scale);
+	drawList->AddRect(trackMin, trackMax, DefinitiveTheme::Chrome600, 3 * scale);
+	ImVec2 knob{trackMin.x + trackWidth * fraction, centreY};
+	drawList->AddRectFilled(trackMin, ImVec2{knob.x, trackMax.y}, DefinitiveTheme::LedOrange, 3 * scale);
+	drawList->AddCircleFilled(knob, 10 * scale, DefinitiveTheme::Chrome200);
+	drawList->AddCircle(knob, 10 * scale, DefinitiveTheme::Chrome50, 0, 1);
+
+	char text[32];
+	snprintf(text, sizeof text, format, result);
+	auto textSize = TextSize(DefinitiveTheme::TextFont(), DefinitiveTheme::BodySize - 1, text);
+	DrawText(drawList, DefinitiveTheme::TextFont(), DefinitiveTheme::BodySize - 1,
+			 ImVec2{trackMin.x - 12 * scale - textSize.x, centreY - textSize.y / 2}, DefinitiveTheme::Chrome200, text);
+	return result;
 }
 
 ImRect DefinitiveUi::LastRow()

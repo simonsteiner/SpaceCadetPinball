@@ -1,0 +1,440 @@
+#include "pch.h"
+#include "DefinitiveSettings.h"
+
+#include "DefinitiveFrontEnd.h"
+#include "DefinitiveTheme.h"
+#include "DefinitiveUi.h"
+#include "options.h"
+#include "translations.h"
+
+DefinitiveSettings::Group DefinitiveSettings::Current = Group::Edition;
+bool DefinitiveSettings::Opened = false;
+bool DefinitiveSettings::Languages = false;
+bool DefinitiveSettings::ShownLanguages = false;
+int DefinitiveSettings::Slot = 0;
+
+namespace
+{
+	using Theme = DefinitiveTheme;
+	using Ui = DefinitiveUi;
+
+	const char* Text(Msg id)
+	{
+		return translations::GetTranslation(id);
+	}
+
+	const Msg GroupNames[] = {
+		Msg::Definitive_Edition, Msg::Definitive_Display,  Msg::Definitive_Graphics,
+		Msg::Definitive_Audio,   Msg::Definitive_Controls, Msg::Definitive_Accessibility,
+	};
+
+	// Volumes are 0 to 128 in the options and percentages on screen
+	int ToPercent(int volume)
+	{
+		return static_cast<int>(std::lround(volume * 100.0 / options::MaxVolume));
+	}
+
+	int FromPercent(int percent)
+	{
+		return static_cast<int>(std::lround(percent * options::MaxVolume / 100.0));
+	}
+
+	// An input as a slot shows it: the key, or the mouse or pad button
+	std::string Describe(const GameInput& input)
+	{
+		switch (input.Type)
+		{
+		case InputTypes::Keyboard:
+			return input.GetShortInputDescription();
+		case InputTypes::Mouse:
+			return "Mouse " + input.GetShortInputDescription();
+		case InputTypes::GameController:
+			return "Pad " + input.GetShortInputDescription();
+		default:
+			return "-";
+		}
+	}
+} // namespace
+
+void DefinitiveSettings::Open(Group group)
+{
+	Current = group;
+	Opened = true;
+	Languages = false;
+	Slot = 0;
+}
+
+bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
+{
+	auto viewport = ImGui::GetMainViewport();
+	auto scale = Ui::Scale();
+	auto margin = 24 * scale;
+	ImVec2 min{viewport->Pos.x + margin, viewport->Pos.y + margin};
+	ImVec2 size{std::min(640 * scale, viewport->Size.x - margin * 2), viewport->Size.y - margin * 2};
+
+	ImGui::SetNextWindowPos(min);
+	ImGui::SetNextWindowSize(size);
+	if (Opened || (!ImGui::GetTopMostPopupModal() && !GImGui->NavWindow))
+		ImGui::SetNextWindowFocus();
+	auto opened = Opened;
+	Opened = false;
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{});
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0, 2 * scale});
+	ImGui::PushStyleColor(ImGuiCol_NavCursor, 0U);
+	ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, 0U);
+	ImGui::Begin("##DefinitiveSettings", nullptr,
+				 Ui::Combine(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoMove,
+							 ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoScrollWithMouse));
+	auto drawList = ImGui::GetWindowDrawList();
+	Theme::DrawPanel(drawList, min, ImVec2{min.x + size.x, min.y + size.y});
+	auto padding = 24 * scale;
+	auto innerWidth = size.x - padding * 2;
+	auto title = Languages ? Text(Msg::Definitive_Language) : Text(Msg::Definitive_Settings);
+	Ui::DrawText(drawList, Theme::HeadingFont(), Theme::TitleSize, ImVec2{min.x + padding, min.y + padding},
+				 Theme::Chrome50, title, innerWidth);
+
+	// The groups as tabs; Q and E, the shoulder buttons or a tap move between them
+	auto tabsY = min.y + padding + 48 * scale;
+	auto tabHeight = 40 * scale;
+	auto previous = Current;
+	auto showedLanguages = Languages;
+	if (!Languages)
+	{
+		auto count = static_cast<int>(Group::Count);
+		auto index = static_cast<int>(Current);
+		if (ImGui::IsKeyPressed(ImGuiKey_Q, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false))
+			index = (index + count - 1) % count;
+		if (ImGui::IsKeyPressed(ImGuiKey_E, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false))
+			index = (index + 1) % count;
+		auto x = min.x + padding;
+		auto tabFontSize = Theme::LabelSize + 1;
+		std::vector<float> widths;
+		auto total = 0.0f;
+		for (auto name : GroupNames)
+		{
+			widths.push_back(Ui::TextSize(Theme::HeadingFont(), tabFontSize, Text(name)).x + 20 * scale);
+			total += widths.back();
+		}
+		// Narrow windows squeeze the tabs together
+		auto squeeze = std::min(1.0f, innerWidth / total);
+		drawList->AddLine(ImVec2{x, tabsY + tabHeight}, ImVec2{x + innerWidth, tabsY + tabHeight}, Theme::Chrome600);
+		for (auto tab = 0; tab < count; tab++)
+		{
+			auto width = widths[static_cast<size_t>(tab)] * squeeze;
+			ImGui::SetCursorScreenPos(ImVec2{x, tabsY});
+			ImGui::PushID(tab);
+			if (ImGui::InvisibleButton("tab", ImVec2{width, tabHeight}))
+				index = tab;
+			ImGui::PopID();
+			auto selected = tab == static_cast<int>(Current);
+			auto label = Text(GroupNames[tab]);
+			auto labelSize = Ui::TextSize(selected ? Theme::HeadingFont() : Theme::TextFont(), tabFontSize, label);
+			Ui::DrawText(drawList, selected ? Theme::HeadingFont() : Theme::TextFont(), tabFontSize,
+						 ImVec2{x + (width - labelSize.x) / 2, tabsY + (tabHeight - labelSize.y) / 2},
+						 selected ? Theme::Chrome50 : Theme::Chrome400, label);
+			if (selected)
+				drawList->AddRectFilled(ImVec2{x + 8 * scale, tabsY + tabHeight - 2 * scale},
+										ImVec2{x + width - 8 * scale, tabsY + tabHeight}, Theme::LedOrange);
+			x += width;
+		}
+		Current = static_cast<Group>(index);
+	}
+
+	// The rows scroll under the tabs, and the focus follows them
+	auto rowsY = tabsY + tabHeight + 12 * scale;
+	auto hintsHeight = 26 * scale + padding * 1.5f;
+	ImGui::SetCursorScreenPos(ImVec2{min.x + padding / 2, rowsY});
+	ImGui::BeginChild("##rows", ImVec2{size.x - padding, min.y + size.y - hintsHeight - rowsY},
+					  ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoBackground);
+	if (opened || Current != previous)
+	{
+		Ui::FocusNextRow();
+		ImGui::SetScrollY(0);
+		Slot = 0;
+	}
+	ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - (ImGui::GetScrollMaxY() > 0 ? 12 * scale : 0));
+	if (Languages)
+		RenderLanguages(host, Languages != ShownLanguages);
+	else
+	{
+		switch (Current)
+		{
+		case Group::Edition:
+			RenderEdition(host, gameRunning);
+			break;
+		case Group::Display:
+			RenderDisplay(host, gameRunning);
+			break;
+		case Group::Graphics:
+			RenderGraphics(host);
+			break;
+		case Group::Audio:
+			RenderAudio(host);
+			break;
+		case Group::Controls:
+			RenderControls();
+			break;
+		default:
+			RenderAccessibility();
+			break;
+		}
+	}
+	ImGui::PopItemWidth();
+	ImGui::EndChild();
+	ShownLanguages = showedLanguages && Languages;
+
+	auto back = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !options::WaitingForInput() &&
+				(ImGui::IsKeyPressed(ImGuiKey_Escape, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) ||
+				 ImGui::IsMouseClicked(ImGuiMouseButton_Right));
+	ImVec2 hints{min.x + padding, min.y + size.y - padding - 26 * scale};
+	if (Languages)
+		Ui::DrawHints(drawList, hints,
+					  {{Ui::Action::Choose, Text(Msg::Definitive_Choose)},
+					   {Ui::Action::Select, Text(Msg::Definitive_Select)},
+					   {Ui::Action::Back, Text(Msg::Definitive_Back)}});
+	else
+		Ui::DrawHints(drawList, hints,
+					  {{Ui::Action::Group, Text(Msg::Definitive_Group)},
+					   {Ui::Action::Change, Text(Msg::Definitive_Change)},
+					   {Ui::Action::Back, Text(Msg::Definitive_Back)}});
+	ImGui::End();
+	ImGui::PopStyleColor(2);
+	ImGui::PopStyleVar(3);
+
+	if (back && Languages)
+	{
+		Languages = false;
+		Opened = true;
+		return true;
+	}
+	if (back)
+		options::WaitForInput(nullptr);
+	return !back;
+}
+
+void DefinitiveSettings::RenderEdition(const DefinitiveHost& host, bool gameRunning)
+{
+	// Choosing Classic takes this screen away, as the switch does during play
+	char note[160];
+	auto key = host.EditionKey ? host.EditionKey() : std::string{};
+	snprintf(note, sizeof note, Text(Msg::Definitive_EditionNote), key.empty() ? "-" : key.c_str());
+	Ui::NextRowNote(note);
+	auto edition = options::GetEdition() == Editions::Definitive ? 1 : 0;
+	auto chosen = Ui::ChoiceRow("edition", Text(Msg::Definitive_Edition),
+								{Text(Msg::Definitive_Classic), Text(Msg::Menu1_ToggleEdition)}, edition);
+	if (chosen != edition)
+		options::SetEdition(chosen ? Editions::Definitive : Editions::Classic);
+
+	if (Ui::MenuRow("language", Text(Msg::Definitive_Language), false, translations::GetCurrentLanguage()->DisplayName))
+		Languages = true;
+
+	Ui::NextRowNote(Text(gameRunning ? Msg::Definitive_EndsGame : Msg::Definitive_Restarts));
+	if (Ui::ToggleRow("prefer3dpb", Text(Msg::Definitive_Prefer3DPB), options::Options.Prefer3DPBGameData))
+		options::toggle(Menu1::Prefer3DPBGameData);
+}
+
+void DefinitiveSettings::RenderLanguages(const DefinitiveHost& host, bool opened)
+{
+	// The list opens on the language in use
+	auto current = translations::GetCurrentLanguage();
+	for (auto& language : translations::Languages)
+	{
+		if (opened && &language == current)
+		{
+			Ui::FocusNextRow();
+			ImGui::SetScrollHereY(0.5f);
+		}
+		ImGui::PushID(language.ShortName);
+		// The language in use is marked; choosing another restarts the game in it
+		if (Ui::MenuRow("language", language.DisplayName, false, &language == current ? "\xE2\x80\xA2" : nullptr) &&
+			&language != current && host.SetLanguage)
+			host.SetLanguage(language.ShortName);
+		ImGui::PopID();
+	}
+}
+
+void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunning)
+{
+	auto& options = options::Options;
+	if (Ui::ToggleRow("fullscreen", Text(Msg::Menu1_Full_Screen), options.FullScreen))
+		options::toggle(Menu1::Full_Screen);
+
+	// Full Tilt's art comes in three sizes; changing it reloads the table
+	auto maxResolution = host.MaxResolution ? host.MaxResolution() : 0;
+	if (maxResolution > 0)
+	{
+		Ui::NextRowNote(Text(gameRunning ? Msg::Definitive_EndsGame : Msg::Definitive_Restarts));
+		auto current = options.Resolution.V < 0 ? 0 : options.Resolution.V + 1;
+		auto chosen = Ui::ChoiceRow("resolution", Text(Msg::Menu1_Table_Resolution),
+									{Text(Msg::Definitive_Largest), "640 x 480", "800 x 600", "1024 x 768"}, current);
+		chosen = std::min(chosen, maxResolution + 1);
+		if (chosen != current)
+			options::toggle(chosen == 0 ? Menu1::MaximumResolution
+										: static_cast<Menu1>(static_cast<int>(Menu1::R640x480) + chosen - 1));
+	}
+
+	if (Ui::ToggleRow("uniform", Text(Msg::Menu1_WindowUniformScale), options.UniformScaling))
+		options::toggle(Menu1::WindowUniformScale);
+	if (Ui::ToggleRow("integer", Text(Msg::Definitive_IntegerScaling), options.IntegerScaling))
+		options::toggle(Menu1::WindowIntegerScale);
+	if (Ui::ToggleRow("stacked", Text(Msg::Definitive_StackedLayout), options.StackedLayout, options.UniformScaling))
+		options::toggle(Menu1::WindowStackedLayout);
+
+	auto rateChanged = false;
+	if (Ui::ToggleRow("match", Text(Msg::Definitive_MatchRefresh), options.MatchRefreshRate))
+	{
+		options.MatchRefreshRate ^= true;
+		rateChanged = true;
+	}
+	if (!options.MatchRefreshRate)
+	{
+		auto fps = Ui::SliderRow("fps", Text(Msg::Definitive_Fps), options.FramesPerSecond, options::MinFps,
+								 options::MaxFps, 10);
+		rateChanged |= fps != options.FramesPerSecond;
+		options.FramesPerSecond = fps;
+	}
+	auto ups =
+		Ui::SliderRow("ups", Text(Msg::Definitive_Ups), options.UpdatesPerSecond, options::MinUps, options::MaxUps, 10);
+	rateChanged |= ups != options.UpdatesPerSecond;
+	options.UpdatesPerSecond = ups;
+	if (rateChanged && host.FrameRateChanged)
+		host.FrameRateChanged();
+	if (Ui::ToggleRow("uncapped", Text(Msg::Definitive_Uncapped), options.UncappedUpdatesPerSecond))
+		options.UncappedUpdatesPerSecond ^= true;
+	if (Ui::ToggleRow("sleep", Text(Msg::Definitive_PreciseSleep), options.HybridSleep))
+	{
+		options.HybridSleep ^= true;
+		if (host.PreciseSleepChanged)
+			host.PreciseSleepChanged();
+	}
+	if (Ui::ToggleRow("cursor", Text(Msg::Definitive_HideCursor), options.HideCursor))
+		options.HideCursor ^= true;
+}
+
+void DefinitiveSettings::RenderGraphics(const DefinitiveHost& host)
+{
+	auto& options = options::Options;
+	if (Ui::ToggleRow("upscaled", Text(Msg::Menu1_ToggleUpscaledArt), options.UpscaledArt))
+		options::toggle(Menu1::WindowUpscaledArt);
+	auto factor = options.UpscaleFactor == 4 ? 1 : 0;
+	auto chosen = Ui::ChoiceRow("factor", Text(Msg::Definitive_UpscaleSize), {"2x", "4x"}, factor, options.UpscaledArt);
+	if (chosen != factor && host.SetUpscaleFactor)
+		host.SetUpscaleFactor(chosen ? 4 : 2);
+	if (Ui::ToggleRow("backdrop", Text(Msg::Definitive_Backdrop), options.Backdrop))
+		options::toggle(Menu1::WindowBackdrop);
+	if (Ui::ToggleRow("filtering", Text(Msg::Definitive_LinearFiltering), options.LinearFiltering))
+		options::toggle(Menu1::WindowLinearFilter);
+
+	// Effects need SDL's GPU renderer; without it the choice is kept for when it is there
+	if (auto unavailable = host.PostProcessingUnavailable ? host.PostProcessingUnavailable() : nullptr)
+		Ui::NextRowNote(unavailable);
+	auto effect = options.PostProcessing.V;
+	auto chosenEffect = Ui::ChoiceRow(
+		"effect", Text(Msg::Definitive_PostProcessing),
+		{Text(Msg::Definitive_None), Text(Msg::Definitive_Crt), Text(Msg::Definitive_SmoothEdges)}, effect);
+	if (chosenEffect != effect && host.SetPostProcessing)
+		host.SetPostProcessing(chosenEffect);
+}
+
+void DefinitiveSettings::RenderAudio(const DefinitiveHost& host)
+{
+	auto& options = options::Options;
+	if (Ui::ToggleRow("sounds", Text(Msg::Menu1_Sounds), options.Sounds))
+		options::toggle(Menu1::Sounds);
+	auto volume = Ui::SliderRow("soundvolume", Text(Msg::Definitive_SoundVolume), ToPercent(options.SoundVolume), 0,
+								100, 5, "%d%%");
+	if (volume != ToPercent(options.SoundVolume) && host.SetSoundVolume)
+		host.SetSoundVolume(FromPercent(volume));
+	if (Ui::ToggleRow("stereo", Text(Msg::Definitive_Stereo), options.SoundStereo))
+		options::toggle(Menu1::SoundStereo);
+	auto channels = Ui::SliderRow("channels", Text(Msg::Definitive_SoundChannels), options.SoundChannels,
+								  options::MinSoundChannels, options::MaxSoundChannels, 1);
+	if (channels != options.SoundChannels && host.SetSoundChannels)
+		host.SetSoundChannels(channels);
+
+	if (Ui::ToggleRow("music", Text(Msg::Menu1_Music), options.Music))
+		options::toggle(Menu1::Music);
+	auto music = Ui::SliderRow("musicvolume", Text(Msg::Definitive_MusicVolume), ToPercent(options.MusicVolume), 0, 100,
+							   5, "%d%%");
+	if (ToPercent(options.MusicVolume) != music && host.SetMusicVolume)
+		host.SetMusicVolume(FromPercent(music));
+}
+
+void DefinitiveSettings::RenderControls()
+{
+	auto scale = Ui::Scale();
+	auto slotWidth = 100 * scale, slotHeight = 32 * scale, gap = 6 * scale;
+	auto slotsWidth = slotWidth * 3 + gap * 2;
+	auto waiting = options::WaitingForInput();
+	for (auto binding = GameBindings::Min; binding < GameBindings::Max; binding++)
+	{
+		auto& control = options::Options.Key[~binding];
+		ImGui::PushID(~binding);
+		auto chosen = Ui::MenuRow("binding", Text(control.Description), false, nullptr, true, slotsWidth + 8 * scale);
+		auto row = Ui::LastRow();
+		auto focused = Ui::LastRowFocused();
+		auto step = Ui::RowStep();
+		if (focused && !waiting)
+			Slot = std::clamp(Slot + step, 0, 2);
+
+		auto drawList = ImGui::GetWindowDrawList();
+		ImVec2 slotsMin{row.Max.x - 16 * scale - slotsWidth, (row.Min.y + row.Max.y - slotHeight) / 2};
+		auto mouse = ImGui::GetIO().MousePos;
+		auto tapped = -1;
+		for (auto slot = 0; slot < 3; slot++)
+		{
+			auto& input = control.Inputs[slot];
+			ImVec2 slotMin{slotsMin.x + static_cast<float>(slot) * (slotWidth + gap), slotsMin.y};
+			ImVec2 slotMax{slotMin.x + slotWidth, slotMin.y + slotHeight};
+			if (mouse.x >= slotMin.x && mouse.x < slotMax.x && mouse.y >= slotMin.y && mouse.y < slotMax.y)
+				tapped = slot;
+			auto isWaiting = waiting && options::InputWaitedFor() == &input;
+			drawList->AddRectFilled(slotMin, slotMax, Theme::Space950, 4 * scale);
+			auto outline = isWaiting ? Theme::LedOrange : focused && slot == Slot ? Theme::Chrome200 : Theme::Chrome600;
+			drawList->AddRect(slotMin, slotMax, outline, 4 * scale, isWaiting ? 2 * scale : 1);
+			auto label = isWaiting ? std::string{Text(Msg::Definitive_PressInput)} : Describe(input);
+			auto size = Ui::TextSize(Theme::TextFont(), Theme::LabelSize, label.c_str());
+			drawList->PushClipRect(slotMin, slotMax, true);
+			drawList->AddText(Theme::TextFont(), Theme::LabelSize * scale,
+							  ImVec2{std::max(slotMin.x + 4 * scale, (slotMin.x + slotMax.x - size.x) / 2),
+									 (slotMin.y + slotMax.y - size.y) / 2},
+							  isWaiting ? Theme::LedOrange : Theme::Chrome200, label.c_str());
+			drawList->PopClipRect();
+		}
+
+		// Choosing a slot waits for the next key, mouse or pad button; Delete or the pad's left button clears it
+		if (chosen && !waiting)
+		{
+			if (tapped >= 0 && ImGui::IsMouseReleased(0))
+				Slot = tapped;
+			options::WaitForInput(&control.Inputs[Slot]);
+		}
+		if (focused && !waiting &&
+			(ImGui::IsKeyPressed(ImGuiKey_Delete, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceLeft, false)))
+			control.Inputs[Slot] = {};
+		ImGui::PopID();
+	}
+
+	if (Ui::ToggleRow("rumble", Text(Msg::Definitive_Rumble), options::Options.Rumble))
+		options::Options.Rumble ^= true;
+	if (Ui::MenuRow("defaults", Text(Msg::Definitive_DefaultControls)))
+	{
+		for (auto& control : options::Options.Key)
+			control.Reset();
+	}
+}
+
+void DefinitiveSettings::RenderAccessibility()
+{
+	// The UI Scale option sizes Classic's menus and these screens alike
+	Ui::NextRowNote(Text(Msg::Definitive_UiScaleNote));
+	auto percent = static_cast<int>(std::lround(options::Options.UIScale * 100));
+	// The same range as Classic's UI Scale, so opening this doesn't change a larger value
+	auto chosen = Ui::SliderRow("uiscale", Text(Msg::Definitive_UiScale), percent, 80, 500, 10, "%d%%");
+	if (chosen != percent)
+	{
+		options::Options.UIScale.V = static_cast<float>(chosen) / 100;
+		ImGui::GetStyle().FontScaleMain = options::Options.UIScale;
+	}
+}
