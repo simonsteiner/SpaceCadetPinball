@@ -522,10 +522,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		}
 		else if (!recordPath.empty())
 		{
-			// Only the first run records; a restart from the options ends the recording
+			// Only the first run that loads the table records; a restart from the options ends the recording
 			if (!replay::StartRecording(recordPath))
 				return 1;
-			recordPath.clear();
 		}
 		if (replay::IsRecording() || replay::IsPlaying())
 			srand(replay::Seed());
@@ -545,6 +544,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			// over the saved high scores with a table that was never read.
 			if (options::GetEdition() == Editions::Definitive && !replay::IsPlaying())
 			{
+				// The recording has no table to name; the run with the folder chosen writes it again from the start
+				replay::Stop();
 				auto chosen = FindGameData(searchPaths);
 				options::uninit();
 				midi::music_shutdown();
@@ -570,6 +571,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not load game data", message.c_str());
 			return 1;
 		}
+		recordPath.clear();
 
 		fullscrn::init();
 		render::SetUpscale(Options.UpscaledArt ? Options.UpscaleFactor.V : 0);
