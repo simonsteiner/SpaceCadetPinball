@@ -229,8 +229,10 @@ void DefinitiveSettings::RenderEdition(const DefinitiveHost& host, bool gameRunn
 	if (Ui::MenuRow("language", Text(Msg::Definitive_Language), false, translations::GetCurrentLanguage()->DisplayName))
 		Languages = true;
 
+	// Rows that restart the game change only when chosen, so a Left or Right that passes over them restarts nothing
 	Ui::NextRowNote(Text(gameRunning ? Msg::Definitive_EndsGame : Msg::Definitive_Restarts));
-	if (Ui::ToggleRow("prefer3dpb", Text(Msg::Definitive_Prefer3DPB), options::Options.Prefer3DPBGameData))
+	if (Ui::ToggleRow("prefer3dpb", Text(Msg::Definitive_Prefer3DPB), options::Options.Prefer3DPBGameData) &&
+		!Ui::RowStep())
 		options::toggle(Menu1::Prefer3DPBGameData);
 }
 
@@ -260,7 +262,7 @@ void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunn
 	if (Ui::ToggleRow("fullscreen", Text(Msg::Menu1_Full_Screen), options.FullScreen))
 		options::toggle(Menu1::Full_Screen);
 
-	// Full Tilt's art comes in three sizes; changing it reloads the table
+	// Full Tilt's art comes in three sizes; changing it reloads the table, so only choosing the row does
 	auto maxResolution = host.MaxResolution ? host.MaxResolution() : 0;
 	if (maxResolution > 0)
 	{
@@ -268,8 +270,10 @@ void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunn
 		auto current = options.Resolution.V < 0 ? 0 : options.Resolution.V + 1;
 		auto chosen = Ui::ChoiceRow("resolution", Text(Msg::Menu1_Table_Resolution),
 									{Text(Msg::Definitive_Largest), "640 x 480", "800 x 600", "1024 x 768"}, current);
-		chosen = std::min(chosen, maxResolution + 1);
-		if (chosen != current)
+		// A size the data lacks goes round to Largest, the largest it has; choosing the row steps on through the sizes
+		if (chosen > maxResolution + 1)
+			chosen = 0;
+		if (chosen != current && !Ui::RowStep())
 			options::toggle(chosen == 0 ? Menu1::MaximumResolution
 										: static_cast<Menu1>(static_cast<int>(Menu1::R640x480) + chosen - 1));
 	}
