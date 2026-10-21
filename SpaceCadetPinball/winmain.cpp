@@ -1207,8 +1207,69 @@ void winmain::RenderUi()
 	gdrv::grtext_draw_ttext_in_box();
 }
 
+// Whether a key or gamepad button goes to the game although Space Cadet 2026's screen has the keyboard: one bound to a
+// shortcut such as the edition switch, but not to the table, which ignores input on the title anyway, and none the
+// screens move or choose with, so nothing is handled twice
+static bool FrontEndPassesShortcut(const SDL_Event& event)
+{
+	if (options::GetEdition() != Editions::Definitive)
+		return false;
+	GameInput input;
+	switch (event.type)
+	{
+	case SDL_EVENT_KEY_DOWN:
+	case SDL_EVENT_KEY_UP:
+		switch (event.key.key)
+		{
+		case SDLK_UP:
+		case SDLK_DOWN:
+		case SDLK_LEFT:
+		case SDLK_RIGHT:
+		case SDLK_RETURN:
+		case SDLK_KP_ENTER:
+		case SDLK_SPACE:
+			return false;
+		default:
+			break;
+		}
+		if (!DefinitiveFrontEnd::PassesShortcut(event.key.key == SDLK_ESCAPE))
+			return false;
+		input = {InputTypes::Keyboard, event.key.scancode};
+		break;
+	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+	case SDL_EVENT_GAMEPAD_BUTTON_UP:
+		switch (event.gbutton.button)
+		{
+		case SDL_GAMEPAD_BUTTON_DPAD_UP:
+		case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
+		case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+		case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+		case SDL_GAMEPAD_BUTTON_SOUTH:
+		case SDL_GAMEPAD_BUTTON_EAST:
+		case SDL_GAMEPAD_BUTTON_WEST:
+		case SDL_GAMEPAD_BUTTON_NORTH:
+		case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
+		case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
+			return false;
+		default:
+			break;
+		}
+		if (!DefinitiveFrontEnd::PassesShortcut(false))
+			return false;
+		input = {InputTypes::GameController, event.gbutton.button};
+		break;
+	default:
+		return false;
+	}
+	auto bindings = options::MapGameInput(input);
+	return std::any_of(bindings.begin(), bindings.end(),
+					   [](GameBindings binding) { return binding > GameBindings::BottomTableBump; });
+}
+
 int winmain::event_handler(const SDL_Event* event)
 {
+	// Goes past ImGui to the game, as when no window has the keyboard
+	auto shortcut = FrontEndPassesShortcut(*event);
 	auto inputDown = false;
 	switch (event->type)
 	{
@@ -1219,7 +1280,7 @@ int winmain::event_handler(const SDL_Event* event)
 		break;
 	default: break;
 	}
-	if (!options::WaitingForInput() || !inputDown)
+	if ((!options::WaitingForInput() || !inputDown) && !shortcut)
 		ImGui_ImplSDL3_ProcessEvent(event);
 
 	bool mouseEvent;
@@ -1247,7 +1308,7 @@ int winmain::event_handler(const SDL_Event* event)
 		if (mouseEvent)
 			return 1;
 	}
-	if (ImIO->WantCaptureKeyboard && !options::WaitingForInput())
+	if (ImIO->WantCaptureKeyboard && !options::WaitingForInput() && !shortcut)
 	{
 		switch (event->type)
 		{

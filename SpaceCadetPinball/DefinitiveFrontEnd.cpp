@@ -11,6 +11,7 @@ DefinitiveHost DefinitiveFrontEnd::Host{};
 DefinitiveFrontEnd::Screen DefinitiveFrontEnd::Current = Screen::None;
 bool DefinitiveFrontEnd::Opened = false;
 bool DefinitiveFrontEnd::ConfirmClear = false;
+bool DefinitiveFrontEnd::Focused = false;
 float DefinitiveFrontEnd::CreditsScroll = 0;
 
 namespace
@@ -68,6 +69,11 @@ bool DefinitiveFrontEnd::ScreenOpen()
 	return Current != Screen::None;
 }
 
+bool DefinitiveFrontEnd::PassesShortcut(bool escape)
+{
+	return Focused && (!escape || Current == Screen::Title);
+}
+
 void DefinitiveFrontEnd::Open(Screen screen)
 {
 	Current = screen;
@@ -79,6 +85,8 @@ void DefinitiveFrontEnd::Open(Screen screen)
 void DefinitiveFrontEnd::Render(const TableView& view)
 {
 	Ui::NewFrame();
+	// EndColumn sets it again while a screen shows
+	Focused = false;
 
 	// A game in play closes the screens, however it started; a game that is over brings the title back, after the high
 	// score entry, with the demo behind it
@@ -128,7 +136,9 @@ float DefinitiveFrontEnd::BeginColumn(const char* name, float width)
 	// A screen that opens takes the keyboard and gamepad; so does one that lost them to a click on the table
 	if (Opened || (!ImGui::GetTopMostPopupModal() && !GImGui->NavWindow))
 		ImGui::SetNextWindowFocus();
-	if (Opened)
+	// So does one whose row lost the focus to ImGui's cancel, which keeps the window focused but no row lit
+	auto window = ImGui::FindWindowByName(name);
+	if (Opened || (window && GImGui->NavWindow == window && GImGui->NavId == 0))
 		Ui::FocusNextRow();
 	Opened = false;
 
@@ -145,6 +155,7 @@ float DefinitiveFrontEnd::BeginColumn(const char* name, float width)
 
 void DefinitiveFrontEnd::EndColumn()
 {
+	Focused = ImGui::IsWindowFocused() && !ImGui::GetTopMostPopupModal();
 	ImGui::End();
 	ImGui::PopStyleColor();
 	ImGui::PopStyleVar(3);
