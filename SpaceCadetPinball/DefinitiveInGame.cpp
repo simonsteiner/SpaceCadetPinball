@@ -300,8 +300,8 @@ void DefinitiveFrontEnd::RenderNameEntry()
 				 Theme::Chrome50, Text(Msg::Definitive_NewHighScore), width);
 
 	// Who it is for, the score and the place it takes
-	char place[64];
-	snprintf(place, sizeof place, Text(Msg::Definitive_Place), EntryPlace + 1);
+	char place[128];
+	snprintf(place, sizeof place, Text(Msg::Definitive_Place), Entry.Name.c_str(), EntryPlace + 1);
 	auto y = min.y + (24 + 44) * scale;
 	Ui::DrawText(drawList, Theme::TextFont(), Theme::LabelSize, ImVec2{min.x + padding, y}, Theme::Chrome200, place,
 				 width);

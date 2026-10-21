@@ -6635,7 +6635,7 @@ const TextArray translations::Translations =
 	{
 		Msg::Definitive_Place,
 		{
-			{ Lang::English, "Place %d of 5" },
+			{ Lang::English, "%s, place %d of 5" },
 		}
 	},
 	{
