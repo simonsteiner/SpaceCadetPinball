@@ -327,6 +327,17 @@ if(MSVC)
     target_compile_options(imgui PRIVATE /utf-8)
 endif()
 
+# tools/check-bidi.sh's harness, which compares DefinitiveText::Shape with a reference; built only when asked for
+add_executable(bidi-harness EXCLUDE_FROM_ALL
+        tools/bidi/harness.cpp
+        SpaceCadetPinball/DefinitiveText.cpp
+        SpaceCadetPinball/translations.cpp
+        )
+target_include_directories(bidi-harness PRIVATE SpaceCadetPinball)
+target_link_libraries(bidi-harness imgui ${SDL_LIBRARIES})
+# In the build folder, not bin/ with the game
+set_target_properties(bidi-harness PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
 # Only the game target gets the extra warnings, not vendored SDL and ImGui.
 # Unused parameters are allowed: overrides and callbacks have the signatures their interfaces set.
 if(SCP_WARNINGS)
