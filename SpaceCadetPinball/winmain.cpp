@@ -220,6 +220,7 @@ static DefinitiveHost MakeDefinitiveHost()
 		winmain::Restart();
 	};
 	host.MaxResolution = fullscrn::GetMaxResolution;
+	host.ChangeFont = font_selection::ShowDialog;
 	host.EditionKey = [] { return options::Options.Key[~GameBindings::ToggleEdition].GetShortcutDescription(); };
 	return host;
 }

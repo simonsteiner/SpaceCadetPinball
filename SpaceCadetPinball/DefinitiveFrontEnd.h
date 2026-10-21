@@ -42,6 +42,8 @@ struct DefinitiveHost
 	void (*SetLanguage)(const char* shortName);
 	// The largest table resolution the data has, 0 for 640 by 480 only
 	int (*MaxResolution)();
+	// Opens the dialog that asks for a font file, as the Classic menu's Change Font does
+	void (*ChangeFont)();
 	// The key or button that switches editions, empty when none is bound
 	std::string (*EditionKey)();
 };

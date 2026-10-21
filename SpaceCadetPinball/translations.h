@@ -266,6 +266,8 @@ enum class Msg : int
 	Definitive_None,
 	Definitive_Crt,
 	Definitive_SmoothEdges,
+	Definitive_FontFile,
+	Definitive_FontNote,
 	Definitive_NoGpuWeb,
 	Definitive_OldSdl,
 	Definitive_NoGpuSoftware,

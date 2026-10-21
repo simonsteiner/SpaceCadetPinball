@@ -112,9 +112,11 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 	{
 		auto count = static_cast<int>(Group::Count);
 		auto index = static_cast<int>(Current);
-		if (ImGui::IsKeyPressed(ImGuiKey_Q, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false))
+		// Not while a dialog over the screen, such as the font file's, has the keyboard
+		auto focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+		if (focused && (ImGui::IsKeyPressed(ImGuiKey_Q, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false)))
 			index = (index + count - 1) % count;
-		if (ImGui::IsKeyPressed(ImGuiKey_E, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false))
+		if (focused && (ImGui::IsKeyPressed(ImGuiKey_E, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false)))
 			index = (index + 1) % count;
 		auto x = min.x + padding;
 		auto tabFontSize = Theme::LabelSize + 1;
@@ -361,6 +363,14 @@ void DefinitiveSettings::RenderGraphics(const DefinitiveHost& host)
 		{Text(Msg::Definitive_None), Text(Msg::Definitive_Crt), Text(Msg::Definitive_SmoothEdges)}, effect);
 	if (chosenEffect != effect && host.SetPostProcessing)
 		host.SetPostProcessing(chosenEffect);
+
+	// A font for the text the built-in fonts lack, such as Chinese, Japanese and Korean; the row shows its file name
+	const auto& font = options.FontFileName.V;
+	auto slash = font.find_last_of("/\\");
+	auto fontName = font.empty() ? Text(Msg::Definitive_None) : font.c_str() + (slash == std::string::npos ? 0 : slash + 1);
+	Ui::NextRowNote(Text(Msg::Definitive_FontNote));
+	if (Ui::MenuRow("font", Text(Msg::Definitive_FontFile), false, fontName) && host.ChangeFont)
+		host.ChangeFont();
 }
 
 void DefinitiveSettings::RenderAudio(const DefinitiveHost& host)
