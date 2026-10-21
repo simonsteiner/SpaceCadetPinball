@@ -5,6 +5,7 @@
 
 enum class GameBindings;
 enum class PostEffects : int;
+enum class Editions : int;
 
 struct SdlTickClock
 {
@@ -119,6 +120,11 @@ private:
 	static float gfrWindow;
 	static int CursorIdleCounter;
 	static std::unique_ptr<ImGuiStyle> BaseStyle;
+	// Space Cadet 2026's style, before scaling like BaseStyle; it takes Classic's place while that edition is on
+	static std::unique_ptr<ImGuiStyle> DefinitiveStyle;
+	// The edition whose style and font the UI has, and whether this ImGui context has Space Cadet 2026's fonts yet
+	static Editions StyledEdition;
+	static bool DefinitiveFontsAdded;
 	static bool SoftwareRenderer;
 	static bool HighRefresh;
 	static DurationMs UpdateTime, UpdateTimeAccumulator;
@@ -136,6 +142,8 @@ private:
 	static void RenderEditionHint();
 	static void HybridSleep(DurationMs seconds);
 	static void MainLoop();
+	// Gives the UI the style and font of the edition that is on, between ImGui's backend and core NewFrame
+	static void ApplyEditionLook();
 	// One table update, then Space Cadet 2026's, while it is on
 	static void TableFrame(float dtMilliSec);
 	static void ImGuiMenuItemWShortcut(GameBindings binding, bool selected = false);

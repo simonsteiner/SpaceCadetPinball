@@ -24,6 +24,8 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 
 #include "control.h"
 #include "DefinitiveEdition.h"
+#include "DefinitiveText.h"
+#include "DefinitiveTheme.h"
 #include "EmbeddedData.h"
 #include "fullscrn.h"
 #include "midi.h"
@@ -99,6 +101,9 @@ winmain::DurationMs winmain::SpinThreshold = DurationMs(0.005);
 WelfordState winmain::SleepState{};
 int winmain::CursorIdleCounter = 0;
 std::unique_ptr<ImGuiStyle> winmain::BaseStyle{};
+std::unique_ptr<ImGuiStyle> winmain::DefinitiveStyle{};
+Editions winmain::StyledEdition = Editions::Classic;
+bool winmain::DefinitiveFontsAdded = false;
 bool winmain::SoftwareRenderer = false;
 bool winmain::HighRefresh = false;
 winmain::DurationMs winmain::UpdateTime;
@@ -327,6 +332,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		ImGui_ImplSDLRenderer3_Init(Renderer);
 		ImGui::StyleColorsDark();
 		BaseStyle = std::make_unique<ImGuiStyle>(ImGui::GetStyle());
+		DefinitiveStyle = std::make_unique<ImGuiStyle>(*BaseStyle);
+		DefinitiveTheme::ApplyStyle(*DefinitiveStyle);
+		DefinitiveFontsAdded = false;
 		ApplyDisplayScale();
 
 		ImGui_ImplSDL3_InitForSDLRenderer(window, Renderer);
@@ -571,6 +579,7 @@ void winmain::MainLoop()
 					ImGui::SetMouseCursor(ImGuiMouseCursor_None);
 				ImGui_ImplSDLRenderer3_NewFrame();
 				ImGui_ImplSDL3_NewFrame();
+				ApplyEditionLook();
 				ImGui::NewFrame();
 				RenderUi();
 
@@ -670,6 +679,25 @@ void winmain::TableFrame(float dtMilliSec)
 	pb::frame(dtMilliSec);
 	if (options::GetEdition() == Editions::Definitive)
 		DefinitiveEdition::Update(TableView::Get());
+}
+
+void winmain::ApplyEditionLook()
+{
+	// ImGui picks its default font in the first NewFrame, from the display scale the backend has just set, and only
+	// if the atlas is empty; picking it here the same way keeps Classic's font as it was before Space Cadet 2026 had
+	// fonts of its own
+	if (!DefinitiveFontsAdded)
+	{
+		if (ImIO->Fonts->Sources.empty())
+			ImIO->Fonts->AddFontDefault();
+		DefinitiveTheme::AddFonts(ImIO->Fonts, Options.FontFileName.V);
+		DefinitiveFontsAdded = true;
+	}
+
+	auto edition = options::GetEdition();
+	if (edition != StyledEdition)
+		ApplyDisplayScale();
+	ImIO->FontDefault = edition == Editions::Definitive ? DefinitiveTheme::TextFont() : nullptr;
 }
 
 void winmain::RenderUi()
@@ -1466,8 +1494,9 @@ void winmain::RenderEditionHint()
 	if (toggle.empty())
 		toggle =
 			std::string{pb::get_rc_string(Msg::Menu1_Options)} + " > " + pb::get_rc_string(Msg::Menu1_ToggleEdition);
-	char text[256];
-	snprintf(text, sizeof text, pb::get_rc_string(Msg::EditionHint), toggle.c_str());
+	char formatted[256];
+	snprintf(formatted, sizeof formatted, pb::get_rc_string(Msg::EditionHint), toggle.c_str());
+	auto text = DefinitiveText::Visual(formatted);
 
 	// Centred over the top of the table and kept inside the window; the board is in pixels, ImGui in window
 	// coordinates
@@ -1477,14 +1506,21 @@ void winmain::RenderEditionHint()
 	auto centre = (static_cast<float>(board.x) + static_cast<float>(board.w) / 2) / fbScale.x;
 	auto top = (static_cast<float>(board.y) + static_cast<float>(board.h) / 8) / fbScale.y;
 	auto padding = ImGui::GetStyle().WindowPadding;
-	auto wrapWidth = viewport->Size.x - padding.x * 4;
+	// A Space Cadet 2026 panel, with a lit lamp before the text
+	auto lampRadius = ImGui::GetFontSize() * 0.3f;
+	auto lampSpace = lampRadius * 2 + padding.x;
+	auto wrapWidth = viewport->Size.x - padding.x * 4 - lampSpace;
 	auto textSize = ImGui::CalcTextSize(text, nullptr, false, wrapWidth);
-	auto left = Clamp(centre - textSize.x / 2, padding.x * 2, viewport->Size.x - padding.x * 2 - textSize.x);
-	ImVec2 textPos{viewport->Pos.x + left, top - textSize.y / 2};
+	auto width = lampSpace + textSize.x;
+	auto left = Clamp(centre - width / 2, padding.x * 2, viewport->Size.x - padding.x * 2 - width);
+	ImVec2 panelMin{viewport->Pos.x + left - padding.x, top - textSize.y / 2 - padding.y};
+	ImVec2 textPos{panelMin.x + padding.x + lampSpace, panelMin.y + padding.y};
 	auto drawList = ImGui::GetForegroundDrawList();
-	drawList->AddRectFilled(ImVec2{textPos.x - padding.x, textPos.y - padding.y},
-							ImVec2{textPos.x + textSize.x + padding.x, textPos.y + textSize.y + padding.y},
-							ImGui::GetColorU32(ImGuiCol_WindowBg, 0.8f), ImGui::GetStyle().WindowRounding);
+	DefinitiveTheme::DrawPanel(drawList, panelMin,
+							   ImVec2{textPos.x + textSize.x + padding.x, textPos.y + textSize.y + padding.y});
+	DefinitiveTheme::DrawLamp(drawList,
+							  ImVec2{panelMin.x + padding.x + lampRadius, textPos.y + ImGui::GetFontSize() / 2},
+							  lampRadius, DefinitiveTheme::Lamp::Lit);
 	drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(), textPos, ImGui::GetColorU32(ImGuiCol_Text), text, nullptr,
 					  wrapWidth);
 }
@@ -1515,7 +1551,8 @@ void winmain::ApplyDisplayScale()
 	auto& style = ImGui::GetStyle();
 	auto fontScale = style.FontScaleMain;
 	auto scale = fullscrn::ContentScale();
-	style = *BaseStyle;
+	StyledEdition = options::GetEdition();
+	style = StyledEdition == Editions::Definitive ? *DefinitiveStyle : *BaseStyle;
 	style.ScaleAllSizes(scale);
 	style.FontScaleDpi = scale;
 	style.FontScaleMain = fontScale;
