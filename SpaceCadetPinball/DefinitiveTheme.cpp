@@ -67,15 +67,28 @@ namespace
 	std::vector<unsigned char> FallbackData;
 	unsigned int FallbackIndex = 0;
 
+	// Larger than any font a player would choose: Noto Sans CJK's collection is about 20 MB
+	constexpr long MaxFontFileSize = 64L * 1024 * 1024;
+
 	bool ReadFile(const std::string& path, std::vector<unsigned char>& data)
 	{
+		data.clear();
+		// Only a regular file: on Linux a directory opens, and its size reads as LONG_MAX
+		SDL_PathInfo info{};
+		if (!SDL_GetPathInfo(path.c_str(), &info) || info.type != SDL_PATHTYPE_FILE)
+			return false;
 		auto file = fopenu(path.c_str(), "rb");
 		if (!file)
 			return false;
 		fseek(file, 0, SEEK_END);
 		auto size = ftell(file);
 		fseek(file, 0, SEEK_SET);
-		data.resize(size > 0 ? static_cast<size_t>(size) : 0);
+		if (size <= 0 || size > MaxFontFileSize)
+		{
+			fclose(file);
+			return false;
+		}
+		data.resize(static_cast<size_t>(size));
 		auto read = !data.empty() && fread(data.data(), 1, data.size(), file) == data.size();
 		fclose(file);
 		if (!read)
