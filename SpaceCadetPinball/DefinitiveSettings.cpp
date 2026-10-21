@@ -148,7 +148,8 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 	ImGui::BeginChild("##rows", ImVec2{size.x - padding, min.y + size.y - hintsHeight - rowsY},
 					  ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoBackground);
 	// ImGui's Escape takes the focus off the rows too; the screen gives it back to the first
-	if (opened || Current != previous || (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !GImGui->NavId))
+	if (opened || Current != previous ||
+		(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !GImGui->NavId))
 	{
 		Ui::FocusNextRow();
 		ImGui::SetScrollY(0);

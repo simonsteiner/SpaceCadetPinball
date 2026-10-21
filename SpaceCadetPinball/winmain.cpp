@@ -164,6 +164,7 @@ static std::string GetArgValue(const std::vector<std::string>& args, LPCSTR flag
 static std::mutex ChosenFolderMutex;
 static std::string ChosenFolder, FolderDialogError;
 
+#ifndef __EMSCRIPTEN__
 static void SDLCALL FolderChosen(void* userData, const char* const* files, int filter)
 {
 	std::lock_guard lock{ChosenFolderMutex};
@@ -177,6 +178,7 @@ static void SDLCALL FolderChosen(void* userData, const char* const* files, int f
 	if (files[0])
 		ChosenFolder = files[0];
 }
+#endif
 
 // The folder chosen since the last call, with a separator at its end, or an empty string
 static std::string TakeChosenFolder()
