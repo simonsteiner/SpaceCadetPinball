@@ -115,9 +115,43 @@ namespace
 		}
 	}
 
+	// A font's line height (hhea ascender to descender) in ems, or 0 if the file can't be read. ImGui sizes a font by
+	// its line height, so fonts with taller lines come out smaller at the same size.
+	float LineHeightInEms(const unsigned char* data, size_t size)
+	{
+		auto read16 = [&](size_t offset) -> unsigned
+		{ return offset + 2 <= size ? static_cast<unsigned>(data[offset]) << 8U | data[offset + 1] : 0U; };
+		auto read32 = [&](size_t offset) -> size_t
+		{ return offset + 4 <= size ? static_cast<size_t>(read16(offset)) << 16U | read16(offset + 2) : 0U; };
+		size_t head = 0, hhea = 0;
+		auto tables = static_cast<size_t>(read16(4));
+		for (size_t i = 0; i < tables; i++)
+		{
+			auto entry = 12 + i * 16;
+			if (entry + 16 > size)
+				return 0;
+			if (!memcmp(data + entry, "head", 4))
+				head = read32(entry + 8);
+			else if (!memcmp(data + entry, "hhea", 4))
+				hhea = read32(entry + 8);
+		}
+		auto unitsPerEm = head ? read16(head + 18) : 0;
+		if (!unitsPerEm || !hhea)
+			return 0;
+		auto ascender = static_cast<int16_t>(read16(hhea + 4)), descender = static_cast<int16_t>(read16(hhea + 6));
+		return static_cast<float>(ascender - descender) / static_cast<float>(unitsPerEm);
+	}
+
 	ImFont* AddEmbedded(ImFontAtlas* atlas, const char* name, const unsigned char* data, unsigned int size, bool merge)
 	{
+		// A merged font is scaled to the main one's em, so every script has letters of the same size
+		static float mainLineHeight = 0;
+		auto lineHeight = LineHeightInEms(data, size);
+		if (!merge)
+			mainLineHeight = lineHeight;
 		ImFontConfig config{};
+		if (merge && mainLineHeight > 0 && lineHeight > 0)
+			config.ExtraSizeScale = lineHeight / mainLineHeight;
 		// The arrays are the program's; the atlas only reads them
 		config.FontDataOwnedByAtlas = false;
 		config.MergeMode = merge;
