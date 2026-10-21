@@ -86,9 +86,48 @@ void DefinitiveUi::DrawText(ImDrawList* drawList, ImFont* font, float size, ImVe
 float DefinitiveUi::DrawWrapped(ImDrawList* drawList, ImFont* font, float size, ImVec2 position, ImU32 color,
 								const char* text, float width)
 {
-	auto visual = DefinitiveText::Visual(text);
-	drawList->AddText(font, size * LayoutScale, position, color, visual, nullptr, width);
-	return font->CalcTextSizeA(size * LayoutScale, FLT_MAX, width, visual).y;
+	// Lines break in reading order and only then each goes into drawing order, so a right-to-left paragraph starts on
+	// its first line too
+	auto fontSize = size * LayoutScale;
+	auto rightToLeft = DefinitiveText::RightToLeft();
+	auto lines = 0;
+	auto drawLine = [&](std::string_view line)
+	{
+		auto visual = DefinitiveText::Shape(line);
+		ImVec2 at{position.x, position.y + static_cast<float>(lines++) * fontSize};
+		if (rightToLeft)
+			at.x += width - font->CalcTextSizeA(fontSize, FLT_MAX, 0, visual.c_str()).x;
+		drawList->AddText(font, fontSize, at, color, visual.c_str());
+	};
+	std::string_view rest{text};
+	while (true)
+	{
+		auto newline = rest.find('\n');
+		auto paragraph = rest.substr(0, newline);
+		// Words join the line while it fits as drawn; a word wider than the line gets one of its own
+		size_t lineStart = 0, lineEnd = 0, wordStart = 0;
+		while (true)
+		{
+			auto space = paragraph.find(' ', wordStart);
+			auto wordEnd = space == std::string_view::npos ? paragraph.size() : space;
+			auto candidate = DefinitiveText::Shape(paragraph.substr(lineStart, wordEnd - lineStart));
+			if (lineEnd > lineStart && font->CalcTextSizeA(fontSize, FLT_MAX, 0, candidate.c_str()).x > width)
+			{
+				drawLine(paragraph.substr(lineStart, lineEnd - lineStart));
+				lineStart = lineEnd = lineEnd + 1;
+				continue;
+			}
+			lineEnd = wordEnd;
+			if (space == std::string_view::npos)
+				break;
+			wordStart = space + 1;
+		}
+		drawLine(paragraph.substr(lineStart));
+		if (newline == std::string_view::npos)
+			break;
+		rest.remove_prefix(newline + 1);
+	}
+	return static_cast<float>(lines) * fontSize;
 }
 
 bool DefinitiveUi::MenuRow(const char* id, const char* label, bool warning, const char* aside, bool enabled,

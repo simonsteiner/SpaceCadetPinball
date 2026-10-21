@@ -59,7 +59,8 @@ public:
 	// Text in the order it is drawn in (DefinitiveText), right-aligned in width for right-to-left languages
 	static void DrawText(ImDrawList* drawList, ImFont* font, float size, ImVec2 position, ImU32 color, const char* text,
 						 float width = 0);
-	// Text wrapped at width; returns the height it took. Right-to-left text is shaped as a whole, then wrapped.
+	// Text wrapped at width, each line in the order it is drawn in and right-aligned like DrawText's; returns the
+	// height it took
 	static float DrawWrapped(ImDrawList* drawList, ImFont* font, float size, ImVec2 position, ImU32 color,
 							 const char* text, float width);
 
