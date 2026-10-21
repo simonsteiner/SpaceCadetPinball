@@ -13,12 +13,15 @@ The game needs the original game data, which is not included. Copy the `.DAT` fi
 
 The game searches these folders in order and uses the first data file it finds:
 
-1. the current working directory
-2. the folder containing the executable
-3. the user preferences folder (`SDL_GetPrefPath`, for example `~/.local/share/SpaceCadetPinball/` on Linux)
-4. Linux and macOS only: `/usr/local/share/SpaceCadetPinball/`, then `/usr/share/SpaceCadetPinball/`
+1. the Game Data Folder, when one was chosen in Space Cadet 2026 (`Game Data Folder` in `imgui_pb.ini`)
+2. the current working directory
+3. the folder containing the executable
+4. the user preferences folder (`SDL_GetPrefPath`, for example `~/.local/share/SpaceCadetPinball/` on Linux)
+5. Linux and macOS only: `/usr/local/share/SpaceCadetPinball/`, then `/usr/share/SpaceCadetPinball/`
 
 In each folder it tries `CADET.DAT`, then `PINBALL.DAT`, then `DEMO.DAT`, in upper case and then lower case. The "Prefer 3DPB Data" menu option swaps the first two.
+
+When it finds none, Space Cadet 2026 opens a "Game data needed" screen instead of the table. It lists the places it looked and offers the system's folder dialog; the game checks the folder chosen for one of those files, saves it as the Game Data Folder and restarts to load from it. The files stay where they are. A folder without data keeps the screen open with a note. Settings → Edition shows the folder in use under "Game data folder" and changes it the same way; a folder without data leaves the old one in use. On Linux the dialog needs an XDG desktop portal or `zenity`; without either, the screen and the Settings row say that the dialog could not open, and the data has to go into one of the places above. The web build has its own page for picking the files instead. Classic shows the error box described in [Troubleshooting](#troubleshooting).
 
 3D Pinball keeps the bitmap font of its table messages not in `PINBALL.DAT` but in `PINBALL.EXE`, as a resource. Copy the executable too, into the same folder as the DAT file; the game looks for `PINBALL.EXE`, `pinball.exe` and `Pinball.exe` there and only reads the font out of it, it never runs it. Without it, or if it holds no font, the console says so and the messages are drawn in the ImGui font instead. Full Tilt! Pinball has its fonts in `CADET.DAT` and needs no executable.
 
@@ -234,4 +237,4 @@ No SoundFont ships with the game. Music needs an audio device, so `-noaudio` and
 - **"Could not create renderer" or a black window:** try `-sw`.
 - **WSL2:** WSLg provides both a display and a PulseAudio device, so the game runs without extra setup and without `-noaudio`.
 - **An `SDL Error:` line in the console:** the main loop prints any pending SDL error, including errors that SDL or SDL_mixer recovered from internally. This line alone is not proof that music is broken.
-- **"Could not load game data":** no data file was found. The message lists the folders searched; see [Game data](#game-data). When a file is found, the console prints `Loading game from: <path>`.
+- **"Could not load game data":** Classic found no data file. The message lists the folders searched; see [Game data](#game-data). Space Cadet 2026 shows its "Game data needed" screen instead, with the same list and a way to choose the folder. When a file is found, the console prints `Loading game from: <path>`.
