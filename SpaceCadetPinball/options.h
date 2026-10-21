@@ -421,4 +421,6 @@ struct optionsStruct
 	IntOption Edition;
 	// The one-time hint that names the key for switching editions
 	BoolOption EditionHintShown;
+	// The folder the player chose for the game data, searched before the usual places; empty when none was chosen
+	StringOption GameDataFolder;
 };

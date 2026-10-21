@@ -6633,6 +6633,54 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_DataTitle,
+		{
+			{ Lang::English, "Game data needed" },
+		}
+	},
+	{
+		Msg::Definitive_DataExplain,
+		{
+			{ Lang::English, "Space Cadet 2026 plays the table of 3D Pinball for Windows or Full Tilt! Pinball, from files you already have: PINBALL.DAT or CADET.DAT and the sounds beside it. It looked in these places and found none:" },
+		}
+	},
+	{
+		Msg::Definitive_DataChoose,
+		{
+			{ Lang::English, "Choose the game data folder" },
+		}
+	},
+	{
+		Msg::Definitive_DataNoCopy,
+		{
+			{ Lang::English, "The game reads the files where they are and copies nothing." },
+		}
+	},
+	{
+		Msg::Definitive_DataNotThere,
+		{
+			{ Lang::English, "The folder chosen has no game data." },
+		}
+	},
+	{
+		Msg::Definitive_DataFolder,
+		{
+			{ Lang::English, "Game data folder" },
+		}
+	},
+	{
+		Msg::Definitive_DataStartFolder,
+		{
+			{ Lang::English, "The folder the game started in" },
+		}
+	},
+	{
+		Msg::Definitive_DataNoDialog,
+		{
+			{ Lang::English, "The folder dialog could not open (%s). Put the game data in one of the places above." },
+		}
+	},
+	{
 		Msg::FullTilt_Caption,
 		{
 			{ Lang::English, "Full Tilt! - Space Cadet" },

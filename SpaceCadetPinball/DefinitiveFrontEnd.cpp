@@ -171,6 +171,9 @@ float DefinitiveFrontEnd::BeginColumn(const char* name, float width)
 	ImGui::Begin(name, nullptr,
 				 Ui::Combine(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoMove,
 							 ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoScrollWithMouse));
+	// ImGui's Escape takes the focus off the rows; the screen gives it back to the first
+	if (ImGui::IsWindowFocused() && !GImGui->NavId)
+		Ui::FocusNextRow();
 	return columnWidth;
 }
 
@@ -499,5 +502,80 @@ void DefinitiveFrontEnd::RenderCredits()
 	ImGui::PopItemWidth();
 	Ui::DrawHints(drawList, ImVec2{origin.x + 16 * scale, viewport->Pos.y + viewport->Size.y - 50 * scale},
 				  {{Ui::Action::Choose, Text(Msg::Definitive_Scroll)}, {Ui::Action::Back, Text(Msg::Definitive_Back)}});
+	EndColumn();
+}
+
+void DefinitiveFrontEnd::RenderMissingData(const std::vector<std::string>& looked, bool chosenFolderFailed)
+{
+	auto viewport = ImGui::GetMainViewport();
+	Ui::NewFrame();
+	auto lines = static_cast<float>(looked.size());
+	auto needed =
+		56 + 60 + 14 + 40 + 40 + 40 + 72 + 26 + lines * 22 + 28 + 40 + 2 * (Theme::RowHeight + 2) + 40 + 26 + 24;
+	Ui::SetScale(std::min(Ui::Scale(), viewport->Size.y / needed));
+	auto scale = Ui::Scale();
+
+	static auto opened = true;
+	Opened = opened;
+	opened = false;
+	auto width = BeginColumn("##DefinitiveMissingData", 680);
+	auto drawList = ImGui::GetWindowDrawList();
+	auto margin = 48 * scale;
+	auto inner = width - margin - 32 * scale;
+	ImVec2 origin{viewport->Pos.x + margin, viewport->Pos.y + 56 * scale};
+	auto left = origin.x + 16 * scale;
+	drawList->AddText(Theme::HeadingFont(), Theme::DisplaySize * scale, ImVec2{left, origin.y}, Theme::Chrome50,
+					  "Space Cadet");
+	Theme::DrawLed(drawList, ImVec2{left + 2 * scale, origin.y + (60 + 14) * scale}, 40 * scale, "2026");
+
+	// What the game needs and where it looked for it
+	auto y = origin.y + (60 + 14 + 40 + 40) * scale;
+	Ui::DrawText(drawList, Theme::HeadingFont(), Theme::TitleSize, ImVec2{left, y}, Theme::Chrome50,
+				 Text(Msg::Definitive_DataTitle), inner - 32 * scale);
+	y += 52 * scale;
+	y += Ui::DrawWrapped(drawList, Theme::TextFont(), Theme::BodySize, ImVec2{left, y}, Theme::Chrome200,
+						 Text(Msg::Definitive_DataExplain), inner - 32 * scale) +
+		 12 * scale;
+	for (auto& path : looked)
+	{
+		Theme::DrawLamp(drawList, ImVec2{left + 5 * scale, y + 9 * scale}, 4 * scale, Theme::Lamp::Off);
+		drawList->AddText(Theme::TextFont(), Theme::LabelSize * scale, ImVec2{left + 18 * scale, y}, Theme::Chrome400,
+						  path.c_str());
+		y += 22 * scale;
+	}
+	if (chosenFolderFailed)
+	{
+		y += 8 * scale;
+		Ui::DrawText(drawList, Theme::TextFont(), Theme::LabelSize, ImVec2{left, y}, Theme::LedRed,
+					 Text(Msg::Definitive_DataNotThere), inner - 32 * scale);
+		y += 20 * scale;
+	}
+	// Without a folder dialog the player has to put the data in one of the places above
+	auto dialogError = Host.FolderDialogError ? Host.FolderDialogError() : std::string{};
+	if (!dialogError.empty())
+	{
+		char note[512];
+		snprintf(note, sizeof note, Text(Msg::Definitive_DataNoDialog), dialogError.c_str());
+		y += 8 * scale;
+		y += Ui::DrawWrapped(drawList, Theme::TextFont(), Theme::LabelSize, ImVec2{left, y}, Theme::LedRed, note,
+							 inner - 32 * scale);
+	}
+
+	ImGui::SetCursorScreenPos(ImVec2{origin.x, y + 24 * scale});
+	ImGui::BeginGroup();
+	ImGui::PushItemWidth(inner);
+	if (Ui::MenuRow("choose", Text(Msg::Definitive_DataChoose)) && Host.ChooseDataFolder)
+		Host.ChooseDataFolder();
+	if (Host.Quit && Ui::MenuRow("quit", Text(Msg::Menu1_Exit)))
+		Host.Quit();
+	ImGui::PopItemWidth();
+	ImGui::EndGroup();
+	y = ImGui::GetCursorScreenPos().y + 16 * scale;
+	Ui::DrawWrapped(drawList, Theme::TextFont(), Theme::LabelSize, ImVec2{left, y}, Theme::Chrome400,
+					Text(Msg::Definitive_DataNoCopy), inner - 32 * scale);
+
+	Ui::DrawHints(
+		drawList, ImVec2{left, viewport->Pos.y + viewport->Size.y - 50 * scale},
+		{{Ui::Action::Choose, Text(Msg::Definitive_Choose)}, {Ui::Action::Select, Text(Msg::Definitive_Select)}});
 	EndColumn();
 }

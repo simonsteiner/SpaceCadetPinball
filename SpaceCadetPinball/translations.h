@@ -291,6 +291,14 @@ enum class Msg : int
 	Definitive_Place,
 	Definitive_Delete,
 	Definitive_Done,
+	Definitive_DataTitle,
+	Definitive_DataExplain,
+	Definitive_DataChoose,
+	Definitive_DataNoCopy,
+	Definitive_DataNotThere,
+	Definitive_DataFolder,
+	Definitive_DataStartFolder,
+	Definitive_DataNoDialog,
 
 	// Full Tilt's CADET.EXE strings, shown instead of 3D Pinball's in Full Tilt mode
 	FullTilt_Caption,

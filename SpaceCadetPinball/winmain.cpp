@@ -42,6 +42,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "font_selection.h"
 #include "high_score.h"
 
+#include <mutex>
 #include <new>
 #include <optional>
 
@@ -159,6 +160,35 @@ static std::string GetArgValue(const std::vector<std::string>& args, LPCSTR flag
 	return arg != args.end() && ++arg != args.end() ? *arg : std::string();
 }
 
+// The folder chosen in the system's folder dialog, which may answer from another thread
+static std::mutex ChosenFolderMutex;
+static std::string ChosenFolder, FolderDialogError;
+
+static void SDLCALL FolderChosen(void* userData, const char* const* files, int filter)
+{
+	std::lock_guard lock{ChosenFolderMutex};
+	if (!files)
+	{
+		// Such as on a Linux desktop with neither zenity nor a portal
+		FolderDialogError = SDL_GetError();
+		printf("Could not show the folder dialog: %s\n", FolderDialogError.c_str());
+		return;
+	}
+	if (files[0])
+		ChosenFolder = files[0];
+}
+
+// The folder chosen since the last call, with a separator at its end, or an empty string
+static std::string TakeChosenFolder()
+{
+	std::lock_guard lock{ChosenFolderMutex};
+	auto folder = std::move(ChosenFolder);
+	ChosenFolder.clear();
+	if (!folder.empty() && folder.back() != '/' && folder.back() != '\\')
+		folder += '/';
+	return folder;
+}
+
 // What Space Cadet 2026's screens can ask for, through the entry points the Classic menus use
 static DefinitiveHost MakeDefinitiveHost()
 {
@@ -238,6 +268,22 @@ static DefinitiveHost MakeDefinitiveHost()
 	};
 	host.MaxResolution = fullscrn::GetMaxResolution;
 	host.EditionKey = [] { return options::Options.Key[~GameBindings::ToggleEdition].GetShortcutDescription(); };
+#ifndef __EMSCRIPTEN__
+	// The browser has its own way to give the game its files
+	host.ChooseDataFolder = []
+	{
+		auto& folder = options::Options.GameDataFolder.V;
+		SDL_ShowOpenFolderDialog(FolderChosen, nullptr, winmain::MainWindow, folder.empty() ? nullptr : folder.c_str(),
+								 false);
+	};
+#endif
+	host.FolderDialogError = []
+	{
+		std::lock_guard lock{ChosenFolderMutex};
+		return FolderDialogError;
+	};
+	host.DataFolder = []
+	{ return pb::BasePath.empty() ? std::string{pb::get_rc_string(Msg::Definitive_DataStartFolder)} : pb::BasePath; };
 	return host;
 }
 
@@ -433,6 +479,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 				prefPath
 			}
 		};
+		// The folder the player chose comes first
+		if (!Options.GameDataFolder.V.empty())
+			searchPaths.insert(searchPaths.begin(), Options.GameDataFolder.V.c_str());
 		searchPaths.insert(searchPaths.end(), std::begin(PlatformDataPaths), std::end(PlatformDataPaths));
 		pb::SelectDatFile(searchPaths);
 		SDL_SetWindowTitle(window, pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_Caption : Msg::STRING139));
@@ -466,6 +515,24 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		if (pb::init())
 		{
+#ifndef __EMSCRIPTEN__
+			// Space Cadet 2026 asks for the folder instead of ending with an error. Not pb::uninit: it would write
+			// over the saved high scores with a table that was never read.
+			if (options::GetEdition() == Editions::Definitive && !replay::IsPlaying())
+			{
+				auto chosen = FindGameData(searchPaths);
+				options::uninit();
+				midi::music_shutdown();
+				Sound::Close();
+				ImGui_ImplSDLRenderer3_Shutdown();
+				ImGui_ImplSDL3_Shutdown();
+				ImGui::DestroyContext();
+				if (!chosen)
+					break;
+				restart = true;
+				continue;
+			}
+#endif
 			std::string message = "The .dat file is missing.\n"
 				"Make sure that the game data is present in any of the following locations:\n";
 			for (auto path : searchPaths)
@@ -576,6 +643,13 @@ void winmain::MainLoop()
 
 	while (true)
 	{
+		// A game data folder chosen in Settings: the game restarts and loads from it
+		if (auto folder = TakeChosenFolder(); !folder.empty())
+		{
+			Options.GameDataFolder.V = std::move(folder);
+			Restart();
+		}
+
 		if (DispFrameRate)
 		{
 			auto curTime = Clock::now();
@@ -1613,7 +1687,8 @@ void winmain::RenderEditionHint()
 	auto left = Clamp(centre - width / 2, padding.x * 2, viewport->Size.x - padding.x * 2 - width);
 	ImVec2 panelMin{viewport->Pos.x + left - padding.x, top - textSize.y / 2 - padding.y};
 	ImVec2 textPos{panelMin.x + padding.x + lampSpace, panelMin.y + padding.y};
-	auto drawList = ImGui::GetForegroundDrawList();
+	// Under every window, so Space Cadet 2026's screens cover it
+	auto drawList = ImGui::GetBackgroundDrawList();
 	DefinitiveTheme::DrawPanel(drawList, panelMin,
 							   ImVec2{textPos.x + textSize.x + padding.x, textPos.y + textSize.y + padding.y});
 	DefinitiveTheme::DrawLamp(drawList,
@@ -1654,6 +1729,51 @@ void winmain::ApplyDisplayScale()
 	style.ScaleAllSizes(scale);
 	style.FontScaleDpi = scale;
 	style.FontScaleMain = fontScale;
+}
+
+bool winmain::FindGameData(const std::vector<const char*>& searchPaths)
+{
+	std::vector<std::string> looked;
+	for (auto path : searchPaths)
+	{
+		if (path)
+			looked.emplace_back(path[0] ? path : pb::get_rc_string(Msg::Definitive_DataStartFolder));
+	}
+	auto chosenBefore = !Options.GameDataFolder.V.empty();
+
+	// The window was waiting for the table to size it
+	SDL_SetWindowSize(MainWindow, 1100, 700);
+	SDL_SetWindowPosition(MainWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+	SDL_ShowWindow(MainWindow);
+	while (true)
+	{
+		SDL_Event event;
+		while (SDL_PollEvent(&event))
+		{
+			ImGui_ImplSDL3_ProcessEvent(&event);
+			if (event.type == SDL_EVENT_QUIT)
+				return false;
+		}
+		if (auto folder = TakeChosenFolder(); !folder.empty())
+		{
+			Options.GameDataFolder.V = std::move(folder);
+			return true;
+		}
+
+		ImGui_ImplSDLRenderer3_NewFrame();
+		ImGui_ImplSDL3_NewFrame();
+		ApplyEditionLook();
+		ImGui::NewFrame();
+		DefinitiveFrontEnd::RenderMissingData(looked, chosenBefore);
+		ImGui::Render();
+		SDL_RenderClear(Renderer);
+		auto fbScale = ImIO->DisplayFramebufferScale;
+		SDL_SetRenderScale(Renderer, fbScale.x, fbScale.y);
+		ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), Renderer);
+		SDL_SetRenderScale(Renderer, 1.0f, 1.0f);
+		SDL_RenderPresent(Renderer);
+		SDL_Delay(16);
+	}
 }
 
 bool winmain::DefinitivePause()

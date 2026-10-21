@@ -59,6 +59,9 @@ public:
 	// Text in the order it is drawn in (DefinitiveText), right-aligned in width for right-to-left languages
 	static void DrawText(ImDrawList* drawList, ImFont* font, float size, ImVec2 position, ImU32 color, const char* text,
 						 float width = 0);
+	// Text wrapped at width; returns the height it took. Right-to-left text is shaped as a whole, then wrapped.
+	static float DrawWrapped(ImDrawList* drawList, ImFont* font, float size, ImVec2 position, ImU32 color,
+							 const char* text, float width);
 
 	// A menu row as wide as ImGui's item width, with a lamp that lights while the row has focus; true when chosen.
 	// With an aside, a short text such as a key, at the row's end; trailing keeps room there for a screen's own

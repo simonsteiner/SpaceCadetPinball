@@ -106,6 +106,9 @@ public:
 	static void ResetPreciseSleep();
 	// Opens Space Cadet 2026's pause screen for the game in play; false when there is none to pause
 	static bool DefinitivePause();
+	// Space Cadet 2026's screen for missing game data, in place of the table; true once the player has chosen a
+	// folder to load from, false when they quit
+	static bool FindGameData(const std::vector<const char*>& searchPaths);
 
 private:
 	static int return_value;

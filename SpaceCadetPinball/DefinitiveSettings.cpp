@@ -147,7 +147,8 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 	ImGui::SetCursorScreenPos(ImVec2{min.x + padding / 2, rowsY});
 	ImGui::BeginChild("##rows", ImVec2{size.x - padding, min.y + size.y - hintsHeight - rowsY},
 					  ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoBackground);
-	if (opened || Current != previous)
+	// ImGui's Escape takes the focus off the rows too; the screen gives it back to the first
+	if (opened || Current != previous || (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !GImGui->NavId))
 	{
 		Ui::FocusNextRow();
 		ImGui::SetScrollY(0);
@@ -228,6 +229,16 @@ void DefinitiveSettings::RenderEdition(const DefinitiveHost& host, bool gameRunn
 
 	if (Ui::MenuRow("language", Text(Msg::Definitive_Language), false, translations::GetCurrentLanguage()->DisplayName))
 		Languages = true;
+
+	// The folder the data came from; choosing another reads the data from there, after a restart
+	if (host.ChooseDataFolder)
+	{
+		auto folder = host.DataFolder ? host.DataFolder() : std::string{};
+		Ui::NextRowNote(folder.c_str());
+		if (Ui::MenuRow("datafolder", Text(Msg::Definitive_DataFolder), false,
+						Text(gameRunning ? Msg::Definitive_EndsGame : Msg::Definitive_Restarts)))
+			host.ChooseDataFolder();
+	}
 
 	Ui::NextRowNote(Text(gameRunning ? Msg::Definitive_EndsGame : Msg::Definitive_Restarts));
 	if (Ui::ToggleRow("prefer3dpb", Text(Msg::Definitive_Prefer3DPB), options::Options.Prefer3DPBGameData))

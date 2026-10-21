@@ -51,6 +51,13 @@ struct DefinitiveHost
 	int (*MaxResolution)();
 	// The key or button that switches editions, empty when none is bound
 	std::string (*EditionKey)();
+	// Opens the system's folder dialog for the game data; once one is chosen, the game restarts and loads from it.
+	// Null where there is no such dialog, as in a browser.
+	void (*ChooseDataFolder)();
+	// Why the folder dialog couldn't open, or an empty string
+	std::string (*FolderDialogError)();
+	// The folder the game data was loaded from
+	std::string (*DataFolder)();
 };
 
 // Space Cadet 2026's front end: the title with the main menu and the screens it leads to. It takes the place of
@@ -67,6 +74,9 @@ public:
 	static void ShowSettings(bool controls = false);
 	// The pause screen, which pauses the game in play; it comes back on its own while the game is paused
 	static void ShowPause();
+	// The first-run screen when no game data was found: where it looked and a way to choose the folder; the game
+	// runs it in place of the table until a folder is chosen or the player quits
+	static void RenderMissingData(const std::vector<std::string>& looked, bool chosenFolderFailed);
 	// Whether a screen is open, rather than the game in play
 	static bool ScreenOpen();
 

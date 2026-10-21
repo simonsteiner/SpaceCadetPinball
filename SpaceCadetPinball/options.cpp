@@ -184,6 +184,7 @@ optionsStruct options::Options
 	// Settings without it, from before editions existed, also start in Definitive
 	{"Edition", static_cast<int>(Editions::Definitive)},
 	{"Edition Hint Shown", false},
+	{"Game Data Folder", ""},
 };
 // clang-format on
 

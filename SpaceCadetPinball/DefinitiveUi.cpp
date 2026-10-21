@@ -83,6 +83,14 @@ void DefinitiveUi::DrawText(ImDrawList* drawList, ImFont* font, float size, ImVe
 	drawList->AddText(font, size * LayoutScale, position, color, visual);
 }
 
+float DefinitiveUi::DrawWrapped(ImDrawList* drawList, ImFont* font, float size, ImVec2 position, ImU32 color,
+								const char* text, float width)
+{
+	auto visual = DefinitiveText::Visual(text);
+	drawList->AddText(font, size * LayoutScale, position, color, visual, nullptr, width);
+	return font->CalcTextSizeA(size * LayoutScale, FLT_MAX, width, visual).y;
+}
+
 bool DefinitiveUi::MenuRow(const char* id, const char* label, bool warning, const char* aside, bool enabled,
 						   float trailing)
 {

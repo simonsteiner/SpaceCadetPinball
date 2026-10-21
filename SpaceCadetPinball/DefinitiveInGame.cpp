@@ -115,6 +115,9 @@ ImVec2 DefinitiveFrontEnd::BeginCentred(const char* name, ImVec2 size)
 				 Ui::Combine(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoMove,
 							 ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoScrollWithMouse));
 	Theme::DrawPanel(ImGui::GetWindowDrawList(), min, ImVec2{min.x + scaled.x, min.y + scaled.y});
+	// ImGui's Escape takes the focus off the rows; the screen gives it back to the first
+	if (ImGui::IsWindowFocused() && !GImGui->NavId)
+		Ui::FocusNextRow();
 	return min;
 }
 
