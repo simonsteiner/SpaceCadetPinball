@@ -231,19 +231,20 @@ void DefinitiveFrontEnd::RenderGameOver(const TableView& view)
 	Ui::DrawText(drawList, Theme::HeadingFont(), Theme::TitleSize, ImVec2{min.x + padding * 2, min.y + 24 * scale},
 				 Theme::Chrome50, Text(Msg::STRING135), width - padding * 2);
 
-	// Each player's score, the ones that made the high score table marked and lit
+	// Each player's score, the ones that made the high score table marked and lit. Found by the player's name, which
+	// each saved score had by default, rather than by the score, which another player can share without making it.
 	auto y = min.y + (24 + 40 + 24) * scale;
 	for (auto player = 0; player < players; player++)
 	{
 		auto score = view.Scores[static_cast<size_t>(player)];
-		auto record = std::find(NewRecords.begin(), NewRecords.end(), score) != NewRecords.end() && score > 0;
+		auto name = PlayerName(player);
+		auto record = std::find(NewRecords.begin(), NewRecords.end(), name) != NewRecords.end();
 		auto rowHeight = 56 * scale;
 		auto left = min.x + padding * 2, right = min.x + padding + width - padding;
 		drawList->AddLine(ImVec2{left, y}, ImVec2{right, y}, WithAlpha(Theme::Chrome600, 0.6f));
 		auto centre = y + rowHeight / 2;
 		Theme::DrawLamp(drawList, ImVec2{left + 6 * scale, centre}, 6 * scale,
 						record ? Theme::Lamp::Lit : Theme::Lamp::Off);
-		auto name = PlayerName(player);
 		auto nameSize = Ui::TextSize(Theme::TextFont(), Theme::BodySize, name);
 		Ui::DrawText(drawList, Theme::TextFont(), Theme::BodySize, ImVec2{left + 24 * scale, centre - nameSize.y / 2},
 					 Theme::Chrome50, name);
@@ -422,7 +423,7 @@ void DefinitiveFrontEnd::RenderNameEntry()
 		DefinitiveHost::Record record{EntryName.empty() ? Entry.Name : EntryName, Entry.Score};
 		if (Host.SaveRecord)
 			Host.SaveRecord(record, EntryPlace);
-		NewRecords.push_back(Entry.Score);
+		NewRecords.push_back(Entry.Name);
 		if (!NextName())
 		{
 			SummaryShown = true;

@@ -23,7 +23,8 @@ struct DefinitiveHost
 	void (*Quit)();
 	std::vector<Record> (*Records)();
 	void (*ClearRecords)();
-	// The next new high score that needs a name, with its default name and its place from 0; false when none is left
+	// The next new high score that needs a name, with its default name, which is its player's, and its place from 0;
+	// false when none is left
 	bool (*NextRecord)(Record& record, int& place);
 	void (*SaveRecord)(const Record& record, int place);
 	// Pausing and resuming the game in play, as the pause key does
@@ -97,11 +98,12 @@ private:
 	static Screen Current, SettingsFrom;
 	static bool Opened, ConfirmClear, SummaryShown, Focused;
 	static float CreditsScroll;
-	// The high score whose name is being entered, its place, the name so far, and the scores that made the table
+	// The high score whose name is being entered, its place, the name so far, and the default names, one per player, of
+	// the scores that made the table
 	static DefinitiveHost::Record Entry;
 	static int EntryPlace;
 	static std::string EntryName;
-	static std::vector<int> NewRecords;
+	static std::vector<std::string> NewRecords;
 
 	static void Open(Screen screen);
 	static void RenderTitle(const TableView& view);

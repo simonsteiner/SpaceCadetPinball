@@ -21,7 +21,7 @@ bool DefinitiveFrontEnd::Focused = false;
 DefinitiveHost::Record DefinitiveFrontEnd::Entry{};
 int DefinitiveFrontEnd::EntryPlace = 0;
 std::string DefinitiveFrontEnd::EntryName;
-std::vector<int> DefinitiveFrontEnd::NewRecords;
+std::vector<std::string> DefinitiveFrontEnd::NewRecords;
 float DefinitiveFrontEnd::CreditsScroll = 0;
 
 namespace
