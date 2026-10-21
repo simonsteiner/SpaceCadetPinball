@@ -226,7 +226,20 @@ set(SOURCE_FILES
         SpaceCadetPinball/DebugOverlay.h
         SpaceCadetPinball/DefinitiveEdition.cpp
         SpaceCadetPinball/DefinitiveEdition.h
+        SpaceCadetPinball/DefinitiveFontData.h
         )
+
+# Space Cadet 2026's fonts, vendored in third_party/fonts, become byte arrays at build time (DefinitiveFontData.h)
+file(GLOB SCP_FONTS CONFIGURE_DEPENDS third_party/fonts/*.ttf)
+set(SCP_FONT_DATA ${CMAKE_CURRENT_BINARY_DIR}/generated/DefinitiveFontData.cpp)
+add_custom_command(OUTPUT ${SCP_FONT_DATA}
+        COMMAND ${CMAKE_COMMAND} -DFONT_DIR=${CMAKE_CURRENT_SOURCE_DIR}/third_party/fonts -DOUTPUT=${SCP_FONT_DATA}
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbedFonts.cmake
+        DEPENDS ${SCP_FONTS} cmake/EmbedFonts.cmake
+        COMMENT "Embedding the fonts in third_party/fonts"
+        VERBATIM
+        )
+list(APPEND SOURCE_FILES ${SCP_FONT_DATA})
 
 # Vendored ImGui, a separate library so that it gets neither the game's precompiled header nor its warnings
 set(IMGUI_SOURCE_FILES
