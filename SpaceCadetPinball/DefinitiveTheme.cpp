@@ -24,22 +24,14 @@ namespace
 #if defined(_WIN32)
 		auto windows = SDL_getenv("WINDIR");
 		auto folder = std::string{windows ? windows : "C:\\Windows"} + "\\Fonts\\";
-		std::initializer_list<const char*> names;
-		switch (language)
-		{
-		case Lang::Japanese:
-			names = {"YuGothM.ttc", "meiryo.ttc", "msgothic.ttc"};
-			break;
-		case Lang::Korean:
-			names = {"malgun.ttf", "gulim.ttc"};
-			break;
-		case Lang::SimplifiedChinese:
-			names = {"msyh.ttc", "simsun.ttc"};
-			break;
-		default:
-			names = {"msjh.ttc", "mingliu.ttc"};
-			break;
-		}
+		// Arrays, not an initializer_list assigned in each case, whose array would end with the assignment
+		static const std::vector<const char*> japanese{"YuGothM.ttc", "meiryo.ttc", "msgothic.ttc"},
+			korean{"malgun.ttf", "gulim.ttc"}, simplified{"msyh.ttc", "simsun.ttc"},
+			traditional{"msjh.ttc", "mingliu.ttc"};
+		auto& names = language == Lang::Japanese            ? japanese
+					  : language == Lang::Korean            ? korean
+					  : language == Lang::SimplifiedChinese ? simplified
+															: traditional;
 		for (auto name : names)
 			fonts.push_back({folder + name, 0});
 #elif defined(__APPLE__)
