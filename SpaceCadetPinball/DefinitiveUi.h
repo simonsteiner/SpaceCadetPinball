@@ -3,6 +3,7 @@
 #include "DefinitiveTheme.h"
 
 #include <initializer_list>
+#include <string>
 
 // The pieces Space Cadet 2026's screens are made of, on top of ImGui: a scale that follows the window, menu rows that
 // light their lamp when they have focus, text in the visual language, and hints for the input device last used.
@@ -25,6 +26,8 @@ public:
 		Back,
 		Change,
 		Group,
+		Erase,
+		Finish,
 	};
 
 	struct Hint
@@ -46,6 +49,9 @@ public:
 	static float Scale();
 	static void SetScale(float scale);
 	static Device LastDevice();
+
+	// A score with its thousands grouped, padded with DSEG's blank digit places to a width for DrawLed
+	static std::string FormatScore(int score, size_t places);
 
 	// A font size for ImGui::PushFont that comes out at size * Scale() pixels, whatever ImGui's own scaling is
 	static float FontSize(float size);
@@ -78,6 +84,8 @@ public:
 	static bool LastRowFocused();
 	// Gives the next row focus, as when a screen opens
 	static void FocusNextRow();
+	// Whether focus was asked for, for a screen that gives it to an item of its own; the request is then gone
+	static bool TakeFocusRequest();
 
 	// A line of hints at a position, in key caps for the keyboard and button glyphs for a gamepad; nothing for a
 	// mouse or touch

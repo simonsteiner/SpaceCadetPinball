@@ -99,9 +99,20 @@ void high_score::place_new_score_into(high_score_entry data)
 	}
 }
 
-bool high_score::DialogPending()
+bool high_score::TakeNextEntry(high_score_entry& entry)
 {
-	return ShowDialog || !ScoreQueue.empty() || ImGui::IsPopupOpen(pb::get_rc_string(Msg::HIGHSCORES_Caption));
+	// As the dialog does: the newest first, each placed by its score now, and none that no longer makes the table
+	while (!ScoreQueue.empty())
+	{
+		entry = ScoreQueue.back();
+		ScoreQueue.pop_back();
+		if (entry.Position < 0 || entry.Position > 4)
+			entry.Position = get_score_position(entry.Entry.Score);
+		if (entry.Position != -1)
+			return true;
+	}
+	ShowDialog = false;
+	return false;
 }
 
 void high_score::show_high_score_dialog()

@@ -229,6 +229,7 @@ set(SOURCE_FILES
         SpaceCadetPinball/DefinitiveFontData.h
         SpaceCadetPinball/DefinitiveFrontEnd.cpp
         SpaceCadetPinball/DefinitiveFrontEnd.h
+        SpaceCadetPinball/DefinitiveInGame.cpp
         SpaceCadetPinball/DefinitiveSettings.cpp
         SpaceCadetPinball/DefinitiveSettings.h
         SpaceCadetPinball/DefinitiveText.cpp

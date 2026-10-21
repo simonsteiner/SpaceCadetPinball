@@ -279,6 +279,18 @@ enum class Msg : int
 	Definitive_DefaultControls,
 	Definitive_UiScale,
 	Definitive_UiScaleNote,
+	Definitive_Paused,
+	Definitive_Resume,
+	Definitive_SwitchToClassic,
+	Definitive_Restart,
+	Definitive_QuitToTitle,
+	Definitive_EndGame,
+	Definitive_NewHighScore,
+	Definitive_PlayAgain,
+	Definitive_ToTitle,
+	Definitive_Place,
+	Definitive_Delete,
+	Definitive_Done,
 
 	// Full Tilt's CADET.EXE strings, shown instead of 3D Pinball's in Full Tilt mode
 	FullTilt_Caption,

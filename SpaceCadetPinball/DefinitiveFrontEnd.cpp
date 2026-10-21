@@ -14,6 +14,11 @@ DefinitiveFrontEnd::Screen DefinitiveFrontEnd::Current = Screen::None;
 DefinitiveFrontEnd::Screen DefinitiveFrontEnd::SettingsFrom = Screen::Title;
 bool DefinitiveFrontEnd::Opened = false;
 bool DefinitiveFrontEnd::ConfirmClear = false;
+bool DefinitiveFrontEnd::SummaryShown = false;
+DefinitiveHost::Record DefinitiveFrontEnd::Entry{};
+int DefinitiveFrontEnd::EntryPlace = 0;
+std::string DefinitiveFrontEnd::EntryName;
+std::vector<int> DefinitiveFrontEnd::NewRecords;
 float DefinitiveFrontEnd::CreditsScroll = 0;
 
 namespace
@@ -31,22 +36,6 @@ namespace
 		return (color & 0x00FFFFFFU) | static_cast<ImU32>(std::lround(alpha * 255.0f)) << 24U;
 	}
 
-	// A score with its thousands grouped, padded with blank digit places to a width
-	std::string FormatScore(int score, size_t places)
-	{
-		auto digits = std::to_string(std::max(score, 0));
-		std::string grouped;
-		for (size_t i = 0; i < digits.size(); i++)
-		{
-			if (i > 0 && (digits.size() - i) % 3 == 0)
-				grouped += ',';
-			grouped += digits[i];
-		}
-		// DSEG's '!' is a blank as wide as a digit, which shows only its unlit segments
-		while (grouped.size() < places)
-			grouped.insert(grouped.begin(), '!');
-		return grouped;
-	}
 
 	// A line of the credits, a heading or not
 	struct CreditLine
@@ -91,15 +80,33 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 {
 	Ui::NewFrame();
 
-	// A game in play closes the screens, however it started; a game that is over brings the title back, after the high
-	// score entry, with the demo behind it
 	auto playing = !view.GameOver && !view.Demo;
+	auto paused = Host.Paused && Host.Paused();
 	auto busy = Host.Busy && Host.Busy();
+	auto fromPause = Current == Screen::Pause || (Current == Screen::Settings && SettingsFrom == Screen::Pause);
 	if (playing)
-		Current = Screen::None;
-	else if (Current == Screen::None && view.GameOver && !busy)
-		ShowTitle();
-	if (Current != Screen::None && view.GameOver && !busy && Host.StartDemo)
+	{
+		// A game in play closes the other screens, however it started; while it is paused, the pause screen shows
+		SummaryShown = false;
+		NewRecords.clear();
+		if (paused && !fromPause)
+			ShowPause();
+		else if (!paused)
+			Current = Screen::None;
+	}
+	else if (view.GameOver && !view.Demo && !busy && (Current == Screen::None || fromPause))
+	{
+		// A game that has ended asks for a name for each new high score, then shows how everyone did
+		if (!NextName() && !SummaryShown)
+		{
+			SummaryShown = true;
+			Open(Screen::GameOver);
+		}
+	}
+	// The demo plays behind the title and the screens it leads to, not behind a game that has just ended
+	auto title = Current == Screen::Title || Current == Screen::Records || Current == Screen::Credits ||
+				 (Current == Screen::Settings && SettingsFrom != Screen::Pause);
+	if (title && view.GameOver && !busy && Host.StartDemo)
 		Host.StartDemo();
 
 	switch (Current)
@@ -116,6 +123,15 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 		break;
 	case Screen::Credits:
 		RenderCredits();
+		break;
+	case Screen::Pause:
+		RenderPause(view);
+		break;
+	case Screen::GameOver:
+		RenderGameOver(view);
+		break;
+	case Screen::NameEntry:
+		RenderNameEntry();
 		break;
 	case Screen::None:
 		break;
@@ -312,7 +328,7 @@ void DefinitiveFrontEnd::RenderRecords()
 						  Theme::Chrome400, rank);
 		if (i < records.size() && records[i].Score >= 0)
 		{
-			auto score = FormatScore(records[i].Score, 11);
+			auto score = Ui::FormatScore(records[i].Score, 11);
 			auto ledSize = Theme::LedSize(Theme::CounterSize * 1.2f * scale, score.c_str());
 			Theme::DrawLed(drawList, ImVec2{right - ledSize.x, centre - ledSize.y / 2},
 						   Theme::CounterSize * 1.2f * scale, score.c_str());

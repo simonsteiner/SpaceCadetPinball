@@ -47,6 +47,22 @@ DefinitiveUi::Device DefinitiveUi::LastDevice()
 	return Last;
 }
 
+std::string DefinitiveUi::FormatScore(int score, size_t places)
+{
+	auto digits = std::to_string(std::max(score, 0));
+	std::string grouped;
+	for (size_t i = 0; i < digits.size(); i++)
+	{
+		if (i > 0 && (digits.size() - i) % 3 == 0)
+			grouped += ',';
+		grouped += digits[i];
+	}
+	// DSEG's '!' is a blank as wide as a digit, which shows only its unlit segments
+	while (grouped.size() < places)
+		grouped.insert(grouped.begin(), '!');
+	return grouped;
+}
+
 float DefinitiveUi::FontSize(float size)
 {
 	const auto& style = ImGui::GetStyle();
@@ -282,6 +298,13 @@ void DefinitiveUi::FocusNextRow()
 	FocusNext = true;
 }
 
+bool DefinitiveUi::TakeFocusRequest()
+{
+	auto requested = FocusNext;
+	FocusNext = false;
+	return requested;
+}
+
 namespace
 {
 	// A key cap with a label, or with an arrow pointing in direction when the label is null
@@ -382,6 +405,12 @@ void DefinitiveUi::DrawHints(ImDrawList* drawList, ImVec2 position, std::initial
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, "Q") + gap;
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, "E");
 				break;
+			case Action::Erase:
+				x += KeyCap(drawList, ImVec2{x, position.y}, scale, "Backspace");
+				break;
+			case Action::Finish:
+				x += KeyCap(drawList, ImVec2{x, position.y}, scale, "Enter");
+				break;
 			}
 		}
 		else
@@ -403,6 +432,12 @@ void DefinitiveUi::DrawHints(ImDrawList* drawList, ImVec2 position, std::initial
 			case Action::Group:
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, "L") + gap;
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, "R");
+				break;
+			case Action::Erase:
+				x += FaceButtons(drawList, ImVec2{x, position.y}, scale, ImGuiKey_GamepadFaceRight);
+				break;
+			case Action::Finish:
+				x += KeyCap(drawList, ImVec2{x, position.y}, scale, "Start");
 				break;
 			}
 		}

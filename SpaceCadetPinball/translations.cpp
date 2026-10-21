@@ -6561,6 +6561,78 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_Paused,
+		{
+			{ Lang::English, "Paused" },
+		}
+	},
+	{
+		Msg::Definitive_Resume,
+		{
+			{ Lang::English, "Resume" },
+		}
+	},
+	{
+		Msg::Definitive_SwitchToClassic,
+		{
+			{ Lang::English, "Switch to Classic" },
+		}
+	},
+	{
+		Msg::Definitive_Restart,
+		{
+			{ Lang::English, "Restart" },
+		}
+	},
+	{
+		Msg::Definitive_QuitToTitle,
+		{
+			{ Lang::English, "Quit to title" },
+		}
+	},
+	{
+		Msg::Definitive_EndGame,
+		{
+			{ Lang::English, "End this game?" },
+		}
+	},
+	{
+		Msg::Definitive_NewHighScore,
+		{
+			{ Lang::English, "New high score" },
+		}
+	},
+	{
+		Msg::Definitive_PlayAgain,
+		{
+			{ Lang::English, "Play again" },
+		}
+	},
+	{
+		Msg::Definitive_ToTitle,
+		{
+			{ Lang::English, "Title" },
+		}
+	},
+	{
+		Msg::Definitive_Place,
+		{
+			{ Lang::English, "Place %d of 5" },
+		}
+	},
+	{
+		Msg::Definitive_Delete,
+		{
+			{ Lang::English, "Delete" },
+		}
+	},
+	{
+		Msg::Definitive_Done,
+		{
+			{ Lang::English, "Done" },
+		}
+	},
+	{
 		Msg::FullTilt_Caption,
 		{
 			{ Lang::English, "Full Tilt! - Space Cadet" },

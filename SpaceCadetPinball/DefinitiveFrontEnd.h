@@ -23,6 +23,13 @@ struct DefinitiveHost
 	void (*Quit)();
 	std::vector<Record> (*Records)();
 	void (*ClearRecords)();
+	// The next new high score that needs a name, with its default name and its place from 0; false when none is left
+	bool (*NextRecord)(Record& record, int& place);
+	void (*SaveRecord)(const Record& record, int place);
+	// Pausing and resuming the game in play, as the pause key does
+	void (*Pause)();
+	void (*Resume)();
+	bool (*Paused)();
 	// Whether the screens should wait: while the table is still ending a game, which is when it checks the high
 	// scores, and while a dialog such as the high score name entry is open
 	bool (*Busy)();
@@ -58,6 +65,8 @@ public:
 	static void ShowTitle();
 	// Settings, opened on the controls when controls is true; back returns to the screen before
 	static void ShowSettings(bool controls = false);
+	// The pause screen, which pauses the game in play; it comes back on its own while the game is paused
+	static void ShowPause();
 	// Whether a screen is open, rather than the game in play
 	static bool ScreenOpen();
 
@@ -69,17 +78,33 @@ private:
 		Records,
 		Credits,
 		Settings,
+		Pause,
+		GameOver,
+		NameEntry,
 	};
 
 	static DefinitiveHost Host;
 	static Screen Current, SettingsFrom;
-	static bool Opened, ConfirmClear;
+	static bool Opened, ConfirmClear, SummaryShown;
 	static float CreditsScroll;
+	// The high score whose name is being entered, its place, the name so far, and the scores that made the table
+	static DefinitiveHost::Record Entry;
+	static int EntryPlace;
+	static std::string EntryName;
+	static std::vector<int> NewRecords;
 
 	static void Open(Screen screen);
 	static void RenderTitle(const TableView& view);
 	static void RenderRecords();
 	static void RenderCredits();
+	// In DefinitiveInGame.cpp
+	static void RenderPause(const TableView& view);
+	static void RenderGameOver(const TableView& view);
+	static void RenderNameEntry();
+	// Asks for the name of the next new high score; false when there is none
+	static bool NextName();
+	// A panel in the middle of the window over a veil that dims the game; its width and height at scale 1
+	static ImVec2 BeginCentred(const char* name, ImVec2 size);
 	// A window filling the column on the left, over a fade that keeps the table in view; returns its width
 	static float BeginColumn(const char* name, float width);
 	static void EndColumn();

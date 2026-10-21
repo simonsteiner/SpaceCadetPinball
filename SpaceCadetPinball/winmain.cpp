@@ -185,8 +185,26 @@ static DefinitiveHost MakeDefinitiveHost()
 		return records;
 	};
 	host.ClearRecords = [] { high_score::clear_table(); };
-	host.Busy = []
-	{ return !pb::GameEnded || high_score::DialogPending() || ImGui::GetTopMostPopupModal() != nullptr; };
+	host.Busy = [] { return !pb::GameEnded || ImGui::GetTopMostPopupModal() != nullptr; };
+	host.NextRecord = [](DefinitiveHost::Record& record, int& place)
+	{
+		high_score_entry entry{};
+		if (!high_score::TakeNextEntry(entry))
+			return false;
+		record = {entry.Entry.Name, entry.Entry.Score};
+		place = entry.Position;
+		return true;
+	};
+	host.SaveRecord = [](const DefinitiveHost::Record& record, int place)
+	{
+		high_score_entry entry{{}, place};
+		snprintf(entry.Entry.Name, sizeof entry.Entry.Name, "%s", record.Name.c_str());
+		entry.Entry.Score = record.Score;
+		high_score::place_new_score_into(entry);
+	};
+	host.Pause = [] { winmain::pause(false); };
+	host.Resume = winmain::end_pause;
+	host.Paused = [] { return winmain::single_step; };
 	host.Version = winmain::Version;
 	host.SetPostProcessing = [](int effect) { winmain::SetPostProcessing(static_cast<PostEffects>(effect)); };
 	host.PostProcessingUnavailable = winmain::PostProcessingUnavailable;
@@ -1193,7 +1211,9 @@ void winmain::RenderUi()
 	}
 
 	a_dialog();
-	high_score::RenderHighScoreDialog();
+	// Space Cadet 2026 asks for high score names itself
+	if (!definitive)
+		high_score::RenderHighScoreDialog();
 	font_selection::RenderDialog();
 	if (ShowSpriteViewer)
 		render::SpriteViewer(&ShowSpriteViewer);
@@ -1636,6 +1656,15 @@ void winmain::ApplyDisplayScale()
 	style.FontScaleMain = fontScale;
 }
 
+bool winmain::DefinitivePause()
+{
+	// Space Cadet 2026's pause screen, for a game in play; the demo and a game that is over have none
+	if (options::GetEdition() != Editions::Definitive || pb::game_mode != GameModes::InGame || DemoActive)
+		return false;
+	DefinitiveFrontEnd::ShowPause();
+	return true;
+}
+
 const char* winmain::PostProcessingUnavailable()
 {
 #ifdef __EMSCRIPTEN__
@@ -1960,7 +1989,8 @@ void winmain::HandleGameBinding(GameBindings binding, bool shortcut)
 	switch (binding)
 	{
 	case GameBindings::TogglePause:
-		pause();
+		if (!DefinitivePause())
+			pause();
 		break;
 	case GameBindings::NewGame:
 		new_game();
@@ -1988,6 +2018,8 @@ void winmain::HandleGameBinding(GameBindings binding, bool shortcut)
 		options::toggle(Menu1::Show_Menu);
 		break;
 	case GameBindings::Exit:
+		if (shortcut && DefinitivePause())
+			break;
 #ifdef __EMSCRIPTEN__
 		break;
 #endif
