@@ -12,6 +12,7 @@ bool DefinitiveSettings::Opened = false;
 bool DefinitiveSettings::Languages = false;
 bool DefinitiveSettings::ShownLanguages = false;
 bool DefinitiveSettings::BackChosen = false;
+bool DefinitiveSettings::FocusLanguage = false;
 int DefinitiveSettings::Slot = 0;
 
 namespace
@@ -62,6 +63,7 @@ void DefinitiveSettings::Open(Group group)
 	Current = group;
 	Opened = true;
 	Languages = false;
+	FocusLanguage = false;
 	Slot = 0;
 }
 
@@ -154,6 +156,8 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 		ImGui::SetScrollY(0);
 		Slot = 0;
 	}
+	else if (FocusLanguage)
+		ImGui::SetScrollY(0);
 	ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - (ImGui::GetScrollMaxY() > 0 ? 12 * scale : 0));
 	if (Languages)
 		RenderLanguages(host, Languages != ShownLanguages);
@@ -209,10 +213,11 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 	ImGui::PopStyleColor(2);
 	ImGui::PopStyleVar(3);
 
+	// Back from the list lands on the Language row that opened it
 	if (back && Languages)
 	{
 		Languages = false;
-		Opened = true;
+		FocusLanguage = true;
 		return true;
 	}
 	if (back)
@@ -233,6 +238,9 @@ void DefinitiveSettings::RenderEdition(const DefinitiveHost& host, bool gameRunn
 	if (chosen != edition)
 		options::SetEdition(chosen ? Editions::Definitive : Editions::Classic);
 
+	if (FocusLanguage)
+		Ui::FocusNextRow();
+	FocusLanguage = false;
 	if (Ui::MenuRow("language", Text(Msg::Definitive_Language), false, translations::GetCurrentLanguage()->DisplayName))
 		Languages = true;
 
