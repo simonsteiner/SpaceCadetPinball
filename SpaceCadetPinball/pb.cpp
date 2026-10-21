@@ -37,6 +37,7 @@ GameModes pb::game_mode = GameModes::GameOver;
 float pb::time_now = 0, pb::time_next = 0, pb::time_ticks_remainder = 0;
 float pb::BallMaxSpeed, pb::BallHalfRadius, pb::BallToBallCollisionDistance;
 float pb::IdleTimerMs = 0;
+bool pb::GameEnded = true;
 bool pb::FullTiltMode = false, pb::FullTiltDemoMode = false, pb::cheat_mode = false, pb::demo_mode = false, pb::CreditsActive = false;
 std::string pb::DatFileName, pb::BasePath;
 ImU32 pb::TextBoxColor;
@@ -135,11 +136,8 @@ int pb::uninit()
 	return 0;
 }
 
-void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
+std::string pb::FindDatFile(const std::string& folder)
 {
-	DatFileName.clear();
-	FullTiltDemoMode = FullTiltMode = false;
-
 	std::string datFileNames[3]
 	{
 		"CADET.DAT",
@@ -152,36 +150,51 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 	{
 		std::swap(datFileNames[0], datFileNames[1]);
 	}
+	for (const auto& datFileName : datFileNames)
+	{
+		auto fileName = datFileName;
+		for (int i = 0; i < 2; i++)
+		{
+			if (i == 1)
+				std::transform(fileName.begin(), fileName.end(), fileName.begin(),
+							   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+			auto datFile = fopenu((folder + fileName).c_str(), "r");
+			if (datFile)
+			{
+				fclose(datFile);
+				return fileName;
+			}
+		}
+	}
+	return {};
+}
+
+void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
+{
+	DatFileName.clear();
+	FullTiltDemoMode = FullTiltMode = false;
+
 	for (auto path : dataSearchPaths)
 	{
 		if (!path)
 			continue;
 
 		BasePath = path;
-		for (const auto& datFileName : datFileNames)
-		{
-			auto fileName = datFileName;
-			for (int i = 0; i < 2; i++)
-			{
-				if (i == 1)
-					std::transform(fileName.begin(), fileName.end(), fileName.begin(),
-					               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+		auto fileName = FindDatFile(BasePath);
+		if (fileName.empty())
+			continue;
 
-				auto datFilePath = make_path_name(fileName);
-				auto datFile = fopenu(datFilePath.c_str(), "r");
-				if (datFile)
-				{
-					fclose(datFile);
-					DatFileName = fileName;
-					if (datFileName == "CADET.DAT")
-						FullTiltMode = true;
-					if (datFileName == "DEMO.DAT")
-						FullTiltDemoMode = FullTiltMode = true;
-					printf("Loading game from: %s\n", datFilePath.c_str());
-					return;
-				}
-			}
-		}
+		DatFileName = fileName;
+		auto upper = fileName;
+		std::transform(upper.begin(), upper.end(), upper.begin(),
+					   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+		if (upper == "CADET.DAT")
+			FullTiltMode = true;
+		if (upper == "DEMO.DAT")
+			FullTiltDemoMode = FullTiltMode = true;
+		printf("Loading game from: %s\n", make_path_name(fileName).c_str());
+		return;
 	}
 }
 
@@ -253,6 +266,8 @@ void pb::toggle_demo()
 		demo_mode = false;
 		MainTable->Message(MessageCode::Reset, 0.0);
 		mode_change(GameModes::GameOver);
+		// A stopped demo has no high scores to check, so it ends here rather than in end_game
+		GameEnded = true;
 		MissTextBox->Clear();
 		InfoTextBox->Display(get_rc_string(Msg::STRING125), -1.0);
 	}
@@ -270,6 +285,7 @@ void pb::replay_level(bool demoMode)
 	if (options::Options.Music)
 		midi::music_play();
 	MainTable->Message(MessageCode::NewGame, static_cast<float>(options::Options.Players));
+	GameEnded = false;
 }
 
 void pb::ballset(float dx, float dy)
@@ -735,6 +751,7 @@ void pb::end_game()
 	int scoreIndex[4]{};
 
 	mode_change(GameModes::GameOver);
+	GameEnded = true;
 	int playerCount = MainTable->PlayerCount;
 
 	score_struct_super* scorePtr = MainTable->PlayerScores;

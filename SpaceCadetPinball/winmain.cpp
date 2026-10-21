@@ -24,6 +24,10 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 
 #include "control.h"
 #include "DefinitiveEdition.h"
+#include "DefinitiveFrontEnd.h"
+#include "DefinitiveText.h"
+#include "DefinitiveTheme.h"
+#include "DefinitiveUi.h"
 #include "EmbeddedData.h"
 #include "fullscrn.h"
 #include "midi.h"
@@ -39,6 +43,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "font_selection.h"
 #include "high_score.h"
 
+#include <mutex>
 #include <new>
 #include <optional>
 
@@ -99,6 +104,9 @@ winmain::DurationMs winmain::SpinThreshold = DurationMs(0.005);
 WelfordState winmain::SleepState{};
 int winmain::CursorIdleCounter = 0;
 std::unique_ptr<ImGuiStyle> winmain::BaseStyle{};
+std::unique_ptr<ImGuiStyle> winmain::DefinitiveStyle{};
+Editions winmain::StyledEdition = Editions::Classic;
+bool winmain::DefinitiveFontsAdded = false;
 bool winmain::SoftwareRenderer = false;
 bool winmain::HighRefresh = false;
 winmain::DurationMs winmain::UpdateTime;
@@ -151,6 +159,157 @@ static std::string GetArgValue(const std::vector<std::string>& args, LPCSTR flag
 {
 	auto arg = std::find(args.begin(), args.end(), flag);
 	return arg != args.end() && ++arg != args.end() ? *arg : std::string();
+}
+
+// The folder chosen in the system's folder dialog, which may answer from another thread
+static std::mutex ChosenFolderMutex;
+static std::string ChosenFolder, FolderDialogError;
+// Whether the last folder chosen had no game data, so the saved one stayed; only the main thread uses it
+static bool ChosenFolderEmpty = false;
+
+#ifndef __EMSCRIPTEN__
+static void SDLCALL FolderChosen(void* userData, const char* const* files, int filter)
+{
+	std::lock_guard lock{ChosenFolderMutex};
+	if (!files)
+	{
+		// Such as on a Linux desktop with neither zenity nor a portal
+		FolderDialogError = SDL_GetError();
+		printf("Could not show the folder dialog: %s\n", FolderDialogError.c_str());
+		return;
+	}
+	if (files[0])
+		ChosenFolder = files[0];
+}
+#endif
+
+// Whether a folder was chosen since the last call that has game data; it becomes the Game Data Folder. A folder
+// without data leaves the saved one as it was and sets ChosenFolderEmpty.
+static bool TakeChosenFolder()
+{
+	std::string folder;
+	{
+		std::lock_guard lock{ChosenFolderMutex};
+		folder = std::move(ChosenFolder);
+		ChosenFolder.clear();
+	}
+	if (folder.empty())
+		return false;
+	folder = options::FolderPath(std::move(folder));
+	ChosenFolderEmpty = pb::FindDatFile(folder).empty();
+	if (ChosenFolderEmpty)
+	{
+		printf("No game data in the folder chosen: %s\n", folder.c_str());
+		return false;
+	}
+	options::Options.GameDataFolder.V = std::move(folder);
+	return true;
+}
+
+// What Space Cadet 2026's screens can ask for, through the entry points the Classic menus use
+static DefinitiveHost MakeDefinitiveHost()
+{
+	DefinitiveHost host{};
+	host.Play = [] { winmain::new_game(); };
+	host.StartDemo = []
+	{
+		if (!winmain::DemoActive)
+			pb::toggle_demo();
+	};
+#ifndef __EMSCRIPTEN__
+	// A browser tab closes the game itself
+	host.Quit = []
+	{
+		SDL_Event event{SDL_EVENT_QUIT};
+		SDL_PushEvent(&event);
+	};
+#endif
+	host.Records = []
+	{
+		std::vector<DefinitiveHost::Record> records;
+		for (auto& entry : high_score::highscore_table)
+			records.push_back({entry.Name, entry.Score});
+		return records;
+	};
+	host.ClearRecords = [] { high_score::clear_table(); };
+	host.Busy = [] { return !pb::GameEnded || ImGui::GetTopMostPopupModal() != nullptr; };
+	host.NextRecord = [](DefinitiveHost::Record& record, int& place)
+	{
+		high_score_entry entry{};
+		if (!high_score::TakeNextEntry(entry))
+			return false;
+		record = {entry.Entry.Name, entry.Entry.Score};
+		place = entry.Position;
+		return true;
+	};
+	static_assert(sizeof high_score_struct::Name == DefinitiveHost::Record::MaxNameBytes + 1);
+	host.SaveRecord = [](const DefinitiveHost::Record& record, int place)
+	{
+		high_score_entry entry{{}, place};
+		snprintf(entry.Entry.Name, sizeof entry.Entry.Name, "%s", record.Name.c_str());
+		entry.Entry.Score = record.Score;
+		high_score::place_new_score_into(entry);
+	};
+	host.Pause = [] { winmain::pause(false); };
+	host.Resume = winmain::end_pause;
+	host.Paused = [] { return winmain::single_step; };
+	host.Version = winmain::Version;
+	host.SetPostProcessing = [](int effect) { winmain::SetPostProcessing(static_cast<PostEffects>(effect)); };
+	host.PostProcessingUnavailable = winmain::PostProcessingUnavailable;
+	host.SetUpscaleFactor = [](int factor)
+	{
+		options::Options.UpscaleFactor = factor;
+		if (options::Options.UpscaledArt)
+			render::SetUpscale(factor);
+	};
+	host.SetSoundVolume = [](int volume)
+	{
+		options::Options.SoundVolume = volume;
+		Sound::SetVolume(volume);
+	};
+	host.SetSoundChannels = [](int channels)
+	{
+		options::Options.SoundChannels = channels;
+		Sound::SetChannels(channels);
+	};
+	host.SetMusicVolume = [](int volume)
+	{
+		options::Options.MusicVolume = volume;
+		midi::SetVolume(volume);
+	};
+	host.FrameRateChanged = winmain::UpdateFrameRate;
+	host.PreciseSleepChanged = winmain::ResetPreciseSleep;
+	host.SetLanguage = [](const char* shortName)
+	{
+		translations::SetCurrentLanguage(shortName);
+		winmain::Restart();
+	};
+	host.MaxResolution = fullscrn::GetMaxResolution;
+	host.ChangeFont = font_selection::ShowDialog;
+	host.EditionKey = [] { return options::Options.Key[~GameBindings::ToggleEdition].GetShortcutDescription(); };
+#ifndef __EMSCRIPTEN__
+	// The browser has its own way to give the game its files
+	host.ChooseDataFolder = []
+	{
+		{
+			std::lock_guard lock{ChosenFolderMutex};
+			FolderDialogError.clear();
+		}
+		ChosenFolderEmpty = false;
+		auto& folder = options::Options.GameDataFolder.V;
+		SDL_ShowOpenFolderDialog(FolderChosen, nullptr, winmain::MainWindow, folder.empty() ? nullptr : folder.c_str(),
+								 false);
+	};
+#endif
+	host.FolderDialogError = []
+	{
+		std::lock_guard lock{ChosenFolderMutex};
+		return FolderDialogError;
+	};
+	host.ChosenFolderEmpty = [] { return ChosenFolderEmpty; };
+	host.DataFolder = []
+	{ return pb::BasePath.empty() ? std::string{pb::get_rc_string(Msg::Definitive_DataStartFolder)} : pb::BasePath; };
+	return host;
 }
 
 int winmain::WinMain(LPCSTR lpCmdLine)
@@ -327,10 +486,14 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		ImGui_ImplSDLRenderer3_Init(Renderer);
 		ImGui::StyleColorsDark();
 		BaseStyle = std::make_unique<ImGuiStyle>(ImGui::GetStyle());
+		DefinitiveStyle = std::make_unique<ImGuiStyle>(*BaseStyle);
+		DefinitiveTheme::ApplyStyle(*DefinitiveStyle);
+		DefinitiveFontsAdded = false;
 		ApplyDisplayScale();
 
 		ImGui_ImplSDL3_InitForSDLRenderer(window, Renderer);
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
+		DefinitiveFrontEnd::SetHost(MakeDefinitiveHost());
 
 		// Data search order: WD, executable path, user pref path, platform specific paths.
 		std::vector<const char*> searchPaths
@@ -341,6 +504,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 				prefPath
 			}
 		};
+		// The folder the player chose comes first
+		if (!Options.GameDataFolder.V.empty())
+			searchPaths.insert(searchPaths.begin(), Options.GameDataFolder.V.c_str());
 		searchPaths.insert(searchPaths.end(), std::begin(PlatformDataPaths), std::end(PlatformDataPaths));
 		pb::SelectDatFile(searchPaths);
 		SDL_SetWindowTitle(window, pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_Caption : Msg::STRING139));
@@ -356,10 +522,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		}
 		else if (!recordPath.empty())
 		{
-			// Only the first run records; a restart from the options ends the recording
+			// Only the first run that loads the table records; a restart from the options ends the recording
 			if (!replay::StartRecording(recordPath))
 				return 1;
-			recordPath.clear();
 		}
 		if (replay::IsRecording() || replay::IsPlaying())
 			srand(replay::Seed());
@@ -374,6 +539,26 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		if (pb::init())
 		{
+#ifndef __EMSCRIPTEN__
+			// Space Cadet 2026 asks for the folder instead of ending with an error. Not pb::uninit: it would write
+			// over the saved high scores with a table that was never read.
+			if (options::GetEdition() == Editions::Definitive && !replay::IsPlaying())
+			{
+				// The recording has no table to name; the run with the folder chosen writes it again from the start
+				replay::Stop();
+				auto chosen = FindGameData(searchPaths);
+				options::uninit();
+				midi::music_shutdown();
+				Sound::Close();
+				ImGui_ImplSDLRenderer3_Shutdown();
+				ImGui_ImplSDL3_Shutdown();
+				ImGui::DestroyContext();
+				if (!chosen)
+					break;
+				restart = true;
+				continue;
+			}
+#endif
 			std::string message = "The .dat file is missing.\n"
 				"Make sure that the game data is present in any of the following locations:\n";
 			for (auto path : searchPaths)
@@ -386,6 +571,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not load game data", message.c_str());
 			return 1;
 		}
+		recordPath.clear();
 
 		fullscrn::init();
 		render::SetUpscale(Options.UpscaledArt ? Options.UpscaleFactor.V : 0);
@@ -422,7 +608,14 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 #endif
 			fullscrn::set_screen_mode(Options.FullScreen);
 
-			if (HasArg(args, "-demo"))
+			// Space Cadet 2026 opens on its title, with the demo behind it. Not toggle_demo: after a restart its flag
+			// still says the demo of the run before is on.
+			if (options::GetEdition() == Editions::Definitive)
+			{
+				pb::replay_level(true);
+				DefinitiveFrontEnd::ShowTitle();
+			}
+			else if (HasArg(args, "-demo"))
 				pb::toggle_demo();
 			else
 				pb::replay_level(false);
@@ -477,6 +670,10 @@ void winmain::MainLoop()
 
 	while (true)
 	{
+		// A game data folder chosen in Settings: the game restarts and loads from it
+		if (TakeChosenFolder())
+			Restart();
+
 		if (DispFrameRate)
 		{
 			auto curTime = Clock::now();
@@ -571,6 +768,7 @@ void winmain::MainLoop()
 					ImGui::SetMouseCursor(ImGuiMouseCursor_None);
 				ImGui_ImplSDLRenderer3_NewFrame();
 				ImGui_ImplSDL3_NewFrame();
+				ApplyEditionLook();
 				ImGui::NewFrame();
 				RenderUi();
 
@@ -672,13 +870,37 @@ void winmain::TableFrame(float dtMilliSec)
 		DefinitiveEdition::Update(TableView::Get());
 }
 
+void winmain::ApplyEditionLook()
+{
+	// ImGui picks its default font in the first NewFrame, from the display scale the backend has just set, and only
+	// if the atlas is empty; picking it here the same way keeps Classic's font as it was before Space Cadet 2026 had
+	// fonts of its own
+	if (!DefinitiveFontsAdded)
+	{
+		if (ImIO->Fonts->Sources.empty())
+			ImIO->Fonts->AddFontDefault();
+		DefinitiveTheme::AddFonts(ImIO->Fonts, Options.FontFileName.V);
+		DefinitiveFontsAdded = true;
+	}
+
+	auto edition = options::GetEdition();
+	if (edition != StyledEdition)
+		ApplyDisplayScale();
+	ImIO->FontDefault = edition == Editions::Definitive ? DefinitiveTheme::TextFont() : nullptr;
+}
+
 void winmain::RenderUi()
 {
+	// Space Cadet 2026's screens take the menu bar's place
+	auto definitive = options::GetEdition() == Editions::Definitive;
+	if (definitive)
+		DefinitiveFrontEnd::Render(TableView::Get());
+
 	// Transparent menu bar with a button for preventing menu lockout.
 	ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4{});
 	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4{});
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-	if (!Options.ShowMenu && ImGui::BeginMainMenuBar())
+	if (!definitive && !Options.ShowMenu && ImGui::BeginMainMenuBar())
 	{
 		if (ImGui::MenuItem("Menu"))
 		{
@@ -696,7 +918,7 @@ void winmain::RenderUi()
 		ImGui::ShowDemoWindow(&ShowImGuiDemo);
 #endif
 
-	if (Options.ShowMenu && ImGui::BeginMainMenuBar())
+	if (MenuBarShown() && ImGui::BeginMainMenuBar())
 	{
 		int currentMenuHeight = static_cast<int>(ImGui::GetWindowSize().y);
 		if (MainMenuHeight != currentMenuHeight)
@@ -1087,7 +1309,9 @@ void winmain::RenderUi()
 	}
 
 	a_dialog();
-	high_score::RenderHighScoreDialog();
+	// Space Cadet 2026 asks for high score names itself
+	if (!definitive)
+		high_score::RenderHighScoreDialog();
 	font_selection::RenderDialog();
 	if (ShowSpriteViewer)
 		render::SpriteViewer(&ShowSpriteViewer);
@@ -1133,8 +1357,93 @@ void winmain::RenderUi()
 	gdrv::grtext_draw_ttext_in_box();
 }
 
+// Whether a key or gamepad button goes to the game although Space Cadet 2026's screen has the keyboard: one bound to a
+// shortcut such as the edition switch, but not to the table, which ignores input on the title anyway, and none the
+// screens move or choose with, so nothing is handled twice
+static bool FrontEndPassesShortcut(const SDL_Event& event)
+{
+	if (options::GetEdition() != Editions::Definitive)
+		return false;
+	GameInput input;
+	switch (event.type)
+	{
+	case SDL_EVENT_KEY_DOWN:
+	case SDL_EVENT_KEY_UP:
+		switch (event.key.key)
+		{
+		case SDLK_UP:
+		case SDLK_DOWN:
+		case SDLK_LEFT:
+		case SDLK_RIGHT:
+		case SDLK_RETURN:
+		case SDLK_KP_ENTER:
+		case SDLK_SPACE:
+			return false;
+		default:
+			break;
+		}
+		if (!DefinitiveFrontEnd::PassesShortcut(event.key.key == SDLK_ESCAPE))
+			return false;
+		input = {InputTypes::Keyboard, event.key.scancode};
+		break;
+	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+	case SDL_EVENT_GAMEPAD_BUTTON_UP:
+		switch (event.gbutton.button)
+		{
+		case SDL_GAMEPAD_BUTTON_DPAD_UP:
+		case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
+		case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+		case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+		case SDL_GAMEPAD_BUTTON_SOUTH:
+		case SDL_GAMEPAD_BUTTON_EAST:
+		case SDL_GAMEPAD_BUTTON_WEST:
+		case SDL_GAMEPAD_BUTTON_NORTH:
+		case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
+		case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
+			return false;
+		default:
+			break;
+		}
+		if (!DefinitiveFrontEnd::PassesShortcut(false))
+			return false;
+		input = {InputTypes::GameController, event.gbutton.button};
+		break;
+	default:
+		return false;
+	}
+	auto bindings = options::MapGameInput(input);
+	return std::any_of(bindings.begin(), bindings.end(),
+					   [](GameBindings binding) { return binding > GameBindings::BottomTableBump; });
+}
+
+// Whether an event cancels Space Cadet 2026's wait for a binding instead of being bound: Escape, which Settings goes
+// back with, and a tap, which can't be bound. Classic's controls dialog keeps binding them.
+static bool CancelsBindingWait(const SDL_Event& event)
+{
+	if (options::GetEdition() != Editions::Definitive || !DefinitiveFrontEnd::WaitsForBinding())
+		return false;
+	switch (event.type)
+	{
+	case SDL_EVENT_KEY_DOWN:
+		return event.key.key == SDLK_ESCAPE;
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
+		return event.button.which == SDL_TOUCH_MOUSEID;
+	default:
+		return false;
+	}
+}
+
 int winmain::event_handler(const SDL_Event* event)
 {
+	// Neither ImGui nor the game sees it, so the cancel neither goes back nor taps a row
+	if (CancelsBindingWait(*event))
+	{
+		options::WaitForInput(nullptr);
+		return 1;
+	}
+
+	// Goes past ImGui to the game, as when no window has the keyboard
+	auto shortcut = FrontEndPassesShortcut(*event);
 	auto inputDown = false;
 	switch (event->type)
 	{
@@ -1145,7 +1454,7 @@ int winmain::event_handler(const SDL_Event* event)
 		break;
 	default: break;
 	}
-	if (!options::WaitingForInput() || !inputDown)
+	if ((!options::WaitingForInput() || !inputDown) && !shortcut)
 		ImGui_ImplSDL3_ProcessEvent(event);
 
 	bool mouseEvent;
@@ -1173,7 +1482,7 @@ int winmain::event_handler(const SDL_Event* event)
 		if (mouseEvent)
 			return 1;
 	}
-	if (ImIO->WantCaptureKeyboard && !options::WaitingForInput())
+	if (ImIO->WantCaptureKeyboard && !options::WaitingForInput() && !shortcut)
 	{
 		switch (event->type)
 		{
@@ -1466,8 +1775,9 @@ void winmain::RenderEditionHint()
 	if (toggle.empty())
 		toggle =
 			std::string{pb::get_rc_string(Msg::Menu1_Options)} + " > " + pb::get_rc_string(Msg::Menu1_ToggleEdition);
-	char text[256];
-	snprintf(text, sizeof text, pb::get_rc_string(Msg::EditionHint), toggle.c_str());
+	char formatted[256];
+	snprintf(formatted, sizeof formatted, pb::get_rc_string(Msg::EditionHint), toggle.c_str());
+	auto text = DefinitiveText::Visual(formatted);
 
 	// Centred over the top of the table and kept inside the window; the board is in pixels, ImGui in window
 	// coordinates
@@ -1477,14 +1787,25 @@ void winmain::RenderEditionHint()
 	auto centre = (static_cast<float>(board.x) + static_cast<float>(board.w) / 2) / fbScale.x;
 	auto top = (static_cast<float>(board.y) + static_cast<float>(board.h) / 8) / fbScale.y;
 	auto padding = ImGui::GetStyle().WindowPadding;
-	auto wrapWidth = viewport->Size.x - padding.x * 4;
+	// A Space Cadet 2026 panel, with a lit lamp before the text
+	auto lampRadius = ImGui::GetFontSize() * 0.3f;
+	auto lampSpace = lampRadius * 2 + padding.x;
+	auto wrapWidth = viewport->Size.x - padding.x * 4 - lampSpace;
 	auto textSize = ImGui::CalcTextSize(text, nullptr, false, wrapWidth);
-	auto left = Clamp(centre - textSize.x / 2, padding.x * 2, viewport->Size.x - padding.x * 2 - textSize.x);
-	ImVec2 textPos{viewport->Pos.x + left, top - textSize.y / 2};
-	auto drawList = ImGui::GetForegroundDrawList();
-	drawList->AddRectFilled(ImVec2{textPos.x - padding.x, textPos.y - padding.y},
-							ImVec2{textPos.x + textSize.x + padding.x, textPos.y + textSize.y + padding.y},
-							ImGui::GetColorU32(ImGuiCol_WindowBg, 0.8f), ImGui::GetStyle().WindowRounding);
+	// Over a Space Cadet 2026 screen, low down above its key hints, so it leaves the screen's name in view
+	if (DefinitiveFrontEnd::ScreenOpen())
+		top = viewport->Pos.y + viewport->Size.y - 64 * DefinitiveUi::Scale() - textSize.y / 2 - padding.y;
+	auto width = lampSpace + textSize.x;
+	auto left = Clamp(centre - width / 2, padding.x * 2, viewport->Size.x - padding.x * 2 - width);
+	ImVec2 panelMin{viewport->Pos.x + left - padding.x, top - textSize.y / 2 - padding.y};
+	ImVec2 textPos{panelMin.x + padding.x + lampSpace, panelMin.y + padding.y};
+	// Under every window, so Space Cadet 2026's screens cover it
+	auto drawList = ImGui::GetBackgroundDrawList();
+	DefinitiveTheme::DrawPanel(drawList, panelMin,
+							   ImVec2{textPos.x + textSize.x + padding.x, textPos.y + textSize.y + padding.y});
+	DefinitiveTheme::DrawLamp(drawList,
+							  ImVec2{panelMin.x + padding.x + lampRadius, textPos.y + ImGui::GetFontSize() / 2},
+							  lampRadius, DefinitiveTheme::Lamp::Lit);
 	drawList->AddText(ImGui::GetFont(), ImGui::GetFontSize(), textPos, ImGui::GetColorU32(ImGuiCol_Text), text, nullptr,
 					  wrapWidth);
 }
@@ -1515,10 +1836,93 @@ void winmain::ApplyDisplayScale()
 	auto& style = ImGui::GetStyle();
 	auto fontScale = style.FontScaleMain;
 	auto scale = fullscrn::ContentScale();
-	style = *BaseStyle;
+	StyledEdition = options::GetEdition();
+	style = StyledEdition == Editions::Definitive ? *DefinitiveStyle : *BaseStyle;
 	style.ScaleAllSizes(scale);
 	style.FontScaleDpi = scale;
 	style.FontScaleMain = fontScale;
+}
+
+bool winmain::FindGameData(const std::vector<const char*>& searchPaths)
+{
+	std::vector<std::string> looked;
+	for (auto path : searchPaths)
+	{
+		if (path)
+			looked.emplace_back(path[0] ? path : pb::get_rc_string(Msg::Definitive_DataStartFolder));
+	}
+	// A folder chosen before that has lost its data gets the same note as one chosen now without any
+	ChosenFolderEmpty = !Options.GameDataFolder.V.empty();
+
+	// The window was waiting for the table to size it
+	SDL_SetWindowSize(MainWindow, 1100, 700);
+	SDL_SetWindowPosition(MainWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+	SDL_ShowWindow(MainWindow);
+	while (true)
+	{
+		SDL_Event event;
+		while (SDL_PollEvent(&event))
+		{
+			ImGui_ImplSDL3_ProcessEvent(&event);
+			if (event.type == SDL_EVENT_QUIT)
+				return false;
+		}
+		if (TakeChosenFolder())
+			return true;
+
+		ImGui_ImplSDLRenderer3_NewFrame();
+		ImGui_ImplSDL3_NewFrame();
+		ApplyEditionLook();
+		ImGui::NewFrame();
+		DefinitiveFrontEnd::RenderMissingData(looked, ChosenFolderEmpty);
+		ImGui::Render();
+		SDL_RenderClear(Renderer);
+		auto fbScale = ImIO->DisplayFramebufferScale;
+		SDL_SetRenderScale(Renderer, fbScale.x, fbScale.y);
+		ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), Renderer);
+		SDL_SetRenderScale(Renderer, 1.0f, 1.0f);
+		SDL_RenderPresent(Renderer);
+		SDL_Delay(16);
+	}
+}
+
+bool winmain::DefinitivePause()
+{
+	// Space Cadet 2026's pause screen, for a game in play, which the pause key also closes; the demo has none
+	if (options::GetEdition() != Editions::Definitive || DemoActive)
+		return false;
+	// Nor has a game that is ending, between its last ball and the summary: Classic's pause would hold the summary
+	// back, and Classic's exit question would open over it
+	if (pb::game_mode != GameModes::InGame)
+		return !pb::GameEnded;
+	DefinitiveFrontEnd::TogglePause();
+	return true;
+}
+
+const char* winmain::PostProcessingUnavailable()
+{
+#ifdef __EMSCRIPTEN__
+	return pb::get_rc_string(Msg::Definitive_NoGpuWeb);
+#elif !SDL_VERSION_ATLEAST(3, 4, 0)
+	return pb::get_rc_string(Msg::Definitive_OldSdl);
+#else
+	if (SoftwareRenderer)
+		return pb::get_rc_string(Msg::Definitive_NoGpuSoftware);
+	if (PostEffect::GpuRendererFailed())
+		return pb::get_rc_string(Msg::Definitive_NoGpu);
+	return nullptr;
+#endif
+}
+
+void winmain::ResetPreciseSleep()
+{
+	SleepState = WelfordState{};
+	SpinThreshold = DurationMs::zero();
+}
+
+bool winmain::MenuBarShown()
+{
+	return Options.ShowMenu && options::GetEdition() == Editions::Classic;
 }
 
 float winmain::ExpectedMenuHeight()
@@ -1814,12 +2218,21 @@ void winmain::UpdateFrameRate()
 	CurrentFps = fps;
 }
 
+// Whether pausing would stop the demo behind Space Cadet 2026's screens, which plays on there with no game to pause; a
+// table paused before the switch from Classic still resumes
+static bool DefinitiveKeepsPlaying()
+{
+	return options::GetEdition() == Editions::Definitive && !winmain::single_step &&
+		   (winmain::DemoActive || DefinitiveFrontEnd::ScreenOpen());
+}
+
 void winmain::HandleGameBinding(GameBindings binding, bool shortcut)
 {
 	switch (binding)
 	{
 	case GameBindings::TogglePause:
-		pause();
+		if (!DefinitiveKeepsPlaying() && !DefinitivePause())
+			pause();
 		break;
 	case GameBindings::NewGame:
 		new_game();
@@ -1840,13 +2253,16 @@ void winmain::HandleGameBinding(GameBindings binding, bool shortcut)
 		options::toggle(Menu1::Music);
 		break;
 	case GameBindings::ShowControlDialog:
-		pause(false);
+		if (!DefinitiveKeepsPlaying())
+			pause(false);
 		options::ShowControlDialog();
 		break;
 	case GameBindings::ToggleMenuDisplay:
 		options::toggle(Menu1::Show_Menu);
 		break;
 	case GameBindings::Exit:
+		if (shortcut && DefinitivePause())
+			break;
 #ifdef __EMSCRIPTEN__
 		break;
 #endif

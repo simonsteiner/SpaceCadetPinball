@@ -5,6 +5,7 @@
 
 enum class GameBindings;
 enum class PostEffects : int;
+enum class Editions : int;
 
 struct SdlTickClock
 {
@@ -97,6 +98,18 @@ public:
 	static void GamepadInput(SDL_JoystickID gamepad, int value, bool down);
 	static void TouchInput(const SDL_TouchFingerEvent& event);
 	static float ExpectedMenuHeight();
+	// Whether the menu bar is up: Classic's, when the Show Menu option is on; Space Cadet 2026 has none
+	static bool MenuBarShown();
+	// Why post-processing can't show, or null when it can
+	static const char* PostProcessingUnavailable();
+	// Starts measuring sleep again, after Precise Sleep is switched
+	static void ResetPreciseSleep();
+	// Opens or closes Space Cadet 2026's pause screen for the game in play, or ignores the key while a game ends; false
+	// when Classic's pause should handle it
+	static bool DefinitivePause();
+	// Space Cadet 2026's screen for missing game data, in place of the table; true once the player has chosen a
+	// folder to load from, false when they quit
+	static bool FindGameData(const std::vector<const char*>& searchPaths);
 
 private:
 	static int return_value;
@@ -119,6 +132,11 @@ private:
 	static float gfrWindow;
 	static int CursorIdleCounter;
 	static std::unique_ptr<ImGuiStyle> BaseStyle;
+	// Space Cadet 2026's style, before scaling like BaseStyle; it takes Classic's place while that edition is on
+	static std::unique_ptr<ImGuiStyle> DefinitiveStyle;
+	// The edition whose style and font the UI has, and whether this ImGui context has Space Cadet 2026's fonts yet
+	static Editions StyledEdition;
+	static bool DefinitiveFontsAdded;
 	static bool SoftwareRenderer;
 	static bool HighRefresh;
 	static DurationMs UpdateTime, UpdateTimeAccumulator;
@@ -136,6 +154,8 @@ private:
 	static void RenderEditionHint();
 	static void HybridSleep(DurationMs seconds);
 	static void MainLoop();
+	// Gives the UI the style and font of the edition that is on, between ImGui's backend and core NewFrame
+	static void ApplyEditionLook();
 	// One table update, then Space Cadet 2026's, while it is on
 	static void TableFrame(float dtMilliSec);
 	static void ImGuiMenuItemWShortcut(GameBindings binding, bool selected = false);

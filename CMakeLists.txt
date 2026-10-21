@@ -226,7 +226,31 @@ set(SOURCE_FILES
         SpaceCadetPinball/DebugOverlay.h
         SpaceCadetPinball/DefinitiveEdition.cpp
         SpaceCadetPinball/DefinitiveEdition.h
+        SpaceCadetPinball/DefinitiveFontData.h
+        SpaceCadetPinball/DefinitiveFrontEnd.cpp
+        SpaceCadetPinball/DefinitiveFrontEnd.h
+        SpaceCadetPinball/DefinitiveInGame.cpp
+        SpaceCadetPinball/DefinitiveSettings.cpp
+        SpaceCadetPinball/DefinitiveSettings.h
+        SpaceCadetPinball/DefinitiveText.cpp
+        SpaceCadetPinball/DefinitiveText.h
+        SpaceCadetPinball/DefinitiveTheme.cpp
+        SpaceCadetPinball/DefinitiveTheme.h
+        SpaceCadetPinball/DefinitiveUi.cpp
+        SpaceCadetPinball/DefinitiveUi.h
         )
+
+# Space Cadet 2026's fonts, vendored in third_party/fonts, become byte arrays at build time (DefinitiveFontData.h)
+file(GLOB SCP_FONTS CONFIGURE_DEPENDS third_party/fonts/*.ttf)
+set(SCP_FONT_DATA ${CMAKE_CURRENT_BINARY_DIR}/generated/DefinitiveFontData.cpp)
+add_custom_command(OUTPUT ${SCP_FONT_DATA}
+        COMMAND ${CMAKE_COMMAND} -DFONT_DIR=${CMAKE_CURRENT_SOURCE_DIR}/third_party/fonts -DOUTPUT=${SCP_FONT_DATA}
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbedFonts.cmake
+        DEPENDS ${SCP_FONTS} cmake/EmbedFonts.cmake
+        COMMENT "Embedding the fonts in third_party/fonts"
+        VERBATIM
+        )
+list(APPEND SOURCE_FILES ${SCP_FONT_DATA})
 
 # Vendored ImGui, a separate library so that it gets neither the game's precompiled header nor its warnings
 set(IMGUI_SOURCE_FILES
@@ -309,6 +333,17 @@ if(MSVC)
     target_compile_options(SpaceCadetPinball PRIVATE /utf-8)
     target_compile_options(imgui PRIVATE /utf-8)
 endif()
+
+# tools/check-bidi.sh's harness, which compares DefinitiveText::Shape with a reference; built only when asked for
+add_executable(bidi-harness EXCLUDE_FROM_ALL
+        tools/bidi/harness.cpp
+        SpaceCadetPinball/DefinitiveText.cpp
+        SpaceCadetPinball/translations.cpp
+        )
+target_include_directories(bidi-harness PRIVATE SpaceCadetPinball)
+target_link_libraries(bidi-harness imgui ${SDL_LIBRARIES})
+# In the build folder, not bin/ with the game
+set_target_properties(bidi-harness PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 # Only the game target gets the extra warnings, not vendored SDL and ImGui.
 # Unused parameters are allowed: overrides and callbacks have the signatures their interfaces set.

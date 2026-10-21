@@ -28,6 +28,9 @@ public:
 	static DatFile* record_table;
 	static TPinballTable* MainTable;
 	static bool FullTiltMode, FullTiltDemoMode;
+	// False from the start of a game until end_game has checked its high scores, which the table does a few seconds
+	// after it shows Game Over, or until the demo is stopped
+	static bool GameEnded;
 	static std::string DatFileName, BasePath;
 	static ImU32 TextBoxColor;
 	static int quickFlag;
@@ -35,6 +38,8 @@ public:
 
 	static int init();
 	static int uninit();
+	// The DAT file in a folder that ends in a separator, as SelectDatFile would pick it there, or an empty string
+	static std::string FindDatFile(const std::string& folder);
 	static void SelectDatFile(const std::vector<const char*>& dataSearchPaths);
 	static void reset_table();
 	static void firsttime_setup();

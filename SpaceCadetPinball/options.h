@@ -151,10 +151,21 @@ public:
 	static void GetInput(const std::string& rowName, GameInput (&values)[3]);
 	static void SetInput(const std::string& rowName, GameInput (&values)[3]);
 	static void toggle(Menu1 uIDCheckItem);
+	// A folder as the game data search joins file names to it: with a separator at its end, unless it is empty
+	static std::string FolderPath(std::string folder);
 	static void InputDown(GameInput input);
 	static void ShowControlDialog();
 	static void RenderControlDialog();
 	static bool WaitingForInput() { return ControlWaitingForInput; }
+	// The input the next key, mouse or gamepad button is bound to, as when the controls dialog waits; null to stop
+	static void WaitForInput(GameInput* input)
+	{
+		ControlWaitingForInput = input;
+	}
+	static GameInput* InputWaitedFor()
+	{
+		return ControlWaitingForInput;
+	}
 	static std::vector<GameBindings> MapGameInput(GameInput key);
 	static void ResetAllOptions();
 	static Editions GetEdition();
@@ -412,4 +423,6 @@ struct optionsStruct
 	IntOption Edition;
 	// The one-time hint that names the key for switching editions
 	BoolOption EditionHintShown;
+	// The folder the player chose for the game data, searched before the usual places; empty when none was chosen
+	StringOption GameDataFolder;
 };

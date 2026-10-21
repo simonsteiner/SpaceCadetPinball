@@ -6255,6 +6255,456 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_Play,
+		{
+			{ Lang::English, "Play" },
+		}
+	},
+	{
+		Msg::Definitive_Controls,
+		{
+			{ Lang::English, "Controls" },
+		}
+	},
+	{
+		Msg::Definitive_Credits,
+		{
+			{ Lang::English, "Credits" },
+		}
+	},
+	{
+		Msg::Definitive_Back,
+		{
+			{ Lang::English, "Back" },
+		}
+	},
+	{
+		Msg::Definitive_Choose,
+		{
+			{ Lang::English, "Choose" },
+		}
+	},
+	{
+		Msg::Definitive_Select,
+		{
+			{ Lang::English, "Select" },
+		}
+	},
+	{
+		Msg::Definitive_Scroll,
+		{
+			{ Lang::English, "Scroll" },
+		}
+	},
+	{
+		Msg::Definitive_Version,
+		{
+			{ Lang::English, "Version %s" },
+		}
+	},
+	{
+		Msg::Definitive_Settings,
+		{
+			{ Lang::English, "Settings" },
+		}
+	},
+	{
+		Msg::Definitive_Edition,
+		{
+			{ Lang::English, "Edition" },
+		}
+	},
+	{
+		Msg::Definitive_Classic,
+		{
+			{ Lang::English, "Classic" },
+		}
+	},
+	{
+		Msg::Definitive_Language,
+		{
+			{ Lang::English, "Language" },
+		}
+	},
+	{
+		Msg::Definitive_Display,
+		{
+			{ Lang::English, "Display" },
+		}
+	},
+	{
+		Msg::Definitive_Graphics,
+		{
+			{ Lang::English, "Graphics" },
+		}
+	},
+	{
+		Msg::Definitive_Audio,
+		{
+			{ Lang::English, "Audio" },
+		}
+	},
+	{
+		Msg::Definitive_Accessibility,
+		{
+			{ Lang::English, "Accessibility" },
+		}
+	},
+	{
+		Msg::Definitive_Group,
+		{
+			{ Lang::English, "Group" },
+		}
+	},
+	{
+		Msg::Definitive_Change,
+		{
+			{ Lang::English, "Change" },
+		}
+	},
+	{
+		Msg::Definitive_EditionNote,
+		{
+			{ Lang::English, "Classic is the game as it was. %s switches during play." },
+		}
+	},
+	{
+		Msg::Definitive_EndsGame,
+		{
+			{ Lang::English, "Ends the game in progress" },
+		}
+	},
+	{
+		Msg::Definitive_Restarts,
+		{
+			{ Lang::English, "Restarts the game" },
+		}
+	},
+	{
+		Msg::Definitive_Prefer3DPB,
+		{
+			{ Lang::English, "Prefer 3D Pinball's data to Full Tilt's" },
+		}
+	},
+	{
+		Msg::Definitive_Largest,
+		{
+			{ Lang::English, "Largest" },
+		}
+	},
+	{
+		Msg::Definitive_IntegerScaling,
+		{
+			{ Lang::English, "Integer scaling" },
+		}
+	},
+	{
+		Msg::Definitive_StackedLayout,
+		{
+			{ Lang::English, "Panel under the table in tall windows" },
+		}
+	},
+	{
+		Msg::Definitive_MatchRefresh,
+		{
+			{ Lang::English, "Match the display's refresh rate" },
+		}
+	},
+	{
+		Msg::Definitive_Fps,
+		{
+			{ Lang::English, "Frames per second" },
+		}
+	},
+	{
+		Msg::Definitive_Ups,
+		{
+			{ Lang::English, "Updates per second" },
+		}
+	},
+	{
+		Msg::Definitive_Uncapped,
+		{
+			{ Lang::English, "Uncapped speed" },
+		}
+	},
+	{
+		Msg::Definitive_PreciseSleep,
+		{
+			{ Lang::English, "Precise frame timing" },
+		}
+	},
+	{
+		Msg::Definitive_HideCursor,
+		{
+			{ Lang::English, "Hide the mouse pointer" },
+		}
+	},
+	{
+		Msg::Definitive_UpscaleSize,
+		{
+			{ Lang::English, "Upscale size" },
+		}
+	},
+	{
+		Msg::Definitive_Backdrop,
+		{
+			{ Lang::English, "Backdrop" },
+		}
+	},
+	{
+		Msg::Definitive_LinearFiltering,
+		{
+			{ Lang::English, "Linear filtering" },
+		}
+	},
+	{
+		Msg::Definitive_PostProcessing,
+		{
+			{ Lang::English, "Post-processing" },
+		}
+	},
+	{
+		Msg::Definitive_None,
+		{
+			{ Lang::English, "None" },
+		}
+	},
+	{
+		Msg::Definitive_Crt,
+		{
+			{ Lang::English, "CRT" },
+		}
+	},
+	{
+		Msg::Definitive_SmoothEdges,
+		{
+			{ Lang::English, "Smooth edges" },
+		}
+	},
+	{
+		Msg::Definitive_FontFile,
+		{
+			{ Lang::English, "Font file" },
+		}
+	},
+	{
+		Msg::Definitive_FontNote,
+		{
+			{ Lang::English, "For text the built-in fonts lack; restarts the game" },
+		}
+	},
+	{
+		Msg::Definitive_NoGpuWeb,
+		{
+			{ Lang::English, "Not in the browser" },
+		}
+	},
+	{
+		Msg::Definitive_OldSdl,
+		{
+			{ Lang::English, "Needs SDL 3.4 or newer" },
+		}
+	},
+	{
+		Msg::Definitive_NoGpuSoftware,
+		{
+			{ Lang::English, "Not with the software renderer" },
+		}
+	},
+	{
+		Msg::Definitive_NoGpu,
+		{
+			{ Lang::English, "Needs Vulkan, Direct3D 12 or Metal" },
+		}
+	},
+	{
+		Msg::Definitive_SoundVolume,
+		{
+			{ Lang::English, "Sound volume" },
+		}
+	},
+	{
+		Msg::Definitive_Stereo,
+		{
+			{ Lang::English, "Stereo sound effects" },
+		}
+	},
+	{
+		Msg::Definitive_SoundChannels,
+		{
+			{ Lang::English, "Sound channels" },
+		}
+	},
+	{
+		Msg::Definitive_MusicVolume,
+		{
+			{ Lang::English, "Music volume" },
+		}
+	},
+	{
+		Msg::Definitive_PressInput,
+		{
+			{ Lang::English, "Press a key..." },
+		}
+	},
+	{
+		Msg::Definitive_CancelInput,
+		{
+			{ Lang::English, "Esc or a tap cancels" },
+		}
+	},
+	{
+		Msg::Definitive_Rumble,
+		{
+			{ Lang::English, "Gamepad rumble" },
+		}
+	},
+	{
+		Msg::Definitive_DefaultControls,
+		{
+			{ Lang::English, "Restore the default controls" },
+		}
+	},
+	{
+		Msg::Definitive_UiScale,
+		{
+			{ Lang::English, "UI scale" },
+		}
+	},
+	{
+		Msg::Definitive_UiScaleNote,
+		{
+			{ Lang::English, "The size of the menus and their text" },
+		}
+	},
+	{
+		Msg::Definitive_Paused,
+		{
+			{ Lang::English, "Paused" },
+		}
+	},
+	{
+		Msg::Definitive_Resume,
+		{
+			{ Lang::English, "Resume" },
+		}
+	},
+	{
+		Msg::Definitive_SwitchToClassic,
+		{
+			{ Lang::English, "Switch to Classic" },
+		}
+	},
+	{
+		Msg::Definitive_Restart,
+		{
+			{ Lang::English, "Restart" },
+		}
+	},
+	{
+		Msg::Definitive_QuitToTitle,
+		{
+			{ Lang::English, "Quit to title" },
+		}
+	},
+	{
+		Msg::Definitive_EndGame,
+		{
+			{ Lang::English, "End this game?" },
+		}
+	},
+	{
+		Msg::Definitive_NewHighScore,
+		{
+			{ Lang::English, "New high score" },
+		}
+	},
+	{
+		Msg::Definitive_PlayAgain,
+		{
+			{ Lang::English, "Play again" },
+		}
+	},
+	{
+		Msg::Definitive_ToTitle,
+		{
+			{ Lang::English, "Title" },
+		}
+	},
+	{
+		Msg::Definitive_Place,
+		{
+			{ Lang::English, "%s, place %d of 5" },
+		}
+	},
+	{
+		Msg::Definitive_Delete,
+		{
+			{ Lang::English, "Delete" },
+		}
+	},
+	{
+		Msg::Definitive_Done,
+		{
+			{ Lang::English, "Done" },
+		}
+	},
+	{
+		Msg::Definitive_DataTitle,
+		{
+			{ Lang::English, "Game data needed" },
+		}
+	},
+	{
+		Msg::Definitive_DataExplain,
+		{
+			{ Lang::English, "Space Cadet 2026 plays the table of 3D Pinball for Windows or Full Tilt! Pinball, from files you already have: PINBALL.DAT or CADET.DAT and the sounds beside it. It looked in these places and found none:" },
+		}
+	},
+	{
+		Msg::Definitive_DataChoose,
+		{
+			{ Lang::English, "Choose the game data folder" },
+		}
+	},
+	{
+		Msg::Definitive_DataNoCopy,
+		{
+			{ Lang::English, "The game reads the files where they are and copies nothing." },
+		}
+	},
+	{
+		Msg::Definitive_DataNotThere,
+		{
+			{ Lang::English, "The folder chosen has no game data." },
+		}
+	},
+	{
+		Msg::Definitive_DataFolder,
+		{
+			{ Lang::English, "Game data folder" },
+		}
+	},
+	{
+		Msg::Definitive_DataStartFolder,
+		{
+			{ Lang::English, "The folder the game started in" },
+		}
+	},
+	{
+		Msg::Definitive_DataNoDialog,
+		{
+			{ Lang::English, "The folder dialog could not open (%s). Put the game data in one of the places above." },
+		}
+	},
+	{
+		Msg::Definitive_DataDialogFailed,
+		{
+			{ Lang::English, "The folder dialog could not open (%s)." },
+		}
+	},
+	{
 		Msg::FullTilt_Caption,
 		{
 			{ Lang::English, "Full Tilt! - Space Cadet" },

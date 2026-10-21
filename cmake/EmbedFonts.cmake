@@ -1,0 +1,20 @@
+# Writes OUTPUT, a C++ source with each font in FONT_DIR as a byte array, for DefinitiveFontData.h.
+# Run by CMakeLists.txt at build time with -DFONT_DIR=... -DOUTPUT=...; the fonts are third_party/fonts/*.ttf.
+file(GLOB fonts "${FONT_DIR}/*.ttf")
+list(SORT fonts)
+set(source "// Generated from third_party/fonts by cmake/EmbedFonts.cmake; don't edit.\n")
+foreach(font IN LISTS fonts)
+    get_filename_component(name "${font}" NAME_WE)
+    string(MAKE_C_IDENTIFIER "DefinitiveFont_${name}" symbol)
+    file(READ "${font}" bytes HEX)
+    string(LENGTH "${bytes}" length)
+    math(EXPR size "${length} / 2")
+    string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," bytes "${bytes}")
+    # Breaks the array into lines of 32 bytes, so compilers and editors don't meet one huge line
+    string(REGEX REPLACE "((0x..,){32})" "\\1\n" bytes "${bytes}")
+    string(APPEND source "extern const unsigned char ${symbol}[];\nconst unsigned char ${symbol}[] = {\n${bytes}\n};\n")
+    string(APPEND source "extern const unsigned int ${symbol}_Size;\nconst unsigned int ${symbol}_Size = ${size};\n")
+endforeach()
+file(WRITE "${OUTPUT}.tmp" "${source}")
+file(COPY_FILE "${OUTPUT}.tmp" "${OUTPUT}" ONLY_IF_DIFFERENT)
+file(REMOVE "${OUTPUT}.tmp")
