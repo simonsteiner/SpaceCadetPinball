@@ -206,6 +206,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/TSound.h
         SpaceCadetPinball/TTableLayer.cpp
         SpaceCadetPinball/TTableLayer.h
+        SpaceCadetPinball/TableView.cpp
+        SpaceCadetPinball/TableView.h
         SpaceCadetPinball/TTextBox.cpp
         SpaceCadetPinball/TTextBox.h
         SpaceCadetPinball/TTextBoxMessage.cpp
@@ -222,6 +224,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/zdrv.h
         SpaceCadetPinball/DebugOverlay.cpp
         SpaceCadetPinball/DebugOverlay.h
+        SpaceCadetPinball/DefinitiveEdition.cpp
+        SpaceCadetPinball/DefinitiveEdition.h
         )
 
 # Vendored ImGui, a separate library so that it gets neither the game's precompiled header nor its warnings

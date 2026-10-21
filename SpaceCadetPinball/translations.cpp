@@ -6243,6 +6243,18 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Menu1_ToggleEdition,
+		{
+			{ Lang::English, "Space Cadet 2026"},
+		}
+	},
+	{
+		Msg::EditionHint,
+		{
+			{ Lang::English, "This is Space Cadet 2026. %s switches to the classic game."},
+		}
+	},
+	{
 		Msg::FullTilt_Caption,
 		{
 			{ Lang::English, "Full Tilt! - Space Cadet" },

@@ -2,6 +2,7 @@
 #include "options.h"
 
 #include "PostEffect.h"
+#include "DefinitiveEdition.h"
 
 #include "fullscrn.h"
 #include "midi.h"
@@ -132,6 +133,13 @@ optionsStruct options::Options
 			{},
 			{}
 		},
+		{
+			"Toggle Edition",
+			Msg::Menu1_ToggleEdition,
+			{InputTypes::Keyboard, SDL_SCANCODE_TAB},
+			{},
+			{}
+		},
 	},
 	{"Sounds", true},
 	{"Music", true},
@@ -140,7 +148,7 @@ optionsStruct options::Options
 	{"Screen Resolution", -1},
 	{"UI Scale", 1.0f},
 	{"Uniform scaling", true},
-	{"Linear Filtering", false},
+	{"Linear Filtering", false, false},
 	{"Frames Per Second", DefFps},
 	{"Updates Per Second", DefUps},
 	{"ShowMenu", true},
@@ -148,7 +156,7 @@ optionsStruct options::Options
 	{"Sound Channels", DefSoundChannels},
 	{"HybridSleep", false},
 	{"Prefer 3DPB Game Data", false},
-	{"Integer Scaling", true},
+	{"Integer Scaling", true, true},
 	{"Sound Volume", DefVolume},
 	{"Music Volume", DefVolume},
 	{"Stereo Sound Effects", false},
@@ -165,14 +173,17 @@ optionsStruct options::Options
 	{"FontFileName", ""},
 	{"Language", translations::GetCurrentLanguage()->ShortName},
 	{"Hide Cursor", false},
-	{"Backdrop", true},
-	{"Stacked Layout", true},
+	{"Backdrop", true, true},
+	{"Stacked Layout", true, true},
 	{"Post Processing", 0},
 	{"Gamepad Rumble", true},
 	{"Match Display Refresh Rate", false},
-	{"Upscaled Art", false},
-	{"Upscale Factor", 2},
+	{"Upscaled Art", false, true},
+	{"Upscale Factor", 2, 2},
 	{"Key Bindings Version", KeyBindingsScancodes},
+	// Settings without it, from before editions existed, also start in Definitive
+	{"Edition", static_cast<int>(Editions::Definitive)},
+	{"Edition Hint Shown", false},
 };
 // clang-format on
 
@@ -181,9 +192,15 @@ namespace
 	// The keyboard defaults of Options.Key before Key Bindings Version, as keycodes, in the same order
 	constexpr SDL_Keycode KeycodeDefaults[] = {
 		SDLK_Z,  SDLK_SLASH, SDLK_SPACE, SDLK_X,  SDLK_PERIOD, SDLK_UP,     SDLK_F2, SDLK_F3,
-		SDLK_F4, SDLK_F5,    SDLK_F6,    SDLK_F8, SDLK_F9,     SDLK_ESCAPE, SDLK_F7,
+		SDLK_F4, SDLK_F5,    SDLK_F6,    SDLK_F8, SDLK_F9,     SDLK_ESCAPE, SDLK_F7, SDLK_TAB,
 	};
 	static_assert(std::size(KeycodeDefaults) == static_cast<size_t>(~GameBindings::Max));
+
+	void ShowEditionOptions(Editions edition)
+	{
+		for (const auto opt : options::AllOptions)
+			opt->ShowEdition(edition);
+	}
 } // namespace
 
 void options::InitPrimary()
@@ -206,8 +223,21 @@ void options::InitPrimary()
 
 	// Settings saved before Key Bindings Version existed hold keyboard bindings as keycodes
 	MigrateKeycodes = !HasSetting(Options.KeyBindingsVersion.Name);
+	auto& toggleEdition = Options.Key[~GameBindings::ToggleEdition];
+	auto newToggleEdition = !HasSetting(std::string{toggleEdition.Name} + " 0 input");
 	for (const auto opt : AllOptions)
 		opt->Load();
+	if (newToggleEdition)
+	{
+		// Settings from before the switch existed may already use its default key; then it starts unbound
+		const auto& tab = toggleEdition.Defaults[0];
+		for (const auto& control : Options.Key)
+		{
+			if (&control != &toggleEdition &&
+				std::find(std::begin(control.Inputs), std::end(control.Inputs), tab) != std::end(control.Inputs))
+				toggleEdition.Inputs[0] = {};
+		}
+	}
 	if (MigrateKeycodes)
 	{
 		// Write the scancodes now, as ImGui may save the new version before options::Save runs
@@ -522,6 +552,34 @@ void options::ResetAllOptions()
 	PostProcessOptions();
 }
 
+Editions options::GetEdition()
+{
+	return static_cast<Editions>(Options.Edition.V);
+}
+
+void options::SetEdition(Editions edition)
+{
+	if (edition == GetEdition())
+		return;
+
+	auto linearFiltering = Options.LinearFiltering.V;
+	SelectEdition(edition);
+	// Its state from before was left behind while Classic was on
+	DefinitiveEdition::Reset();
+
+	// What toggling each drawing option that differs would do
+	render::SetUpscale(Options.UpscaledArt ? Options.UpscaleFactor.V : 0);
+	if (Options.LinearFiltering != linearFiltering)
+		render::recreate_screen_texture();
+	fullscrn::window_size_changed();
+}
+
+void options::SelectEdition(Editions edition)
+{
+	Options.Edition = static_cast<int>(edition);
+	ShowEditionOptions(edition);
+}
+
 void options::MyUserData_ReadLine(ImGuiContext* ctx, ImGuiSettingsHandler* handler, void* entry, const char* line)
 {
 	auto& keyValueStore = *static_cast<std::unordered_map<std::string, std::string>*>(entry);
@@ -558,10 +616,17 @@ void options::PostProcessOptions()
 	Options.UpdatesPerSecond = Clamp(Options.UpdatesPerSecond.V, MinUps, MaxUps);
 	Options.SoundChannels = Clamp(Options.SoundChannels.V, MinSoundChannels, MaxSoundChannels);
 	Options.SoundVolume = Clamp(Options.SoundVolume.V, MinVolume, MaxVolume);
-	Options.UpscaleFactor = Options.UpscaleFactor.V >= 4 ? 4 : 2;
 	Options.PostProcessing = Clamp(Options.PostProcessing.V, 0, static_cast<int>(PostEffects::Max) - 1);
 	Options.MusicVolume = Clamp(Options.MusicVolume.V, MinVolume, MaxVolume);
 	Options.KeyBindingsVersion = KeyBindingsScancodes;
+	Options.Edition = Clamp(Options.Edition.V, 0, static_cast<int>(Editions::Max) - 1);
+	// The drawing options of each edition are clamped while that edition's are on show
+	for (auto edition : {Editions::Classic, Editions::Definitive})
+	{
+		ShowEditionOptions(edition);
+		Options.UpscaleFactor = Options.UpscaleFactor.V >= 4 ? 4 : 2;
+	}
+	ShowEditionOptions(GetEdition());
 	translations::SetCurrentLanguage(Options.Language.V.c_str());
 	winmain::UpdateFrameRate();
 }

@@ -38,13 +38,29 @@ Actual:   t=3266 m=1 p=0 n=3 s0=0 b=-
 
 Playback doesn't save options or show dialogs. It uses SDL's `dummy` video driver unless `SDL_VIDEODRIVER` says otherwise.
 
+### Both editions
+
+Playback runs Classic, whatever the saved settings say. `-edition definitive` runs Space Cadet 2026 instead: it uses that edition's drawing options and runs its per-update code (`DefinitiveEdition::Update`) after every frame, as in play, with nothing drawn. Space Cadet 2026 reads the table only through the table view (`TableView.h`) and must never change it.
+
+The state line doesn't show everything: a write to a light or a text box shows only once it changes a score or a ball. So playback also prints, before each frame's check, a hash of the table view after that frame:
+
+```text
+view 390 3a7f0c2e9b14d856
+```
+
+The view holds the balls, flippers, lights, text box messages, scores, ball count, players, mission and rank, so the two editions' hashes are equal on every frame unless presentation code changed the table.
+
+Playback also prints the edition it starts in (`Edition: classic` or `Edition: definitive`).
+
 To check a whole folder:
 
 ```bash
 tools/check-replays.sh ../replays ../gamedata
 ```
 
-The script plays every `.replay` file in the first folder with the second folder as the working directory, prints one line per replay and exits non-zero if any of them differ. A third argument picks a different executable; the default is `bin/SpaceCadetPinball`.
+The script plays every `.replay` file in the first folder twice, in Classic and in Space Cadet 2026, with the second folder as the working directory. A replay passes when both runs match the recording, each reports the edition it was asked for and printed a view hash for every frame, and the hashes are equal on every frame; otherwise the script names the edition that diverged, or the first frame whose view differs between them. It prints one line per replay and exits non-zero if any of them fail. A third argument picks a different executable; the default is `bin/SpaceCadetPinball`.
+
+For Full Tilt data, a `linux-sanitize` build currently stops while loading `CADET.DAT`, at a misaligned 16-bit read in `GroupData::SplitSplicedBitmap` that UBSan reports. It happens before any replay command runs, and on `main` too. To check the rest with the sanitizers, build with `-fno-sanitize=alignment` added to `SCP_SANITIZER_FLAGS` in `CMakeLists.txt`, locally.
 
 ## What gets recorded
 
@@ -53,6 +69,8 @@ Everything that reaches the table from outside goes through a handful of `pb` fu
 - each `pb::frame` call with its time step, followed by the state after it
 - table input after the key bindings are resolved (`pb::GameInputDown`, `pb::GameInputUp`), so a replay doesn't depend on the player's key bindings or keyboard layout. Bindings match keys by scancode, but a key press is recorded with its keycode, which the cheat codes read
 - new game, demo toggle, pause, focus loss, ball launch, cheats, the cheat-mode F10 freeze and mouse ball control (the cheat-mode drag)
+
+Other shortcuts, such as full screen or sound, aren't played back, except the edition switch (Tab by default): a recorded press of it switches editions in playback too, so a recording that switches during a game checks that switching leaves the table alone.
 
 The time step comes from the wall clock, so it differs from frame to frame and from run to run. That is why the demo plays out differently between runs, and why a replay records each step instead of assuming a fixed rate. The game's random numbers come from `rand()`, which is never seeded, so it always starts at 1; a replay records that seed and applies it before the table loads.
 

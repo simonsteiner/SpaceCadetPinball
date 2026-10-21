@@ -102,6 +102,10 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      # Space Cadet 2026's presentation code reads the table only through TableView.h
+      - name: Check presentation includes
+        run: tools/check-presentation-includes.sh
+
       - name: Install clang-format and clang-tidy
         run: |
           python3 -m venv /opt/llvm

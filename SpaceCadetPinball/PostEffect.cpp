@@ -40,7 +40,7 @@ SDL_Renderer* PostEffect::CreateGpuRenderer(SDL_Window* window)
 	SDL_DestroyProperties(props);
 	if (!renderer)
 	{
-		printf("Could not create the GPU renderer for post-processing.\nSDL Error: %s\n", SDL_GetError());
+		printf("Could not create SDL's GPU renderer, using the default renderer.\nSDL Error: %s\n", SDL_GetError());
 		SDL_ClearError();
 	}
 #else

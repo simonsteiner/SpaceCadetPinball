@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Checks that Space Cadet 2026's presentation code, the SpaceCadetPinball/Definitive*.cpp and .h files, reads the
+# table only through the table view: it may include pch.h, TableView.h, translations.h, options.h, ImGui (imgui*.h), SDL, the
+# standard library and other Definitive files, but not the table's or the components' headers (AGENTS.md).
+# Usage: tools/check-presentation-includes.sh [file]...
+#   with files, checks those that are presentation code (lefthook passes the staged files); without, checks them all
+set -u
+
+# From the script's own path, not git, which CI's container doesn't trust before safe.directory is set
+cd "$(dirname "$0")/.." || exit 2
+
+is_presentation() {
+    case "$1" in
+        SpaceCadetPinball/Definitive*.cpp | SpaceCadetPinball/Definitive*.h) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+files=()
+# With files, as from the pre-commit hook, the staged versions are read, so unstaged edits don't hide a problem
+staged=0
+if [ $# -gt 0 ]; then
+    staged=1
+    for file in "$@"; do
+        if is_presentation "$file" && git cat-file -e ":$file" 2>/dev/null; then
+            files+=("$file")
+        fi
+    done
+else
+    for file in SpaceCadetPinball/Definitive*.cpp SpaceCadetPinball/Definitive*.h; do
+        [ -f "$file" ] && files+=("$file")
+    done
+fi
+
+# In a variable, because bash can't take the quotes and angle brackets literally inside [[ =~ ]]
+include_pattern='^[[:space:]]*#[[:space:]]*include[[:space:]]*(["<])([^">]+)[">]'
+# Bash before 4.4 treats an empty array as unset under set -u
+[ ${#files[@]} -eq 0 ] && exit 0
+
+failed=0
+for file in "${files[@]}"; do
+    line_number=0
+    while IFS= read -r line || [ -n "$line" ]; do
+        line_number=$((line_number + 1))
+        line=${line%$'\r'}
+        [[ $line =~ $include_pattern ]] || continue
+        kind=${BASH_REMATCH[1]} header=${BASH_REMATCH[2]}
+        allowed=0
+        if [ "$kind" = '<' ]; then
+            # SDL and the standard library; the game's own headers are never included with angle brackets
+            case "$header" in
+                SDL3/* | SDL3_mixer/*) allowed=1 ;;
+                *.*) ;;
+                *) allowed=1 ;;
+            esac
+        else
+            case "$header" in
+                pch.h | TableView.h | translations.h | options.h | imgui*.h) allowed=1 ;;
+                Definitive*.h) [[ $header != */* ]] && allowed=1 ;;
+            esac
+        fi
+        if [ "$allowed" -eq 0 ]; then
+            closing='"'
+            [ "$kind" = '<' ] && closing='>'
+            echo "$file:$line_number: presentation code may not include ${kind}${header}${closing}; read the table through TableView.h" >&2
+            failed=1
+        fi
+    done < <(if [ "$staged" -eq 1 ]; then git show ":$file"; else cat "$file"; fi)
+done
+exit "$failed"

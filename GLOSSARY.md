@@ -85,3 +85,17 @@ An accumulating bonus pool awarded during play.
 **Demo mode**:
 The attract mode in which the table plays itself.
 _Avoid_: Demo (ambiguous with `DEMO.DAT`), autoplay
+
+## Editions
+
+**Edition**:
+How the game is presented, chosen by the player and switchable at any time, also during a game. Both editions play the same table with the same physics and rules.
+_Avoid_: Mode (taken by game mode and demo mode), skin
+
+**Definitive**:
+The edition named Space Cadet 2026, with a modern front end, HUD and rendering. It is the default.
+_Avoid_: Modern, remaster, HD
+
+**Classic**:
+The edition that looks and works as the game did before editions existed.
+_Avoid_: Legacy, original (the original is Microsoft's game)

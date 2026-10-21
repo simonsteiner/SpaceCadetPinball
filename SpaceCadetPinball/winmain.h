@@ -127,10 +127,16 @@ private:
 	// Buttons and triggers held on each gamepad, released when it is unplugged
 	static std::map<SDL_JoystickID, std::set<int>> GamepadHeld;
 	static std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> TouchBindings;
+	// When the edition hint goes away, in SDL ticks; 0 while it isn't shown
+	static Uint64 EditionHintEnd;
 
 	static void RenderUi();
 	static void RenderFrameTimeDialog();
+	// The one-time hint that names the key for switching editions
+	static void RenderEditionHint();
 	static void HybridSleep(DurationMs seconds);
 	static void MainLoop();
+	// One table update, then Space Cadet 2026's, while it is on
+	static void TableFrame(float dtMilliSec);
 	static void ImGuiMenuItemWShortcut(GameBindings binding, bool selected = false);
 };

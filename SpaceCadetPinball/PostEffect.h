@@ -23,10 +23,6 @@ public:
 	// Releases the shaders; call before the renderer is destroyed
 	static void Uninit();
 	static void SetEffect(PostEffects effect);
-	static bool Available()
-	{
-		return Supported;
-	}
 	static bool GpuRendererFailed()
 	{
 		return GpuFailed;
