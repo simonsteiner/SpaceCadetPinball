@@ -103,6 +103,11 @@ bool DefinitiveFrontEnd::PassesShortcut(bool escape)
 	return Focused && (!escape || Current == Screen::Title);
 }
 
+bool DefinitiveFrontEnd::WaitsForBinding()
+{
+	return Current == Screen::Settings && DefinitiveSettings::WaitsForBinding();
+}
+
 void DefinitiveFrontEnd::Open(Screen screen)
 {
 	Current = screen;

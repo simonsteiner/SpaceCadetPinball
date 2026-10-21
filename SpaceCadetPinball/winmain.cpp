@@ -1299,8 +1299,32 @@ static bool FrontEndPassesShortcut(const SDL_Event& event)
 					   [](GameBindings binding) { return binding > GameBindings::BottomTableBump; });
 }
 
+// Whether an event cancels Space Cadet 2026's wait for a binding instead of being bound: Escape, which Settings goes back
+// with, and a tap, which can't be bound. Classic's controls dialog keeps binding them.
+static bool CancelsBindingWait(const SDL_Event& event)
+{
+	if (options::GetEdition() != Editions::Definitive || !DefinitiveFrontEnd::WaitsForBinding())
+		return false;
+	switch (event.type)
+	{
+	case SDL_EVENT_KEY_DOWN:
+		return event.key.key == SDLK_ESCAPE;
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
+		return event.button.which == SDL_TOUCH_MOUSEID;
+	default:
+		return false;
+	}
+}
+
 int winmain::event_handler(const SDL_Event* event)
 {
+	// Neither ImGui nor the game sees it, so the cancel neither goes back nor taps a row
+	if (CancelsBindingWait(*event))
+	{
+		options::WaitForInput(nullptr);
+		return 1;
+	}
+
 	// Goes past ImGui to the game, as when no window has the keyboard
 	auto shortcut = FrontEndPassesShortcut(*event);
 	auto inputDown = false;

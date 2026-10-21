@@ -6537,6 +6537,12 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_CancelInput,
+		{
+			{ Lang::English, "Esc or a tap cancels" },
+		}
+	},
+	{
 		Msg::Definitive_Rumble,
 		{
 			{ Lang::English, "Gamepad rumble" },

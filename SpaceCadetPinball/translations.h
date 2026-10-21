@@ -275,6 +275,7 @@ enum class Msg : int
 	Definitive_SoundChannels,
 	Definitive_MusicVolume,
 	Definitive_PressInput,
+	Definitive_CancelInput,
 	Definitive_Rumble,
 	Definitive_DefaultControls,
 	Definitive_UiScale,

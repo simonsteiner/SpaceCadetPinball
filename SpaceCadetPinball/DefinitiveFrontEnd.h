@@ -63,6 +63,8 @@ public:
 	// Whether a key the game binds to a shortcut should still reach the game although a screen has the keyboard: while
 	// a screen had the focus in the last frame, and for Escape only on the title, the one screen it doesn't take back
 	static bool PassesShortcut(bool escape);
+	// Whether Settings waits for a key or button to bind to a control, which Escape and a tap cancel instead
+	static bool WaitsForBinding();
 
 private:
 	enum class Screen

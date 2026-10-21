@@ -14,6 +14,7 @@ bool DefinitiveSettings::ShownLanguages = false;
 bool DefinitiveSettings::BackChosen = false;
 bool DefinitiveSettings::FocusLanguage = false;
 int DefinitiveSettings::Slot = 0;
+GameInput* DefinitiveSettings::Waited = nullptr;
 
 namespace
 {
@@ -65,6 +66,11 @@ void DefinitiveSettings::Open(Group group)
 	Languages = false;
 	FocusLanguage = false;
 	Slot = 0;
+}
+
+bool DefinitiveSettings::WaitsForBinding()
+{
+	return options::WaitingForInput() && options::InputWaitedFor() == Waited;
 }
 
 bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
@@ -204,7 +210,8 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 					  {{Ui::Action::Choose, Text(Msg::Definitive_Choose)},
 					   {Ui::Action::Select, Text(Msg::Definitive_Select)},
 					   {Ui::Action::Back, Text(Msg::Definitive_Back)}});
-	else
+	// While a slot waits, those keys and buttons would be bound; its row says how to cancel instead
+	else if (!WaitsForBinding())
 		Ui::DrawHints(drawList, hints,
 					  {{Ui::Action::Group, Text(Msg::Definitive_Group)},
 					   {Ui::Action::Change, Text(Msg::Definitive_Change)},
@@ -390,6 +397,9 @@ void DefinitiveSettings::RenderControls()
 	{
 		auto& control = options::Options.Key[~binding];
 		ImGui::PushID(~binding);
+		auto waited = options::InputWaitedFor();
+		if (waiting && waited >= std::begin(control.Inputs) && waited < std::end(control.Inputs))
+			Ui::NextRowNote(Text(Msg::Definitive_CancelInput));
 		auto chosen = Ui::MenuRow("binding", Text(control.Description), false, nullptr, true, slotsWidth + 8 * scale);
 		auto row = Ui::LastRow();
 		auto focused = Ui::LastRowFocused();
@@ -427,7 +437,8 @@ void DefinitiveSettings::RenderControls()
 		{
 			if (tapped >= 0 && ImGui::IsMouseReleased(0))
 				Slot = tapped;
-			options::WaitForInput(&control.Inputs[Slot]);
+			Waited = &control.Inputs[Slot];
+			options::WaitForInput(Waited);
 		}
 		if (focused && !waiting &&
 			(ImGui::IsKeyPressed(ImGuiKey_Delete, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceLeft, false)))
