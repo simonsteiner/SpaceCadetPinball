@@ -6483,6 +6483,18 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_FontFile,
+		{
+			{ Lang::English, "Font file" },
+		}
+	},
+	{
+		Msg::Definitive_FontNote,
+		{
+			{ Lang::English, "For text the built-in fonts lack; restarts the game" },
+		}
+	},
+	{
 		Msg::Definitive_NoGpuWeb,
 		{
 			{ Lang::English, "Not in the browser" },
@@ -6534,6 +6546,12 @@ const TextArray translations::Translations =
 		Msg::Definitive_PressInput,
 		{
 			{ Lang::English, "Press a key..." },
+		}
+	},
+	{
+		Msg::Definitive_CancelInput,
+		{
+			{ Lang::English, "Esc or a tap cancels" },
 		}
 	},
 	{

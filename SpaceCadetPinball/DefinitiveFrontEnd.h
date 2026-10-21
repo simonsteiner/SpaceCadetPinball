@@ -49,6 +49,8 @@ struct DefinitiveHost
 	void (*SetLanguage)(const char* shortName);
 	// The largest table resolution the data has, 0 for 640 by 480 only
 	int (*MaxResolution)();
+	// Opens the dialog that asks for a font file, as the Classic menu's Change Font does
+	void (*ChangeFont)();
 	// The key or button that switches editions, empty when none is bound
 	std::string (*EditionKey)();
 };
@@ -69,6 +71,11 @@ public:
 	static void ShowPause();
 	// Whether a screen is open, rather than the game in play
 	static bool ScreenOpen();
+	// Whether a key the game binds to a shortcut should still reach the game although a screen has the keyboard: while
+	// a screen had the focus in the last frame, and for Escape only on the title, the one screen it doesn't take back
+	static bool PassesShortcut(bool escape);
+	// Whether Settings waits for a key or button to bind to a control, which Escape and a tap cancel instead
+	static bool WaitsForBinding();
 
 private:
 	enum class Screen
@@ -85,7 +92,7 @@ private:
 
 	static DefinitiveHost Host;
 	static Screen Current, SettingsFrom;
-	static bool Opened, ConfirmClear, SummaryShown;
+	static bool Opened, ConfirmClear, SummaryShown, Focused;
 	static float CreditsScroll;
 	// The high score whose name is being entered, its place, the name so far, and the scores that made the table
 	static DefinitiveHost::Record Entry;

@@ -259,9 +259,11 @@ int DefinitiveUi::SliderRow(const char* id, const char* label, int value, int mi
 	auto centreY = (Row.Min.y + Row.Max.y) / 2;
 	ImVec2 trackMin{Row.Max.x - 16 * scale - trackWidth, centreY - 3 * scale};
 	ImVec2 trackMax{trackMin.x + trackWidth, centreY + 3 * scale};
-	// A press on the row near the track, and a drag from there, moves the knob to the pointer
+	// A press on the row near the track, and a drag from there, moves the knob to the pointer; Enter or the pad's A
+	// make the row active too, but leave the knob where it is
 	auto& io = ImGui::GetIO();
-	if (ImGui::IsItemActive() && io.MouseClickedPos[0].x >= trackMin.x - 12 * scale)
+	if (ImGui::IsItemActive() && GImGui->ActiveIdSource == ImGuiInputSource_Mouse &&
+		io.MouseClickedPos[0].x >= trackMin.x - 12 * scale)
 	{
 		auto fraction = std::clamp((io.MousePos.x - trackMin.x) / trackWidth, 0.0f, 1.0f);
 		auto steps = std::lround(fraction * static_cast<float>(max - min) / static_cast<float>(step));

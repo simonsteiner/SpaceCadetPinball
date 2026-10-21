@@ -27,6 +27,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "DefinitiveFrontEnd.h"
 #include "DefinitiveText.h"
 #include "DefinitiveTheme.h"
+#include "DefinitiveUi.h"
 #include "EmbeddedData.h"
 #include "fullscrn.h"
 #include "midi.h"
@@ -237,6 +238,7 @@ static DefinitiveHost MakeDefinitiveHost()
 		winmain::Restart();
 	};
 	host.MaxResolution = fullscrn::GetMaxResolution;
+	host.ChangeFont = font_selection::ShowDialog;
 	host.EditionKey = [] { return options::Options.Key[~GameBindings::ToggleEdition].GetShortcutDescription(); };
 	return host;
 }
@@ -1259,8 +1261,93 @@ void winmain::RenderUi()
 	gdrv::grtext_draw_ttext_in_box();
 }
 
+// Whether a key or gamepad button goes to the game although Space Cadet 2026's screen has the keyboard: one bound to a
+// shortcut such as the edition switch, but not to the table, which ignores input on the title anyway, and none the
+// screens move or choose with, so nothing is handled twice
+static bool FrontEndPassesShortcut(const SDL_Event& event)
+{
+	if (options::GetEdition() != Editions::Definitive)
+		return false;
+	GameInput input;
+	switch (event.type)
+	{
+	case SDL_EVENT_KEY_DOWN:
+	case SDL_EVENT_KEY_UP:
+		switch (event.key.key)
+		{
+		case SDLK_UP:
+		case SDLK_DOWN:
+		case SDLK_LEFT:
+		case SDLK_RIGHT:
+		case SDLK_RETURN:
+		case SDLK_KP_ENTER:
+		case SDLK_SPACE:
+			return false;
+		default:
+			break;
+		}
+		if (!DefinitiveFrontEnd::PassesShortcut(event.key.key == SDLK_ESCAPE))
+			return false;
+		input = {InputTypes::Keyboard, event.key.scancode};
+		break;
+	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+	case SDL_EVENT_GAMEPAD_BUTTON_UP:
+		switch (event.gbutton.button)
+		{
+		case SDL_GAMEPAD_BUTTON_DPAD_UP:
+		case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
+		case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+		case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+		case SDL_GAMEPAD_BUTTON_SOUTH:
+		case SDL_GAMEPAD_BUTTON_EAST:
+		case SDL_GAMEPAD_BUTTON_WEST:
+		case SDL_GAMEPAD_BUTTON_NORTH:
+		case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
+		case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
+			return false;
+		default:
+			break;
+		}
+		if (!DefinitiveFrontEnd::PassesShortcut(false))
+			return false;
+		input = {InputTypes::GameController, event.gbutton.button};
+		break;
+	default:
+		return false;
+	}
+	auto bindings = options::MapGameInput(input);
+	return std::any_of(bindings.begin(), bindings.end(),
+					   [](GameBindings binding) { return binding > GameBindings::BottomTableBump; });
+}
+
+// Whether an event cancels Space Cadet 2026's wait for a binding instead of being bound: Escape, which Settings goes
+// back with, and a tap, which can't be bound. Classic's controls dialog keeps binding them.
+static bool CancelsBindingWait(const SDL_Event& event)
+{
+	if (options::GetEdition() != Editions::Definitive || !DefinitiveFrontEnd::WaitsForBinding())
+		return false;
+	switch (event.type)
+	{
+	case SDL_EVENT_KEY_DOWN:
+		return event.key.key == SDLK_ESCAPE;
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
+		return event.button.which == SDL_TOUCH_MOUSEID;
+	default:
+		return false;
+	}
+}
+
 int winmain::event_handler(const SDL_Event* event)
 {
+	// Neither ImGui nor the game sees it, so the cancel neither goes back nor taps a row
+	if (CancelsBindingWait(*event))
+	{
+		options::WaitForInput(nullptr);
+		return 1;
+	}
+
+	// Goes past ImGui to the game, as when no window has the keyboard
+	auto shortcut = FrontEndPassesShortcut(*event);
 	auto inputDown = false;
 	switch (event->type)
 	{
@@ -1271,7 +1358,7 @@ int winmain::event_handler(const SDL_Event* event)
 		break;
 	default: break;
 	}
-	if (!options::WaitingForInput() || !inputDown)
+	if ((!options::WaitingForInput() || !inputDown) && !shortcut)
 		ImGui_ImplSDL3_ProcessEvent(event);
 
 	bool mouseEvent;
@@ -1299,7 +1386,7 @@ int winmain::event_handler(const SDL_Event* event)
 		if (mouseEvent)
 			return 1;
 	}
-	if (ImIO->WantCaptureKeyboard && !options::WaitingForInput())
+	if (ImIO->WantCaptureKeyboard && !options::WaitingForInput() && !shortcut)
 	{
 		switch (event->type)
 		{
@@ -1609,6 +1696,9 @@ void winmain::RenderEditionHint()
 	auto lampSpace = lampRadius * 2 + padding.x;
 	auto wrapWidth = viewport->Size.x - padding.x * 4 - lampSpace;
 	auto textSize = ImGui::CalcTextSize(text, nullptr, false, wrapWidth);
+	// Over a Space Cadet 2026 screen, low down above its key hints, so it leaves the screen's name in view
+	if (DefinitiveFrontEnd::ScreenOpen())
+		top = viewport->Pos.y + viewport->Size.y - 64 * DefinitiveUi::Scale() - textSize.y / 2 - padding.y;
 	auto width = lampSpace + textSize.x;
 	auto left = Clamp(centre - width / 2, padding.x * 2, viewport->Size.x - padding.x * 2 - width);
 	ImVec2 panelMin{viewport->Pos.x + left - padding.x, top - textSize.y / 2 - padding.y};

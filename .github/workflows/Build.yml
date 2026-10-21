@@ -106,14 +106,21 @@ jobs:
       - name: Check presentation includes
         run: tools/check-presentation-includes.sh
 
-      - name: Install clang-format and clang-tidy
+      - name: Install clang-format, clang-tidy, python-bidi and arabic-reshaper
         run: |
           python3 -m venv /opt/llvm
           /opt/llvm/bin/pip install --require-hashes --no-deps --only-binary :all: -r tools/llvm-requirements.txt
+          /opt/llvm/bin/pip install --require-hashes --no-deps --only-binary :all: -r tools/bidi/requirements.txt
 
       # The compile database is all clang-tidy needs; without the precompiled header, each file parses on its own
       - name: Configure
         run: cmake -S . -B build/lint -G Ninja -DSCP_VENDORED_SDL=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON
+
+      # Space Cadet 2026's right-to-left text (DefinitiveText::Shape) against python-bidi and arabic-reshaper
+      - name: Check right-to-left text
+        env:
+          BIDI_PYTHON: /opt/llvm/bin/python
+        run: tools/check-bidi.sh build/lint
 
       # A pull request is checked out as its merge into the base, so HEAD^1 is the base it is compared with,
       # even when the base branch has moved on since the run started
