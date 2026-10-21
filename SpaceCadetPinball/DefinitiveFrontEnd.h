@@ -11,6 +11,9 @@ struct DefinitiveHost
 {
 	struct Record
 	{
+		// The longest name the high score table keeps, in bytes of UTF-8
+		static constexpr size_t MaxNameBytes = 31;
+
 		std::string Name;
 		int Score;
 	};

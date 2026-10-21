@@ -30,6 +30,9 @@ namespace
 		return Text(static_cast<Msg>(static_cast<int>(Msg::STRING127) + std::clamp(player, 0, 3)));
 	}
 
+	// The most characters a name takes, whatever their script, as long as the high score table has room for their bytes
+	constexpr size_t MaxNameLength = 16;
+
 	bool ConfirmRestart = false, ConfirmQuit = false, FocusConfirm = false;
 	int PauseFrame = 0;
 
@@ -287,7 +290,6 @@ void DefinitiveFrontEnd::RenderNameEntry()
 	// The letters a pad or a finger picks from; a keyboard types the name instead
 	static const char letters[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -.!";
 	constexpr int columns = 10, letterRows = 4;
-	constexpr size_t maxLength = 16;
 	auto min = BeginCentred("##DefinitiveNameEntry",
 							ImVec2{520, 24 + 40 + 28 + 24 + 52 + 24 + (letterRows + 1) * 44.0f + 24 + 32});
 	auto scale = Ui::Scale();
@@ -309,14 +311,23 @@ void DefinitiveFrontEnd::RenderNameEntry()
 				   digits.c_str());
 
 	auto& io = ImGui::GetIO();
+	// A character more, while the name has room for it; never a leading space, so a held Space makes no blank name
+	auto add = [](const char* utf8, size_t size)
+	{
+		auto length = std::count_if(EntryName.begin(), EntryName.end(),
+									[](char byte) { return (static_cast<unsigned char>(byte) & 0xC0U) != 0x80U; });
+		if (static_cast<size_t>(length) < MaxNameLength &&
+			EntryName.size() + size <= DefinitiveHost::Record::MaxNameBytes && !(EntryName.empty() && *utf8 == ' '))
+			EntryName.append(utf8, size);
+	};
 	auto typedSpace = false;
 	for (auto character : io.InputQueueCharacters)
 	{
-		if (character < 0x20 || character == 0x7F || EntryName.size() >= maxLength)
+		if (character < 0x20 || character == 0x7F)
 			continue;
-		char utf8[5];
-		EntryName.append(utf8, static_cast<size_t>(ImTextCharToUtf8(utf8, character)));
 		typedSpace |= character == ' ';
+		char utf8[5];
+		add(utf8, static_cast<size_t>(ImTextCharToUtf8(utf8, character)));
 	}
 	auto erase = []
 	{
@@ -391,8 +402,8 @@ void DefinitiveFrontEnd::RenderNameEntry()
 		ImVec2 at{min.x + padding + static_cast<float>(column) * (cellWidth + gap),
 				  y + static_cast<float>(row) * (cellHeight + gap)};
 		char label[2] = {letters[index] == ' ' ? '_' : letters[index], 0};
-		if (cell(index, at, ImVec2{cellWidth, cellHeight}, label, opened && index == 0) && EntryName.size() < maxLength)
-			EntryName += letters[index];
+		if (cell(index, at, ImVec2{cellWidth, cellHeight}, label, opened && index == 0))
+			add(&letters[index], 1);
 	}
 	auto lastRow = y + static_cast<float>(letterRows) * (cellHeight + gap);
 	auto half = (width - gap) / 2;
@@ -419,8 +430,10 @@ void DefinitiveFrontEnd::RenderNameEntry()
 
 	if (done)
 	{
-		// An empty name keeps the player's default one
-		DefinitiveHost::Record record{EntryName.empty() ? Entry.Name : EntryName, Entry.Score};
+		// An empty name keeps the player's default one; trailing spaces go
+		auto end = EntryName.find_last_not_of(' ');
+		DefinitiveHost::Record record{end == std::string::npos ? Entry.Name : EntryName.substr(0, end + 1),
+									  Entry.Score};
 		if (Host.SaveRecord)
 			Host.SaveRecord(record, EntryPlace);
 		NewRecords.push_back(Entry.Name);

@@ -196,6 +196,7 @@ static DefinitiveHost MakeDefinitiveHost()
 		place = entry.Position;
 		return true;
 	};
+	static_assert(sizeof high_score_struct::Name == DefinitiveHost::Record::MaxNameBytes + 1);
 	host.SaveRecord = [](const DefinitiveHost::Record& record, int place)
 	{
 		high_score_entry entry{{}, place};
