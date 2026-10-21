@@ -11,6 +11,7 @@ DefinitiveSettings::Group DefinitiveSettings::Current = Group::Edition;
 bool DefinitiveSettings::Opened = false;
 bool DefinitiveSettings::Languages = false;
 bool DefinitiveSettings::ShownLanguages = false;
+bool DefinitiveSettings::BackChosen = false;
 int DefinitiveSettings::Slot = 0;
 
 namespace
@@ -180,13 +181,19 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 			break;
 		}
 	}
+	// Every tab and the language list end in Back, for a mouse or touch, which have no hints
+	if (Ui::MenuRow("back", Text(Msg::Definitive_Back)))
+		BackChosen = true;
 	ImGui::PopItemWidth();
 	ImGui::EndChild();
 	ShownLanguages = showedLanguages && Languages;
 
-	auto back = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !options::WaitingForInput() &&
-				(ImGui::IsKeyPressed(ImGuiKey_Escape, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) ||
-				 ImGui::IsMouseClicked(ImGuiMouseButton_Right));
+	auto back = BackChosen || (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
+								 !options::WaitingForInput() &&
+								 (ImGui::IsKeyPressed(ImGuiKey_Escape, false) ||
+								  ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) ||
+								  ImGui::IsMouseClicked(ImGuiMouseButton_Right)));
+	BackChosen = false;
 	ImVec2 hints{min.x + padding, min.y + size.y - padding - 26 * scale};
 	if (Languages)
 		Ui::DrawHints(drawList, hints,

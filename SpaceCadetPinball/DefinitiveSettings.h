@@ -24,7 +24,7 @@ public:
 
 private:
 	static Group Current;
-	static bool Opened, Languages, ShownLanguages;
+	static bool Opened, Languages, ShownLanguages, BackChosen;
 	static int Slot;
 
 	static void RenderEdition(const DefinitiveHost& host, bool gameRunning);
