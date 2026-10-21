@@ -58,8 +58,8 @@ namespace
 		return confirmed;
 	}
 
-	// Escape, or the pad's Start or right button. Not in the frame the screen opened: the key that opened it reaches
-	// ImGui in that frame too.
+	// Escape, or the pad's Start or right button; the screen passes the pause key to the game, which resumes through
+	// TogglePause. Not in the frame the screen opened: the key that opened it reaches ImGui in that frame too.
 	bool ResumePressed()
 	{
 		return ImGui::GetFrameCount() > PauseFrame + 1 &&
@@ -75,6 +75,19 @@ void DefinitiveFrontEnd::ShowPause()
 	ConfirmRestart = ConfirmQuit = false;
 	PauseFrame = ImGui::GetFrameCount();
 	Open(Screen::Pause);
+}
+
+void DefinitiveFrontEnd::TogglePause()
+{
+	auto paused = Host.Paused && Host.Paused();
+	if (paused && (Current == Screen::Pause || (Current == Screen::Settings && SettingsFrom == Screen::Pause)))
+	{
+		Current = Screen::None;
+		if (Host.Resume)
+			Host.Resume();
+	}
+	else
+		ShowPause();
 }
 
 bool DefinitiveFrontEnd::NextName()
@@ -169,7 +182,7 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 		resume = Ui::MenuRow("resume", Text(Msg::Definitive_Resume));
 		if (Ui::MenuRow("settings", Text(Msg::Definitive_Settings)))
 			ShowSettings();
-		// Tab is ImGui's here, so the switch is an item; the game stays paused in Classic
+		// The edition key passes to the game here, as on the title, and switches too; the game stays paused in Classic
 		auto key = Host.EditionKey ? Host.EditionKey() : std::string{};
 		if (Ui::MenuRow("classic", Text(Msg::Definitive_SwitchToClassic), false, key.empty() ? nullptr : key.c_str()))
 			options::SetEdition(Editions::Classic);
@@ -192,6 +205,8 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 		drawList, ImVec2{min.x + padding * 2, min.y + ImGui::GetWindowSize().y - 44 * scale},
 		{{Ui::Action::Select, Text(Msg::Definitive_Select)},
 		 {Ui::Action::Back, Text(ConfirmRestart || ConfirmQuit ? Msg::Definitive_Back : Msg::Definitive_Resume)}});
+	// The game's shortcuts, such as the pause key that resumes and the edition key, pass while it has the focus
+	Focused = ImGui::IsWindowFocused() && !ImGui::GetTopMostPopupModal();
 	ImGui::End();
 	ImGui::PopStyleColor();
 	ImGui::PopStyleVar(3);

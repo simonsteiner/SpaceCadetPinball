@@ -1748,10 +1748,14 @@ void winmain::ApplyDisplayScale()
 
 bool winmain::DefinitivePause()
 {
-	// Space Cadet 2026's pause screen, for a game in play; the demo and a game that is over have none
-	if (options::GetEdition() != Editions::Definitive || pb::game_mode != GameModes::InGame || DemoActive)
+	// Space Cadet 2026's pause screen, for a game in play, which the pause key also closes; the demo has none
+	if (options::GetEdition() != Editions::Definitive || DemoActive)
 		return false;
-	DefinitiveFrontEnd::ShowPause();
+	// Nor has a game that is ending, between its last ball and the summary: Classic's pause would hold the summary
+	// back, and Classic's exit question would open over it
+	if (pb::game_mode != GameModes::InGame)
+		return !pb::GameEnded;
+	DefinitiveFrontEnd::TogglePause();
 	return true;
 }
 

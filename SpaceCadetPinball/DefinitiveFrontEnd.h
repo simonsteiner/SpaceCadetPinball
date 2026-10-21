@@ -69,10 +69,13 @@ public:
 	static void ShowSettings(bool controls = false);
 	// The pause screen, which pauses the game in play; it comes back on its own while the game is paused
 	static void ShowPause();
+	// The pause key: the pause screen, or back to the game from it and from Settings opened there
+	static void TogglePause();
 	// Whether a screen is open, rather than the game in play
 	static bool ScreenOpen();
 	// Whether a key the game binds to a shortcut should still reach the game although a screen has the keyboard: while
-	// a screen had the focus in the last frame, and for Escape only on the title, the one screen it doesn't take back
+	// a screen had the focus in the last frame, and for Escape only on the title, the one screen it doesn't take back.
+	// The name entry types every key and the summary keeps them, so neither passes any.
 	static bool PassesShortcut(bool escape);
 	// Whether Settings waits for a key or button to bind to a control, which Escape and a tap cancel instead
 	static bool WaitsForBinding();
