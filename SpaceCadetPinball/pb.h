@@ -29,7 +29,7 @@ public:
 	static TPinballTable* MainTable;
 	static bool FullTiltMode, FullTiltDemoMode;
 	// False from the start of a game until end_game has checked its high scores, which the table does a few seconds
-	// after it shows Game Over
+	// after it shows Game Over, or until the demo is stopped
 	static bool GameEnded;
 	static std::string DatFileName, BasePath;
 	static ImU32 TextBoxColor;

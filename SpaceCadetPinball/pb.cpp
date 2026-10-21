@@ -254,6 +254,8 @@ void pb::toggle_demo()
 		demo_mode = false;
 		MainTable->Message(MessageCode::Reset, 0.0);
 		mode_change(GameModes::GameOver);
+		// A stopped demo has no high scores to check, so it ends here rather than in end_game
+		GameEnded = true;
 		MissTextBox->Clear();
 		InfoTextBox->Display(get_rc_string(Msg::STRING125), -1.0);
 	}
