@@ -1300,8 +1300,8 @@ static bool FrontEndPassesShortcut(const SDL_Event& event)
 					   [](GameBindings binding) { return binding > GameBindings::BottomTableBump; });
 }
 
-// Whether an event cancels Space Cadet 2026's wait for a binding instead of being bound: Escape, which Settings goes back
-// with, and a tap, which can't be bound. Classic's controls dialog keeps binding them.
+// Whether an event cancels Space Cadet 2026's wait for a binding instead of being bound: Escape, which Settings goes
+// back with, and a tap, which can't be bound. Classic's controls dialog keeps binding them.
 static bool CancelsBindingWait(const SDL_Event& event)
 {
 	if (options::GetEdition() != Editions::Definitive || !DefinitiveFrontEnd::WaitsForBinding())

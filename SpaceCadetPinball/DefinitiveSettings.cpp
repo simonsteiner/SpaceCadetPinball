@@ -200,11 +200,11 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 	ImGui::EndChild();
 	ShownLanguages = showedLanguages && Languages;
 
-	auto back = BackChosen || (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
-								 !options::WaitingForInput() &&
-								 (ImGui::IsKeyPressed(ImGuiKey_Escape, false) ||
-								  ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) ||
-								  ImGui::IsMouseClicked(ImGuiMouseButton_Right)));
+	auto back =
+		BackChosen ||
+		(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !options::WaitingForInput() &&
+		 (ImGui::IsKeyPressed(ImGuiKey_Escape, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) ||
+		  ImGui::IsMouseClicked(ImGuiMouseButton_Right)));
 	BackChosen = false;
 	ImVec2 hints{min.x + padding, min.y + size.y - padding - 26 * scale};
 	if (Languages)
@@ -367,7 +367,8 @@ void DefinitiveSettings::RenderGraphics(const DefinitiveHost& host)
 	// A font for the text the built-in fonts lack, such as Chinese, Japanese and Korean; the row shows its file name
 	const auto& font = options.FontFileName.V;
 	auto slash = font.find_last_of("/\\");
-	auto fontName = font.empty() ? Text(Msg::Definitive_None) : font.c_str() + (slash == std::string::npos ? 0 : slash + 1);
+	auto fontName =
+		font.empty() ? Text(Msg::Definitive_None) : font.c_str() + (slash == std::string::npos ? 0 : slash + 1);
 	Ui::NextRowNote(Text(Msg::Definitive_FontNote));
 	if (Ui::MenuRow("font", Text(Msg::Definitive_FontFile), false, fontName) && host.ChangeFont)
 		host.ChangeFont();
