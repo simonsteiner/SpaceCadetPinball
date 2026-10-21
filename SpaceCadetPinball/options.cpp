@@ -621,6 +621,8 @@ void options::PostProcessOptions()
 	Options.MusicVolume = Clamp(Options.MusicVolume.V, MinVolume, MaxVolume);
 	Options.KeyBindingsVersion = KeyBindingsScancodes;
 	Options.Edition = Clamp(Options.Edition.V, 0, static_cast<int>(Editions::Max) - 1);
+	// Also a folder typed into the settings file by hand
+	Options.GameDataFolder.V = FolderPath(Options.GameDataFolder.V);
 	// The drawing options of each edition are clamped while that edition's are on show
 	for (auto edition : {Editions::Classic, Editions::Definitive})
 	{
@@ -630,6 +632,18 @@ void options::PostProcessOptions()
 	ShowEditionOptions(GetEdition());
 	translations::SetCurrentLanguage(Options.Language.V.c_str());
 	winmain::UpdateFrameRate();
+}
+
+std::string options::FolderPath(std::string folder)
+{
+#ifdef _WIN32
+	auto separated = !folder.empty() && (folder.back() == '/' || folder.back() == '\\');
+#else
+	auto separated = !folder.empty() && folder.back() == '/';
+#endif
+	if (!folder.empty() && !separated)
+		folder += '/';
+	return folder;
 }
 
 std::string GameInput::GetFullInputDescription() const

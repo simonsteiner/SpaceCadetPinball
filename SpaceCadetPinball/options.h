@@ -151,6 +151,8 @@ public:
 	static void GetInput(const std::string& rowName, GameInput (&values)[3]);
 	static void SetInput(const std::string& rowName, GameInput (&values)[3]);
 	static void toggle(Menu1 uIDCheckItem);
+	// A folder as the game data search joins file names to it: with a separator at its end, unless it is empty
+	static std::string FolderPath(std::string folder);
 	static void InputDown(GameInput input);
 	static void ShowControlDialog();
 	static void RenderControlDialog();
