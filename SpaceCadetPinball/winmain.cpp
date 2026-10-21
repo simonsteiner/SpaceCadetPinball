@@ -2079,12 +2079,20 @@ void winmain::UpdateFrameRate()
 	CurrentFps = fps;
 }
 
+// Whether pausing would stop the demo behind Space Cadet 2026's screens, which plays on there with no game to pause; a
+// table paused before the switch from Classic still resumes
+static bool DefinitiveKeepsPlaying()
+{
+	return options::GetEdition() == Editions::Definitive && !winmain::single_step &&
+		   (winmain::DemoActive || DefinitiveFrontEnd::ScreenOpen());
+}
+
 void winmain::HandleGameBinding(GameBindings binding, bool shortcut)
 {
 	switch (binding)
 	{
 	case GameBindings::TogglePause:
-		if (!DefinitivePause())
+		if (!DefinitiveKeepsPlaying() && !DefinitivePause())
 			pause();
 		break;
 	case GameBindings::NewGame:
@@ -2106,7 +2114,8 @@ void winmain::HandleGameBinding(GameBindings binding, bool shortcut)
 		options::toggle(Menu1::Music);
 		break;
 	case GameBindings::ShowControlDialog:
-		pause(false);
+		if (!DefinitiveKeepsPlaying())
+			pause(false);
 		options::ShowControlDialog();
 		break;
 	case GameBindings::ToggleMenuDisplay:
