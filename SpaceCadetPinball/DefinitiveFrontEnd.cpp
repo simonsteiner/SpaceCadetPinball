@@ -549,6 +549,11 @@ void DefinitiveFrontEnd::RenderMissingData(const std::vector<std::string>& looke
 	Opened = opened;
 	opened = false;
 	auto width = BeginColumn("##DefinitiveMissingData", 680);
+	// No game runs behind this screen to take Escape to its Exit binding, as on the title; Back lights Exit instead,
+	// over the first row that ImGui's cancel would light
+	auto back = BackPressed() && Host.Quit;
+	if (back)
+		Ui::TakeFocusRequest();
 	auto drawList = ImGui::GetWindowDrawList();
 	auto margin = 48 * scale;
 	auto inner = width - margin - 32 * scale;
@@ -596,6 +601,8 @@ void DefinitiveFrontEnd::RenderMissingData(const std::vector<std::string>& looke
 	ImGui::PushItemWidth(inner);
 	if (Ui::MenuRow("choose", Text(Msg::Definitive_DataChoose)) && Host.ChooseDataFolder)
 		Host.ChooseDataFolder();
+	if (back)
+		Ui::FocusNextRow();
 	if (Host.Quit && Ui::MenuRow("quit", Text(Msg::Menu1_Exit)))
 		Host.Quit();
 	ImGui::PopItemWidth();
