@@ -185,7 +185,8 @@ float DefinitiveFrontEnd::BeginColumn(const char* name, float width)
 	auto background = ImGui::GetBackgroundDrawList();
 	auto min = viewport->Pos;
 	auto height = viewport->Size.y;
-	auto shade = Theme::WithAlpha(Theme::Space950, 0.88f), clear = Theme::WithAlpha(Theme::Space950, 0);
+	auto shade = Theme::WithAlpha(Theme::Space950, 0.88f);
+	auto clear = Theme::WithAlpha(Theme::Space950, 0);
 	background->AddRectFilled(min, ImVec2{min.x + columnWidth, min.y + height}, shade);
 	background->AddRectFilledMultiColor(ImVec2{min.x + columnWidth, min.y},
 										ImVec2{min.x + columnWidth + fade, min.y + height}, shade, clear, clear, shade);

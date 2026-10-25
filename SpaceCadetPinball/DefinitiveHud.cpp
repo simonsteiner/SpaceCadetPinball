@@ -6,6 +6,8 @@
 #include "TableView.h"
 #include "translations.h"
 
+#include <utility>
+
 namespace
 {
 	using Theme = DefinitiveTheme;
@@ -37,7 +39,7 @@ namespace
 
 	const char* PlayerName(int player)
 	{
-		return Text(static_cast<Msg>(static_cast<int>(Msg::STRING127) + std::clamp(player, 0, 3)));
+		return Text(static_cast<Msg>(std::to_underlying(Msg::STRING127) + std::clamp(player, 0, 3)));
 	}
 
 	// LED digits at a size that fits the width
@@ -65,14 +67,14 @@ const char* DefinitiveHud::MissionName(int mission)
 		mission = 18;
 	if (mission < 2 || mission > 18)
 		return nullptr;
-	return Text(static_cast<Msg>(static_cast<int>(Msg::STRING161) + mission - 2));
+	return Text(static_cast<Msg>(std::to_underlying(Msg::STRING161) + mission - 2));
 }
 
 const char* DefinitiveHud::RankName(int rank)
 {
 	if (rank < 1 || rank > 9)
 		return nullptr;
-	return Text(static_cast<Msg>(static_cast<int>(Msg::STRING185) + rank - 1));
+	return Text(static_cast<Msg>(std::to_underlying(Msg::STRING185) + rank - 1));
 }
 
 // Draws what the panel shows from min down, at the scale DefinitiveUi has, with the message box at the bottom of the
