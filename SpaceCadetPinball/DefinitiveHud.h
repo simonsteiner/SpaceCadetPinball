@@ -11,7 +11,10 @@ public:
 	// Draws the panel under every window, where the table's panel is and in the window's margin beyond it: beside the
 	// table as tall as it is, or under it in the stacked layout. The rectangles are in window coordinates.
 	static void Render(const TableView& view, SDL_FRect board, SDL_FRect panel);
-	// The name of the mission the view's Mission state runs, or null while none runs
+	// The mission a state of the view's Mission runs, from 2 for Target Practice to 18 for Maelstrom, or 0 while none
+	// runs
+	static int MissionOf(int state);
+	// The name of a mission from MissionOf, or null for another number
 	static const char* MissionName(int mission);
 	// The name of a rank from 1 for Cadet to 9 for Fleet Admiral, or null for another number
 	static const char* RankName(int rank);

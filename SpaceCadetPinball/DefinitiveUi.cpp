@@ -206,6 +206,112 @@ bool DefinitiveUi::MenuRow(const char* id, const char* label, bool warning, cons
 	return chosen && enabled;
 }
 
+int DefinitiveUi::Tabs(ImDrawList* drawList, ImVec2 position, float width, const std::vector<const char*>& labels,
+					   int current)
+{
+	auto scale = LayoutScale;
+	auto count = static_cast<int>(labels.size());
+	auto index = current;
+	// Not while a dialog over the screen, such as the font file's, has the keyboard
+	auto focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+	if (focused && (ImGui::IsKeyPressed(ImGuiKey_Q, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false)))
+		index = (index + count - 1) % count;
+	if (focused && (ImGui::IsKeyPressed(ImGuiKey_E, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false)))
+		index = (index + 1) % count;
+	auto x = position.x;
+	auto tabHeight = TabHeight * scale;
+	auto tabFontSize = DefinitiveTheme::LabelSize + 1;
+	std::vector<float> widths;
+	auto total = 0.0f;
+	for (auto label : labels)
+	{
+		widths.push_back(TextSize(DefinitiveTheme::HeadingFont(), tabFontSize, label).x + 20 * scale);
+		total += widths.back();
+	}
+	// Narrow windows squeeze the tabs together
+	auto squeeze = std::min(1.0f, width / total);
+	drawList->AddLine(ImVec2{x, position.y + tabHeight}, ImVec2{x + width, position.y + tabHeight},
+					  DefinitiveTheme::Chrome600);
+	for (auto tab = 0; tab < count; tab++)
+	{
+		auto tabWidth = widths[static_cast<size_t>(tab)] * squeeze;
+		ImGui::SetCursorScreenPos(ImVec2{x, position.y});
+		ImGui::PushID(tab);
+		if (ImGui::InvisibleButton("tab", ImVec2{tabWidth, tabHeight}))
+			index = tab;
+		ImGui::PopID();
+		auto selected = tab == current;
+		auto font = selected ? DefinitiveTheme::HeadingFont() : DefinitiveTheme::TextFont();
+		auto label = labels[static_cast<size_t>(tab)];
+		auto labelSize = TextSize(font, tabFontSize, label);
+		DrawText(drawList, font, tabFontSize,
+				 ImVec2{x + (tabWidth - labelSize.x) / 2, position.y + (tabHeight - labelSize.y) / 2},
+				 selected ? DefinitiveTheme::Chrome50 : DefinitiveTheme::Chrome400, label);
+		if (selected)
+			drawList->AddRectFilled(ImVec2{x + 8 * scale, position.y + tabHeight - 2 * scale},
+									ImVec2{x + tabWidth - 8 * scale, position.y + tabHeight},
+									DefinitiveTheme::LedOrange);
+		x += tabWidth;
+	}
+	return index;
+}
+
+void DefinitiveUi::ParagraphRow(const char* id, const char* title, const char* aside, const char* text, const char* tag)
+{
+	auto scale = LayoutScale;
+	auto width = ImGui::CalcItemWidth();
+	auto padding = 16 * scale, lampRadius = 6 * scale;
+	auto textX = padding + lampRadius * 2 + padding;
+	auto titleHeight = DefinitiveTheme::BodySize * 1.3f * scale;
+	auto paragraphWidth = width - textX - padding;
+	auto paragraphHeight = DrawWrapped(nullptr, DefinitiveTheme::TextFont(), DefinitiveTheme::LabelSize + 1, ImVec2{},
+									   0, text, paragraphWidth);
+	ImVec2 size{width, padding * 0.75f + titleHeight + 4 * scale + paragraphHeight + padding * 0.75f};
+	ImGui::InvisibleButton(id, size, ImGuiButtonFlags_EnableNav);
+
+	// The mouse and touch move the focus too, as on a menu row
+	auto& io = ImGui::GetIO();
+	auto pointed = ImGui::IsItemHovered() && (io.MouseDelta.x != 0 || io.MouseDelta.y != 0 || ImGui::IsMouseClicked(0));
+	if (pointed || FocusNext)
+	{
+		ImGui::SetFocusID(ImGui::GetItemID(), ImGui::GetCurrentWindow());
+		ImGui::SetNavCursorVisible(true);
+		FocusNext = false;
+	}
+	Row = {ImGui::GetItemRectMin(), ImGui::GetItemRectMax()};
+	RowFocused = ImGui::IsItemFocused();
+
+	auto drawList = ImGui::GetWindowDrawList();
+	if (RowFocused)
+	{
+		drawList->AddRectFilled(Row.Min, Row.Max, DefinitiveTheme::Space700, DefinitiveTheme::Rounding * scale);
+		drawList->AddLine(ImVec2{Row.Min.x + DefinitiveTheme::Rounding * scale, Row.Min.y + 0.5f},
+						  ImVec2{Row.Max.x - DefinitiveTheme::Rounding * scale, Row.Min.y + 0.5f},
+						  DefinitiveColor(0xEE, 0xF2, 0xFA, 0x2E));
+	}
+	auto top = Row.Min.y + padding * 0.75f;
+	DefinitiveTheme::DrawLamp(drawList, ImVec2{Row.Min.x + padding + lampRadius, top + titleHeight / 2}, lampRadius,
+							  RowFocused ? DefinitiveTheme::Lamp::Lit : DefinitiveTheme::Lamp::Dark);
+	auto titleRight = Row.Max.x - padding;
+	for (auto [label, color] :
+		 {std::pair{aside, DefinitiveTheme::Chrome400}, std::pair{tag, DefinitiveTheme::LedOrange}})
+	{
+		if (!label)
+			continue;
+		auto labelSize = TextSize(DefinitiveTheme::TextFont(), DefinitiveTheme::LabelSize, label);
+		titleRight -= labelSize.x;
+		DrawText(drawList, DefinitiveTheme::TextFont(), DefinitiveTheme::LabelSize,
+				 ImVec2{titleRight, top + (titleHeight - labelSize.y) / 2}, color, label);
+		titleRight -= padding;
+	}
+	DrawText(drawList, DefinitiveTheme::HeadingFont(), DefinitiveTheme::BodySize, ImVec2{Row.Min.x + textX, top},
+			 RowFocused ? DefinitiveTheme::Chrome50 : DefinitiveTheme::Chrome200, title,
+			 titleRight - Row.Min.x - textX);
+	DrawWrapped(drawList, DefinitiveTheme::TextFont(), DefinitiveTheme::LabelSize + 1,
+				ImVec2{Row.Min.x + textX, top + titleHeight + 4 * scale}, DefinitiveTheme::Chrome200, text,
+				paragraphWidth);
+}
+
 void DefinitiveUi::NextRowNote(const char* note)
 {
 	Note = note;

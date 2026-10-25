@@ -43,21 +43,26 @@ namespace
 	}
 } // namespace
 
-const char* DefinitiveHud::MissionName(int mission)
+int DefinitiveHud::MissionOf(int state)
 {
 	// control.cpp's MissionControl: states 2 to 18 are the missions in the order of MissionRcArray, from Target
 	// Practice to Maelstrom, and the later states continue one of them: Alien Menace and Cosmic Plague in their second
 	// part, the Secret mission's red and green stages, Time Warp's way back and Maelstrom's further parts
-	if (mission == 20)
-		mission = 10;
-	else if (mission == 21)
-		mission = 15;
-	else if (mission == 22 || mission == 23)
-		mission = 16;
-	else if (mission == 24)
-		mission = 17;
-	else if (mission >= 25 && mission <= 31)
-		mission = 18;
+	if (state == 20)
+		return 10;
+	if (state == 21)
+		return 15;
+	if (state == 22 || state == 23)
+		return 16;
+	if (state == 24)
+		return 17;
+	if (state >= 25 && state <= 31)
+		return 18;
+	return state >= 2 && state <= 18 ? state : 0;
+}
+
+const char* DefinitiveHud::MissionName(int mission)
+{
 	if (mission < 2 || mission > 18)
 		return nullptr;
 	return Text(static_cast<Msg>(static_cast<int>(Msg::STRING161) + mission - 2));
@@ -127,7 +132,7 @@ float DefinitiveHud::DrawContents(ImDrawList* drawList, const TableView& view, I
 
 	// The mission that runs, and the mission text box, which says what it needs next or how to start one
 	label(Text(Msg::Definitive_Mission));
-	if (auto name = MissionName(view.Mission))
+	if (auto name = MissionName(MissionOf(view.Mission)))
 	{
 		heading(name);
 		y += 6 * scale;

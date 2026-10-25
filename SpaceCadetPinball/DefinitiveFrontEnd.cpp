@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "DefinitiveFrontEnd.h"
 
+#include "DefinitiveGuide.h"
 #include "DefinitiveSettings.h"
 
 #include "DefinitiveHud.h"
@@ -122,7 +123,8 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 	auto playing = !view.GameOver && !view.Demo;
 	auto paused = Host.Paused && Host.Paused();
 	auto busy = Host.Busy && Host.Busy();
-	auto fromPause = Current == Screen::Pause || (Current == Screen::Settings && SettingsFrom == Screen::Pause);
+	auto fromPause = Current == Screen::Pause || Current == Screen::Guide ||
+					 (Current == Screen::Settings && SettingsFrom == Screen::Pause);
 	if (playing)
 	{
 		// A game in play closes the other screens, however it started; while it is paused, the pause screen shows
@@ -162,6 +164,10 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 		break;
 	case Screen::Credits:
 		RenderCredits();
+		break;
+	case Screen::Guide:
+		if (!DefinitiveGuide::Render(view))
+			Open(Screen::Pause);
 		break;
 	case Screen::Pause:
 		RenderPause(view);

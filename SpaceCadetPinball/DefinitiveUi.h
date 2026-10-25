@@ -4,6 +4,7 @@
 
 #include <initializer_list>
 #include <string>
+#include <vector>
 
 // The pieces Space Cadet 2026's screens are made of, on top of ImGui: a scale that follows the window, menu rows that
 // light their lamp when they have focus, text in the visual language, and hints for the input device last used.
@@ -80,6 +81,17 @@ public:
 	// A row with a slider; returns the new value. Left and right step, and a tap or a drag on the track sets it.
 	static int SliderRow(const char* id, const char* label, int value, int min, int max, int step,
 						 const char* format = "%d");
+	// Tabs in a line at a position, the current one lit; returns the tab chosen, else current. Q and E, the shoulder
+	// buttons or a tap move between them while the window has the focus.
+	static int Tabs(ImDrawList* drawList, ImVec2 position, float width, const std::vector<const char*>& labels,
+					int current);
+	static constexpr float TabHeight = 40;
+	// A row for reading rather than choosing: a title, an aside such as a key at its end and a paragraph under it. It
+	// takes the focus like a menu row, so the keyboard and gamepad scroll through such rows; a tag, if any, lights in
+	// LED orange before the aside.
+	static void ParagraphRow(const char* id, const char* title, const char* aside, const char* text,
+							 const char* tag = nullptr);
+
 	// -1 or 1 when left or right was pressed this frame while the last row has focus, else 0
 	static int RowStep();
 

@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "DefinitiveFrontEnd.h"
 
+#include "DefinitiveGuide.h"
 #include "DefinitiveText.h"
 #include "DefinitiveTheme.h"
 #include "DefinitiveUi.h"
@@ -83,7 +84,8 @@ void DefinitiveFrontEnd::ShowPause()
 void DefinitiveFrontEnd::TogglePause()
 {
 	auto paused = Host.Paused && Host.Paused();
-	if (paused && (Current == Screen::Pause || (Current == Screen::Settings && SettingsFrom == Screen::Pause)))
+	if (paused && (Current == Screen::Pause || Current == Screen::Guide ||
+				   (Current == Screen::Settings && SettingsFrom == Screen::Pause)))
 	{
 		Current = Screen::None;
 		if (Host.Resume)
@@ -138,8 +140,8 @@ ImVec2 DefinitiveFrontEnd::BeginCentred(const char* name, ImVec2 size)
 
 void DefinitiveFrontEnd::RenderPause(const TableView& view)
 {
-	// Five rows and a separator, or the question and two rows
-	auto rowsHeight = ConfirmRestart || ConfirmQuit ? 32 + 2 * 50.0f : 5 * 50.0f + 12;
+	// Six rows and a separator, or the question and two rows
+	auto rowsHeight = ConfirmRestart || ConfirmQuit ? 32 + 2 * 50.0f : 6 * 50.0f + 12;
 	auto min = BeginCentred("##DefinitivePause", ImVec2{420, 24 + 40 + 24 + 16 + rowsHeight + 24 + 44});
 	auto scale = Ui::Scale();
 	auto drawList = ImGui::GetWindowDrawList();
@@ -187,6 +189,11 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 		resume = Ui::MenuRow("resume", Text(Msg::Definitive_Resume));
 		if (Ui::MenuRow("settings", Text(Msg::Definitive_Settings)))
 			ShowSettings();
+		if (Ui::MenuRow("guide", Text(Msg::Definitive_MissionGuide)))
+		{
+			DefinitiveGuide::Open(view);
+			Current = Screen::Guide;
+		}
 		// The edition key passes to the game here, as on the title, and switches too; the game stays paused in Classic
 		auto key = Host.EditionKey ? Host.EditionKey() : std::string{};
 		if (Ui::MenuRow("classic", Text(Msg::Definitive_SwitchToClassic), false, key.empty() ? nullptr : key.c_str()))

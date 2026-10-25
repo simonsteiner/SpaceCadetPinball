@@ -110,46 +110,11 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 	auto showedLanguages = Languages;
 	if (!Languages)
 	{
-		auto count = static_cast<int>(Group::Count);
-		auto index = static_cast<int>(Current);
-		// Not while a dialog over the screen, such as the font file's, has the keyboard
-		auto focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
-		if (focused && (ImGui::IsKeyPressed(ImGuiKey_Q, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false)))
-			index = (index + count - 1) % count;
-		if (focused && (ImGui::IsKeyPressed(ImGuiKey_E, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadR1, false)))
-			index = (index + 1) % count;
-		auto x = min.x + padding;
-		auto tabFontSize = Theme::LabelSize + 1;
-		std::vector<float> widths;
-		auto total = 0.0f;
+		std::vector<const char*> names;
 		for (auto name : GroupNames)
-		{
-			widths.push_back(Ui::TextSize(Theme::HeadingFont(), tabFontSize, Text(name)).x + 20 * scale);
-			total += widths.back();
-		}
-		// Narrow windows squeeze the tabs together
-		auto squeeze = std::min(1.0f, innerWidth / total);
-		drawList->AddLine(ImVec2{x, tabsY + tabHeight}, ImVec2{x + innerWidth, tabsY + tabHeight}, Theme::Chrome600);
-		for (auto tab = 0; tab < count; tab++)
-		{
-			auto width = widths[static_cast<size_t>(tab)] * squeeze;
-			ImGui::SetCursorScreenPos(ImVec2{x, tabsY});
-			ImGui::PushID(tab);
-			if (ImGui::InvisibleButton("tab", ImVec2{width, tabHeight}))
-				index = tab;
-			ImGui::PopID();
-			auto selected = tab == static_cast<int>(Current);
-			auto label = Text(GroupNames[tab]);
-			auto labelSize = Ui::TextSize(selected ? Theme::HeadingFont() : Theme::TextFont(), tabFontSize, label);
-			Ui::DrawText(drawList, selected ? Theme::HeadingFont() : Theme::TextFont(), tabFontSize,
-						 ImVec2{x + (width - labelSize.x) / 2, tabsY + (tabHeight - labelSize.y) / 2},
-						 selected ? Theme::Chrome50 : Theme::Chrome400, label);
-			if (selected)
-				drawList->AddRectFilled(ImVec2{x + 8 * scale, tabsY + tabHeight - 2 * scale},
-										ImVec2{x + width - 8 * scale, tabsY + tabHeight}, Theme::LedOrange);
-			x += width;
-		}
-		Current = static_cast<Group>(index);
+			names.push_back(Text(name));
+		Current = static_cast<Group>(
+			Ui::Tabs(drawList, ImVec2{min.x + padding, tabsY}, innerWidth, names, static_cast<int>(Current)));
 	}
 
 	// The rows scroll under the tabs, and the focus follows them

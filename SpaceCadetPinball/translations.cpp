@@ -6723,6 +6723,192 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_MissionGuide,
+		{
+			{ Lang::English, "Mission Guide" },
+		}
+	},
+	{
+		Msg::Definitive_GuideBasics,
+		{
+			{ Lang::English, "Basics" },
+		}
+	},
+	{
+		Msg::Definitive_GuideOffered,
+		{
+			{ Lang::English, "Missions offered at %s" },
+		}
+	},
+	{
+		Msg::Definitive_GuideUpper,
+		{
+			{ Lang::English, "Upper target" },
+		}
+	},
+	{
+		Msg::Definitive_GuideMiddle,
+		{
+			{ Lang::English, "Middle target" },
+		}
+	},
+	{
+		Msg::Definitive_GuideLower,
+		{
+			{ Lang::English, "Lower target" },
+		}
+	},
+	{
+		Msg::Definitive_GuideAll,
+		{
+			{ Lang::English, "All three targets" },
+		}
+	},
+	{
+		Msg::Definitive_GuideNow,
+		{
+			{ Lang::English, "Now" },
+		}
+	},
+	{
+		Msg::Definitive_GuideMissionsTitle,
+		{
+			{ Lang::English, "How missions work" },
+		}
+	},
+	{
+		Msg::Definitive_GuideMissions,
+		{
+			{ Lang::English, "Missions earn points and raise your rank. Hit one of the three mission targets beside the launch bumpers to choose a mission, then shoot the launch ramp to accept it. Which mission a target chooses depends on your rank, and hitting all three chooses a fourth. A mission can only be accepted while the ship has fuel; the fuel targets at the top left and the fuel chute refuel it. A mission ends when it is done, when the fuel runs out, or when you lose the ball." },
+		}
+	},
+	{
+		Msg::Definitive_GuideRanksTitle,
+		{
+			{ Lang::English, "How ranks work" },
+		}
+	},
+	{
+		Msg::Definitive_GuideRanks,
+		{
+			{ Lang::English, "There are nine ranks, from Cadet to Fleet Admiral, shown by the lamps in the middle of the table. Each mission you finish lights part of the ring of 18 lamps around them; when the ring is full you are promoted and it starts again. Harder missions light more of the ring. Your rank decides which missions the mission targets offer, and it stays from ball to ball." },
+		}
+	},
+	{
+		Msg::Definitive_GuideFullTiltTitle,
+		{
+			{ Lang::English, "Full Tilt! Pinball" },
+		}
+	},
+	{
+		Msg::Definitive_GuideFullTilt,
+		{
+			{ Lang::English, "With Full Tilt! data, accepting a mission scores 100,000 points, and finishing one also pays the jackpot and lights Replay, which gives you the ball back the next time it drains." },
+		}
+	},
+	{
+		Msg::Definitive_GuideTargetPractice,
+		{
+			{ Lang::English, "Hit the attack bumpers 8 times. Awards 500,000 points and 6 lamps of the rank ring." },
+		}
+	},
+	{
+		Msg::Definitive_GuideLaunchTraining,
+		{
+			{ Lang::English, "Shoot the launch ramp 3 times. Awards 500,000 points and 6 lamps of the rank ring." },
+		}
+	},
+	{
+		Msg::Definitive_GuideReentryTraining,
+		{
+			{ Lang::English, "Roll through the re-entry lanes at the top of the table 3 times. Awards 500,000 points and 6 lamps of the rank ring." },
+		}
+	},
+	{
+		Msg::Definitive_GuideScience,
+		{
+			{ Lang::English, "Knock down 9 drop targets, from any of the three banks. Awards 750,000 points and 9 lamps of the rank ring." },
+		}
+	},
+	{
+		Msg::Definitive_GuideStrayComet,
+		{
+			{ Lang::English, "Hit all three targets of the right hazard bank, then shoot the ball into the hyperspace chute. Awards 1,000,000 points and 8 lamps of the rank ring." },
+		}
+	},
+	{
+		Msg::Definitive_GuideBlackHole,
+		{
+			{ Lang::English, "Upgrade the launch bumpers by lighting the three launch lanes beside them, then shoot the ball into the black hole. Awards 1,000,000 points and 8 lamps of the rank ring." },
+		}
+	},
+	{
+		Msg::Definitive_GuideSpaceRadiation,
+		{
+			{ Lang::English, "Hit all three targets of the left hazard bank, then shoot the ball into any wormhole. Awards 1,000,000 points and 8 lamps of the rank ring." },
+		}
+	},
+	{
+		Msg::Definitive_GuideBugHunt,
+		{
+			{ Lang::English, "Hit 15 targets, drop targets or spot targets. Awards 750,000 points and 7 lamps of the rank ring." },
+		}
+	},
+	{
+		Msg::Definitive_GuideAlienMenace,
+		{
+			{ Lang::English, "Upgrade the attack bumpers by lighting the three re-entry lanes, then hit the attack bumpers 8 times. Awards 750,000 points and 7 lamps of the rank ring." },
+		}
+	},
+	{
+		Msg::Definitive_GuideRescue,
+		{
+			{ Lang::English, "Upgrade the flags by knocking down the three drop targets on the right, then shoot the ball into the hyperspace chute while the flag lamps are lit. Awards 750,000 points and 7 lamps of the rank ring." },
+		}
+	},
+	{
+		Msg::Definitive_GuideSatellite,
+		{
+			{ Lang::English, "Hit the remote attack bumper, the one on its own at the top left, 3 times. Awards 1,250,000 points and 9 lamps of the rank ring." },
+		}
+	},
+	{
+		Msg::Definitive_GuideRecon,
+		{
+			{ Lang::English, "Roll through any lane 15 times: the re-entry lanes, the launch lanes or the lanes beside the flippers. Awards 1,250,000 points and 9 lamps of the rank ring." },
+		}
+	},
+	{
+		Msg::Definitive_GuideDoomsday,
+		{
+			{ Lang::English, "Roll through the out lanes, the outermost lanes at the bottom, 3 times. Awards 1,250,000 points and 9 lamps of the rank ring." },
+		}
+	},
+	{
+		Msg::Definitive_GuideCosmicPlague,
+		{
+			{ Lang::English, "Spin the flags 75 times, then roll over the space warp rollover. Awards 1,750,000 points and 11 lamps of the rank ring." },
+		}
+	},
+	{
+		Msg::Definitive_GuideSecret,
+		{
+			{ Lang::English, "Shoot the ball into the yellow wormhole, then the red one, then the green one. Awards 1,500,000 points and 10 lamps of the rank ring." },
+		}
+	},
+	{
+		Msg::Definitive_GuideTimeWarp,
+		{
+			{ Lang::English, "Hit the rebounders 25 times. Then shoot the launch ramp to warp forward, which promotes you and lights 12 lamps of the rank ring, or the hyperspace chute to warp back, which costs you a rank. Either way awards 2,000,000 points." },
+		}
+	},
+	{
+		Msg::Definitive_GuideMaelstrom,
+		{
+			{ Lang::English, "Eight stages in a row: 3 drop target hits, 3 spot target hits, 5 lane passes, the fuel chute, the launch ramp, the flags, any wormhole and last the hyperspace chute. Awards 5,000,000 points and fills the rank ring, a promotion." },
+		}
+	},
+	{
 		Msg::FullTilt_Caption,
 		{
 			{ Lang::English, "Full Tilt! - Space Cadet" },

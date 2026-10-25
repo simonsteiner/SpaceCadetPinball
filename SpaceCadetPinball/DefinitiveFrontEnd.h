@@ -109,6 +109,7 @@ private:
 		Pause,
 		GameOver,
 		NameEntry,
+		Guide,
 	};
 
 	static DefinitiveHost Host;
