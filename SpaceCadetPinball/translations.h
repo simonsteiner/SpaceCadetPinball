@@ -314,6 +314,7 @@ enum class Msg : int
 	Definitive_GuideLower,
 	Definitive_GuideAll,
 	Definitive_GuideNow,
+	Definitive_GuidePoints,
 	Definitive_GuideMissionsTitle,
 	Definitive_GuideMissions,
 	Definitive_GuideRanksTitle,

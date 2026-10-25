@@ -7,6 +7,8 @@
 #include "TableView.h"
 #include "translations.h"
 
+#include <algorithm>
+
 int DefinitiveGuide::Current = 0;
 int DefinitiveGuide::Focus = -1;
 int DefinitiveGuide::FocusFrames = 0;
@@ -53,6 +55,37 @@ namespace
 			tab++;
 		}
 		return tab - 1;
+	}
+
+	// What finishing each mission awards, from its controller in control.cpp: the points, and the lamps it lights of
+	// the rank ring, 18 of which promote. By mission state from 2; Time Warp's are for warping forward.
+	struct Award
+	{
+		int Points, Lamps;
+	};
+
+	constexpr Award Awards[] = {
+		{500000, 6},  {500000, 6},   {500000, 6},   {750000, 9},   {1000000, 8},  {1000000, 8},
+		{1000000, 8}, {750000, 7},   {750000, 7},   {750000, 7},   {1250000, 9},  {1250000, 9},
+		{1250000, 9}, {1750000, 11}, {1500000, 10}, {2000000, 12}, {5000000, 18},
+	};
+
+	constexpr float AwardHeight = 18, ProgressHeight = 20;
+	constexpr int RingLamps = 18;
+
+	// The points, then the rank ring as a row of small lamps with the ones the mission lights lit
+	void DrawAward(ImDrawList* drawList, ImVec2 position, const Award& award)
+	{
+		auto scale = Ui::Scale();
+		char points[64];
+		snprintf(points, sizeof points, Text(Msg::Definitive_GuidePoints), Ui::FormatScore(award.Points, 0).c_str());
+		auto size = Ui::TextSize(Theme::HeadingFont(), Theme::LabelSize + 1, points);
+		Ui::DrawText(drawList, Theme::HeadingFont(), Theme::LabelSize + 1, position, Theme::Chrome200, points);
+		auto radius = 3.5f * scale, gap = 9.0f * scale;
+		auto x = position.x + size.x + 14 * scale + radius;
+		for (auto lamp = 0; lamp < RingLamps; lamp++)
+			Theme::DrawLamp(drawList, ImVec2{x + static_cast<float>(lamp) * gap, position.y + size.y / 2}, radius,
+							lamp < award.Lamps ? Theme::Lamp::Lit : Theme::Lamp::Dark);
 	}
 
 	const char* GuideText(int mission)
@@ -137,12 +170,13 @@ bool DefinitiveGuide::Render(const TableView& view)
 	auto row = 0;
 	// ImGui gives a window that takes the focus its first item at the end of the frame, so the row asks again in the
 	// next few frames
-	auto paragraph = [&](const char* id, const char* title, const char* aside, const char* text, const char* tag)
+	auto paragraph =
+		[&](const char* id, const char* title, const char* aside, const char* text, const char* tag, float footer = 0)
 	{
 		auto focus = Focus == row++;
 		if (focus)
 			Ui::FocusNextRow();
-		Ui::ParagraphRow(id, title, aside, text, tag);
+		Ui::ParagraphRow(id, title, aside, text, tag, footer);
 		if (focus && --FocusFrames <= 0)
 			Focus = -1;
 	};
@@ -176,8 +210,20 @@ bool DefinitiveGuide::Render(const TableView& view)
 		{
 			auto mission = tier.Missions[index];
 			ImGui::PushID(index);
+			// The award under the text, and for the mission that runs what the mission text box says it needs now
+			auto now = mission == running;
+			std::string progress = now ? view.MissionText : std::string{};
+			std::replace(progress.begin(), progress.end(), '\n', ' ');
 			paragraph("mission", DefinitiveHud::MissionName(mission), Text(Targets[index]), GuideText(mission),
-					  mission == running ? Text(Msg::Definitive_GuideNow) : nullptr);
+					  now ? Text(Msg::Definitive_GuideNow) : nullptr,
+					  AwardHeight + (progress.empty() ? 0 : ProgressHeight));
+			DrawAward(ImGui::GetWindowDrawList(), Ui::FooterTop(), Awards[mission - 2]);
+			if (!progress.empty())
+			{
+				auto at = Ui::FooterTop();
+				Ui::DrawText(ImGui::GetWindowDrawList(), Theme::TextFont(), Theme::LabelSize + 1,
+							 ImVec2{at.x, at.y + AwardHeight * scale}, Theme::LedOrange, progress.c_str());
+			}
 			ImGui::PopID();
 		}
 	}
