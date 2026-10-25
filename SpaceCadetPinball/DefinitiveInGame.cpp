@@ -21,11 +21,6 @@ namespace
 		return translations::GetTranslation(id);
 	}
 
-	ImU32 WithAlpha(ImU32 color, float alpha)
-	{
-		return (color & 0x00FFFFFFU) | static_cast<ImU32>(std::lround(alpha * 255.0f)) << 24U;
-	}
-
 	const char* PlayerName(int player)
 	{
 		return Text(static_cast<Msg>(static_cast<int>(Msg::STRING127) + std::clamp(player, 0, 3)));
@@ -117,7 +112,7 @@ ImVec2 DefinitiveFrontEnd::BeginCentred(const char* name, ImVec2 size)
 	// The veil dims the game under every window
 	ImGui::GetBackgroundDrawList()->AddRectFilled(
 		viewport->Pos, ImVec2{viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y},
-		WithAlpha(Theme::Space950, 0.55f));
+		Theme::WithAlpha(Theme::Space950, 0.55f));
 	ImGui::SetNextWindowPos(min);
 	ImGui::SetNextWindowSize(scaled);
 	if (Opened || (!ImGui::GetTopMostPopupModal() && !GImGui->NavWindow))
@@ -200,7 +195,7 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 			options::SetEdition(Editions::Classic);
 		auto separator = ImGui::GetCursorScreenPos().y + 6 * scale;
 		drawList->AddLine(ImVec2{rowsAt.x + padding, separator}, ImVec2{rowsAt.x + width - padding, separator},
-						  WithAlpha(Theme::Chrome600, 0.6f));
+						  Theme::WithAlpha(Theme::Chrome600, 0.6f));
 		ImGui::Dummy(ImVec2{0, 12 * scale});
 		if (Ui::MenuRow("restart", Text(Msg::Definitive_Restart), true))
 			ConfirmRestart = FocusConfirm = true;
@@ -253,7 +248,7 @@ void DefinitiveFrontEnd::RenderGameOver(const TableView& view)
 		auto record = std::find(NewRecords.begin(), NewRecords.end(), name) != NewRecords.end();
 		auto rowHeight = 56 * scale;
 		auto left = min.x + padding * 2, right = min.x + padding + width - padding;
-		drawList->AddLine(ImVec2{left, y}, ImVec2{right, y}, WithAlpha(Theme::Chrome600, 0.6f));
+		drawList->AddLine(ImVec2{left, y}, ImVec2{right, y}, Theme::WithAlpha(Theme::Chrome600, 0.6f));
 		auto centre = y + rowHeight / 2;
 		Theme::DrawLamp(drawList, ImVec2{left + 6 * scale, centre}, 6 * scale,
 						record ? Theme::Lamp::Lit : Theme::Lamp::Off);
@@ -395,7 +390,8 @@ void DefinitiveFrontEnd::RenderNameEntry()
 		}
 		auto focused = ImGui::IsItemFocused();
 		ImVec2 max{at.x + size.x, at.y + size.y};
-		drawList->AddRectFilled(at, max, focused ? Theme::Space600 : WithAlpha(Theme::Space950, 0.6f), 4 * scale);
+		drawList->AddRectFilled(at, max, focused ? Theme::Space600 : Theme::WithAlpha(Theme::Space950, 0.6f),
+								4 * scale);
 		if (focused)
 			drawList->AddRect(at, max, Theme::LedOrange, 4 * scale);
 		auto labelSize = Theme::HeadingFont()->CalcTextSizeA(Theme::BodySize * scale, FLT_MAX, 0, label);

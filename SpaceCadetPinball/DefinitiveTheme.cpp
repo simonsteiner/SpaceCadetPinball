@@ -197,11 +197,6 @@ namespace
 		return font;
 	}
 
-	ImU32 WithAlpha(ImU32 color, float alpha)
-	{
-		return (color & 0x00FFFFFFU) | static_cast<ImU32>(std::lround(alpha * 255.0f)) << 24U;
-	}
-
 	std::string Ghost(const char* text)
 	{
 		std::string ghost{text};
@@ -236,6 +231,11 @@ ImFont* DefinitiveTheme::HeadingFont()
 ImFont* DefinitiveTheme::DigitsFont()
 {
 	return Digits;
+}
+
+ImU32 DefinitiveTheme::WithAlpha(ImU32 color, float alpha)
+{
+	return (color & 0x00FFFFFFU) | static_cast<ImU32>(std::lround(alpha * 255.0f)) << 24U;
 }
 
 void DefinitiveTheme::ApplyStyle(ImGuiStyle& style)
