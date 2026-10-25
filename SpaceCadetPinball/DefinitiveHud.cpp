@@ -35,11 +35,6 @@ namespace
 		return translations::GetTranslation(id);
 	}
 
-	ImU32 WithAlpha(ImU32 color, float alpha)
-	{
-		return (color & 0x00FFFFFFU) | static_cast<ImU32>(std::lround(alpha * 255.0f)) << 24U;
-	}
-
 	const char* PlayerName(int player)
 	{
 		return Text(static_cast<Msg>(static_cast<int>(Msg::STRING127) + std::clamp(player, 0, 3)));
@@ -132,7 +127,7 @@ float DefinitiveHud::DrawContents(ImDrawList* drawList, const TableView& view, I
 		y += (Gap - OtherGap) * scale;
 	}
 
-	drawList->AddLine(ImVec2{left, y}, ImVec2{left + width, y}, WithAlpha(Theme::Chrome600, 0.6f));
+	drawList->AddLine(ImVec2{left, y}, ImVec2{left + width, y}, Theme::WithAlpha(Theme::Chrome600, 0.6f));
 	y += 1 + Gap * scale;
 
 	// The mission that runs, and the mission text box, which says what it needs next or how to start one

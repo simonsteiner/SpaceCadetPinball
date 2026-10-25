@@ -35,11 +35,6 @@ namespace
 		return translations::GetTranslation(id);
 	}
 
-	ImU32 WithAlpha(ImU32 color, float alpha)
-	{
-		return (color & 0x00FFFFFFU) | static_cast<ImU32>(std::lround(alpha * 255.0f)) << 24U;
-	}
-
 
 	// A line of the credits, a heading or not
 	struct CreditLine
@@ -189,7 +184,7 @@ float DefinitiveFrontEnd::BeginColumn(const char* name, float width)
 	auto background = ImGui::GetBackgroundDrawList();
 	auto min = viewport->Pos;
 	auto height = viewport->Size.y;
-	auto shade = WithAlpha(Theme::Space950, 0.88f), clear = WithAlpha(Theme::Space950, 0);
+	auto shade = Theme::WithAlpha(Theme::Space950, 0.88f), clear = Theme::WithAlpha(Theme::Space950, 0);
 	background->AddRectFilled(min, ImVec2{min.x + columnWidth, min.y + height}, shade);
 	background->AddRectFilledMultiColor(ImVec2{min.x + columnWidth, min.y},
 										ImVec2{min.x + columnWidth + fade, min.y + height}, shade, clear, clear, shade);
@@ -295,8 +290,8 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 		if (count == players)
 		{
 			drawList->AddRectFilled(ImVec2{min.x - 2 * scale, min.y - 2 * scale},
-									ImVec2{max.x + 2 * scale, max.y + 2 * scale}, WithAlpha(Theme::LedOrange, 0.25f),
-									6 * scale);
+									ImVec2{max.x + 2 * scale, max.y + 2 * scale},
+									Theme::WithAlpha(Theme::LedOrange, 0.25f), 6 * scale);
 			drawList->AddRectFilled(min, max, Theme::LedOrange, 4 * scale);
 			drawList->AddText(Theme::HeadingFont(), Theme::BodySize * scale, textPosition, Theme::Space950, digit);
 		}
@@ -362,7 +357,7 @@ void DefinitiveFrontEnd::RenderRecords()
 	{
 		auto rowHeight = 44 * scale;
 		auto left = origin.x + 16 * scale, right = origin.x + innerWidth - 16 * scale;
-		drawList->AddLine(ImVec2{left, y}, ImVec2{right, y}, WithAlpha(Theme::Chrome600, 0.6f));
+		drawList->AddLine(ImVec2{left, y}, ImVec2{right, y}, Theme::WithAlpha(Theme::Chrome600, 0.6f));
 		auto centre = y + rowHeight / 2;
 		char rank[4];
 		snprintf(rank, sizeof rank, "%d", static_cast<int>(i) + 1);
