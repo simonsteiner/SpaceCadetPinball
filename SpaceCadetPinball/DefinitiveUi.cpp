@@ -262,11 +262,11 @@ void DefinitiveUi::ParagraphRow(const char* id, const char* title, const char* a
 {
 	auto scale = LayoutScale;
 	auto width = ImGui::CalcItemWidth();
-	auto padding = 16 * scale;
+	auto padding = ParagraphPadding * scale;
 	auto lampRadius = 6 * scale;
-	auto textX = padding + lampRadius * 2 + padding;
+	auto textX = ParagraphTextX * scale;
 	auto titleHeight = DefinitiveTheme::BodySize * 1.3f * scale;
-	auto paragraphWidth = width - textX - padding;
+	auto paragraphWidth = ParagraphWidth();
 	auto paragraphHeight = DrawWrapped(nullptr, DefinitiveTheme::TextFont(), DefinitiveTheme::LabelSize + 1, ImVec2{},
 									   0, text, paragraphWidth);
 	auto footerHeight = footer > 0 ? (footer + 6) * scale : 0;
@@ -309,9 +309,12 @@ void DefinitiveUi::ParagraphRow(const char* id, const char* title, const char* a
 				 ImVec2{titleRight, top + (titleHeight - labelSize.y) / 2}, color, label);
 		titleRight -= padding;
 	}
+	// A title too long for the room left of the aside is cut there, as a menu row's label is
+	drawList->PushClipRect(ImVec2{Row.Min.x + textX, Row.Min.y}, ImVec2{titleRight, Row.Max.y}, true);
 	DrawText(drawList, DefinitiveTheme::HeadingFont(), DefinitiveTheme::BodySize, ImVec2{Row.Min.x + textX, top},
 			 RowFocused ? DefinitiveTheme::Chrome50 : DefinitiveTheme::Chrome200, title,
 			 titleRight - Row.Min.x - textX);
+	drawList->PopClipRect();
 	DrawWrapped(drawList, DefinitiveTheme::TextFont(), DefinitiveTheme::LabelSize + 1,
 				ImVec2{Row.Min.x + textX, top + titleHeight + 4 * scale}, DefinitiveTheme::Chrome200, text,
 				paragraphWidth);
@@ -321,6 +324,11 @@ void DefinitiveUi::ParagraphRow(const char* id, const char* title, const char* a
 ImVec2 DefinitiveUi::FooterTop()
 {
 	return Footer;
+}
+
+float DefinitiveUi::ParagraphWidth()
+{
+	return ImGui::CalcItemWidth() - (ParagraphTextX + ParagraphPadding) * LayoutScale;
 }
 
 void DefinitiveUi::NextRowNote(const char* note)

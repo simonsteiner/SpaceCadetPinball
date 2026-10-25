@@ -94,6 +94,8 @@ public:
 							 const char* tag = nullptr, float footer = 0);
 	// The top left of the last ParagraphRow's footer, in line with its text
 	static ImVec2 FooterTop();
+	// How wide the next ParagraphRow's paragraph and footer are at ImGui's item width
+	static float ParagraphWidth();
 
 	// -1 or 1 when left or right was pressed this frame while the last row has focus, else 0
 	static int RowStep();
@@ -111,6 +113,9 @@ public:
 	static void DrawHints(ImDrawList* drawList, ImVec2 position, std::initializer_list<Hint> hints);
 
 private:
+	// A paragraph row's padding, and where its text starts: after the padding, the lamp and the padding again
+	static constexpr float ParagraphPadding = 16;
+	static constexpr float ParagraphTextX = ParagraphPadding * 2 + 12;
 	static float LayoutScale;
 	static Device Last;
 	static ImRect Row;

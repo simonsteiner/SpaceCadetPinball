@@ -105,7 +105,7 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 
 	// The groups as tabs; Q and E, the shoulder buttons or a tap move between them
 	auto tabsY = min.y + padding + 48 * scale;
-	auto tabHeight = 40 * scale;
+	auto tabHeight = Ui::TabHeight * scale;
 	auto previous = Current;
 	auto showedLanguages = Languages;
 	if (!Languages)

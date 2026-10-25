@@ -2,6 +2,7 @@
 #include "DefinitiveGuide.h"
 
 #include "DefinitiveHud.h"
+#include "DefinitiveText.h"
 #include "DefinitiveTheme.h"
 #include "DefinitiveUi.h"
 #include "TableView.h"
@@ -75,25 +76,42 @@ namespace
 	});
 	// clang-format on
 
-	constexpr float AwardHeight = 18;
-	constexpr float ProgressHeight = 20;
+	// The room between the award and the mission text box's line under it, at scale 1
+	constexpr float FooterGap = 4;
 	constexpr int RingLamps = 18;
 
-	// The points, then the rank ring as a row of small lamps with the ones the mission lights lit
-	void DrawAward(ImDrawList* drawList, ImVec2 position, const Award& award)
+	// The points, then the rank ring as a row of small lamps with the ones the mission lights lit: beside the points
+	// when both fit in width, else under them, and right-aligned in a right-to-left language. Returns the height it
+	// takes at scale 1; without a draw list it only measures.
+	float DrawAward(ImDrawList* drawList, ImVec2 position, float width, const Award& award)
 	{
 		auto scale = Ui::Scale();
 		std::array<char, 64> points{};
 		snprintf(points.data(), points.size(), Text(Msg::Definitive_GuidePoints),
 				 Ui::FormatScore(award.Points, 0).c_str());
 		auto size = Ui::TextSize(Theme::HeadingFont(), Theme::LabelSize + 1, points.data());
-		Ui::DrawText(drawList, Theme::HeadingFont(), Theme::LabelSize + 1, position, Theme::Chrome200, points.data());
 		auto radius = 3.5f * scale;
 		auto gap = 9.0f * scale;
-		auto x = position.x + size.x + 14 * scale + radius;
+		auto spacing = 14 * scale;
+		auto lampsWidth = gap * static_cast<float>(RingLamps - 1) + radius * 2;
+		auto beside = size.x + spacing + lampsWidth <= width;
+		auto height = beside ? std::max(size.y, radius * 2) : size.y + 6 * scale + radius * 2;
+		if (!drawList)
+			return height / scale;
+
+		Ui::DrawText(drawList, Theme::HeadingFont(), Theme::LabelSize + 1, position, Theme::Chrome200, points.data(),
+					 width);
+		auto rightToLeft = DefinitiveText::RightToLeft();
+		auto y = beside ? position.y + size.y / 2 : position.y + size.y + 6 * scale + radius;
+		auto x = position.x;
+		if (beside)
+			x = rightToLeft ? position.x + width - size.x - spacing - lampsWidth : position.x + size.x + spacing;
+		else if (rightToLeft)
+			x = position.x + width - lampsWidth;
 		for (auto lamp = 0; lamp < RingLamps; lamp++)
-			Theme::DrawLamp(drawList, ImVec2{x + static_cast<float>(lamp) * gap, position.y + size.y / 2}, radius,
+			Theme::DrawLamp(drawList, ImVec2{x + radius + static_cast<float>(lamp) * gap, y}, radius,
 							lamp < award.Lamps ? Theme::Lamp::Lit : Theme::Lamp::Dark);
+		return height / scale;
 	}
 
 	const char* GuideText(int mission)
@@ -212,6 +230,8 @@ void DefinitiveGuide::Paragraph(int& row, const char* id, const char* title, con
 	Ui::ParagraphRow(id, title, aside, text, tag, footer);
 	if (!focus)
 		return;
+	// The window opens scrolled to the top, and taking the focus doesn't scroll; the row may be further down
+	ImGui::ScrollToItem(ImGuiScrollFlags_KeepVisibleEdgeY);
 	FocusFrames--;
 	if (FocusFrames <= 0)
 		Focus = -1;
@@ -250,16 +270,22 @@ void DefinitiveGuide::RenderMissions(const TableView& view, int& row)
 		auto now = mission == running;
 		std::string progress = now ? view.MissionText : std::string{};
 		std::replace(progress.begin(), progress.end(), '\n', ' ');
-		Paragraph(row, "mission", DefinitiveHud::MissionName(mission), Text(Targets[index]), GuideText(mission),
-				  now ? Text(Msg::Definitive_GuideNow) : nullptr,
-				  AwardHeight + (progress.empty() ? 0 : ProgressHeight));
-		DrawAward(ImGui::GetWindowDrawList(), Ui::FooterTop(), Awards[mission - 2]);
+		const auto& award = Awards[mission - 2];
+		auto width = Ui::ParagraphWidth();
+		auto awardHeight = DrawAward(nullptr, ImVec2{}, width, award);
+		auto progressHeight = 0.0f;
 		if (!progress.empty())
-		{
-			auto footer = Ui::FooterTop();
-			Ui::DrawText(ImGui::GetWindowDrawList(), Theme::TextFont(), Theme::LabelSize + 1,
-						 ImVec2{footer.x, footer.y + AwardHeight * scale}, Theme::LedOrange, progress.c_str());
-		}
+			progressHeight = FooterGap + Ui::DrawWrapped(nullptr, Theme::TextFont(), Theme::LabelSize + 1, ImVec2{}, 0,
+														 progress.c_str(), width) /
+											 scale;
+		Paragraph(row, "mission", DefinitiveHud::MissionName(mission), Text(Targets[index]), GuideText(mission),
+				  now ? Text(Msg::Definitive_GuideNow) : nullptr, awardHeight + progressHeight);
+		auto footer = Ui::FooterTop();
+		DrawAward(ImGui::GetWindowDrawList(), footer, width, award);
+		if (!progress.empty())
+			Ui::DrawWrapped(ImGui::GetWindowDrawList(), Theme::TextFont(), Theme::LabelSize + 1,
+							ImVec2{footer.x, footer.y + (awardHeight + FooterGap) * scale}, Theme::LedOrange,
+							progress.c_str(), width);
 		ImGui::PopID();
 	}
 }
