@@ -262,7 +262,8 @@ void DefinitiveUi::ParagraphRow(const char* id, const char* title, const char* a
 {
 	auto scale = LayoutScale;
 	auto width = ImGui::CalcItemWidth();
-	auto padding = 16 * scale, lampRadius = 6 * scale;
+	auto padding = 16 * scale;
+	auto lampRadius = 6 * scale;
 	auto textX = padding + lampRadius * 2 + padding;
 	auto titleHeight = DefinitiveTheme::BodySize * 1.3f * scale;
 	auto paragraphWidth = width - textX - padding;
@@ -273,9 +274,10 @@ void DefinitiveUi::ParagraphRow(const char* id, const char* title, const char* a
 	ImGui::InvisibleButton(id, size, ImGuiButtonFlags_EnableNav);
 
 	// The mouse and touch move the focus too, as on a menu row
-	auto& io = ImGui::GetIO();
-	auto pointed = ImGui::IsItemHovered() && (io.MouseDelta.x != 0 || io.MouseDelta.y != 0 || ImGui::IsMouseClicked(0));
-	if (pointed || FocusNext)
+	const auto& io = ImGui::GetIO();
+	if (auto pointed =
+			ImGui::IsItemHovered() && (io.MouseDelta.x != 0 || io.MouseDelta.y != 0 || ImGui::IsMouseClicked(0));
+		pointed || FocusNext)
 	{
 		ImGui::SetFocusID(ImGui::GetItemID(), ImGui::GetCurrentWindow());
 		ImGui::SetNavCursorVisible(true);

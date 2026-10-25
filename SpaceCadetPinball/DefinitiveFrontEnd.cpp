@@ -107,21 +107,9 @@ void DefinitiveFrontEnd::Open(Screen screen)
 	CreditsScroll = 0;
 }
 
-void DefinitiveFrontEnd::Render(const TableView& view)
+// Opens and closes the screens as a game starts, pauses and ends, and runs the demo behind the title
+void DefinitiveFrontEnd::FollowGame(const TableView& view, bool playing)
 {
-	Ui::NewFrame();
-	// EndColumn sets it again while a screen shows
-	Focused = false;
-	// The score panel first, so the screens and their veils cover it
-	if (Host.Layout)
-	{
-		SDL_FRect board;
-		SDL_FRect panel;
-		Host.Layout(board, panel);
-		DefinitiveHud::Render(view, board, panel);
-	}
-
-	auto playing = !view.GameOver && !view.Demo;
 	auto paused = Host.Paused && Host.Paused();
 	auto busy = Host.Busy && Host.Busy();
 	auto fromPause = Current == Screen::Pause || Current == Screen::Guide ||
@@ -150,6 +138,24 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 				 (Current == Screen::Settings && SettingsFrom != Screen::Pause);
 	if (title && view.GameOver && !busy && Host.StartDemo)
 		Host.StartDemo();
+}
+
+void DefinitiveFrontEnd::Render(const TableView& view)
+{
+	Ui::NewFrame();
+	// EndColumn sets it again while a screen shows
+	Focused = false;
+	// The score panel first, so the screens and their veils cover it
+	if (Host.Layout)
+	{
+		SDL_FRect board;
+		SDL_FRect panel;
+		Host.Layout(board, panel);
+		DefinitiveHud::Render(view, board, panel);
+	}
+
+	auto playing = !view.GameOver && !view.Demo;
+	FollowGame(view, playing);
 
 	switch (Current)
 	{

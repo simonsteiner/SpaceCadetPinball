@@ -15,6 +15,16 @@ public:
 
 private:
 	// The tab shown, and the row to give the focus to, with the frames left to try
-	static int Current, Focus, FocusFrames;
-	static bool Opened, BackChosen;
+	static int Current;
+	static int Focus;
+	static int FocusFrames;
+	static bool Opened;
+	static bool BackChosen;
+
+	// A row of text that takes the focus when it is row's turn; row counts the rows drawn
+	static void Paragraph(int& row, const char* id, const char* title, const char* aside, const char* text,
+						  const char* tag, float footer = 0);
+	// The rows of the basics' tab, and of the missions of a rank's tab
+	static void RenderBasics(int& row);
+	static void RenderMissions(const TableView& view, int& row);
 };
