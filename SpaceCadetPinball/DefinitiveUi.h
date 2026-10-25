@@ -88,9 +88,12 @@ public:
 	static constexpr float TabHeight = 40;
 	// A row for reading rather than choosing: a title, an aside such as a key at its end and a paragraph under it. It
 	// takes the focus like a menu row, so the keyboard and gamepad scroll through such rows; a tag, if any, lights in
-	// LED orange before the aside.
+	// LED orange before the aside. A footer keeps that much room at scale 1 under the paragraph, for the caller to draw
+	// into from FooterTop on.
 	static void ParagraphRow(const char* id, const char* title, const char* aside, const char* text,
-							 const char* tag = nullptr);
+							 const char* tag = nullptr, float footer = 0);
+	// The top left of the last ParagraphRow's footer, in line with its text
+	static ImVec2 FooterTop();
 
 	// -1 or 1 when left or right was pressed this frame while the last row has focus, else 0
 	static int RowStep();
@@ -111,6 +114,7 @@ private:
 	static float LayoutScale;
 	static Device Last;
 	static ImRect Row;
+	static ImVec2 Footer;
 	static bool RowFocused, FocusNext;
 	static const char* Note;
 };

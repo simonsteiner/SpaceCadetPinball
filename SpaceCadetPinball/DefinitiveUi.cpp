@@ -10,6 +10,7 @@ ImRect DefinitiveUi::Row{};
 bool DefinitiveUi::RowFocused = false;
 bool DefinitiveUi::FocusNext = false;
 const char* DefinitiveUi::Note = nullptr;
+ImVec2 DefinitiveUi::Footer{};
 
 void DefinitiveUi::NewFrame()
 {
@@ -256,7 +257,8 @@ int DefinitiveUi::Tabs(ImDrawList* drawList, ImVec2 position, float width, const
 	return index;
 }
 
-void DefinitiveUi::ParagraphRow(const char* id, const char* title, const char* aside, const char* text, const char* tag)
+void DefinitiveUi::ParagraphRow(const char* id, const char* title, const char* aside, const char* text, const char* tag,
+								float footer)
 {
 	auto scale = LayoutScale;
 	auto width = ImGui::CalcItemWidth();
@@ -266,7 +268,8 @@ void DefinitiveUi::ParagraphRow(const char* id, const char* title, const char* a
 	auto paragraphWidth = width - textX - padding;
 	auto paragraphHeight = DrawWrapped(nullptr, DefinitiveTheme::TextFont(), DefinitiveTheme::LabelSize + 1, ImVec2{},
 									   0, text, paragraphWidth);
-	ImVec2 size{width, padding * 0.75f + titleHeight + 4 * scale + paragraphHeight + padding * 0.75f};
+	auto footerHeight = footer > 0 ? (footer + 6) * scale : 0;
+	ImVec2 size{width, padding * 0.75f + titleHeight + 4 * scale + paragraphHeight + footerHeight + padding * 0.75f};
 	ImGui::InvisibleButton(id, size, ImGuiButtonFlags_EnableNav);
 
 	// The mouse and touch move the focus too, as on a menu row
@@ -310,6 +313,12 @@ void DefinitiveUi::ParagraphRow(const char* id, const char* title, const char* a
 	DrawWrapped(drawList, DefinitiveTheme::TextFont(), DefinitiveTheme::LabelSize + 1,
 				ImVec2{Row.Min.x + textX, top + titleHeight + 4 * scale}, DefinitiveTheme::Chrome200, text,
 				paragraphWidth);
+	Footer = {Row.Min.x + textX, Row.Max.y - padding * 0.75f - footerHeight + 6 * scale};
+}
+
+ImVec2 DefinitiveUi::FooterTop()
+{
+	return Footer;
 }
 
 void DefinitiveUi::NextRowNote(const char* note)
