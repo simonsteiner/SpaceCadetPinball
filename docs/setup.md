@@ -27,7 +27,7 @@ When it finds none, Space Cadet 2026 opens a "Game data needed" screen instead o
 
 ## Build
 
-The project uses C++20, CMake 3.24 or newer, and `SDL3` and `SDL3_mixer` (3.2 or newer each). `CMakePresets.json` has one preset per platform. Configure and build with the same preset name:
+The project uses C++23, CMake 3.24 or newer, and `SDL3` and `SDL3_mixer` (3.2 or newer each). `CMakePresets.json` has one preset per platform. Configure and build with the same preset name:
 
 ```bash
 cmake --preset <preset>
@@ -47,7 +47,7 @@ Each preset builds in `build/<preset>/`. The executable is written to `bin/` in 
 | `macos` | macOS, universal `arm64` and `x86_64` | built from source |
 | `web` | Linux or macOS with Emscripten, for browsers | built from source |
 
-The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL3 3.4.18 and SDL3_mixer 3.2.4 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity. Its other codecs and FluidSynth are left out; the game brings its own MIDI playback (see [Music](#music)). When it is `OFF` (the default on Linux), CMake uses the installed `SDL3` and `SDL3_mixer` development packages through their CMake config files. CI builds every preset except `linux-debug` and `linux-sanitize` on each pull request. Windows builds are 64-bit only: the 32-bit build was dropped by decision, and the Windows XP build because its `v141_xp` toolset lacks full C++20 support.
+The `SCP_VENDORED_SDL` option chooses where SDL comes from. When it is `ON` (the default on Windows and macOS), CMake downloads SDL3 3.4.18 and SDL3_mixer 3.2.4 at configure time, checks them against pinned SHA-256 hashes, and links them statically. SDL_mixer is built with only what the game uses: WAV, and MIDI through Timidity. Its other codecs and FluidSynth are left out; the game brings its own MIDI playback (see [Music](#music)). When it is `OFF` (the default on Linux), CMake uses the installed `SDL3` and `SDL3_mixer` development packages through their CMake config files. CI builds every preset except `linux-debug` and `linux-sanitize` on each pull request. Windows builds are 64-bit only: the 32-bit build was dropped by decision, and the Windows XP build because its `v141_xp` toolset lacks full C++20 support. From Visual Studio 2022 17.13 on, MSVC gets `/std:c++23preview`, because CMake's `/std:c++latest` means C++26 in progress there; older versions get `/std:c++latest`, which is C++23 in progress for them.
 
 Plain `cmake -S . -B build` without a preset still works and follows the same defaults.
 

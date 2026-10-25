@@ -7,6 +7,8 @@
 #include "options.h"
 #include "translations.h"
 
+#include <utility>
+
 DefinitiveSettings::Group DefinitiveSettings::Current = Group::Edition;
 bool DefinitiveSettings::Opened = false;
 bool DefinitiveSettings::Languages = false;
@@ -110,8 +112,8 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 	auto showedLanguages = Languages;
 	if (!Languages)
 	{
-		auto count = static_cast<int>(Group::Count);
-		auto index = static_cast<int>(Current);
+		auto count = std::to_underlying(Group::Count);
+		auto index = std::to_underlying(Current);
 		// Not while a dialog over the screen, such as the font file's, has the keyboard
 		auto focused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 		if (focused && (ImGui::IsKeyPressed(ImGuiKey_Q, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadL1, false)))
@@ -138,7 +140,7 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 			if (ImGui::InvisibleButton("tab", ImVec2{width, tabHeight}))
 				index = tab;
 			ImGui::PopID();
-			auto selected = tab == static_cast<int>(Current);
+			auto selected = tab == std::to_underlying(Current);
 			auto label = Text(GroupNames[tab]);
 			auto labelSize = Ui::TextSize(selected ? Theme::HeadingFont() : Theme::TextFont(), tabFontSize, label);
 			Ui::DrawText(drawList, selected ? Theme::HeadingFont() : Theme::TextFont(), tabFontSize,
@@ -321,7 +323,7 @@ void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunn
 			chosen = 0;
 		if (chosen != current && !Ui::RowStep())
 			options::toggle(chosen == 0 ? Menu1::MaximumResolution
-										: static_cast<Menu1>(static_cast<int>(Menu1::R640x480) + chosen - 1));
+										: static_cast<Menu1>(std::to_underlying(Menu1::R640x480) + chosen - 1));
 	}
 
 	if (Ui::ToggleRow("uniform", Text(Msg::Menu1_WindowUniformScale), options.UniformScaling))
