@@ -39,13 +39,18 @@ struct TableView
 	// Every light on the table, in the table's component order
 	std::vector<Light> Lights;
 	// The messages the two text boxes show now; empty when a box is blank
-	std::string InfoText, MissionText;
-	int PlayerCount, CurrentPlayer;
+	std::string InfoText;
+	std::string MissionText;
+	int PlayerCount;
+	int CurrentPlayer;
 	std::array<int, 4> Scores;
 	// The current player's balls left, and the balls a player starts with; the panel shows ball
 	// MaxBallCount - BallCount + 1, and none while BallCount is 0
-	int BallCount, MaxBallCount;
-	bool GameOver, Demo, Tilted;
+	int BallCount;
+	int MaxBallCount;
+	bool GameOver;
+	bool Demo;
+	bool Tilted;
 	// The table rules' mission state: 0 while waiting for deployment, 1 while choosing a mission, else the mission
 	// that runs. -1 when the table has no mission light (lite198).
 	int Mission;

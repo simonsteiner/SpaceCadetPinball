@@ -13,10 +13,20 @@ namespace
 
 	// The panel's width at scale 1, from the B1 mockup; the margin keeps it off the table and the window's edge
 	constexpr float PanelWidth = 332;
-	constexpr float Margin = 24, Padding = 24, Gap = 24;
-	constexpr float LabelSize = 13, LabelGap = 10, NoteSize = 15, MessageSize = 19;
-	constexpr float ScoreSize = 30, BallSize = 34, OtherScoreSize = 18, OtherGap = 8;
-	constexpr float LampRadius = 6, LampGap = 8, MessageHeight = 92;
+	constexpr float Margin = 24;
+	constexpr float Padding = 24;
+	constexpr float Gap = 24;
+	constexpr float LabelSize = 13;
+	constexpr float LabelGap = 10;
+	constexpr float NoteSize = 15;
+	constexpr float MessageSize = 19;
+	constexpr float ScoreSize = 30;
+	constexpr float BallSize = 34;
+	constexpr float OtherScoreSize = 18;
+	constexpr float OtherGap = 8;
+	constexpr float LampRadius = 6;
+	constexpr float LampGap = 8;
+	constexpr float MessageHeight = 92;
 	// Room for 999,999,999, as the table's own score field has
 	constexpr size_t ScorePlaces = 11;
 
@@ -190,7 +200,8 @@ void DefinitiveHud::Render(const TableView& view, SDL_FRect board, SDL_FRect pan
 	// The screens' scale, unless the room beside or under the table is smaller: the table's panel and the window's
 	// margin beyond it
 	auto viewport = ImGui::GetMainViewport();
-	auto right = viewport->Pos.x + viewport->Size.x, bottom = viewport->Pos.y + viewport->Size.y;
+	auto right = viewport->Pos.x + viewport->Size.x;
+	auto bottom = viewport->Pos.y + viewport->Size.y;
 	auto stacked = panel.y >= board.y + board.h - 1;
 	ImVec2 room = stacked ? ImVec2{viewport->Size.x, bottom - panel.y} : ImVec2{right - panel.x, viewport->Size.y};
 	auto scale = std::min({screenScale, room.x / (PanelWidth + Margin * 2), room.y / (needed + Margin)});

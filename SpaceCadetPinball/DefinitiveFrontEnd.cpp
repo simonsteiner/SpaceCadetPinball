@@ -114,7 +114,8 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 	// The score panel first, so the screens and their veils cover it
 	if (Host.Layout)
 	{
-		SDL_FRect board, panel;
+		SDL_FRect board;
+		SDL_FRect panel;
 		Host.Layout(board, panel);
 		DefinitiveHud::Render(view, board, panel);
 	}
