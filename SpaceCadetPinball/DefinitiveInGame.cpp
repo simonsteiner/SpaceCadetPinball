@@ -9,6 +9,8 @@
 #include "TableView.h"
 #include "translations.h"
 
+#include <utility>
+
 // The screens of a game in play and of one that has just ended: pause, the high score names and the summary
 
 namespace
@@ -23,7 +25,7 @@ namespace
 
 	const char* PlayerName(int player)
 	{
-		return Text(static_cast<Msg>(static_cast<int>(Msg::STRING127) + std::clamp(player, 0, 3)));
+		return Text(static_cast<Msg>(std::to_underlying(Msg::STRING127) + std::clamp(player, 0, 3)));
 	}
 
 	// The most characters a name takes, whatever their script, as long as the high score table has room for their bytes

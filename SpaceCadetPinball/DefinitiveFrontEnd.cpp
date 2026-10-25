@@ -12,6 +12,7 @@
 #include "translations.h"
 
 #include <string_view>
+#include <utility>
 
 DefinitiveHost DefinitiveFrontEnd::Host{};
 DefinitiveFrontEnd::Screen DefinitiveFrontEnd::Current = Screen::None;
@@ -196,7 +197,8 @@ float DefinitiveFrontEnd::BeginColumn(const char* name, float width)
 	auto background = ImGui::GetBackgroundDrawList();
 	auto min = viewport->Pos;
 	auto height = viewport->Size.y;
-	auto shade = Theme::WithAlpha(Theme::Space950, 0.88f), clear = Theme::WithAlpha(Theme::Space950, 0);
+	auto shade = Theme::WithAlpha(Theme::Space950, 0.88f);
+	auto clear = Theme::WithAlpha(Theme::Space950, 0);
 	background->AddRectFilled(min, ImVec2{min.x + columnWidth, min.y + height}, shade);
 	background->AddRectFilledMultiColor(ImVec2{min.x + columnWidth, min.y},
 										ImVec2{min.x + columnWidth + fade, min.y + height}, shade, clear, clear, shade);
@@ -275,7 +277,7 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 	ImVec2 digitsMin{row.Max.x - 16 * scale - digitsWidth, (row.Min.y + row.Max.y - box.y) / 2};
 	auto players = options::Options.Players.V;
 	auto setPlayers = [](int count)
-	{ options::toggle(static_cast<Menu1>(static_cast<int>(Menu1::OnePlayer) + count - 1)); };
+	{ options::toggle(static_cast<Menu1>(std::to_underlying(Menu1::OnePlayer) + count - 1)); };
 	if (chosen)
 	{
 		auto mouse = ImGui::GetIO().MousePos;
