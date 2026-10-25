@@ -4,6 +4,7 @@
 
 #include <initializer_list>
 #include <string>
+#include <string_view>
 #include <vector>
 
 // The pieces Space Cadet 2026's screens are made of, on top of ImGui: a scale that follows the window, menu rows that
@@ -53,6 +54,8 @@ public:
 
 	// A score with its thousands grouped, padded with DSEG's blank digit places to a width for DrawLed
 	static std::string FormatScore(int score, size_t places);
+	// A translated text with its %s replaced by value, without handing the translation to printf as a format
+	static std::string Fill(const char* text, std::string_view value);
 
 	// A font size for ImGui::PushFont that comes out at size * Scale() pixels, whatever ImGui's own scaling is
 	static float FontSize(float size);

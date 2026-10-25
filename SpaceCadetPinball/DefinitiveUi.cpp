@@ -48,6 +48,14 @@ DefinitiveUi::Device DefinitiveUi::LastDevice()
 	return Last;
 }
 
+std::string DefinitiveUi::Fill(const char* text, std::string_view value)
+{
+	std::string filled{text};
+	if (auto at = filled.find("%s"); at != std::string::npos)
+		filled.replace(at, 2, value);
+	return filled;
+}
+
 std::string DefinitiveUi::FormatScore(int score, size_t places)
 {
 	auto digits = std::to_string(std::max(score, 0));
