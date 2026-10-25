@@ -152,8 +152,10 @@ bool DefinitiveGuide::Render(const TableView& view)
 		paragraph("missions", Text(Msg::Definitive_GuideMissionsTitle), nullptr, Text(Msg::Definitive_GuideMissions),
 				  nullptr);
 		paragraph("ranks", Text(Msg::Definitive_GuideRanksTitle), nullptr, Text(Msg::Definitive_GuideRanks), nullptr);
-		paragraph("fulltilt", Text(Msg::Definitive_GuideFullTiltTitle), nullptr, Text(Msg::Definitive_GuideFullTilt),
-				  nullptr);
+		// Only with Full Tilt's data, whose rules score missions differently
+		if (view.FullTilt)
+			paragraph("fulltilt", Text(Msg::Definitive_GuideFullTiltTitle), nullptr,
+					  Text(Msg::Definitive_GuideFullTilt), nullptr);
 	}
 	else
 	{

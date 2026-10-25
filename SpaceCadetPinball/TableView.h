@@ -46,6 +46,8 @@ struct TableView
 	// MaxBallCount - BallCount + 1, and none while BallCount is 0
 	int BallCount, MaxBallCount;
 	bool GameOver, Demo, Tilted;
+	// Whether the table is Full Tilt!'s (CADET.DAT or DEMO.DAT), whose rules differ in places from 3D Pinball's
+	bool FullTilt;
 	// The table rules' mission state: 0 while waiting for deployment, 1 while choosing a mission, else the mission
 	// that runs. -1 when the table has no mission light (lite198).
 	int Mission;
