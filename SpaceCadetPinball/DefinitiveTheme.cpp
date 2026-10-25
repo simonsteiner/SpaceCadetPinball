@@ -197,11 +197,6 @@ namespace
 		return font;
 	}
 
-	ImU32 WithAlpha(ImU32 color, float alpha)
-	{
-		return (color & 0x00FFFFFFU) | static_cast<ImU32>(std::lround(alpha * 255.0f)) << 24U;
-	}
-
 	std::string Ghost(const char* text)
 	{
 		std::string ghost{text};
@@ -236,6 +231,11 @@ ImFont* DefinitiveTheme::HeadingFont()
 ImFont* DefinitiveTheme::DigitsFont()
 {
 	return Digits;
+}
+
+ImU32 DefinitiveTheme::WithAlpha(ImU32 color, float alpha)
+{
+	return (color & 0x00FFFFFFU) | static_cast<ImU32>(std::lround(alpha * 255.0f)) << 24U;
 }
 
 void DefinitiveTheme::ApplyStyle(ImGuiStyle& style)
@@ -338,7 +338,11 @@ void DefinitiveTheme::DrawPanel(ImDrawList* drawList, ImVec2 min, ImVec2 max)
 
 void DefinitiveTheme::DrawLed(ImDrawList* drawList, ImVec2 position, float size, const char* text, bool red)
 {
-	auto color = red ? LedRed : LedOrange;
+	DrawLed(drawList, position, size, text, red ? LedRed : LedOrange);
+}
+
+void DefinitiveTheme::DrawLed(ImDrawList* drawList, ImVec2 position, float size, const char* text, ImU32 color)
+{
 	auto ghost = Ghost(text);
 	drawList->AddText(Digits, size, position, WithAlpha(color, 0.1f), ghost.c_str());
 	drawList->AddText(Digits, size, position, color, text);

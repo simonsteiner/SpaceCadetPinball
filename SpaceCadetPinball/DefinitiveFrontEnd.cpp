@@ -1,8 +1,10 @@
 #include "pch.h"
 #include "DefinitiveFrontEnd.h"
 
+#include "DefinitiveGuide.h"
 #include "DefinitiveSettings.h"
 
+#include "DefinitiveHud.h"
 #include "DefinitiveTheme.h"
 #include "DefinitiveUi.h"
 #include "options.h"
@@ -10,6 +12,7 @@
 #include "translations.h"
 
 #include <string_view>
+#include <utility>
 
 DefinitiveHost DefinitiveFrontEnd::Host{};
 DefinitiveFrontEnd::Screen DefinitiveFrontEnd::Current = Screen::None;
@@ -32,11 +35,6 @@ namespace
 	const char* Text(Msg id)
 	{
 		return translations::GetTranslation(id);
-	}
-
-	ImU32 WithAlpha(ImU32 color, float alpha)
-	{
-		return (color & 0x00FFFFFFU) | static_cast<ImU32>(std::lround(alpha * 255.0f)) << 24U;
 	}
 
 
@@ -105,16 +103,13 @@ void DefinitiveFrontEnd::Open(Screen screen)
 	CreditsScroll = 0;
 }
 
-void DefinitiveFrontEnd::Render(const TableView& view)
+// Opens and closes the screens as a game starts, pauses and ends, and runs the demo behind the title
+void DefinitiveFrontEnd::FollowGame(const TableView& view, bool playing)
 {
-	Ui::NewFrame();
-	// EndColumn sets it again while a screen shows
-	Focused = false;
-
-	auto playing = !view.GameOver && !view.Demo;
 	auto paused = Host.Paused && Host.Paused();
 	auto busy = Host.Busy && Host.Busy();
-	auto fromPause = Current == Screen::Pause || (Current == Screen::Settings && SettingsFrom == Screen::Pause);
+	auto fromPause = Current == Screen::Pause || Current == Screen::Guide ||
+					 (Current == Screen::Settings && SettingsFrom == Screen::Pause);
 	if (playing)
 	{
 		// A game in play closes the other screens, however it started; while it is paused, the pause screen shows
@@ -139,6 +134,24 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 				 (Current == Screen::Settings && SettingsFrom != Screen::Pause);
 	if (title && view.GameOver && !busy && Host.StartDemo)
 		Host.StartDemo();
+}
+
+void DefinitiveFrontEnd::Render(const TableView& view)
+{
+	Ui::NewFrame();
+	// EndColumn sets it again while a screen shows
+	Focused = false;
+	// The score panel first, so the screens and their veils cover it
+	if (Host.Layout)
+	{
+		SDL_FRect board;
+		SDL_FRect panel;
+		Host.Layout(board, panel);
+		DefinitiveHud::Render(view, board, panel);
+	}
+
+	auto playing = !view.GameOver && !view.Demo;
+	FollowGame(view, playing);
 
 	switch (Current)
 	{
@@ -154,6 +167,10 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 		break;
 	case Screen::Credits:
 		RenderCredits();
+		break;
+	case Screen::Guide:
+		if (!DefinitiveGuide::Render(view))
+			Open(Screen::Pause);
 		break;
 	case Screen::Pause:
 		RenderPause(view);
@@ -180,7 +197,8 @@ float DefinitiveFrontEnd::BeginColumn(const char* name, float width)
 	auto background = ImGui::GetBackgroundDrawList();
 	auto min = viewport->Pos;
 	auto height = viewport->Size.y;
-	auto shade = WithAlpha(Theme::Space950, 0.88f), clear = WithAlpha(Theme::Space950, 0);
+	auto shade = Theme::WithAlpha(Theme::Space950, 0.88f);
+	auto clear = Theme::WithAlpha(Theme::Space950, 0);
 	background->AddRectFilled(min, ImVec2{min.x + columnWidth, min.y + height}, shade);
 	background->AddRectFilledMultiColor(ImVec2{min.x + columnWidth, min.y},
 										ImVec2{min.x + columnWidth + fade, min.y + height}, shade, clear, clear, shade);
@@ -259,7 +277,7 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 	ImVec2 digitsMin{row.Max.x - 16 * scale - digitsWidth, (row.Min.y + row.Max.y - box.y) / 2};
 	auto players = options::Options.Players.V;
 	auto setPlayers = [](int count)
-	{ options::toggle(static_cast<Menu1>(static_cast<int>(Menu1::OnePlayer) + count - 1)); };
+	{ options::toggle(static_cast<Menu1>(std::to_underlying(Menu1::OnePlayer) + count - 1)); };
 	if (chosen)
 	{
 		auto mouse = ImGui::GetIO().MousePos;
@@ -286,8 +304,8 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 		if (count == players)
 		{
 			drawList->AddRectFilled(ImVec2{min.x - 2 * scale, min.y - 2 * scale},
-									ImVec2{max.x + 2 * scale, max.y + 2 * scale}, WithAlpha(Theme::LedOrange, 0.25f),
-									6 * scale);
+									ImVec2{max.x + 2 * scale, max.y + 2 * scale},
+									Theme::WithAlpha(Theme::LedOrange, 0.25f), 6 * scale);
 			drawList->AddRectFilled(min, max, Theme::LedOrange, 4 * scale);
 			drawList->AddText(Theme::HeadingFont(), Theme::BodySize * scale, textPosition, Theme::Space950, digit);
 		}
@@ -353,7 +371,7 @@ void DefinitiveFrontEnd::RenderRecords()
 	{
 		auto rowHeight = 44 * scale;
 		auto left = origin.x + 16 * scale, right = origin.x + innerWidth - 16 * scale;
-		drawList->AddLine(ImVec2{left, y}, ImVec2{right, y}, WithAlpha(Theme::Chrome600, 0.6f));
+		drawList->AddLine(ImVec2{left, y}, ImVec2{right, y}, Theme::WithAlpha(Theme::Chrome600, 0.6f));
 		auto centre = y + rowHeight / 2;
 		char rank[4];
 		snprintf(rank, sizeof rank, "%d", static_cast<int>(i) + 1);

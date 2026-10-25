@@ -56,11 +56,15 @@ public:
 	static void ApplyStyle(ImGuiStyle& style);
 
 	// A lamp like the playfield's inserts, which lights on the row that has focus
+	// The colour with its alpha replaced, from 0 for clear to 1 for opaque
+	static ImU32 WithAlpha(ImU32 color, float alpha);
 	static void DrawLamp(ImDrawList* drawList, ImVec2 centre, float radius, Lamp state);
 	// A panel of deep blue with a chrome rim, lit from above like the table's rails
 	static void DrawPanel(ImDrawList* drawList, ImVec2 min, ImVec2 max);
 	// Seven-segment digits with the unlit segments faintly behind them. A '!' is a blank digit place.
 	static void DrawLed(ImDrawList* drawList, ImVec2 position, float size, const char* text, bool red = false);
+	// The same in another colour, such as chrome for the scores of the players not playing
+	static void DrawLed(ImDrawList* drawList, ImVec2 position, float size, const char* text, ImU32 color);
 	static ImVec2 LedSize(float size, const char* text);
 
 private:

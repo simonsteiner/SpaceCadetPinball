@@ -4,6 +4,8 @@
 
 #include <initializer_list>
 #include <string>
+#include <string_view>
+#include <vector>
 
 // The pieces Space Cadet 2026's screens are made of, on top of ImGui: a scale that follows the window, menu rows that
 // light their lamp when they have focus, text in the visual language, and hints for the input device last used.
@@ -52,6 +54,8 @@ public:
 
 	// A score with its thousands grouped, padded with DSEG's blank digit places to a width for DrawLed
 	static std::string FormatScore(int score, size_t places);
+	// A translated text with its %s replaced by value, without handing the translation to printf as a format
+	static std::string Fill(const char* text, std::string_view value);
 
 	// A font size for ImGui::PushFont that comes out at size * Scale() pixels, whatever ImGui's own scaling is
 	static float FontSize(float size);
@@ -60,7 +64,7 @@ public:
 	static void DrawText(ImDrawList* drawList, ImFont* font, float size, ImVec2 position, ImU32 color, const char* text,
 						 float width = 0);
 	// Text wrapped at width, each line in the order it is drawn in and right-aligned like DrawText's; returns the
-	// height it took
+	// height it took. Without a draw list it only measures.
 	static float DrawWrapped(ImDrawList* drawList, ImFont* font, float size, ImVec2 position, ImU32 color,
 							 const char* text, float width);
 
@@ -80,6 +84,22 @@ public:
 	// A row with a slider; returns the new value. Left and right step, and a tap or a drag on the track sets it.
 	static int SliderRow(const char* id, const char* label, int value, int min, int max, int step,
 						 const char* format = "%d");
+	// Tabs in a line at a position, the current one lit; returns the tab chosen, else current. Q and E, the shoulder
+	// buttons or a tap move between them while the window has the focus.
+	static int Tabs(ImDrawList* drawList, ImVec2 position, float width, const std::vector<const char*>& labels,
+					int current);
+	static constexpr float TabHeight = 40;
+	// A row for reading rather than choosing: a title, an aside such as a key at its end and a paragraph under it. It
+	// takes the focus like a menu row, so the keyboard and gamepad scroll through such rows; a tag, if any, lights in
+	// LED orange before the aside. A footer keeps that much room at scale 1 under the paragraph, for the caller to draw
+	// into from FooterTop on.
+	static void ParagraphRow(const char* id, const char* title, const char* aside, const char* text,
+							 const char* tag = nullptr, float footer = 0);
+	// The top left of the last ParagraphRow's footer, in line with its text
+	static ImVec2 FooterTop();
+	// How wide the next ParagraphRow's paragraph and footer are at ImGui's item width
+	static float ParagraphWidth();
+
 	// -1 or 1 when left or right was pressed this frame while the last row has focus, else 0
 	static int RowStep();
 
@@ -96,9 +116,13 @@ public:
 	static void DrawHints(ImDrawList* drawList, ImVec2 position, std::initializer_list<Hint> hints);
 
 private:
+	// A paragraph row's padding, and where its text starts: after the padding, the lamp and the padding again
+	static constexpr float ParagraphPadding = 16;
+	static constexpr float ParagraphTextX = ParagraphPadding * 2 + 12;
 	static float LayoutScale;
 	static Device Last;
 	static ImRect Row;
+	static ImVec2 Footer;
 	static bool RowFocused, FocusNext;
 	static const char* Note;
 };

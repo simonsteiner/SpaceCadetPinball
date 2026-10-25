@@ -1,9 +1,15 @@
 cmake_minimum_required(VERSION 3.24)
 project(SpaceCadetPinball)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+# CMake gives MSVC /std:c++latest for C++23, which since Visual Studio 2022 17.13 (MSVC 19.43) is C++26 in progress.
+# /std:c++23preview keeps it at C++23; switch to /std:c++23 once MSVC Build Tools 14.52 is stable on the CI runners.
+if(MSVC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.43)
+    set(CMAKE_CXX23_STANDARD_COMPILE_OPTION "-std:c++23preview")
+    set(CMAKE_CXX23_EXTENSION_COMPILE_OPTION "-std:c++23preview")
+endif()
 
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin)
@@ -229,6 +235,10 @@ set(SOURCE_FILES
         SpaceCadetPinball/DefinitiveFontData.h
         SpaceCadetPinball/DefinitiveFrontEnd.cpp
         SpaceCadetPinball/DefinitiveFrontEnd.h
+        SpaceCadetPinball/DefinitiveGuide.cpp
+        SpaceCadetPinball/DefinitiveGuide.h
+        SpaceCadetPinball/DefinitiveHud.cpp
+        SpaceCadetPinball/DefinitiveHud.h
         SpaceCadetPinball/DefinitiveInGame.cpp
         SpaceCadetPinball/DefinitiveSettings.cpp
         SpaceCadetPinball/DefinitiveSettings.h

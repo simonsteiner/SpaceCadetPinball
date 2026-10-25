@@ -6705,6 +6705,216 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_Ball,
+		{
+			{ Lang::English, "Ball" },
+		}
+	},
+	{
+		Msg::Definitive_Mission,
+		{
+			{ Lang::English, "Mission" },
+		}
+	},
+	{
+		Msg::Definitive_Rank,
+		{
+			{ Lang::English, "Rank" },
+		}
+	},
+	{
+		Msg::Definitive_MissionGuide,
+		{
+			{ Lang::English, "Mission Guide" },
+		}
+	},
+	{
+		Msg::Definitive_GuideBasics,
+		{
+			{ Lang::English, "Basics" },
+		}
+	},
+	{
+		Msg::Definitive_GuideOffered,
+		{
+			{ Lang::English, "Missions offered at %s" },
+		}
+	},
+	{
+		Msg::Definitive_GuideUpper,
+		{
+			{ Lang::English, "Upper target" },
+		}
+	},
+	{
+		Msg::Definitive_GuideMiddle,
+		{
+			{ Lang::English, "Middle target" },
+		}
+	},
+	{
+		Msg::Definitive_GuideLower,
+		{
+			{ Lang::English, "Lower target" },
+		}
+	},
+	{
+		Msg::Definitive_GuideAll,
+		{
+			{ Lang::English, "All three targets" },
+		}
+	},
+	{
+		Msg::Definitive_GuideNow,
+		{
+			{ Lang::English, "Now" },
+		}
+	},
+	{
+		Msg::Definitive_GuidePoints,
+		{
+			{ Lang::English, "%s points" },
+		}
+	},
+	{
+		Msg::Definitive_GuideMissionsTitle,
+		{
+			{ Lang::English, "How missions work" },
+		}
+	},
+	{
+		Msg::Definitive_GuideMissions,
+		{
+			{ Lang::English, "Missions earn points and raise your rank. Hit one of the three mission targets beside the launch bumpers, on the left, to choose a mission; hitting another target changes the choice. Then shoot the launch ramp to accept it. Which mission a target chooses depends on your rank, and hitting all three chooses a fourth. A mission can only be accepted while the ship has fuel; the fuel targets at the top left and the fuel chute on the left refuel it. A mission ends when it is done, when the fuel runs out, or when you lose the ball." },
+		}
+	},
+	{
+		Msg::Definitive_GuideRanksTitle,
+		{
+			{ Lang::English, "How ranks work" },
+		}
+	},
+	{
+		Msg::Definitive_GuideRanks,
+		{
+			{ Lang::English, "There are nine ranks, from Cadet to Fleet Admiral, shown by the lamps in the middle of the table. Each mission you finish lights part of the ring of 18 lamps around them, as the lamps under each mission here show; when the ring is full you are promoted and it starts again. Your rank decides which missions the mission targets offer, and it stays from ball to ball." },
+		}
+	},
+	{
+		Msg::Definitive_GuideFullTiltTitle,
+		{
+			{ Lang::English, "Full Tilt! Pinball" },
+		}
+	},
+	{
+		Msg::Definitive_GuideFullTilt,
+		{
+			{ Lang::English, "With Full Tilt! data, accepting a mission scores 100,000 points, and finishing one also pays the jackpot and lights Replay, which gives you the ball back the next time it drains." },
+		}
+	},
+	{
+		Msg::Definitive_GuideTargetPractice,
+		{
+			{ Lang::English, "Hit the attack bumpers, in the upper middle of the table, 8 times." },
+		}
+	},
+	{
+		Msg::Definitive_GuideLaunchTraining,
+		{
+			{ Lang::English, "Shoot the launch ramp, on the left, 3 times." },
+		}
+	},
+	{
+		Msg::Definitive_GuideReentryTraining,
+		{
+			{ Lang::English, "Roll through the re-entry lanes at the top of the table 3 times." },
+		}
+	},
+	{
+		Msg::Definitive_GuideScience,
+		{
+			{ Lang::English, "Knock down 9 drop targets, from any of the three banks." },
+		}
+	},
+	{
+		Msg::Definitive_GuideStrayComet,
+		{
+			{ Lang::English, "Hit all three targets of the right hazard bank, at the upper right, then shoot the ball into the hyperspace chute near the top." },
+		}
+	},
+	{
+		Msg::Definitive_GuideBlackHole,
+		{
+			{ Lang::English, "Upgrade the launch bumpers by lighting the three launch lanes beside them. Then shoot the ball into the black hole, beside the launch ramp, while they are still upgraded: each upgrade wears off after a minute." },
+		}
+	},
+	{
+		Msg::Definitive_GuideSpaceRadiation,
+		{
+			{ Lang::English, "Hit all three targets of the left hazard bank, at the upper left, then shoot the ball into any wormhole." },
+		}
+	},
+	{
+		Msg::Definitive_GuideBugHunt,
+		{
+			{ Lang::English, "Hit 15 targets anywhere on the table, drop targets or spot targets." },
+		}
+	},
+	{
+		Msg::Definitive_GuideAlienMenace,
+		{
+			{ Lang::English, "Upgrade the attack bumpers by lighting the three re-entry lanes at the top, then hit the attack bumpers 8 times." },
+		}
+	},
+	{
+		Msg::Definitive_GuideRescue,
+		{
+			{ Lang::English, "Upgrade the flags by knocking down the three drop targets on the right. Then, within a minute, while the flag lamps are lit, shoot the ball into the hyperspace chute near the top." },
+		}
+	},
+	{
+		Msg::Definitive_GuideSatellite,
+		{
+			{ Lang::English, "Hit the remote attack bumper, the one on its own at the top left, 3 times." },
+		}
+	},
+	{
+		Msg::Definitive_GuideRecon,
+		{
+			{ Lang::English, "Roll through any lane 15 times: the re-entry lanes, the launch lanes or the lanes beside the flippers." },
+		}
+	},
+	{
+		Msg::Definitive_GuideDoomsday,
+		{
+			{ Lang::English, "Roll through the out lanes, the outermost lanes at the bottom, 3 times." },
+		}
+	},
+	{
+		Msg::Definitive_GuideCosmicPlague,
+		{
+			{ Lang::English, "Spin the flags, at the upper left and right, 75 times, then roll over the space warp rollover at the upper left." },
+		}
+	},
+	{
+		Msg::Definitive_GuideSecret,
+		{
+			{ Lang::English, "Shoot the ball into the yellow wormhole on the right, then the red one and then the green one, both at the top." },
+		}
+	},
+	{
+		Msg::Definitive_GuideTimeWarp,
+		{
+			{ Lang::English, "Hit the rebounders 25 times: the slingshots above the flippers and the two higher up. Then shoot the launch ramp to warp forward, which promotes you and lights 12 lamps of the ring, or the hyperspace chute to warp back, which costs you a rank unless you are a Cadet." },
+		}
+	},
+	{
+		Msg::Definitive_GuideMaelstrom,
+		{
+			{ Lang::English, "Eight stages in a row: 3 drop target hits, 3 spot target hits, 5 lane passes, the fuel chute, the launch ramp, the flags, any wormhole and last the hyperspace chute." },
+		}
+	},
+	{
 		Msg::FullTilt_Caption,
 		{
 			{ Lang::English, "Full Tilt! - Space Cadet" },

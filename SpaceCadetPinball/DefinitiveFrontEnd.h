@@ -66,6 +66,8 @@ struct DefinitiveHost
 	bool (*ChosenFolderEmpty)();
 	// The folder the game data was loaded from
 	std::string (*DataFolder)();
+	// Where the table and its score panel are drawn, in window coordinates; the panel is empty when the table has none
+	void (*Layout)(SDL_FRect& board, SDL_FRect& panel);
 };
 
 // Space Cadet 2026's front end: the title with the main menu and the screens it leads to. It takes the place of
@@ -107,6 +109,7 @@ private:
 		Pause,
 		GameOver,
 		NameEntry,
+		Guide,
 	};
 
 	static DefinitiveHost Host;
@@ -121,6 +124,7 @@ private:
 	static std::vector<std::string> NewRecords;
 
 	static void Open(Screen screen);
+	static void FollowGame(const TableView& view, bool playing);
 	static void RenderTitle(const TableView& view);
 	static void RenderRecords();
 	static void RenderCredits();
