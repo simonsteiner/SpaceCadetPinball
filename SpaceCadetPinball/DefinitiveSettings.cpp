@@ -7,6 +7,8 @@
 #include "options.h"
 #include "translations.h"
 
+#include <utility>
+
 DefinitiveSettings::Group DefinitiveSettings::Current = Group::Edition;
 bool DefinitiveSettings::Opened = false;
 bool DefinitiveSettings::Languages = false;
@@ -114,7 +116,7 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 		for (auto name : GroupNames)
 			names.push_back(Text(name));
 		Current = static_cast<Group>(
-			Ui::Tabs(drawList, ImVec2{min.x + padding, tabsY}, innerWidth, names, static_cast<int>(Current)));
+			Ui::Tabs(drawList, ImVec2{min.x + padding, tabsY}, innerWidth, names, std::to_underlying(Current)));
 	}
 
 	// The rows scroll under the tabs, and the focus follows them
@@ -286,7 +288,7 @@ void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunn
 			chosen = 0;
 		if (chosen != current && !Ui::RowStep())
 			options::toggle(chosen == 0 ? Menu1::MaximumResolution
-										: static_cast<Menu1>(static_cast<int>(Menu1::R640x480) + chosen - 1));
+										: static_cast<Menu1>(std::to_underlying(Menu1::R640x480) + chosen - 1));
 	}
 
 	if (Ui::ToggleRow("uniform", Text(Msg::Menu1_WindowUniformScale), options.UniformScaling))

@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <array>
+#include <utility>
 
 int DefinitiveGuide::Current = 0;
 int DefinitiveGuide::Focus = -1;
@@ -86,10 +87,8 @@ namespace
 	float DrawAward(ImDrawList* drawList, ImVec2 position, float width, const Award& award)
 	{
 		auto scale = Ui::Scale();
-		std::array<char, 64> points{};
-		snprintf(points.data(), points.size(), Text(Msg::Definitive_GuidePoints),
-				 Ui::FormatScore(award.Points, 0).c_str());
-		auto size = Ui::TextSize(Theme::HeadingFont(), Theme::LabelSize + 1, points.data());
+		auto points = Ui::Fill(Text(Msg::Definitive_GuidePoints), Ui::FormatScore(award.Points, 0));
+		auto size = Ui::TextSize(Theme::HeadingFont(), Theme::LabelSize + 1, points.c_str());
 		auto radius = 3.5f * scale;
 		auto gap = 9.0f * scale;
 		auto spacing = 14 * scale;
@@ -99,7 +98,7 @@ namespace
 		if (!drawList)
 			return height / scale;
 
-		Ui::DrawText(drawList, Theme::HeadingFont(), Theme::LabelSize + 1, position, Theme::Chrome200, points.data(),
+		Ui::DrawText(drawList, Theme::HeadingFont(), Theme::LabelSize + 1, position, Theme::Chrome200, points.c_str(),
 					 width);
 		auto rightToLeft = DefinitiveText::RightToLeft();
 		auto y = beside ? position.y + size.y / 2 : position.y + size.y + 6 * scale + radius;
@@ -116,7 +115,7 @@ namespace
 
 	const char* GuideText(int mission)
 	{
-		return Text(static_cast<Msg>(static_cast<int>(Msg::Definitive_GuideTargetPractice) + mission - 2));
+		return Text(static_cast<Msg>(std::to_underlying(Msg::Definitive_GuideTargetPractice) + mission - 2));
 	}
 } // namespace
 
@@ -239,13 +238,13 @@ void DefinitiveGuide::Paragraph(int& row, const char* id, const char* title, con
 
 void DefinitiveGuide::RenderBasics(const TableView& view, int& row)
 {
-	Paragraph(row, "missions", Text(Msg::Definitive_GuideMissionsTitle), nullptr, Text(Msg::Definitive_GuideMissions),
-			  nullptr);
-	Paragraph(row, "ranks", Text(Msg::Definitive_GuideRanksTitle), nullptr, Text(Msg::Definitive_GuideRanks), nullptr);
+	using enum Msg;
+	Paragraph(row, "missions", Text(Definitive_GuideMissionsTitle), nullptr, Text(Definitive_GuideMissions), nullptr);
+	Paragraph(row, "ranks", Text(Definitive_GuideRanksTitle), nullptr, Text(Definitive_GuideRanks), nullptr);
 	// Only with Full Tilt's data, whose rules score missions differently
 	if (view.FullTilt)
-		Paragraph(row, "fulltilt", Text(Msg::Definitive_GuideFullTiltTitle), nullptr,
-				  Text(Msg::Definitive_GuideFullTilt), nullptr);
+		Paragraph(row, "fulltilt", Text(Definitive_GuideFullTiltTitle), nullptr, Text(Definitive_GuideFullTilt),
+				  nullptr);
 }
 
 // Which ranks the tab is for, then its four missions by the target that chooses them
@@ -256,11 +255,10 @@ void DefinitiveGuide::RenderMissions(const TableView& view, int& row)
 	std::string ranks = DefinitiveHud::RankName(tier.FirstRank);
 	if (tier.LastRank != tier.FirstRank)
 		ranks = ranks + " · " + DefinitiveHud::RankName(tier.LastRank);
-	std::array<char, 128> offered{};
-	snprintf(offered.data(), offered.size(), Text(Msg::Definitive_GuideOffered), ranks.c_str());
+	auto offered = Ui::Fill(Text(Msg::Definitive_GuideOffered), ranks);
 	auto at = ImGui::GetCursorScreenPos();
 	Ui::DrawText(ImGui::GetWindowDrawList(), Theme::TextFont(), Theme::LabelSize,
-				 ImVec2{at.x + 16 * scale, at.y + 4 * scale}, Theme::Chrome400, offered.data(),
+				 ImVec2{at.x + 16 * scale, at.y + 4 * scale}, Theme::Chrome400, offered.c_str(),
 				 ImGui::CalcItemWidth() - 32 * scale);
 	ImGui::Dummy(ImVec2{0, (Theme::LabelSize + 12) * scale});
 	auto running = DefinitiveHud::MissionOf(view.Mission);
