@@ -60,7 +60,7 @@ public:
 	static void DrawText(ImDrawList* drawList, ImFont* font, float size, ImVec2 position, ImU32 color, const char* text,
 						 float width = 0);
 	// Text wrapped at width, each line in the order it is drawn in and right-aligned like DrawText's; returns the
-	// height it took
+	// height it took. Without a draw list it only measures.
 	static float DrawWrapped(ImDrawList* drawList, ImFont* font, float size, ImVec2 position, ImU32 color,
 							 const char* text, float width);
 

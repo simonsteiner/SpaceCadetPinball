@@ -93,8 +93,10 @@ float DefinitiveUi::DrawWrapped(ImDrawList* drawList, ImFont* font, float size, 
 	auto lines = 0;
 	auto drawLine = [&](std::string_view line)
 	{
-		auto visual = DefinitiveText::Shape(line);
 		ImVec2 at{position.x, position.y + static_cast<float>(lines++) * fontSize};
+		if (!drawList)
+			return;
+		auto visual = DefinitiveText::Shape(line);
 		if (rightToLeft)
 			at.x += width - font->CalcTextSizeA(fontSize, FLT_MAX, 0, visual.c_str()).x;
 		drawList->AddText(font, fontSize, at, color, visual.c_str());

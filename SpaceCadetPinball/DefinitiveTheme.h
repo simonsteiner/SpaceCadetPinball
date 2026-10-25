@@ -61,6 +61,8 @@ public:
 	static void DrawPanel(ImDrawList* drawList, ImVec2 min, ImVec2 max);
 	// Seven-segment digits with the unlit segments faintly behind them. A '!' is a blank digit place.
 	static void DrawLed(ImDrawList* drawList, ImVec2 position, float size, const char* text, bool red = false);
+	// The same in another colour, such as chrome for the scores of the players not playing
+	static void DrawLed(ImDrawList* drawList, ImVec2 position, float size, const char* text, ImU32 color);
 	static ImVec2 LedSize(float size, const char* text);
 
 private:

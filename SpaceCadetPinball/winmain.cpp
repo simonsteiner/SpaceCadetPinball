@@ -309,6 +309,18 @@ static DefinitiveHost MakeDefinitiveHost()
 	host.ChosenFolderEmpty = [] { return ChosenFolderEmpty; };
 	host.DataFolder = []
 	{ return pb::BasePath.empty() ? std::string{pb::get_rc_string(Msg::Definitive_DataStartFolder)} : pb::BasePath; };
+	host.Layout = [](SDL_FRect& board, SDL_FRect& panel)
+	{
+		// The layout is in pixels, ImGui in window coordinates
+		auto fbScale = ImGui::GetIO().DisplayFramebufferScale;
+		auto convert = [&](const SDL_Rect& rect)
+		{
+			return SDL_FRect{static_cast<float>(rect.x) / fbScale.x, static_cast<float>(rect.y) / fbScale.y,
+							 static_cast<float>(rect.w) / fbScale.x, static_cast<float>(rect.h) / fbScale.y};
+		};
+		board = convert(render::BoardRect);
+		panel = convert(render::SidebarRect);
+	};
 	return host;
 }
 
@@ -1353,8 +1365,9 @@ void winmain::RenderUi()
 		ImGui::EndPopup();
 	}
 
-	// Print game texts on the sidebar
-	gdrv::grtext_draw_ttext_in_box();
+	// Print game texts on the sidebar; Space Cadet 2026's score panel shows them instead
+	if (!definitive)
+		gdrv::grtext_draw_ttext_in_box();
 }
 
 // Whether a key or gamepad button goes to the game although Space Cadet 2026's screen has the keyboard: one bound to a

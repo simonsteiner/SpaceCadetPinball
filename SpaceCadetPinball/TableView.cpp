@@ -135,8 +135,8 @@ uint64_t TableView::Hash() const
 	}
 	hash.Add(InfoText);
 	hash.Add(MissionText);
-	for (auto value :
-		 {PlayerCount, CurrentPlayer, Scores[0], Scores[1], Scores[2], Scores[3], BallCount, Mission, Rank})
+	for (auto value : {PlayerCount, CurrentPlayer, Scores[0], Scores[1], Scores[2], Scores[3], BallCount, MaxBallCount,
+					   Mission, Rank})
 		hash.Add(value);
 	for (auto value : {GameOver, Demo, Tilted})
 		hash.Add(value);
@@ -193,6 +193,7 @@ void TableView::Fill()
 		View.Scores[index] = scoreStruct ? scoreStruct->Score : 0;
 	}
 	View.BallCount = Table->BallCount;
+	View.MaxBallCount = Table->MaxBallCount;
 	View.GameOver = pb::game_mode == GameModes::GameOver;
 	View.Demo = winmain::DemoActive;
 	View.Tilted = Table->TiltLockFlag != 0;

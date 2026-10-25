@@ -643,7 +643,8 @@ void render::DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, int t
 	dstBoardRect.y += offsetY * fullscrn::ScaleY;
 
 	SDL_RenderTexture(winmain::Renderer, texture, &srcBoardRect, &dstBoardRect);
-	if (srcSidebarRect.w > 0)
+	// Space Cadet 2026 draws its own score panel in the panel's place
+	if (srcSidebarRect.w > 0 && options::GetEdition() != Editions::Definitive)
 		SDL_RenderTexture(winmain::Renderer, texture, &srcSidebarRect, &dstSidebarRect);
 }
 

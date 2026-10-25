@@ -303,6 +303,9 @@ enum class Msg : int
 	Definitive_DataStartFolder,
 	Definitive_DataNoDialog,
 	Definitive_DataDialogFailed,
+	Definitive_Ball,
+	Definitive_Mission,
+	Definitive_Rank,
 
 	// Full Tilt's CADET.EXE strings, shown instead of 3D Pinball's in Full Tilt mode
 	FullTilt_Caption,

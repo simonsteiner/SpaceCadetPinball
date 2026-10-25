@@ -42,8 +42,9 @@ struct TableView
 	std::string InfoText, MissionText;
 	int PlayerCount, CurrentPlayer;
 	std::array<int, 4> Scores;
-	// The current player's balls left
-	int BallCount;
+	// The current player's balls left, and the balls a player starts with; the panel shows ball
+	// MaxBallCount - BallCount + 1, and none while BallCount is 0
+	int BallCount, MaxBallCount;
 	bool GameOver, Demo, Tilted;
 	// The table rules' mission state: 0 while waiting for deployment, 1 while choosing a mission, else the mission
 	// that runs. -1 when the table has no mission light (lite198).

@@ -6705,6 +6705,24 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_Ball,
+		{
+			{ Lang::English, "Ball" },
+		}
+	},
+	{
+		Msg::Definitive_Mission,
+		{
+			{ Lang::English, "Mission" },
+		}
+	},
+	{
+		Msg::Definitive_Rank,
+		{
+			{ Lang::English, "Rank" },
+		}
+	},
+	{
 		Msg::FullTilt_Caption,
 		{
 			{ Lang::English, "Full Tilt! - Space Cadet" },

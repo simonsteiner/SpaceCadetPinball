@@ -3,6 +3,7 @@
 
 #include "DefinitiveSettings.h"
 
+#include "DefinitiveHud.h"
 #include "DefinitiveTheme.h"
 #include "DefinitiveUi.h"
 #include "options.h"
@@ -110,6 +111,13 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 	Ui::NewFrame();
 	// EndColumn sets it again while a screen shows
 	Focused = false;
+	// The score panel first, so the screens and their veils cover it
+	if (Host.Layout)
+	{
+		SDL_FRect board, panel;
+		Host.Layout(board, panel);
+		DefinitiveHud::Render(view, board, panel);
+	}
 
 	auto playing = !view.GameOver && !view.Demo;
 	auto paused = Host.Paused && Host.Paused();
