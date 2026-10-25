@@ -124,6 +124,7 @@ private:
 	static std::vector<std::string> NewRecords;
 
 	static void Open(Screen screen);
+	static void FollowGame(const TableView& view, bool playing);
 	static void RenderTitle(const TableView& view);
 	static void RenderRecords();
 	static void RenderCredits();
