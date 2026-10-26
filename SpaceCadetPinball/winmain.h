@@ -102,6 +102,7 @@ public:
 	static bool MenuBarShown();
 	// Why post-processing can't show, or null when it can
 	static const char* PostProcessingUnavailable();
+	// Why the compositor's effects can't show, or null when they can
 	static const char* EffectsUnavailable();
 	// Starts measuring sleep again, after Precise Sleep is switched
 	static void ResetPreciseSleep();
