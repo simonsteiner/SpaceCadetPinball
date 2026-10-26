@@ -43,7 +43,7 @@ int loader::sound_count = 1;
 int loader::loader_sound_count;
 DatFile* loader::loader_table;
 DatFile* loader::sound_record_table;
-soundListStruct loader::sound_list[65];
+soundListStruct loader::sound_list[SoundListSize];
 
 int loader::error(int errorCode, int captionCode)
 {
@@ -90,7 +90,7 @@ void loader::loadfrom(DatFile* datFile)
 		auto value = reinterpret_cast<int16_t*>(datFile->field(groupIndex, FieldTypes::ShortValue));
 		if (value && *value == 202)
 		{
-			if (sound_count < 65)
+			if (sound_count < SoundListSize)
 			{
 				sound_list[sound_count] = {nullptr, groupIndex, 0, 0};
 				sound_count++;
@@ -402,6 +402,11 @@ int loader::kicker(int groupIndex, visualKickerStruct* kicker)
 			floatArr += 3;
 			index += 4;
 			break;
+		case 410:
+			std::copy_n(floatArr, 8, kicker->Attr410);
+			floatArr += 8;
+			index += 9;
+			break;
 		case 405:
 			kicker->ThrowBallAngleMult = *floatArr;
 			break;
@@ -411,7 +416,7 @@ int loader::kicker(int groupIndex, visualKickerStruct* kicker)
 		default:
 			return error(10, 20);
 		}
-		if (floorVal != 404)
+		if (floorVal != 404 && floorVal != 410)
 		{
 			floatArr++;
 			index += 2;

@@ -29,6 +29,8 @@ struct visualKickerStruct
 	vector3 ThrowBallDirection;
 	float ThrowBallAngleMult;
 	int HardHitSoundId;
+	// Attribute 410, only in Full Tilt's bonus tables: 8 floats, not used yet
+	float Attr410[8];
 };
 
 struct SpriteData
@@ -115,5 +117,7 @@ private:
 	static DatFile* sound_record_table;
 	static int sound_count;
 	static int loader_sound_count;
-	static soundListStruct sound_list[65];
+	// Up to 128 sounds, as Skulduggery has 67; slot 0 is unused
+	static constexpr int SoundListSize = 129;
+	static soundListStruct sound_list[SoundListSize];
 };
