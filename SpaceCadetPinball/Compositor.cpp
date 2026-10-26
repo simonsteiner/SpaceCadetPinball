@@ -352,7 +352,8 @@ void Compositor::DrawBalls(SDL_Texture* frame, int frameScale, const DefinitiveS
 		return;
 
 	// One quad per ball, blended over the table; each vertex carries the ball's depth and radius (ball.frag.hlsl)
-	float width, height;
+	float width;
+	float height;
 	SDL_GetTextureSize(frame, &width, &height);
 	auto scale = static_cast<float>(frameScale);
 	std::vector<SDL_Vertex> vertices;
