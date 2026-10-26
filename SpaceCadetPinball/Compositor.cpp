@@ -183,6 +183,8 @@ bool Compositor::PrepareTarget(SDL_Texture* frame)
 		SDL_GetTextureSize(Target, &targetWidth, &targetHeight);
 	if (!Target || !GlowTarget || targetWidth != width || targetHeight != height)
 	{
+		// The states bind the glow texture, and a new one can have the old one's address
+		DestroyStates();
 		for (auto texture : {&Target, &GlowTarget})
 		{
 			if (*texture)
@@ -240,6 +242,11 @@ bool Compositor::PrepareStates(SDL_Texture* depth)
 	(void)depth;
 	return false;
 #endif
+}
+
+void Compositor::ForgetDepth()
+{
+	DestroyStates();
 }
 
 void Compositor::DestroyStates()
