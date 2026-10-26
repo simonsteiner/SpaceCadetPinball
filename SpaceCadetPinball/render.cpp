@@ -840,7 +840,8 @@ SDL_Texture* render::UpdateDepthTexture()
 	if (!zmap)
 		return nullptr;
 
-	float width = 0, height = 0;
+	float width = 0;
+	float height = 0;
 	if (DepthTexture)
 		SDL_GetTextureSize(DepthTexture, &width, &height);
 	if (!DepthTexture || static_cast<int>(width) != zmap->Width || static_cast<int>(height) != zmap->Height)
