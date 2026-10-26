@@ -2,7 +2,7 @@
 #include "pb.h"
 
 
-#include "control.h"
+#include "TableRules.h"
 #include "fullscrn.h"
 #include "high_score.h"
 #include "proj.h"
@@ -38,6 +38,7 @@ float pb::time_now = 0, pb::time_next = 0, pb::time_ticks_remainder = 0;
 float pb::BallMaxSpeed, pb::BallHalfRadius, pb::BallToBallCollisionDistance;
 float pb::IdleTimerMs = 0;
 bool pb::GameEnded = true;
+Tables pb::Table = Tables::SpaceCadet3DPB;
 bool pb::FullTiltMode = false, pb::FullTiltDemoMode = false, pb::cheat_mode = false, pb::demo_mode = false, pb::CreditsActive = false;
 std::string pb::DatFileName, pb::BasePath;
 ImU32 pb::TextBoxColor;
@@ -173,6 +174,7 @@ std::string pb::FindDatFile(const std::string& folder)
 void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 {
 	DatFileName.clear();
+	Table = Tables::SpaceCadet3DPB;
 	FullTiltDemoMode = FullTiltMode = false;
 
 	for (auto path : dataSearchPaths)
@@ -190,9 +192,11 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 		std::transform(upper.begin(), upper.end(), upper.begin(),
 					   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
 		if (upper == "CADET.DAT")
-			FullTiltMode = true;
+			Table = Tables::SpaceCadetFullTilt;
 		if (upper == "DEMO.DAT")
-			FullTiltDemoMode = FullTiltMode = true;
+			Table = Tables::FullTiltDemo;
+		FullTiltMode = Table != Tables::SpaceCadet3DPB;
+		FullTiltDemoMode = Table == Tables::FullTiltDemo;
 		printf("Loading game from: %s\n", make_path_name(fileName).c_str());
 		return;
 	}
@@ -383,7 +387,7 @@ void pb::timed_frame(float timeDelta)
 				ball->StuckCounter = 0;
 			else
 				ball->StuckCounter++;
-			control::UnstuckBall(*ball, time_ticks - ball->LastActiveTime);
+			TableRules::Current().UnstuckBall(*ball, time_ticks - ball->LastActiveTime);
 		}
 	}
 
@@ -671,7 +675,7 @@ void pb::GameInputDown(GameInput input, const std::vector<GameBindings>& binding
 	IdleTimerMs = 0;
 
 	if (input.Type == InputTypes::Keyboard)
-		control::pbctrl_bdoor_controller(static_cast<char>(input.Value));
+		TableRules::Current().Cheat(static_cast<char>(input.Value));
 
 	for (const auto binding : bindings)
 	{
@@ -721,7 +725,7 @@ void pb::GameInputDown(GameInput input, const std::vector<GameBindings>& binding
 				break;
 			}
 		case 'r':
-			control::cheat_bump_rank();
+			TableRules::Current().CheatBumpRank();
 			break;
 		case 's':
 			MainTable->AddScore(static_cast<int>(RandFloat() * 1000000.0f));
@@ -838,7 +842,7 @@ void pb::PushCheat(const std::string& cheat)
 {
 	replay::Scope replayScope("c %s", cheat.c_str());
 	for (auto ch : cheat)
-		control::pbctrl_bdoor_controller(ch);
+		TableRules::Current().Cheat(ch);
 }
 
 LPCSTR pb::get_rc_string(Msg uID)
