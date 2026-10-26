@@ -8,8 +8,6 @@
 
 namespace
 {
-	DefinitiveScene Scene{};
-
 	// The glow breathes gently, so the lit lamps look alive without blinking
 	constexpr float PulsePeriod = 2.4f; // Seconds
 	constexpr float PulseDepth = 0.15f;
@@ -27,11 +25,13 @@ namespace
 
 const DefinitiveScene& DefinitiveScene::Build(const TableView& view, const TableView& previous, float alpha)
 {
-	Scene.Lighting = true;
+	// Built anew each frame, and kept so the vectors keep their memory
+	static DefinitiveScene scene{};
+	scene.Lighting = true;
 
 	auto seconds = static_cast<float>(SDL_GetTicks() % 60000) / 1000.0f;
 	auto pulse = 1.0f - PulseDepth * 0.5f * (1.0f + std::sin(seconds * 2.0f * std::numbers::pi_v<float> / PulsePeriod));
-	Scene.Glows.clear();
+	scene.Glows.clear();
 	for (const auto& light : view.Lights)
 	{
 		// A light shows a sprite only while it shows lit, which also follows flashing and timed overrides
@@ -39,12 +39,12 @@ const DefinitiveScene& DefinitiveScene::Build(const TableView& view, const Table
 			continue;
 		SDL_FRect sprite;
 		SDL_RectToFRect(&light.Sprite, &sprite);
-		Scene.Glows.push_back({sprite, pulse});
+		scene.Glows.push_back({sprite, pulse});
 	}
 
 	// Where the frame would have drawn each ball's sprite
-	Scene.ShadedBalls = true;
-	Scene.Balls.clear();
+	scene.ShadedBalls = true;
+	scene.Balls.clear();
 	for (auto index = 0u; index < view.Balls.size(); index++)
 	{
 		const auto& sprite = view.Balls[index].Sprite;
@@ -60,9 +60,9 @@ const DefinitiveScene& DefinitiveScene::Build(const TableView& view, const Table
 				center = {start.x + (center.x - start.x) * alpha, start.y + (center.y - start.y) * alpha};
 			}
 		}
-		Scene.Balls.push_back({center, static_cast<float>(std::min(sprite.w, sprite.h)) / 2, view.Balls[index].Depth});
+		scene.Balls.push_back({center, static_cast<float>(std::min(sprite.w, sprite.h)) / 2, view.Balls[index].Depth});
 	}
 	// The furthest first, so a nearer ball covers one behind it where they overlap
-	std::ranges::sort(Scene.Balls, std::ranges::greater{}, &Ball::Depth);
-	return Scene;
+	std::ranges::sort(scene.Balls, std::ranges::greater{}, &Ball::Depth);
+	return scene;
 }

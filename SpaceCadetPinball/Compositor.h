@@ -28,10 +28,15 @@ private:
 	// The lamps' glow, added up before the lighting pass adds it to the table with a limit
 	static SDL_Texture* GlowTarget;
 	static struct SDL_GPUSampler* DepthSampler;
-	static struct SDL_GPUShader *ComposeShader, *GlowShader, *BallShader;
-	static struct SDL_GPURenderState *ComposeState, *GlowState, *BallState;
+	static struct SDL_GPUShader* ComposeShader;
+	static struct SDL_GPUShader* GlowShader;
+	static struct SDL_GPUShader* BallShader;
+	static struct SDL_GPURenderState* ComposeState;
+	static struct SDL_GPURenderState* GlowState;
+	static struct SDL_GPURenderState* BallState;
 	// The textures the render states bind; new textures need new states (ForgetDepth, PrepareTarget)
-	static SDL_Texture *BoundDepth, *BoundGlow;
+	static SDL_Texture* BoundDepth;
+	static SDL_Texture* BoundGlow;
 
 	static bool PrepareTarget(SDL_Texture* frame);
 	static bool PrepareStates(SDL_Texture* depth);

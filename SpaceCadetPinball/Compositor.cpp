@@ -13,51 +13,59 @@ SDL_Renderer* Compositor::Renderer = nullptr;
 SDL_Texture* Compositor::Target = nullptr;
 SDL_Texture* Compositor::GlowTarget = nullptr;
 SDL_GPUSampler* Compositor::DepthSampler = nullptr;
-SDL_GPUShader *Compositor::ComposeShader = nullptr, *Compositor::GlowShader = nullptr,
-			  *Compositor::BallShader = nullptr;
-SDL_GPURenderState *Compositor::ComposeState = nullptr, *Compositor::GlowState = nullptr,
-				   *Compositor::BallState = nullptr;
-SDL_Texture *Compositor::BoundDepth = nullptr, *Compositor::BoundGlow = nullptr;
+SDL_GPUShader* Compositor::ComposeShader = nullptr;
+SDL_GPUShader* Compositor::GlowShader = nullptr;
+SDL_GPUShader* Compositor::BallShader = nullptr;
+SDL_GPURenderState* Compositor::ComposeState = nullptr;
+SDL_GPURenderState* Compositor::GlowState = nullptr;
+SDL_GPURenderState* Compositor::BallState = nullptr;
+SDL_Texture* Compositor::BoundDepth = nullptr;
+SDL_Texture* Compositor::BoundGlow = nullptr;
 
 namespace
 {
 	// The uniforms every pass gets, as compositor.hlsli declares them
 	struct PassUniforms
 	{
-		float FrameSize[2];
+		std::array<float, 2> FrameSize;
 		float FrameScale;
 		float Lighting;
-		float ProjCenter[2];
+		std::array<float, 2> ProjCenter;
 		float ProjD;
 		float Glow;
 		float ZMin;
 		float ZScaler;
-		float Padding[2];
-		float Up[4];
-		float Light[4];
+		std::array<float, 2> Padding;
+		std::array<float, 4> Up;
+		std::array<float, 4> Light;
 	};
 
 	// The key light comes from the upper left and from above; the table's x runs from right to left on screen
-	constexpr float LightDirection[3] = {0.45f, -0.55f, 0.7f};
+	constexpr std::array<float, 3> LightDirection = {0.45f, -0.55f, 0.7f};
 	constexpr float GlowBrightness = 0.45f;
 	// How far a lamp's glow reaches beyond its sprite, in table pixels: a part of the sprite's size and a few pixels,
 	// up to a limit, so the large lit pictures don't flood the table
-	constexpr float GlowReachSize = 0.35f, GlowReachPixels = 3.0f, GlowReachMax = 9.0f;
+	constexpr float GlowReachSize = 0.35f;
+	constexpr float GlowReachPixels = 3.0f;
+	constexpr float GlowReachMax = 9.0f;
 
 	// A ball's quad reaches this far from its centre, in radii, to hold its shadow
 	constexpr float BallQuadExtent = 1.9f;
 
 	// A direction in the table's coordinates as the camera sees it
-	void ToCamera(const mat4_row_major& matrix, const float (&direction)[3], float (&result)[4])
+	std::array<float, 4> ToCamera(const mat4_row_major& matrix, const std::array<float, 3>& direction)
 	{
-		auto x = direction[0], y = direction[1], z = direction[2];
-		float v[3] = {matrix.Row0.X * x + matrix.Row0.Y * y + matrix.Row0.Z * z,
-					  matrix.Row1.X * x + matrix.Row1.Y * y + matrix.Row1.Z * z,
-					  matrix.Row2.X * x + matrix.Row2.Y * y + matrix.Row2.Z * z};
+		auto x = direction[0];
+		auto y = direction[1];
+		auto z = direction[2];
+		std::array<float, 3> v = {matrix.Row0.X * x + matrix.Row0.Y * y + matrix.Row0.Z * z,
+								  matrix.Row1.X * x + matrix.Row1.Y * y + matrix.Row1.Z * z,
+								  matrix.Row2.X * x + matrix.Row2.Y * y + matrix.Row2.Z * z};
 		auto length = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+		std::array<float, 4> result{};
 		for (int i = 0; i < 3; i++)
 			result[i] = length > 0 ? v[i] / length : 0;
-		result[3] = 0;
+		return result;
 	}
 } // namespace
 
@@ -112,8 +120,7 @@ void Compositor::Uninit()
 	Target = nullptr;
 	GlowTarget = nullptr;
 #if SDL_VERSION_ATLEAST(3, 4, 0)
-	auto device = Renderer && PostEffect::IsGpuRenderer(Renderer) ? SDL_GetGPURendererDevice(Renderer) : nullptr;
-	if (device)
+	if (auto device = Renderer && PostEffect::IsGpuRenderer(Renderer) ? SDL_GetGPURendererDevice(Renderer) : nullptr)
 	{
 		if (ComposeShader)
 			SDL_ReleaseGPUShader(device, ComposeShader);
@@ -143,7 +150,8 @@ SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int fra
 	if (!Available() || !frame || !depth || !PrepareTarget(frame) || !PrepareStates(depth))
 		return nullptr;
 
-	float width, height;
+	float width;
+	float height;
 	SDL_GetTextureSize(frame, &width, &height);
 	auto camera = proj::GetCamera();
 	PassUniforms uniforms{{width, height},
@@ -157,15 +165,18 @@ SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int fra
 						  {},
 						  {},
 						  {}};
-	ToCamera(camera.Matrix, {0, 0, 1}, uniforms.Up);
-	ToCamera(camera.Matrix, LightDirection, uniforms.Light);
+	uniforms.Up = ToCamera(camera.Matrix, {0, 0, 1});
+	uniforms.Light = ToCamera(camera.Matrix, LightDirection);
 	SDL_SetGPURenderStateFragmentUniforms(ComposeState, 0, &uniforms, sizeof uniforms);
 	SDL_SetGPURenderStateFragmentUniforms(GlowState, 0, &uniforms, sizeof uniforms);
 	SDL_SetGPURenderStateFragmentUniforms(BallState, 0, &uniforms, sizeof uniforms);
 
 	// Every pass draws in the frame's own texels, so a pass's pixel is the frame's and the depth map's texel. The
 	// glows go first, into their own texture, which the lighting pass adds to the table.
-	Uint8 red, green, blue, alpha;
+	Uint8 red;
+	Uint8 green;
+	Uint8 blue;
+	Uint8 alpha;
 	SDL_GetRenderDrawColor(Renderer, &red, &green, &blue, &alpha);
 	SDL_SetRenderTarget(Renderer, GlowTarget);
 	SDL_SetRenderDrawColor(Renderer, 0, 0, 0, 0);
@@ -191,7 +202,10 @@ SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int fra
 bool Compositor::PrepareTarget(SDL_Texture* frame)
 {
 	// The same size and scale mode as the frame, so it is drawn exactly as the frame would be
-	float width, height, targetWidth = 0, targetHeight = 0;
+	float width;
+	float height;
+	float targetWidth = 0;
+	float targetHeight = 0;
 	SDL_GetTextureSize(frame, &width, &height);
 	if (Target)
 		SDL_GetTextureSize(Target, &targetWidth, &targetHeight);
@@ -211,8 +225,7 @@ bool Compositor::PrepareTarget(SDL_Texture* frame)
 		}
 	}
 
-	SDL_ScaleMode scaleMode;
-	if (SDL_GetTextureScaleMode(frame, &scaleMode))
+	if (SDL_ScaleMode scaleMode; SDL_GetTextureScaleMode(frame, &scaleMode))
 		SDL_SetTextureScaleMode(Target, scaleMode);
 	return true;
 }
@@ -225,9 +238,9 @@ bool Compositor::PrepareStates(SDL_Texture* depth)
 
 	DestroyStates();
 	// The depth map, then the glow, which only the lighting pass reads
-	SDL_GPUTextureSamplerBinding bindings[2]{};
-	SDL_Texture* textures[] = {depth, GlowTarget};
-	for (int i = 0; i < 2; i++)
+	std::array<SDL_GPUTextureSamplerBinding, 2> bindings{};
+	std::array<SDL_Texture*, 2> textures = {depth, GlowTarget};
+	for (auto i = 0u; i < bindings.size(); i++)
 	{
 		bindings[i].texture = static_cast<SDL_GPUTexture*>(SDL_GetPointerProperty(
 			SDL_GetTextureProperties(textures[i]), SDL_PROP_TEXTURE_GPU_TEXTURE_POINTER, nullptr));
@@ -237,7 +250,7 @@ bool Compositor::PrepareStates(SDL_Texture* depth)
 	}
 
 	SDL_GPURenderStateCreateInfo stateInfo{};
-	stateInfo.sampler_bindings = bindings;
+	stateInfo.sampler_bindings = bindings.data();
 	stateInfo.num_sampler_bindings = 2;
 	stateInfo.fragment_shader = ComposeShader;
 	ComposeState = SDL_CreateGPURenderState(Renderer, &stateInfo);
@@ -289,7 +302,8 @@ void Compositor::DrawGlows(SDL_Texture* frame, int frameScale, const DefinitiveS
 		return;
 
 	// One quad per lamp, added up in the glow texture; each vertex carries the lamp's sprite and glow (glow.frag.hlsl)
-	float width, height;
+	float width;
+	float height;
 	SDL_GetTextureSize(frame, &width, &height);
 	auto scale = static_cast<float>(frameScale);
 	std::vector<SDL_Vertex> vertices;

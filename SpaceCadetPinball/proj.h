@@ -25,7 +25,11 @@ public:
 	struct Camera
 	{
 		mat4_row_major Matrix;
-		float D, CenterX, CenterY, ZMin, ZScaler;
+		float D;
+		float CenterX;
+		float CenterY;
+		float ZMin;
+		float ZScaler;
 	};
 	static Camera GetCamera()
 	{
