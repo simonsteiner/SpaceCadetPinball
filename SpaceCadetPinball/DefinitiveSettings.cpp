@@ -345,12 +345,18 @@ void DefinitiveSettings::RenderGraphics(const DefinitiveHost& host)
 
 	// The compositor's effects and the post effect need SDL's GPU renderer; without it the choices are kept for when it
 	// is there
-	if (auto unavailable = host.EffectsUnavailable ? host.EffectsUnavailable() : nullptr)
-		Ui::NextRowNote(unavailable);
+	// A note shows under the next row only, so each of the three gets it
+	auto effectsUnavailable = host.EffectsUnavailable ? host.EffectsUnavailable() : nullptr;
+	if (effectsUnavailable)
+		Ui::NextRowNote(effectsUnavailable);
 	if (Ui::ToggleRow("lighting", Text(Msg::Definitive_Lighting), options.Lighting))
 		options.Lighting ^= true;
+	if (effectsUnavailable)
+		Ui::NextRowNote(effectsUnavailable);
 	if (Ui::ToggleRow("glow", Text(Msg::Definitive_LampGlow), options.LampGlow))
 		options.LampGlow ^= true;
+	if (effectsUnavailable)
+		Ui::NextRowNote(effectsUnavailable);
 	if (Ui::ToggleRow("ball", Text(Msg::Definitive_ShadedBall), options.ShadedBall))
 		options.ShadedBall ^= true;
 
