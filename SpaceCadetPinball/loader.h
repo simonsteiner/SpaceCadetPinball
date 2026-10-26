@@ -29,6 +29,8 @@ struct visualKickerStruct
 	vector3 ThrowBallDirection;
 	float ThrowBallAngleMult;
 	int HardHitSoundId;
+	// SPIKE (F2): kicker attribute 410 of the bonus tables, 8 floats; its meaning isn't known yet
+	float BonusTableAttr410[8];
 };
 
 struct SpriteData
@@ -115,5 +117,7 @@ private:
 	static DatFile* sound_record_table;
 	static int sound_count;
 	static int loader_sound_count;
-	static soundListStruct sound_list[65];
+	// SPIKE (F2): 128 sounds instead of 64, as Skulduggery has 67; slot 0 is unused
+	static constexpr int SoundListSize = 129;
+	static soundListStruct sound_list[SoundListSize];
 };

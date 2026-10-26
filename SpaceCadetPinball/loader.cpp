@@ -43,7 +43,7 @@ int loader::sound_count = 1;
 int loader::loader_sound_count;
 DatFile* loader::loader_table;
 DatFile* loader::sound_record_table;
-soundListStruct loader::sound_list[65];
+soundListStruct loader::sound_list[SoundListSize];
 
 int loader::error(int errorCode, int captionCode)
 {
@@ -90,7 +90,7 @@ void loader::loadfrom(DatFile* datFile)
 		auto value = reinterpret_cast<int16_t*>(datFile->field(groupIndex, FieldTypes::ShortValue));
 		if (value && *value == 202)
 		{
-			if (sound_count < 65)
+			if (sound_count < SoundListSize)
 			{
 				sound_list[sound_count] = {nullptr, groupIndex, 0, 0};
 				sound_count++;
@@ -408,10 +408,16 @@ int loader::kicker(int groupIndex, visualKickerStruct* kicker)
 		case 406:
 			kicker->HardHitSoundId = get_sound_id(static_cast<int>(floor(*floatArr)));
 			break;
+		case 410:
+			// SPIKE (F2): only the bonus tables have it
+			std::copy_n(floatArr, 8, kicker->BonusTableAttr410);
+			floatArr += 8;
+			index += 9;
+			break;
 		default:
 			return error(10, 20);
 		}
-		if (floorVal != 404)
+		if (floorVal != 404 && floorVal != 410)
 		{
 			floatArr++;
 			index += 2;
