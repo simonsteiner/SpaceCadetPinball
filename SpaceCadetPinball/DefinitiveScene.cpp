@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "DefinitiveScene.h"
 
+#include "options.h"
 #include "TableView.h"
 
 #include <numbers>
@@ -26,14 +27,17 @@ namespace
 
 const DefinitiveScene& DefinitiveScene::Build(const TableView& view, const TableView& previous, float alpha)
 {
-	Scene.Lighting = true;
+	auto& options = options::Options;
+	Scene.Lighting = options.Lighting;
 
+	// Reduced Motion holds the glow at the pulse's middle
 	auto seconds = static_cast<float>(SDL_GetTicks() % 60000) / 1000.0f;
-	auto pulse = 1.0f - PulseDepth * 0.5f * (1.0f + std::sin(seconds * 2.0f * std::numbers::pi_v<float> / PulsePeriod));
+	auto wave = options.ReducedMotion ? 0.0f : std::sin(seconds * 2.0f * std::numbers::pi_v<float> / PulsePeriod);
+	auto pulse = 1.0f - PulseDepth * 0.5f * (1.0f + wave);
 	Scene.Glows.clear();
 	for (const auto& light : view.Lights)
 	{
-		if (!light.On || light.Sprite.w <= 0 || light.Sprite.h <= 0)
+		if (!options.LampGlow || !light.On || light.Sprite.w <= 0 || light.Sprite.h <= 0)
 			continue;
 		SDL_FRect sprite;
 		SDL_RectToFRect(&light.Sprite, &sprite);
@@ -41,7 +45,7 @@ const DefinitiveScene& DefinitiveScene::Build(const TableView& view, const Table
 	}
 
 	// Where the frame would have drawn each ball's sprite
-	Scene.ShadedBalls = true;
+	Scene.ShadedBalls = options.ShadedBall;
 	Scene.Balls.clear();
 	for (auto index = 0u; index < view.Balls.size(); index++)
 	{

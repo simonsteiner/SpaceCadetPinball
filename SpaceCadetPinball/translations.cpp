@@ -6519,6 +6519,42 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_EffectsFailed,
+		{
+			{ Lang::English, "Could not be set up on this graphics card" },
+		}
+	},
+	{
+		Msg::Definitive_Lighting,
+		{
+			{ Lang::English, "Lighting" },
+		}
+	},
+	{
+		Msg::Definitive_LampGlow,
+		{
+			{ Lang::English, "Lamp glow" },
+		}
+	},
+	{
+		Msg::Definitive_ShadedBall,
+		{
+			{ Lang::English, "Shaded ball" },
+		}
+	},
+	{
+		Msg::Definitive_ReducedMotion,
+		{
+			{ Lang::English, "Reduced motion" },
+		}
+	},
+	{
+		Msg::Definitive_ReducedMotionNote,
+		{
+			{ Lang::English, "The lamps' glow holds still and the table doesn't shake when nudged" },
+		}
+	},
+	{
 		Msg::Definitive_SoundVolume,
 		{
 			{ Lang::English, "Sound volume" },

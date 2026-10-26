@@ -644,7 +644,9 @@ void render::PresentVScreen(float ballAlpha)
 	// Only the table goes through the post-processing effect, not the backdrop or the overlays
 	PostEffect::Begin(static_cast<float>(screen->Width), static_cast<float>(screen->Height),
 					  fullscrn::ScaleX / static_cast<float>(scale), fullscrn::ScaleY / static_cast<float>(scale));
-	DrawSplit(table, static_cast<float>(offset_x), static_cast<float>(offset_y), scale);
+	// The nudge shakes the table; Space Cadet 2026's Reduced Motion keeps it still
+	auto still = options::GetEdition() == Editions::Definitive && options::Options.ReducedMotion;
+	DrawSplit(table, still ? 0.0f : static_cast<float>(offset_x), still ? 0.0f : static_cast<float>(offset_y), scale);
 	PostEffect::End();
 
 	if (options::Options.DebugOverlay)

@@ -425,4 +425,10 @@ struct optionsStruct
 	BoolOption EditionHintShown;
 	// The folder the player chose for the game data, searched before the usual places; empty when none was chosen
 	StringOption GameDataFolder;
+	// Space Cadet 2026's effects on SDL's GPU renderer (Compositor)
+	BoolOption Lighting;
+	BoolOption LampGlow;
+	BoolOption ShadedBall;
+	// No glow pulse and no shaking of the table when it is nudged, in Space Cadet 2026
+	BoolOption ReducedMotion;
 };

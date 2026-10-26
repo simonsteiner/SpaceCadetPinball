@@ -102,6 +102,7 @@ public:
 	static bool MenuBarShown();
 	// Why post-processing can't show, or null when it can
 	static const char* PostProcessingUnavailable();
+	static const char* EffectsUnavailable();
 	// Starts measuring sleep again, after Precise Sleep is switched
 	static void ResetPreciseSleep();
 	// Opens or closes Space Cadet 2026's pause screen for the game in play, or ignores the key while a game ends; false

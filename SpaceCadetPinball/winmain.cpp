@@ -257,6 +257,7 @@ static DefinitiveHost MakeDefinitiveHost()
 	host.Version = winmain::Version;
 	host.SetPostProcessing = [](int effect) { winmain::SetPostProcessing(static_cast<PostEffects>(effect)); };
 	host.PostProcessingUnavailable = winmain::PostProcessingUnavailable;
+	host.EffectsUnavailable = winmain::EffectsUnavailable;
 	host.SetUpscaleFactor = [](int factor)
 	{
 		options::Options.UpscaleFactor = factor;
@@ -1929,6 +1930,14 @@ const char* winmain::PostProcessingUnavailable()
 		return pb::get_rc_string(Msg::Definitive_NoGpu);
 	return nullptr;
 #endif
+}
+
+const char* winmain::EffectsUnavailable()
+{
+	// Where post-processing can't show, the compositor can't either; it can also fail on its own, with its shaders
+	if (auto reason = PostProcessingUnavailable())
+		return reason;
+	return Compositor::Available() ? nullptr : pb::get_rc_string(Msg::Definitive_EffectsFailed);
 }
 
 void winmain::ResetPreciseSleep()

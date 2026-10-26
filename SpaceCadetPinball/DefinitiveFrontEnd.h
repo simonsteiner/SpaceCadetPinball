@@ -43,6 +43,8 @@ struct DefinitiveHost
 	void (*SetPostProcessing)(int effect);
 	// Why post-processing can't show here, or null
 	const char* (*PostProcessingUnavailable)();
+	// Why the lighting, glow and shaded ball can't show here, or null
+	const char* (*EffectsUnavailable)();
 	void (*SetUpscaleFactor)(int factor);
 	void (*SetSoundVolume)(int volume);
 	void (*SetSoundChannels)(int channels);
