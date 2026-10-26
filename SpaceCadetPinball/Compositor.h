@@ -16,6 +16,9 @@ public:
 	// depth, 0 to 0xFFFF, in red (the high byte) and green. Returns the composed texture, or null if it couldn't
 	// compose, in which case the frame should be drawn as it is.
 	static SDL_Texture* Compose(SDL_Texture* frame, SDL_Texture* depth, int frameScale);
+	// Lets go of the depth texture Compose was given; call before destroying it, since a new texture can have the same
+	// address
+	static void ForgetDepth();
 
 private:
 	static SDL_Renderer* Renderer;
@@ -23,7 +26,7 @@ private:
 	static struct SDL_GPUSampler* DepthSampler;
 	static struct SDL_GPUShader* ComposeShader;
 	static struct SDL_GPURenderState* ComposeState;
-	// The depth texture the render state binds; a new depth texture needs a new state
+	// The depth texture the render state binds; a new depth texture needs a new state (ForgetDepth)
 	static SDL_Texture* BoundDepth;
 
 	static bool PrepareTarget(SDL_Texture* frame);

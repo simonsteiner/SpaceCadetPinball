@@ -164,6 +164,11 @@ bool Compositor::PrepareStates(SDL_Texture* depth)
 #endif
 }
 
+void Compositor::ForgetDepth()
+{
+	DestroyStates();
+}
+
 void Compositor::DestroyStates()
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
