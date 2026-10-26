@@ -79,8 +79,9 @@ void Compositor::Init(SDL_Renderer* renderer)
 	samplerInfo.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
 	samplerInfo.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
 	DepthSampler = SDL_CreateGPUSampler(device, &samplerInfo);
-	GlowShader = PostEffect::CreateShader(renderer, {glow_frag_spv, sizeof glow_frag_spv},
-										  {glow_frag_dxil, sizeof glow_frag_dxil}, {glow_frag_msl, sizeof glow_frag_msl}, 2);
+	GlowShader =
+		PostEffect::CreateShader(renderer, {glow_frag_spv, sizeof glow_frag_spv},
+								 {glow_frag_dxil, sizeof glow_frag_dxil}, {glow_frag_msl, sizeof glow_frag_msl}, 2);
 	if (!ComposeShader || !GlowShader || !DepthSampler)
 	{
 		printf("Could not create Space Cadet 2026's compositor; it draws the table as Classic does.\nSDL Error: %s\n",
@@ -297,9 +298,9 @@ void Compositor::DrawGlows(SDL_Texture* frame, int frameScale, const DefinitiveS
 	}
 
 	// The brightest glow in colour and the sum of the glows' peaks in alpha, for LimitGlow in compose.frag.hlsl
-	static const auto blend = SDL_ComposeCustomBlendMode(
-		SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM, SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE,
-		SDL_BLENDOPERATION_ADD);
+	static const auto blend =
+		SDL_ComposeCustomBlendMode(SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM,
+								   SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_ADD);
 	SDL_SetTextureBlendMode(frame, blend);
 	SDL_SetGPURenderState(Renderer, GlowState);
 	SDL_RenderGeometry(Renderer, frame, vertices.data(), static_cast<int>(vertices.size()), indices.data(),
