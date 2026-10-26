@@ -22,7 +22,7 @@ namespace
 	// The uniforms every pass gets, as compositor.hlsli declares them
 	struct PassUniforms
 	{
-		float FrameSize[2];
+		std::array<float, 2> FrameSize;
 		float FrameScale;
 		float Lighting;
 		float ProjCenter[2];
@@ -104,8 +104,7 @@ void Compositor::Uninit()
 	Target = nullptr;
 	GlowTarget = nullptr;
 #if SDL_VERSION_ATLEAST(3, 4, 0)
-	auto device = Renderer && PostEffect::IsGpuRenderer(Renderer) ? SDL_GetGPURendererDevice(Renderer) : nullptr;
-	if (device)
+	if (auto device = Renderer && PostEffect::IsGpuRenderer(Renderer) ? SDL_GetGPURendererDevice(Renderer) : nullptr)
 	{
 		if (ComposeShader)
 			SDL_ReleaseGPUShader(device, ComposeShader);
@@ -132,7 +131,8 @@ SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int fra
 	if (!Available() || !frame || !depth || !PrepareTarget(frame) || !PrepareStates(depth))
 		return nullptr;
 
-	float width, height;
+	float width;
+	float height;
 	SDL_GetTextureSize(frame, &width, &height);
 	auto camera = proj::GetCamera();
 	PassUniforms uniforms{{width, height},
@@ -178,7 +178,10 @@ SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int fra
 bool Compositor::PrepareTarget(SDL_Texture* frame)
 {
 	// The same size and scale mode as the frame, so it is drawn exactly as the frame would be
-	float width, height, targetWidth = 0, targetHeight = 0;
+	float width;
+	float height;
+	float targetWidth = 0;
+	float targetHeight = 0;
 	SDL_GetTextureSize(frame, &width, &height);
 	if (Target)
 		SDL_GetTextureSize(Target, &targetWidth, &targetHeight);
@@ -198,8 +201,7 @@ bool Compositor::PrepareTarget(SDL_Texture* frame)
 		}
 	}
 
-	SDL_ScaleMode scaleMode;
-	if (SDL_GetTextureScaleMode(frame, &scaleMode))
+	if (SDL_ScaleMode scaleMode; SDL_GetTextureScaleMode(frame, &scaleMode))
 		SDL_SetTextureScaleMode(Target, scaleMode);
 	return true;
 }
