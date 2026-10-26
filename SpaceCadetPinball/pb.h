@@ -28,6 +28,8 @@ public:
 	static DatFile* record_table;
 	static TPinballTable* MainTable;
 	static bool FullTiltMode, FullTiltDemoMode;
+	// SPIKE (F2): a Full Tilt bonus table (PIRATES.DAT or DRAGON.DAT), loaded without its rules
+	static bool BonusTableMode;
 	// False from the start of a game until end_game has checked its high scores, which the table does a few seconds
 	// after it shows Game Over, or until the demo is stopped
 	static bool GameEnded;

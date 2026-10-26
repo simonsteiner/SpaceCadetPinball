@@ -72,6 +72,8 @@ public:
 	std::vector<TPinballComponent*> ComponentList;
 	std::vector<TBall*> BallList;
 	std::vector<TFlipper*> FlipperList;
+	// SPIKE (F2): Skulduggery has two flippers on each side; the flipper keys move all of them
+	std::vector<TFlipper*> SpikeFlippersL, SpikeFlippersR;
 	TLightGroup* LightGroup;
 	float GravityDirVectMult{};
 	float GravityAngleX{};

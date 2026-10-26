@@ -38,7 +38,8 @@ float pb::time_now = 0, pb::time_next = 0, pb::time_ticks_remainder = 0;
 float pb::BallMaxSpeed, pb::BallHalfRadius, pb::BallToBallCollisionDistance;
 float pb::IdleTimerMs = 0;
 bool pb::GameEnded = true;
-bool pb::FullTiltMode = false, pb::FullTiltDemoMode = false, pb::cheat_mode = false, pb::demo_mode = false, pb::CreditsActive = false;
+bool pb::FullTiltMode = false, pb::FullTiltDemoMode = false, pb::BonusTableMode = false, pb::cheat_mode = false,
+	 pb::demo_mode = false, pb::CreditsActive = false;
 std::string pb::DatFileName, pb::BasePath;
 ImU32 pb::TextBoxColor;
 int pb::quickFlag = 0;
@@ -138,14 +139,16 @@ int pb::uninit()
 
 std::string pb::FindDatFile(const std::string& folder)
 {
-	std::string datFileNames[3]
-	{
+	std::string datFileNames[5]{
 		"CADET.DAT",
 		"PINBALL.DAT",
 		"DEMO.DAT",
+		// SPIKE (F2): Full Tilt's bonus tables, Skulduggery and Dragon's Keep
+		"PIRATES.DAT",
+		"DRAGON.DAT",
 	};
 
-	// Default game data test order: CADET.DAT, PINBALL.DAT, DEMO.DAT
+	// Default game data test order: CADET.DAT, PINBALL.DAT, DEMO.DAT, PIRATES.DAT, DRAGON.DAT
 	if (options::Options.Prefer3DPBGameData)
 	{
 		std::swap(datFileNames[0], datFileNames[1]);
@@ -173,7 +176,7 @@ std::string pb::FindDatFile(const std::string& folder)
 void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 {
 	DatFileName.clear();
-	FullTiltDemoMode = FullTiltMode = false;
+	FullTiltDemoMode = FullTiltMode = BonusTableMode = false;
 
 	for (auto path : dataSearchPaths)
 	{
@@ -193,6 +196,8 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 			FullTiltMode = true;
 		if (upper == "DEMO.DAT")
 			FullTiltDemoMode = FullTiltMode = true;
+		if (upper == "PIRATES.DAT" || upper == "DRAGON.DAT")
+			BonusTableMode = FullTiltMode = true;
 		printf("Loading game from: %s\n", make_path_name(fileName).c_str());
 		return;
 	}
@@ -313,6 +318,22 @@ void pb::frame(float dtMilliSec)
 	if (dtMilliSec <= 0)
 		return;
 	replay::Scope replayScope(dtMilliSec);
+
+	// SPIKE (F2): SPIKE_BALLS=1 logs the active balls' positions every half second
+	if (static auto spikeBalls = getenv("SPIKE_BALLS") != nullptr; spikeBalls && MainTable)
+	{
+		static float spikeMs = 0;
+		spikeMs += dtMilliSec;
+		if (spikeMs >= 500)
+		{
+			spikeMs = 0;
+			for (auto ball : MainTable->BallList)
+				if (ball->ActiveFlag)
+					printf("SPIKE ball %.3f %.3f %.3f speed %.2f\n", ball->Position.X, ball->Position.Y,
+						   ball->Position.Z, ball->Speed);
+			fflush(stdout);
+		}
+	}
 
 	if (FullTiltMode && !demo_mode)
 	{
@@ -860,6 +881,9 @@ std::string pb::make_path_name(const std::string& fileName)
 void pb::ShowMessageBox(Uint32 flags, LPCSTR title, LPCSTR message)
 {
 	fprintf(flags == SDL_MESSAGEBOX_ERROR ? stderr : stdout, "BL error: %s\n%s\n", title, message);
+	// SPIKE (F2): the loader reports the bonus tables' gaps many times; log them without stopping
+	if (BonusTableMode)
+		return;
 	SDL_ShowSimpleMessageBox(flags, title, message, winmain::MainWindow);
 }
 

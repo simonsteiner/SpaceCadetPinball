@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "TCollisionComponent.h"
 #include "loader.h"
+#include "pb.h"
 #include "maths.h"
 #include "TEdgeSegment.h"
 #include "TPinballTable.h"
@@ -23,6 +24,9 @@ TCollisionComponent::TCollisionComponent(TPinballTable* table, int groupIndex, b
 	else
 	{
 		loader::query_visual(groupIndex, 0, &visual);
+		// SPIKE (F2): some of the bonus tables' blockers, such as Skulduggery's a_cannon, have no wall 600
+		if (createWall && pb::BonusTableMode && loader::query_float_attribute(groupIndex, 0, 600, -1e9f) == -1e9f)
+			createWall = false;
 		if (createWall)
 		{
 			float offset = table->CollisionCompOffset;

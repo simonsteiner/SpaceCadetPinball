@@ -88,6 +88,13 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 			short* shortArrPlus1 = shortArr + 1;
 			int groupIndex = *shortArrPlus1;
 			shortArr = shortArrPlus1 + 1;
+			// SPIKE (F2): SPIKE_TRACE=1 names each object before the table builds it
+			if (getenv("SPIKE_TRACE"))
+			{
+				printf("SPIKE building type %d, group %d \"%s\"\n", objectType, groupIndex,
+					   loader::query_name(groupIndex) ? loader::query_name(groupIndex) : "");
+				fflush(stdout);
+			}
 			switch (objectType)
 			{
 			case 1000:
@@ -97,14 +104,23 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 			case 1001:
 				Plunger = new TPlunger(this, groupIndex);
 				break;
+			case 1034:
+				// SPIKE (F2): Skulduggery's s_launcher1 has the plunger's wall (600) and ball position (601) but no
+				// sprites; try it as a plunger until its own class is recovered from PIRATES.EXE
+				if (!pb::BonusTableMode || Plunger)
+					goto skipped;
+				Plunger = new TPlunger(this, groupIndex);
+				break;
 			case 1002:
 				LightGroup->List.push_back(new TLight(this, groupIndex));
 				break;
 			case 1003:
 				FlipperL = new TFlipper(this, groupIndex);
+				SpikeFlippersL.push_back(FlipperL);
 				break;
 			case 1004:
 				FlipperR = new TFlipper(this, groupIndex);
+				SpikeFlippersR.push_back(FlipperR);
 				break;
 			case 1005:
 				new TBumper(this, groupIndex);
@@ -179,6 +195,11 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 				new TTextBox(this, groupIndex);
 				break;
 			default:
+			skipped:
+				// SPIKE (F2): log the object types the table skips
+				printf("SPIKE skipped object type %d, group %d \"%s\"\n", objectType, groupIndex,
+					   loader::query_name(groupIndex) ? loader::query_name(groupIndex) : "");
+				fflush(stdout);
 				continue;
 			}
 		}
@@ -186,7 +207,11 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 
 	render::build_occlude_list();
 	pb::InfoTextBox = dynamic_cast<TTextBox*>(find_component("info_text_box"));
-	pb::MissTextBox = dynamic_cast<TTextBox*>(find_component("mission_text_box"));
+	// SPIKE (F2): the bonus tables have only info_text_box
+	if (pb::BonusTableMode)
+		pb::MissTextBox = pb::InfoTextBox;
+	else
+		pb::MissTextBox = dynamic_cast<TTextBox*>(find_component("mission_text_box"));
 	control::make_links(this);
 }
 
@@ -324,25 +349,45 @@ int TPinballTable::Message(MessageCode code, float value)
 	case MessageCode::LeftFlipperInputPressed:
 		if (!TiltLockFlag)
 		{
-			FlipperL->Message(MessageCode::TFlipperExtend, value);
+			// SPIKE (F2)
+			if (pb::BonusTableMode)
+				for (auto flipper : SpikeFlippersL)
+					flipper->Message(MessageCode::TFlipperExtend, value);
+			else
+				FlipperL->Message(MessageCode::TFlipperExtend, value);
 		}
 		break;
 	case MessageCode::LeftFlipperInputReleased:
 		if (!TiltLockFlag)
 		{
-			FlipperL->Message(MessageCode::TFlipperRetract, value);
+			// SPIKE (F2)
+			if (pb::BonusTableMode)
+				for (auto flipper : SpikeFlippersL)
+					flipper->Message(MessageCode::TFlipperRetract, value);
+			else
+				FlipperL->Message(MessageCode::TFlipperRetract, value);
 		}
 		break;
 	case MessageCode::RightFlipperInputPressed:
 		if (!TiltLockFlag)
 		{
-			FlipperR->Message(MessageCode::TFlipperExtend, value);
+			// SPIKE (F2)
+			if (pb::BonusTableMode)
+				for (auto flipper : SpikeFlippersR)
+					flipper->Message(MessageCode::TFlipperExtend, value);
+			else
+				FlipperR->Message(MessageCode::TFlipperExtend, value);
 		}
 		break;
 	case MessageCode::RightFlipperInputReleased:
 		if (!TiltLockFlag)
 		{
-			FlipperR->Message(MessageCode::TFlipperRetract, value);
+			// SPIKE (F2)
+			if (pb::BonusTableMode)
+				for (auto flipper : SpikeFlippersR)
+					flipper->Message(MessageCode::TFlipperRetract, value);
+			else
+				FlipperR->Message(MessageCode::TFlipperRetract, value);
 		}
 		break;
 	case MessageCode::PlungerInputPressed:

@@ -4,6 +4,7 @@
 
 #include "control.h"
 #include "loader.h"
+#include "pb.h"
 #include "TBall.h"
 #include "TEdgeSegment.h"
 #include "TLine.h"
@@ -28,13 +29,18 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	RampPlaneCount = static_cast<int>(floor(*floatArr3Plane));
 	RampPlane = reinterpret_cast<ramp_plane_type*>(floatArr3Plane + 1);
 
-	auto wall0Arr = loader::query_float_attribute(groupIndex, 0, 1303);
-	auto wall0CollisionGroup = 1 << static_cast<int>(floor(wall0Arr[0]));
-	auto wall0Pts = reinterpret_cast<wall_point_type*>(wall0Arr + 2);
-	Line1 = new TLine(this, &ActiveFlag, wall0CollisionGroup, wall0Pts->Pt1, wall0Pts->Pt0);
-	Line1->WallValue = nullptr;
-	Line1->place_in_grid(&AABB);
-	EdgeList.push_back(Line1);
+	// SPIKE (F2): some of Skulduggery's ramps, such as a_ramp13, have no wall 1303
+	Line1 = nullptr;
+	if (!pb::BonusTableMode || loader::query_float_attribute(groupIndex, 0, 1303, -1e9f) != -1e9f)
+	{
+		auto wall0Arr = loader::query_float_attribute(groupIndex, 0, 1303);
+		auto wall0CollisionGroup = 1 << static_cast<int>(floor(wall0Arr[0]));
+		auto wall0Pts = reinterpret_cast<wall_point_type*>(wall0Arr + 2);
+		Line1 = new TLine(this, &ActiveFlag, wall0CollisionGroup, wall0Pts->Pt1, wall0Pts->Pt0);
+		Line1->WallValue = nullptr;
+		Line1->place_in_grid(&AABB);
+		EdgeList.push_back(Line1);
+	}
 
 	auto wall1Arr = loader::query_float_attribute(groupIndex, 0, 1301);
 	Wall1CollisionGroup = 1 << static_cast<int>(floor(wall1Arr[0]));

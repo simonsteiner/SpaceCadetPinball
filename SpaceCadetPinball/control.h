@@ -80,6 +80,7 @@ public:
 	static std::reference_wrapper<TLight*> WormholeLightArray1[3], WormholeLightArray2[3];
 
 	static void make_links(TPinballTable* table);
+	static void SpikeBonusTableHandler(MessageCode code, TPinballComponent* cmp);
 	static void ClearLinks();
 	static TPinballComponent* make_component_link(component_tag_base& tag);
 	static void handler(MessageCode code, TPinballComponent* cmp);

@@ -31,6 +31,8 @@
 #include "TTextBox.h"
 #include "translations.h"
 
+#include <set>
+
 int control_bump_scores1[] = {500, 1000, 1500, 2000};
 int control_roll_scores1[] = {2000};
 int control_bump_scores2[] = {1500, 2500, 3500, 4500};
@@ -846,6 +848,9 @@ std::reference_wrapper<TLight*> control::WormholeLightArray2[3] =
 void control::make_links(TPinballTable* table)
 {
 	TableG = table;
+	// SPIKE (F2): a bonus table has none of Space Cadet's groups, and its rules aren't written yet
+	if (pb::BonusTableMode)
+		return;
 
 	for (auto& score_component : score_components)
 	{
@@ -889,8 +894,30 @@ TPinballComponent* control::make_component_link(component_tag_base& tag)
 	return nullptr;
 }
 
+// SPIKE (F2): stands in for a bonus table's rules. It logs the first of each event the rules would get and
+// serves a new ball after a drain, so the table can be played without end.
+void control::SpikeBonusTableHandler(MessageCode code, TPinballComponent* cmp)
+{
+	static std::set<std::pair<std::string, int>> seen;
+	const std::string name = cmp && cmp->GroupName ? cmp->GroupName : "(none)";
+	if (seen.insert({name, static_cast<int>(code)}).second)
+	{
+		printf("SPIKE rules event: %s code %d\n", name.c_str(), static_cast<int>(code));
+		fflush(stdout);
+	}
+
+	if (cmp && cmp == TableG->Drain && code == MessageCode::ControlTimerExpired && TableG->Plunger)
+		TableG->Plunger->Message(MessageCode::PlungerStartFeedTimer, 0.0);
+}
+
 void control::handler(MessageCode code, TPinballComponent* cmp)
 {
+	if (pb::BonusTableMode)
+	{
+		SpikeBonusTableHandler(code, cmp);
+		return;
+	}
+
 	component_control* control = cmp->Control;
 	
 	if (control)
@@ -902,6 +929,9 @@ void control::handler(MessageCode code, TPinballComponent* cmp)
 
 void control::pbctrl_bdoor_controller(char key)
 {
+	// SPIKE (F2): the cheats drive Space Cadet's components
+	if (pb::BonusTableMode)
+		return;
 	// Buffer large enough for longest cheat + null
 	static char cheatBuffer[11 + 1]{};
 	static const char* bufferEnd = &cheatBuffer[11];
@@ -1097,6 +1127,9 @@ void control::table_set_replay(float value)
 
 void control::cheat_bump_rank()
 {
+	// SPIKE (F2)
+	if (pb::BonusTableMode)
+		return;
 	char Buffer[64]{};
 
 	auto rank = middle_circle->Message(MessageCode::TLightGroupGetOnCount, 0.0);
@@ -1112,9 +1145,12 @@ void control::cheat_bump_rank()
 
 void control::UnstuckBall(TBall& ball, int dt)
 {
-	if (!CheckBallInControlBounds(ball, *flip1) &&
-		!CheckBallInControlBounds(ball, *flip2) &&
-		!CheckBallInControlBounds(ball, *plunger))
+	// SPIKE (F2): the table's own flippers and plunger stand in for Space Cadet's flip1, flip2 and plunger
+	auto& left = pb::BonusTableMode ? *TableG->FlipperL : *flip1;
+	auto& right = pb::BonusTableMode ? *TableG->FlipperR : *flip2;
+	auto& plungerCmp = pb::BonusTableMode ? *TableG->Plunger : *plunger;
+	if (!CheckBallInControlBounds(ball, left) && !CheckBallInControlBounds(ball, right) &&
+		!CheckBallInControlBounds(ball, plungerCmp))
 	{
 		if (ball.StuckCounter <= 20)
 		{
@@ -1125,7 +1161,7 @@ void control::UnstuckBall(TBall& ball, int dt)
 		{
 			ball.Disable();
 			TableG->MultiballCount--;
-			plunger->Message(MessageCode::PlungerRelaunchBall, 0);
+			plungerCmp.Message(MessageCode::PlungerRelaunchBall, 0);
 		}
 	}
 }
@@ -2943,6 +2979,9 @@ void control::BallDrainControl(MessageCode code, TPinballComponent* caller)
 
 void control::table_control_handler(MessageCode code)
 {
+	// SPIKE (F2)
+	if (pb::BonusTableMode)
+		return;
 	if (code == MessageCode::SetTiltLock)
 	{
 		table_unlimited_balls = false;

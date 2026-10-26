@@ -28,8 +28,9 @@ TPlunger::TPlunger(TPinballTable* table, int groupIndex) : TCollisionComponent(t
     if (pb::FullTiltMode)
     {
         MaxPullback = 50;
-        PullbackIncrement = MaxPullback / (ListBitmap->size() * 8.0f);
-    }
+		// SPIKE (F2): Skulduggery's launcher has no sprites; pull as fast as a one-sprite plunger
+		PullbackIncrement = MaxPullback / ((ListBitmap ? ListBitmap->size() : 1) * 8.0f);
+	}
     else
     {
         MaxPullback = 100;
@@ -46,6 +47,12 @@ TPlunger::TPlunger(TPinballTable* table, int groupIndex) : TCollisionComponent(t
 
 void TPlunger::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
+	// SPIKE (F2): SPIKE_BALLS=1 logs the launcher's collisions
+	if (pb::BonusTableMode && getenv("SPIKE_BALLS"))
+	{
+		printf("SPIKE launcher collision boost %.1f threshold %.0f speed %.2f\n", Boost, Threshold, ball->Speed);
+		fflush(stdout);
+	}
 	if (SomeCounter > 0 || (pb::FullTiltMode && PinballTable->TiltLockFlag))
 	{
 		auto boost = RandFloat() * MaxPullback * 0.1f + MaxPullback;
@@ -214,6 +221,9 @@ void TPlunger::PullbackTimer(int timerId, void* caller)
 		plunger->Boost = plunger->MaxPullback;
 	}
 
+	// SPIKE (F2): Skulduggery's launcher has no sprites
+	if (!plunger->ListBitmap)
+		return;
 	int index = static_cast<int>(floor(
 		static_cast<float>(plunger->ListBitmap->size() - 1) *
 		(plunger->Boost / plunger->MaxPullback)));
