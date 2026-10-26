@@ -1,0 +1,102 @@
+// The Metal version of ball.frag.hlsl and compositor.frag.hlsli, with the bindings SDL's Metal backend expects
+#include <metal_stdlib>
+using namespace metal;
+
+struct Context
+{
+    float2 frame_size;
+    float frame_scale;
+    float lighting;
+    float2 proj_center;
+    float proj_d;
+    float glow;
+    float z_min;
+    float z_scaler;
+    float2 padding;
+    float4 up;
+    float4 light;
+};
+
+struct main0_in
+{
+    float4 v_color [[user(locn0)]];
+    float2 v_uv [[user(locn1)]];
+    float4 v_position [[position]];
+};
+
+struct main0_out
+{
+    float4 o_color [[color(0)]];
+};
+
+constant float3 Steel = float3(0.7, 0.71, 0.74);
+constant float Reflection = 0.45;
+constant float ReflectionReach = 3.0;
+constant float Shininess = 48.0;
+constant float ShadowDarkness = 0.65;
+constant float ShadowCore = 0.15;
+constant float ShadowOffset = 0.4;
+constant float DepthTolerance = 600.0;
+
+static float DepthAt(constant Context& context, texture2d<float> depthMap, int2 texel)
+{
+    texel = clamp(texel, int2(0, 0), int2(context.frame_size) - 1);
+    float2 bytes = round(depthMap.read(uint2(texel)).rg * 255.0);
+    return bytes.x * 256.0 + bytes.y;
+}
+
+static float3 TableAt(constant Context& context, texture2d<float> frame, float2 position)
+{
+    int2 texel = clamp(int2(position), int2(0, 0), int2(context.frame_size) - 1);
+    return frame.read(uint2(texel)).rgb;
+}
+
+fragment main0_out main0(main0_in in [[stage_in]], constant Context& context [[buffer(0)]],
+                         texture2d<float> u_texture [[texture(0)]], sampler u_sampler [[sampler(0)]],
+                         texture2d<float> u_depth [[texture(1)]], sampler u_depth_sampler [[sampler(1)]])
+{
+    main0_out out = {};
+    float2 local = in.v_uv;
+    float ballDepth = in.v_color.r * 65535.0;
+    float radius = in.v_color.g * context.frame_size.x;
+    float2 position = in.v_position.xy;
+    float2 center = position - local * radius;
+    float depth = DepthAt(context, u_depth, int2(position));
+
+    float flip = sign(context.proj_d);
+    float3 toLight = normalize(float3(context.light.x * flip, context.light.y * flip, context.light.z));
+
+    float2 shadowCenter = -toLight.xy * ShadowOffset;
+    float shadowDistance = length((local - shadowCenter) / float2(1.0, 0.85));
+    float shadow = ShadowDarkness * (1.0 - smoothstep(0.63, 1.5, shadowDistance)) +
+                   ShadowCore * (1.0 - smoothstep(0.0, 0.6, shadowDistance));
+    shadow *= saturate((depth - ballDepth + DepthTolerance) / DepthTolerance);
+
+    float r2 = dot(local, local);
+    float coverage = 0.0;
+    float3 color = float3(0.0);
+    if (r2 < 1.0 && depth > ballDepth)
+    {
+        float3 normal = float3(local, -sqrt(1.0 - r2));
+        float3 reflected = reflect(float3(0.0, 0.0, 1.0), normal);
+
+        float2 mirrored = center + reflected.xy * radius * ReflectionReach;
+        float2 spread = float2(radius, radius) * 0.5;
+        float3 table = (TableAt(context, u_texture, mirrored) +
+                        TableAt(context, u_texture, mirrored + float2(spread.x, 0.0)) +
+                        TableAt(context, u_texture, mirrored - float2(spread.x, 0.0)) +
+                        TableAt(context, u_texture, mirrored + float2(0.0, spread.y)) +
+                        TableAt(context, u_texture, mirrored - float2(0.0, spread.y))) / 5.0;
+
+        float diffuse = saturate(dot(normal, toLight));
+        float alignment = saturate(dot(reflected, toLight));
+        float highlight = 1.3 * pow(alignment, Shininess) + 0.2 * pow(alignment, 6.0);
+        color = Steel * (0.3 + 0.6 * diffuse) + Reflection * table + highlight;
+        color *= mix(1.0, 0.65, r2 * r2);
+        coverage = saturate((1.0 - sqrt(r2)) * radius);
+    }
+
+    float alpha = coverage + shadow * (1.0 - coverage);
+    out.o_color = float4(alpha > 0.0 ? saturate(color) * coverage / alpha : color, alpha);
+    return out;
+}

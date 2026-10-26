@@ -61,7 +61,8 @@ public:
 	static void shift(int offsetX, int offsetY);
 	static void build_occlude_list();
 	static void SpriteViewer(bool* show);
-	static void PresentVScreen();
+	// ballAlpha is how far the frame is from the update before the last to the last, for Space Cadet 2026's balls
+	static void PresentVScreen(float ballAlpha = 1.0f);
 	static int BoardWidth();
 	static void InterpolateBalls(float alpha);
 	static void RestoreBalls();

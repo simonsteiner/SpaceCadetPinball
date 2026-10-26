@@ -793,7 +793,7 @@ void winmain::MainLoop()
 				SDL_RenderFillRect(Renderer, nullptr);
 				if (HighRefresh && ballAlpha < 1.0f)
 					render::InterpolateBalls(ballAlpha);
-				render::PresentVScreen();
+				render::PresentVScreen(HighRefresh ? ballAlpha : 1.0f);
 				render::RestoreBalls();
 
 				ImGui::Render();

@@ -12,6 +12,7 @@
 #include "proj.h"
 #include "PostEffect.h"
 #include "Compositor.h"
+#include "DefinitiveEdition.h"
 #include "DefinitiveScene.h"
 #include "TableView.h"
 #include "Upscale.h"
@@ -609,7 +610,7 @@ void render::SpriteViewer(bool* show)
 	ImGui::End();
 }
 
-void render::PresentVScreen()
+void render::PresentVScreen(float ballAlpha)
 {
 	auto screen = vscreen;
 	if (HiScale)
@@ -617,17 +618,28 @@ void render::PresentVScreen()
 		RefreshSidebarHi();
 		screen = vscreenHi;
 	}
+
+	// Space Cadet 2026 composes the table on the GPU when it can, into a texture drawn as the frame would be. It draws
+	// the balls itself, so the texture gets the frame without them; the frame keeps them, for Classic.
+	const DefinitiveScene* scene = nullptr;
+	if (options::GetEdition() == Editions::Definitive && Compositor::Available())
+		scene = &DefinitiveScene::Build(TableView::Get(), DefinitiveEdition::PreviousView(), ballAlpha);
+	auto hideBalls = scene && scene->ShadedBalls;
+	if (hideBalls)
+		unpaint_balls();
 	screen->BlitToTexture();
+	if (hideBalls)
+		paint_balls();
 
 	DrawBackdrop();
-	// Space Cadet 2026 composes the table on the GPU when it can, into a texture drawn as the frame would be
 	auto scale = HiScale ? HiScale : 1;
 	auto table = screen->Texture;
-	if (options::GetEdition() == Editions::Definitive && Compositor::Available())
+	if (scene)
 	{
-		auto& scene = DefinitiveScene::Build(TableView::Get());
-		if (auto composed = Compositor::Compose(screen->Texture, UpdateDepthTexture(), scale, scene))
+		if (auto composed = Compositor::Compose(screen->Texture, UpdateDepthTexture(), scale, *scene))
 			table = composed;
+		else if (hideBalls)
+			screen->BlitToTexture();
 	}
 	// Only the table goes through the post-processing effect, not the backdrop or the overlays
 	PostEffect::Begin(static_cast<float>(screen->Width), static_cast<float>(screen->Height),

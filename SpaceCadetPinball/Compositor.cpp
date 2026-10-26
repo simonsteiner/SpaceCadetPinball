@@ -13,8 +13,9 @@ SDL_Renderer* Compositor::Renderer = nullptr;
 SDL_Texture* Compositor::Target = nullptr;
 SDL_Texture* Compositor::GlowTarget = nullptr;
 SDL_GPUSampler* Compositor::DepthSampler = nullptr;
-SDL_GPUShader *Compositor::ComposeShader = nullptr, *Compositor::GlowShader = nullptr;
-SDL_GPURenderState *Compositor::ComposeState = nullptr, *Compositor::GlowState = nullptr;
+SDL_GPUShader *Compositor::ComposeShader = nullptr, *Compositor::GlowShader = nullptr, *Compositor::BallShader = nullptr;
+SDL_GPURenderState *Compositor::ComposeState = nullptr, *Compositor::GlowState = nullptr,
+				   *Compositor::BallState = nullptr;
 SDL_Texture *Compositor::BoundDepth = nullptr, *Compositor::BoundGlow = nullptr;
 
 namespace
@@ -35,12 +36,15 @@ namespace
 		float Light[4];
 	};
 
-	// The key light comes from the upper left of the table and from above, in the table's coordinates
-	constexpr float LightDirection[3] = {-0.45f, -0.55f, 0.7f};
+	// The key light comes from the upper left and from above; the table's x runs from right to left on screen
+	constexpr float LightDirection[3] = {0.45f, -0.55f, 0.7f};
 	constexpr float GlowBrightness = 0.45f;
 	// How far a lamp's glow reaches beyond its sprite, in table pixels: a part of the sprite's size and a few pixels,
 	// up to a limit, so the large lit pictures don't flood the table
 	constexpr float GlowReachSize = 0.35f, GlowReachPixels = 3.0f, GlowReachMax = 9.0f;
+
+	// A ball's quad reaches this far from its centre, in radii, to hold its shadow
+	constexpr float BallQuadExtent = 1.9f;
 
 	// A direction in the table's coordinates as the camera sees it
 	void ToCamera(const mat4_row_major& matrix, const float (&direction)[3], float (&result)[4])
@@ -81,7 +85,9 @@ void Compositor::Init(SDL_Renderer* renderer)
 	DepthSampler = SDL_CreateGPUSampler(device, &samplerInfo);
 	GlowShader = PostEffect::CreateShader(renderer, {glow_frag_spv, sizeof glow_frag_spv},
 										  {glow_frag_dxil, sizeof glow_frag_dxil}, {glow_frag_msl, sizeof glow_frag_msl}, 2);
-	if (!ComposeShader || !GlowShader || !DepthSampler)
+	BallShader = PostEffect::CreateShader(renderer, {ball_frag_spv, sizeof ball_frag_spv},
+										  {ball_frag_dxil, sizeof ball_frag_dxil}, {ball_frag_msl, sizeof ball_frag_msl}, 2);
+	if (!ComposeShader || !GlowShader || !BallShader || !DepthSampler)
 	{
 		printf("Could not create Space Cadet 2026's compositor; it draws the table as Classic does.\nSDL Error: %s\n",
 			   SDL_GetError());
@@ -110,19 +116,22 @@ void Compositor::Uninit()
 			SDL_ReleaseGPUShader(device, ComposeShader);
 		if (GlowShader)
 			SDL_ReleaseGPUShader(device, GlowShader);
+		if (BallShader)
+			SDL_ReleaseGPUShader(device, BallShader);
 		if (DepthSampler)
 			SDL_ReleaseGPUSampler(device, DepthSampler);
 	}
 #endif
 	ComposeShader = nullptr;
 	GlowShader = nullptr;
+	BallShader = nullptr;
 	DepthSampler = nullptr;
 	Renderer = nullptr;
 }
 
 bool Compositor::Available()
 {
-	return ComposeShader && GlowShader && DepthSampler;
+	return ComposeShader && GlowShader && BallShader && DepthSampler;
 }
 
 SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int frameScale, const DefinitiveScene& scene)
@@ -149,6 +158,7 @@ SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int fra
 	ToCamera(camera.Matrix, LightDirection, uniforms.Light);
 	SDL_SetGPURenderStateFragmentUniforms(ComposeState, 0, &uniforms, sizeof uniforms);
 	SDL_SetGPURenderStateFragmentUniforms(GlowState, 0, &uniforms, sizeof uniforms);
+	SDL_SetGPURenderStateFragmentUniforms(BallState, 0, &uniforms, sizeof uniforms);
 
 	// Every pass draws in the frame's own texels, so a pass's pixel is the frame's and the depth map's texel. The
 	// glows go first, into their own texture, which the lighting pass adds to the table.
@@ -162,6 +172,7 @@ SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int fra
 	SDL_SetRenderTarget(Renderer, Target);
 	SDL_SetGPURenderState(Renderer, ComposeState);
 	SDL_RenderTexture(Renderer, frame, nullptr, nullptr);
+	DrawBalls(frame, frameScale, scene);
 	SDL_SetGPURenderState(Renderer, nullptr);
 	SDL_SetRenderTarget(Renderer, nullptr);
 	return Target;
@@ -228,7 +239,9 @@ bool Compositor::PrepareStates(SDL_Texture* depth)
 	stateInfo.num_sampler_bindings = 1;
 	stateInfo.fragment_shader = GlowShader;
 	GlowState = SDL_CreateGPURenderState(Renderer, &stateInfo);
-	if (!ComposeState || !GlowState)
+	stateInfo.fragment_shader = BallShader;
+	BallState = SDL_CreateGPURenderState(Renderer, &stateInfo);
+	if (!ComposeState || !GlowState || !BallState)
 	{
 		DestroyStates();
 		return false;
@@ -249,9 +262,12 @@ void Compositor::DestroyStates()
 		SDL_DestroyGPURenderState(ComposeState);
 	if (GlowState)
 		SDL_DestroyGPURenderState(GlowState);
+	if (BallState)
+		SDL_DestroyGPURenderState(BallState);
 #endif
 	ComposeState = nullptr;
 	GlowState = nullptr;
+	BallState = nullptr;
 	BoundDepth = nullptr;
 	BoundGlow = nullptr;
 }
@@ -295,6 +311,47 @@ void Compositor::DrawGlows(SDL_Texture* frame, int frameScale, const DefinitiveS
 		SDL_BLENDOPERATION_ADD);
 	SDL_SetTextureBlendMode(frame, blend);
 	SDL_SetGPURenderState(Renderer, GlowState);
+	SDL_RenderGeometry(Renderer, frame, vertices.data(), static_cast<int>(vertices.size()), indices.data(),
+					   static_cast<int>(indices.size()));
+	SDL_SetTextureBlendMode(frame, SDL_BLENDMODE_NONE);
+#else
+	(void)frame;
+	(void)frameScale;
+	(void)scene;
+#endif
+}
+
+void Compositor::DrawBalls(SDL_Texture* frame, int frameScale, const DefinitiveScene& scene)
+{
+#if SDL_VERSION_ATLEAST(3, 4, 0)
+	if (!scene.ShadedBalls || scene.Balls.empty())
+		return;
+
+	// One quad per ball, blended over the table; each vertex carries the ball's depth and radius (ball.frag.hlsl)
+	float width, height;
+	SDL_GetTextureSize(frame, &width, &height);
+	auto scale = static_cast<float>(frameScale);
+	std::vector<SDL_Vertex> vertices;
+	std::vector<int> indices;
+	for (const auto& ball : scene.Balls)
+	{
+		auto radius = ball.Radius * scale;
+		auto reach = radius * BallQuadExtent;
+		SDL_FPoint center{ball.Center.x * scale, ball.Center.y * scale};
+		SDL_FColor data{static_cast<float>(ball.Depth) / 0xFFFF, radius / width, 0, 1};
+		auto first = static_cast<int>(vertices.size());
+		for (auto corner = 0u; corner < 4; corner++)
+		{
+			auto u = corner & 1u ? BallQuadExtent : -BallQuadExtent;
+			auto v = corner & 2u ? BallQuadExtent : -BallQuadExtent;
+			vertices.push_back({{center.x + (u > 0 ? reach : -reach), center.y + (v > 0 ? reach : -reach)}, data, {u, v}});
+		}
+		for (auto index : {0, 1, 2, 1, 3, 2})
+			indices.push_back(first + index);
+	}
+
+	SDL_SetTextureBlendMode(frame, SDL_BLENDMODE_BLEND);
+	SDL_SetGPURenderState(Renderer, BallState);
 	SDL_RenderGeometry(Renderer, frame, vertices.data(), static_cast<int>(vertices.size()), indices.data(),
 					   static_cast<int>(indices.size()));
 	SDL_SetTextureBlendMode(frame, SDL_BLENDMODE_NONE);
