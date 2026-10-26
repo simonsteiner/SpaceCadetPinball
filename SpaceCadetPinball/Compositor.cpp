@@ -35,8 +35,8 @@ namespace
 		float Light[4];
 	};
 
-	// The key light comes from the upper left of the table and from above, in the table's coordinates
-	constexpr float LightDirection[3] = {-0.45f, -0.55f, 0.7f};
+	// The key light comes from the upper left and from above; the table's x runs from right to left on screen
+	constexpr float LightDirection[3] = {0.45f, -0.55f, 0.7f};
 	constexpr float GlowBrightness = 0.45f;
 	// How far a lamp's glow reaches beyond its sprite, in table pixels: a part of the sprite's size and a few pixels,
 	// up to a limit, so the large lit pictures don't flood the table
