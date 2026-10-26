@@ -33,7 +33,8 @@ const DefinitiveScene& DefinitiveScene::Build(const TableView& view, const Table
 	Scene.Glows.clear();
 	for (const auto& light : view.Lights)
 	{
-		if (!light.On || light.Sprite.w <= 0 || light.Sprite.h <= 0)
+		// A light shows a sprite only while it shows lit, which also follows flashing and timed overrides
+		if (light.Sprite.w <= 0 || light.Sprite.h <= 0)
 			continue;
 		SDL_FRect sprite;
 		SDL_RectToFRect(&light.Sprite, &sprite);

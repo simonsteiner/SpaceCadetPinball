@@ -167,7 +167,10 @@ void render::uninit()
 		SDL_DestroyTexture(BackdropTexture);
 	BackdropTexture = nullptr;
 	if (DepthTexture)
+	{
+		Compositor::ForgetDepth();
 		SDL_DestroyTexture(DepthTexture);
+	}
 	DepthTexture = nullptr;
 	DepthRows.clear();
 }
@@ -841,7 +844,10 @@ SDL_Texture* render::UpdateDepthTexture()
 	if (!DepthTexture || static_cast<int>(width) != zmap->Width || static_cast<int>(height) != zmap->Height)
 	{
 		if (DepthTexture)
+		{
+			Compositor::ForgetDepth();
 			SDL_DestroyTexture(DepthTexture);
+		}
 		DepthTexture = SDL_CreateTexture(winmain::Renderer, SDL_PIXELFORMAT_BGRA32, SDL_TEXTUREACCESS_STATIC,
 										 zmap->Width, zmap->Height);
 		if (!DepthTexture)

@@ -36,7 +36,8 @@ PSOutput main(PSInput input)
     float2 center = sprite.xy + sprite.zw * 0.5;
     float2 halfSize = max(sprite.zw * 0.5, 0.5);
     float radius = length((position - center) / halfSize);
-    float distance = max(radius - 1.0, 0.0) * min(halfSize.x, halfSize.y);
+    // In pixels past the ellipse's edge, along the line from the lamp's centre
+    float distance = length(position - center) * (1.0 - 1.0 / max(radius, 1.0));
     float falloff = exp(-distance * distance / (reach * reach));
     if (radius < 1.0)
         falloff *= lerp(GlowInside, 1.0, radius * radius);

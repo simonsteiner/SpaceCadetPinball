@@ -83,8 +83,9 @@ void Compositor::Init(SDL_Renderer* renderer)
 	samplerInfo.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
 	samplerInfo.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
 	DepthSampler = SDL_CreateGPUSampler(device, &samplerInfo);
-	GlowShader = PostEffect::CreateShader(renderer, {glow_frag_spv, sizeof glow_frag_spv},
-										  {glow_frag_dxil, sizeof glow_frag_dxil}, {glow_frag_msl, sizeof glow_frag_msl}, 2);
+	GlowShader =
+		PostEffect::CreateShader(renderer, {glow_frag_spv, sizeof glow_frag_spv},
+								 {glow_frag_dxil, sizeof glow_frag_dxil}, {glow_frag_msl, sizeof glow_frag_msl}, 2);
 	BallShader = PostEffect::CreateShader(renderer, {ball_frag_spv, sizeof ball_frag_spv},
 										  {ball_frag_dxil, sizeof ball_frag_dxil}, {ball_frag_msl, sizeof ball_frag_msl}, 2);
 	if (!ComposeShader || !GlowShader || !BallShader || !DepthSampler)
@@ -194,6 +195,8 @@ bool Compositor::PrepareTarget(SDL_Texture* frame)
 		SDL_GetTextureSize(Target, &targetWidth, &targetHeight);
 	if (!Target || !GlowTarget || targetWidth != width || targetHeight != height)
 	{
+		// The states bind the glow texture, and a new one can have the old one's address
+		DestroyStates();
 		for (auto texture : {&Target, &GlowTarget})
 		{
 			if (*texture)
@@ -255,6 +258,11 @@ bool Compositor::PrepareStates(SDL_Texture* depth)
 #endif
 }
 
+void Compositor::ForgetDepth()
+{
+	DestroyStates();
+}
+
 void Compositor::DestroyStates()
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
@@ -306,9 +314,9 @@ void Compositor::DrawGlows(SDL_Texture* frame, int frameScale, const DefinitiveS
 	}
 
 	// The brightest glow in colour and the sum of the glows' peaks in alpha, for LimitGlow in compose.frag.hlsl
-	static const auto blend = SDL_ComposeCustomBlendMode(
-		SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM, SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE,
-		SDL_BLENDOPERATION_ADD);
+	static const auto blend =
+		SDL_ComposeCustomBlendMode(SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM,
+								   SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_ADD);
 	SDL_SetTextureBlendMode(frame, blend);
 	SDL_SetGPURenderState(Renderer, GlowState);
 	SDL_RenderGeometry(Renderer, frame, vertices.data(), static_cast<int>(vertices.size()), indices.data(),
