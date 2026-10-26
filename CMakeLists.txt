@@ -242,6 +242,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/DefinitiveHud.cpp
         SpaceCadetPinball/DefinitiveHud.h
         SpaceCadetPinball/DefinitiveInGame.cpp
+        SpaceCadetPinball/DefinitiveScene.cpp
+        SpaceCadetPinball/DefinitiveScene.h
         SpaceCadetPinball/DefinitiveSettings.cpp
         SpaceCadetPinball/DefinitiveSettings.h
         SpaceCadetPinball/DefinitiveText.cpp

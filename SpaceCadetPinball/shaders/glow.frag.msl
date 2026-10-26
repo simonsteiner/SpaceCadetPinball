@@ -1,0 +1,84 @@
+// The Metal version of glow.frag.hlsl and compositor.frag.hlsli, with the bindings SDL's Metal backend expects
+#include <metal_stdlib>
+using namespace metal;
+
+struct Context
+{
+    float2 frame_size;
+    float frame_scale;
+    float lighting;
+    float2 proj_center;
+    float proj_d;
+    float glow;
+    float z_min;
+    float z_scaler;
+    float2 padding;
+    float4 up;
+    float4 light;
+};
+
+struct main0_in
+{
+    float4 v_color [[user(locn0)]];
+    float2 v_uv [[user(locn1)]];
+    float4 v_position [[position]];
+};
+
+struct main0_out
+{
+    float4 o_color [[color(0)]];
+};
+
+constant float GlowInside = 0.2;
+constant float DepthTolerance = 600.0;
+
+static float DepthAt(constant Context& context, texture2d<float> depthMap, int2 texel)
+{
+    texel = clamp(texel, int2(0, 0), int2(context.frame_size) - 1);
+    float2 bytes = round(depthMap.read(uint2(texel)).rg * 255.0);
+    return bytes.x * 256.0 + bytes.y;
+}
+
+fragment main0_out main0(main0_in in [[stage_in]], constant Context& context [[buffer(0)]],
+                         texture2d<float> u_texture [[texture(0)]], sampler u_sampler [[sampler(0)]],
+                         texture2d<float> u_depth [[texture(1)]], sampler u_depth_sampler [[sampler(1)]])
+{
+    main0_out out = {};
+    float2 position = in.v_position.xy;
+    float4 sprite = in.v_color * float4(context.frame_size, context.frame_size);
+    float strength = in.v_uv.x;
+    float reach = in.v_uv.y * context.frame_size.x;
+
+    float3 sum = float3(0.0);
+    float weights = 0.0;
+    for (int j = 0; j < 4; j++)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            int2 texel = int2(sprite.xy + (float2(i, j) + 0.5) / 4.0 * sprite.zw);
+            texel = clamp(texel, int2(0, 0), int2(context.frame_size) - 1);
+            float3 color = u_texture.read(uint2(texel)).rgb;
+            float luma = dot(color, float3(0.299, 0.587, 0.114));
+            float weight = luma * luma * luma + 1e-4;
+            sum += color * weight;
+            weights += weight;
+        }
+    }
+    float3 lamp = sum / weights;
+
+    float2 center = sprite.xy + sprite.zw * 0.5;
+    float2 halfSize = max(sprite.zw * 0.5, 0.5);
+    float radius = length((position - center) / halfSize);
+    float distance = max(radius - 1.0, 0.0) * min(halfSize.x, halfSize.y);
+    float falloff = exp(-distance * distance / (reach * reach));
+    if (radius < 1.0)
+        falloff *= mix(GlowInside, 1.0, radius * radius);
+
+    float lampDepth = DepthAt(context, u_depth, int2(center));
+    falloff *= smoothstep(lampDepth - 2.0 * DepthTolerance, lampDepth - DepthTolerance,
+                          DepthAt(context, u_depth, int2(position)));
+
+    float3 color = lamp * falloff * strength * context.glow;
+    out.o_color = float4(color, max(color.r, max(color.g, color.b)));
+    return out;
+}

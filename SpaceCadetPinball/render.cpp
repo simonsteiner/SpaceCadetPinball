@@ -12,6 +12,8 @@
 #include "proj.h"
 #include "PostEffect.h"
 #include "Compositor.h"
+#include "DefinitiveScene.h"
+#include "TableView.h"
 #include "Upscale.h"
 
 std::vector<render_sprite*> render::sprite_list, render::ball_list;
@@ -623,7 +625,8 @@ void render::PresentVScreen()
 	auto table = screen->Texture;
 	if (options::GetEdition() == Editions::Definitive && Compositor::Available())
 	{
-		if (auto composed = Compositor::Compose(screen->Texture, UpdateDepthTexture(), scale))
+		auto& scene = DefinitiveScene::Build(TableView::Get());
+		if (auto composed = Compositor::Compose(screen->Texture, UpdateDepthTexture(), scale, scene))
 			table = composed;
 	}
 	// Only the table goes through the post-processing effect, not the backdrop or the overlays

@@ -21,6 +21,17 @@ struct mat4_row_major
 class proj
 {
 public:
+	// The projection of the table on show, read by Space Cadet 2026's compositor to turn depths back into positions
+	struct Camera
+	{
+		mat4_row_major Matrix;
+		float D, CenterX, CenterY, ZMin, ZScaler;
+	};
+	static Camera GetCamera()
+	{
+		return {matrix, d_, centerx, centery, zmin, zscaler};
+	}
+
 	static void init(float* mat4x3, float d, float centerX, float centerY, float zMin, float zScaler);
 	static vector3 matrix_vector_multiply(const mat4_row_major& mat, const vector3& vec);
 	static float z_distance(const vector3& vec);
