@@ -350,15 +350,15 @@ void DefinitiveSettings::RenderGraphics(const DefinitiveHost& host)
 	if (effectsUnavailable)
 		Ui::NextRowNote(effectsUnavailable);
 	if (Ui::ToggleRow("lighting", Text(Msg::Definitive_Lighting), options.Lighting))
-		options.Lighting ^= true;
+		options.Lighting = !options.Lighting;
 	if (effectsUnavailable)
 		Ui::NextRowNote(effectsUnavailable);
 	if (Ui::ToggleRow("glow", Text(Msg::Definitive_LampGlow), options.LampGlow))
-		options.LampGlow ^= true;
+		options.LampGlow = !options.LampGlow;
 	if (effectsUnavailable)
 		Ui::NextRowNote(effectsUnavailable);
 	if (Ui::ToggleRow("ball", Text(Msg::Definitive_ShadedBall), options.ShadedBall))
-		options.ShadedBall ^= true;
+		options.ShadedBall = !options.ShadedBall;
 
 	if (auto unavailable = host.PostProcessingUnavailable ? host.PostProcessingUnavailable() : nullptr)
 		Ui::NextRowNote(unavailable);
@@ -486,5 +486,5 @@ void DefinitiveSettings::RenderAccessibility()
 
 	Ui::NextRowNote(Text(Msg::Definitive_ReducedMotionNote));
 	if (Ui::ToggleRow("motion", Text(Msg::Definitive_ReducedMotion), options::Options.ReducedMotion))
-		options::Options.ReducedMotion ^= true;
+		options::Options.ReducedMotion = !options::Options.ReducedMotion;
 }
