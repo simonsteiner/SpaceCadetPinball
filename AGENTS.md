@@ -38,7 +38,7 @@ There are no automated tests of the game yet, only `tools/check-bidi.sh` for rig
 
 - **Source files are listed by hand in `CMakeLists.txt`.** Add each new `.cpp` and `.h` to `SOURCE_FILES`; there is no glob. Vendored ImGui is listed in `IMGUI_SOURCE_FILES` and builds as the separate `imgui` library, without the game's precompiled header and warnings.
 - **SDL comes from `SCP_VENDORED_SDL`.** `ON` (Windows, macOS, `mingw`, `linux-vendored`) fetches the SDL3 and SDL3_mixer versions pinned in `CMakeLists.txt` and links them statically. `OFF` (the Linux default) uses the system packages. Keep both paths working, because distribution packagers use the system one. CI builds the system path in a Debian testing container, because Ubuntu 24.04 has no SDL3 packages. To bump SDL, change the URL and the `URL_HASH` together.
-- **Post-processing shaders are compiled ahead of time.** `SpaceCadetPinball/shaders/*.frag.hlsl` become SPIR-V and DXIL, and the hand-written `*.frag.msl` are embedded as text, in the generated `PostEffectShaders.h`; run `tools/build-shaders.sh` after changing a shader (it fetches a pinned DXC). Keep each `.msl` in step with its `.hlsl`.
+- **Post-processing and compositor shaders are compiled ahead of time.** `SpaceCadetPinball/shaders/*.frag.hlsl` become SPIR-V and DXIL, and the hand-written `*.frag.msl` are embedded as text, in the generated `PostEffectShaders.h`; run `tools/build-shaders.sh` after changing a shader (it fetches a pinned DXC). Keep each `.msl` in step with its `.hlsl`.
 
 ### Git
 

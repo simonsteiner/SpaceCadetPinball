@@ -11,6 +11,7 @@
 #include "DebugOverlay.h"
 #include "proj.h"
 #include "PostEffect.h"
+#include "Compositor.h"
 #include "Upscale.h"
 
 std::vector<render_sprite*> render::sprite_list, render::ball_list;
@@ -27,6 +28,10 @@ gdrv_bitmap8 *render::vscreenHi = nullptr, *render::ball_bitmap_hi[20]{};
 zmap_header_type* render::zscreenHi = nullptr;
 int render::HiScale = 0;
 std::vector<ColorRgba> render::SidebarCopy{};
+SDL_Texture* render::DepthTexture = nullptr;
+rectangle_type render::DepthChanged{};
+bool render::DepthChangedAll = true;
+std::vector<ColorRgba> render::DepthRows{};
 
 #if SDL_VERSION_ATLEAST(3, 4, 0)
 // The same as nearest at whole multiples; at other scales it keeps every table pixel the same size
@@ -130,6 +135,7 @@ void render::init(gdrv_bitmap8* bmp, int width, int height)
 		ballBmp = new gdrv_bitmap8(64, 64, false);
 
 	background_bitmap = bmp;
+	DepthChangedAll = true;
 	if (bmp)
 		gdrv::copy_bitmap(vscreen, width, height, 0, 0, bmp, 0, 0);
 	else
@@ -157,6 +163,10 @@ void render::uninit()
 	if (BackdropTexture)
 		SDL_DestroyTexture(BackdropTexture);
 	BackdropTexture = nullptr;
+	if (DepthTexture)
+		SDL_DestroyTexture(DepthTexture);
+	DepthTexture = nullptr;
+	DepthRows.clear();
 }
 
 void render::recreate_screen_texture()
@@ -229,6 +239,8 @@ void render::update()
 			continue;
 
 		repaint(*sprite);
+		if (sprite->DirtyRect.Width > 0)
+			DepthChange(sprite->DirtyRect);
 		sprite->DirtyFlag = false;
 		sprite->DirtyRectPrev = sprite->DirtyRect;
 		if (sprite->DeleteFlag)
@@ -606,11 +618,18 @@ void render::PresentVScreen()
 	screen->BlitToTexture();
 
 	DrawBackdrop();
-	// Only the table goes through the post-processing effect, not the backdrop or the overlays
+	// Space Cadet 2026 composes the table on the GPU when it can, into a texture drawn as the frame would be
 	auto scale = HiScale ? HiScale : 1;
+	auto table = screen->Texture;
+	if (options::GetEdition() == Editions::Definitive && Compositor::Available())
+	{
+		if (auto composed = Compositor::Compose(screen->Texture, UpdateDepthTexture(), scale))
+			table = composed;
+	}
+	// Only the table goes through the post-processing effect, not the backdrop or the overlays
 	PostEffect::Begin(static_cast<float>(screen->Width), static_cast<float>(screen->Height),
 					  fullscrn::ScaleX / static_cast<float>(scale), fullscrn::ScaleY / static_cast<float>(scale));
-	DrawSplit(screen->Texture, static_cast<float>(offset_x), static_cast<float>(offset_y), scale);
+	DrawSplit(table, static_cast<float>(offset_x), static_cast<float>(offset_y), scale);
 	PostEffect::End();
 
 	if (options::Options.DebugOverlay)
@@ -757,6 +776,7 @@ void render::SetUpscale(int factor)
 			PaintHi(*sprite, clipRect);
 	}
 	paint_balls_hi();
+	DepthChangedAll = true;
 	recreate_screen_texture();
 }
 
@@ -782,4 +802,70 @@ void render::RefreshSidebarHi()
 	}
 	if (changed)
 		Upscale::Region(*vscreen, boardWidth, 0, width, vscreen->Height, *vscreenHi);
+}
+
+void render::DepthChange(const rectangle_type& rect)
+{
+	if (DepthChanged.Width > 0)
+		maths::enclosing_box(DepthChanged, rect, DepthChanged);
+	else
+		DepthChanged = rect;
+}
+
+SDL_Texture* render::UpdateDepthTexture()
+{
+	// The depth map of the frame on show, upscaled or not; only what changed since the last call goes up
+	auto zmap = HiScale ? zscreenHi : zscreen;
+	auto scale = HiScale ? HiScale : 1;
+	if (!zmap)
+		return nullptr;
+
+	float width = 0, height = 0;
+	if (DepthTexture)
+		SDL_GetTextureSize(DepthTexture, &width, &height);
+	if (!DepthTexture || static_cast<int>(width) != zmap->Width || static_cast<int>(height) != zmap->Height)
+	{
+		if (DepthTexture)
+			SDL_DestroyTexture(DepthTexture);
+		DepthTexture = SDL_CreateTexture(winmain::Renderer, SDL_PIXELFORMAT_BGRA32, SDL_TEXTUREACCESS_STATIC,
+										 zmap->Width, zmap->Height);
+		if (!DepthTexture)
+			return nullptr;
+		SDL_SetTextureScaleMode(DepthTexture, SDL_SCALEMODE_NEAREST);
+		SDL_SetTextureBlendMode(DepthTexture, SDL_BLENDMODE_NONE);
+		DepthChangedAll = true;
+	}
+
+	SDL_Rect rect;
+	if (DepthChangedAll)
+		rect = {0, 0, zmap->Width, zmap->Height};
+	else if (DepthChanged.Width > 0)
+	{
+		rect = {DepthChanged.XPosition * scale, DepthChanged.YPosition * scale, DepthChanged.Width * scale,
+				DepthChanged.Height * scale};
+		SDL_Rect bounds{0, 0, zmap->Width, zmap->Height};
+		if (!SDL_GetRectIntersection(&rect, &bounds, &rect))
+			rect = {};
+	}
+	else
+		rect = {};
+	DepthChangedAll = false;
+	DepthChanged = {};
+	if (rect.w <= 0 || rect.h <= 0)
+		return DepthTexture;
+
+	// Red holds the high byte of each depth and green the low byte
+	DepthRows.resize(static_cast<size_t>(rect.w) * rect.h);
+	for (int y = 0; y < rect.h; y++)
+	{
+		auto src = &zmap->ZPtr1[(rect.y + y) * zmap->Stride + rect.x];
+		auto dst = &DepthRows[static_cast<size_t>(y) * rect.w];
+		for (int x = 0; x < rect.w; x++)
+		{
+			auto depth = static_cast<unsigned>(src[x]);
+			dst[x] = ColorRgba{static_cast<uint8_t>(depth >> 8u), static_cast<uint8_t>(depth & 0xFFu), 0, 255};
+		}
+	}
+	SDL_UpdateTexture(DepthTexture, &rect, DepthRows.data(), rect.w * static_cast<int>(sizeof(ColorRgba)));
+	return DepthTexture;
 }

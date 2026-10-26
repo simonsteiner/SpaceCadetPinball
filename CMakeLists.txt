@@ -125,6 +125,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/PeResource.h
         SpaceCadetPinball/PostEffect.cpp
         SpaceCadetPinball/PostEffect.h
+        SpaceCadetPinball/Compositor.cpp
+        SpaceCadetPinball/Compositor.h
         SpaceCadetPinball/shaders/PostEffectShaders.h
         SpaceCadetPinball/proj.cpp
         SpaceCadetPinball/proj.h

@@ -32,6 +32,16 @@ public:
 	static void Begin(float textureWidth, float textureHeight, float scaleX, float scaleY);
 	static void End();
 
+	struct ShaderCode
+	{
+		const unsigned char* Code;
+		size_t Size;
+	};
+	// A fragment shader for an SDL_GPURenderState in the first format the renderer's device takes, with one uniform
+	// buffer and the given number of samplers; null without the GPU renderer or a format it takes
+	static struct SDL_GPUShader* CreateShader(SDL_Renderer* renderer, ShaderCode spirv, ShaderCode dxil, ShaderCode msl,
+											  int samplers);
+
 private:
 	static bool Supported;
 	static bool GpuFailed;

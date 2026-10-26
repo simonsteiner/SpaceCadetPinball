@@ -1,0 +1,32 @@
+// The Metal version of compose.frag.hlsl, with the bindings SDL's Metal backend expects
+#include <metal_stdlib>
+using namespace metal;
+
+struct Context
+{
+    float2 frame_size;
+    float frame_scale;
+    float padding;
+};
+
+struct main0_in
+{
+    float4 v_color [[user(locn0)]];
+    float2 v_uv [[user(locn1)]];
+    float4 v_position [[position]];
+};
+
+struct main0_out
+{
+    float4 o_color [[color(0)]];
+};
+
+fragment main0_out main0(main0_in in [[stage_in]], constant Context& context [[buffer(0)]],
+                         texture2d<float> u_texture [[texture(0)]], sampler u_sampler [[sampler(0)]],
+                         texture2d<float> u_depth [[texture(1)]], sampler u_depth_sampler [[sampler(1)]])
+{
+    main0_out out = {};
+    uint2 texel = uint2(in.v_position.xy);
+    out.o_color = float4(u_texture.read(texel).rgb, 1.0);
+    return out;
+}

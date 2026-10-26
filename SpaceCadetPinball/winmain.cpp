@@ -34,6 +34,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "options.h"
 #include "pb.h"
 #include "PostEffect.h"
+#include "Compositor.h"
 #include "Upscale.h"
 #include "render.h"
 #include "replay.h"
@@ -470,6 +471,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		// drawn plain
 		PostEffect::Init(Renderer);
 		PostEffect::SetEffect(static_cast<PostEffects>(Options.PostProcessing.V));
+		Compositor::Init(Renderer);
 
 		if (!Options.FontFileName.V.empty())
 		{
@@ -663,6 +665,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		MIX_Quit();
 	}
 
+	Compositor::Uninit();
 	PostEffect::Uninit();
 	SDL_DestroyRenderer(Renderer);
 	SDL_DestroyWindow(window);
@@ -1826,6 +1829,7 @@ void winmain::RenderEditionHint()
 bool winmain::CreateRenderer(bool gpu)
 {
 	// The GPU renderer, for post-processing; otherwise the default, falling back to the software renderer
+	Compositor::Uninit();
 	PostEffect::Uninit();
 	if (Renderer)
 		SDL_DestroyRenderer(Renderer);
