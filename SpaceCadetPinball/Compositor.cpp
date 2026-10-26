@@ -13,7 +13,8 @@ SDL_Renderer* Compositor::Renderer = nullptr;
 SDL_Texture* Compositor::Target = nullptr;
 SDL_Texture* Compositor::GlowTarget = nullptr;
 SDL_GPUSampler* Compositor::DepthSampler = nullptr;
-SDL_GPUShader *Compositor::ComposeShader = nullptr, *Compositor::GlowShader = nullptr, *Compositor::BallShader = nullptr;
+SDL_GPUShader *Compositor::ComposeShader = nullptr, *Compositor::GlowShader = nullptr,
+			  *Compositor::BallShader = nullptr;
 SDL_GPURenderState *Compositor::ComposeState = nullptr, *Compositor::GlowState = nullptr,
 				   *Compositor::BallState = nullptr;
 SDL_Texture *Compositor::BoundDepth = nullptr, *Compositor::BoundGlow = nullptr;
@@ -86,8 +87,9 @@ void Compositor::Init(SDL_Renderer* renderer)
 	GlowShader =
 		PostEffect::CreateShader(renderer, {glow_frag_spv, sizeof glow_frag_spv},
 								 {glow_frag_dxil, sizeof glow_frag_dxil}, {glow_frag_msl, sizeof glow_frag_msl}, 2);
-	BallShader = PostEffect::CreateShader(renderer, {ball_frag_spv, sizeof ball_frag_spv},
-										  {ball_frag_dxil, sizeof ball_frag_dxil}, {ball_frag_msl, sizeof ball_frag_msl}, 2);
+	BallShader =
+		PostEffect::CreateShader(renderer, {ball_frag_spv, sizeof ball_frag_spv},
+								 {ball_frag_dxil, sizeof ball_frag_dxil}, {ball_frag_msl, sizeof ball_frag_msl}, 2);
 	if (!ComposeShader || !GlowShader || !BallShader || !DepthSampler)
 	{
 		printf("Could not create Space Cadet 2026's compositor; it draws the table as Classic does.\nSDL Error: %s\n",
@@ -352,7 +354,8 @@ void Compositor::DrawBalls(SDL_Texture* frame, int frameScale, const DefinitiveS
 		{
 			auto u = corner & 1u ? BallQuadExtent : -BallQuadExtent;
 			auto v = corner & 2u ? BallQuadExtent : -BallQuadExtent;
-			vertices.push_back({{center.x + (u > 0 ? reach : -reach), center.y + (v > 0 ? reach : -reach)}, data, {u, v}});
+			vertices.push_back(
+				{{center.x + (u > 0 ? reach : -reach), center.y + (v > 0 ? reach : -reach)}, data, {u, v}});
 		}
 		for (auto index : {0, 1, 2, 1, 3, 2})
 			indices.push_back(first + index);
