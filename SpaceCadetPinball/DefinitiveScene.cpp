@@ -3,6 +3,7 @@
 
 #include "TableView.h"
 
+#include <algorithm>
 #include <numbers>
 
 namespace
@@ -59,8 +60,9 @@ const DefinitiveScene& DefinitiveScene::Build(const TableView& view, const Table
 				center = {start.x + (center.x - start.x) * alpha, start.y + (center.y - start.y) * alpha};
 			}
 		}
-		Scene.Balls.push_back(
-			{center, static_cast<float>(std::min(sprite.w, sprite.h)) / 2, view.Balls[index].Depth});
+		Scene.Balls.push_back({center, static_cast<float>(std::min(sprite.w, sprite.h)) / 2, view.Balls[index].Depth});
 	}
+	// The furthest first, so a nearer ball covers one behind it where they overlap
+	std::ranges::sort(Scene.Balls, std::ranges::greater{}, &Ball::Depth);
 	return Scene;
 }
