@@ -3,6 +3,7 @@
 
 
 #include "control.h"
+#include "TableRules.h"
 #include "loader.h"
 #include "midi.h"
 #include "pb.h"
@@ -187,7 +188,7 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 	render::build_occlude_list();
 	pb::InfoTextBox = dynamic_cast<TTextBox*>(find_component("info_text_box"));
 	pb::MissTextBox = dynamic_cast<TTextBox*>(find_component("mission_text_box"));
-	control::make_links(this);
+	TableRules::Current().MakeLinks(this);
 }
 
 
@@ -213,7 +214,7 @@ TPinballTable::~TPinballTable()
 		// Component destructor removes it from the list.
 		delete ComponentList[0];
 	}
-	control::ClearLinks();
+	TableRules::Current().ClearLinks();
 	pb::InfoTextBox = pb::MissTextBox = nullptr;
 }
 
@@ -302,7 +303,7 @@ void TPinballTable::tilt(float time)
 		}
 		LightGroup->Message(MessageCode::TLightTurnOffTimed, 0);
 		TiltLockFlag = 1;
-		control::table_control_handler(MessageCode::SetTiltLock);
+		TableRules::Current().TableControl(MessageCode::SetTiltLock);
 	}
 }
 
@@ -595,7 +596,7 @@ int TPinballTable::Message(MessageCode code, float value)
 	default: break;
 	}
 
-	control::table_control_handler(code);
+	TableRules::Current().TableControl(code);
 	return 0;
 }
 

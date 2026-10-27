@@ -11,6 +11,17 @@ class TBall;
 class TTextBox;
 enum class Msg : int;
 
+// The table the DAT file holds. Space Cadet comes as 3D Pinball's, Full Tilt's and Full Tilt's demo;
+// Skulduggery and Dragon's Keep are Full Tilt's bonus tables (Phase F), which don't load yet.
+enum class Tables
+{
+	SpaceCadet3DPB,
+	SpaceCadetFullTilt,
+	FullTiltDemo,
+	Skulduggery,
+	DragonsKeep,
+};
+
 enum class GameModes
 {
 	InGame = 1,
@@ -27,6 +38,8 @@ public:
 	static bool cheat_mode, CreditsActive;
 	static DatFile* record_table;
 	static TPinballTable* MainTable;
+	static Tables Table;
+	// Set with Table: Full Tilt's DAT format and behaviour, and its demo's
 	static bool FullTiltMode, FullTiltDemoMode;
 	// False from the start of a game until end_game has checked its high scores, which the table does a few seconds
 	// after it shows Game Over, or until the demo is stopped

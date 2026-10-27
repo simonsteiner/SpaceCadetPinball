@@ -93,6 +93,10 @@ endif()
 set(SOURCE_FILES
         SpaceCadetPinball/control.cpp
         SpaceCadetPinball/control.h
+        SpaceCadetPinball/control_dragon.cpp
+        SpaceCadetPinball/control_dragon.h
+        SpaceCadetPinball/control_skulduggery.cpp
+        SpaceCadetPinball/control_skulduggery.h
         SpaceCadetPinball/EmbeddedData.cpp
         SpaceCadetPinball/EmbeddedData.h
         SpaceCadetPinball/EmbeddedDataDecompress.cpp
@@ -216,6 +220,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/TSound.h
         SpaceCadetPinball/TTableLayer.cpp
         SpaceCadetPinball/TTableLayer.h
+        SpaceCadetPinball/TableRules.cpp
+        SpaceCadetPinball/TableRules.h
         SpaceCadetPinball/TableView.cpp
         SpaceCadetPinball/TableView.h
         SpaceCadetPinball/TTextBox.cpp
