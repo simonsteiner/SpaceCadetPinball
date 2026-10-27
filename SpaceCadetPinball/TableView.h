@@ -66,6 +66,8 @@ struct TableView
 	int InfoMessages;
 	// The current player's extra balls still to come
 	int ExtraBalls;
+	// Whether a cheat was used in this game, which keeps it out of the high scores
+	bool CheatsUsed;
 
 	// 64-bit FNV-1a over every field, so two runs can compare their views frame by frame
 	uint64_t Hash() const;

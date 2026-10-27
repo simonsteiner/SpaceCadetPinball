@@ -145,7 +145,7 @@ uint64_t TableView::Hash() const
 	for (auto value : {PlayerCount, CurrentPlayer, Scores[0], Scores[1], Scores[2], Scores[3], BallCount, MaxBallCount,
 					   Mission, Rank, RankProgress, InfoMessages, ExtraBalls})
 		hash.Add(value);
-	for (auto value : {GameOver, Demo, Tilted, FullTilt})
+	for (auto value : {GameOver, Demo, Tilted, FullTilt, CheatsUsed})
 		hash.Add(value);
 	return hash.Value;
 }
@@ -228,6 +228,7 @@ void TableView::Fill()
 	InfoMessage = info;
 	InfoEnd = info ? info->EndTicks : 0;
 	View.ExtraBalls = Table->ExtraBalls;
+	View.CheatsUsed = Table->CheatsUsed != 0;
 }
 
 void TableView::Clear()

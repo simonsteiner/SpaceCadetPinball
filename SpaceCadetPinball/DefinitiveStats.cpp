@@ -42,6 +42,8 @@ namespace
 		bool Active;
 		bool Tilted;
 		std::array<int, 4> Missions;
+		// Each player's billions: the table counts them apart from the score, which drops by a billion as one passes
+		std::array<long long, 4> Billions;
 	};
 
 	TableView Previous{};
@@ -93,12 +95,15 @@ void DefinitiveStats::Raise(const std::string& key, int value)
 void DefinitiveStats::Unlock(const char* key)
 {
 	auto name = Key((std::string{"Achievement."} + key).c_str());
-	if (Read(name))
+	if (options::HasSetting(name))
 		return;
 	SDL_Time now = 0;
 	SDL_GetCurrentTime(&now);
-	// Seconds fit an int until 2038; a clock before 1970 still counts as unlocked
-	options::set_int(name.c_str(), std::max(1, static_cast<int>(SDL_NS_TO_SECONDS(now))));
+	// Seconds as text, which outlast 2038; a clock before 1970 still counts as unlocked
+	options::SetSetting(name, std::to_string(std::max<long long>(1, SDL_NS_TO_SECONDS(now))));
+	// The notice shows only in Space Cadet 2026, so one unlocked in Classic doesn't wait for a later switch
+	if (options::GetEdition() != Editions::Definitive)
+		return;
 	for (size_t index = 0; index < std::size(AchievementList); index++)
 	{
 		if (std::strcmp(AchievementList[index].Key, key) == 0)
@@ -115,23 +120,37 @@ void DefinitiveStats::Update(const TableView& view)
 		return;
 	}
 
-	// A game starts when play starts, or when the scores drop because one was restarted; a demo game never counts
+	// A game starts when play starts, or when a new game sets every score back to 0; a demo game never counts, nor
+	// does one a cheat was used in, as the high scores don't take it
 	auto playing = Playing(view);
 	auto wasPlaying = Playing(Previous);
-	auto restarted = false;
-	for (size_t index = 0; index < view.Scores.size(); index++)
-		restarted |= view.Scores[index] < Previous.Scores[index];
+	auto zeroed = std::all_of(view.Scores.begin(), view.Scores.end(), [](int score) { return score == 0; });
+	auto restarted =
+		zeroed && std::any_of(Previous.Scores.begin(), Previous.Scores.end(), [](int score) { return score != 0; });
 	if (playing && (!wasPlaying || restarted))
-		Current = Game{true, false, {}};
+		Current = Game{true, false, {}, {}};
+	if (view.CheatsUsed)
+		Current.Active = false;
 
 	if (playing && Current.Active)
 	{
+		// A score that drops by most of a billion has passed one
+		for (size_t index = 0; index < view.Scores.size(); index++)
+		{
+			if (Previous.Scores[index] - view.Scores[index] > 900'000'000)
+				Current.Billions[index]++;
+		}
+
 		auto player = PlayerOf(Previous);
+		auto samePlayer = view.CurrentPlayer == Previous.CurrentPlayer;
 		// A mission ends finished when it lit lamps of the progress ring, or a new rank, which clears them; a mission
-		// that runs out of fuel or ends with the ball does neither
+		// that runs out of fuel or ends with the ball does neither. Time Warp's way back (state 24) ends through the
+		// kickout instead, which costs a rank. On a drain the next player's lamps come in, so only the same player's
+		// count.
 		auto mission = DefinitiveHud::MissionOf(Previous.Mission);
-		if (mission && !DefinitiveHud::MissionOf(view.Mission) &&
-			(view.RankProgress > Previous.RankProgress || view.Rank > Previous.Rank))
+		auto finished = view.RankProgress > Previous.RankProgress || view.Rank > Previous.Rank ||
+						(Previous.Mission == 24 && view.Rank < Previous.Rank);
+		if (mission && !DefinitiveHud::MissionOf(view.Mission) && samePlayer && finished)
 		{
 			Add(Key("Missions"), 1);
 			Add(Key(("Mission " + std::to_string(mission)).c_str()), 1);
@@ -146,7 +165,7 @@ void DefinitiveStats::Update(const TableView& view)
 				Unlock("Every Mission");
 		}
 
-		if (view.Rank > Previous.Rank && view.CurrentPlayer == Previous.CurrentPlayer)
+		if (view.Rank > Previous.Rank && samePlayer)
 		{
 			Raise(Key("Best Rank"), view.Rank);
 			// The ranks are Cadet 1 to Fleet Admiral 9
@@ -168,7 +187,7 @@ void DefinitiveStats::Update(const TableView& view)
 			Unlock("Ball Saved");
 		}
 
-		if (view.ExtraBalls > Previous.ExtraBalls && view.CurrentPlayer == Previous.CurrentPlayer)
+		if (view.ExtraBalls > Previous.ExtraBalls && samePlayer)
 		{
 			Add(Key("Extra Balls"), 1);
 			Unlock("Extra Ball");
@@ -181,8 +200,9 @@ void DefinitiveStats::Update(const TableView& view)
 		}
 
 		Current.Tilted |= view.Tilted;
-		auto score = view.Scores[PlayerOf(view)];
-		constexpr std::pair<int, const char*> Scores[] = {
+		auto current = PlayerOf(view);
+		auto score = Current.Billions[current] * 1'000'000'000 + view.Scores[current];
+		constexpr std::pair<long long, const char*> Scores[] = {
 			{1'000'000, "Million"}, {10'000'000, "Ten Million"}, {100'000'000, "Hundred Million"}};
 		for (auto [threshold, key] : Scores)
 		{
@@ -196,10 +216,13 @@ void DefinitiveStats::Update(const TableView& view)
 	{
 		Current.Active = false;
 		Add(Key("Games"), 1);
+		// Settings hold an int, which stops past two billion
 		for (auto index = 0; index < std::min(view.PlayerCount, static_cast<int>(view.Scores.size())); index++)
-			Raise(Key("Best Score"), view.Scores[index]);
+			Raise(Key("Best Score"),
+				  static_cast<int>(std::min<long long>(Current.Billions[index] * 1'000'000'000 + view.Scores[index],
+													   std::numeric_limits<int>::max())));
 		Unlock("First Game");
-		if (!Current.Tilted && view.MaxBallCount >= 3)
+		if (!Current.Tilted)
 			Unlock("Steady Hands");
 		if (Get(Stat::Games) >= 25)
 			Unlock("Regular");
@@ -233,7 +256,8 @@ long long DefinitiveStats::UnlockedAt(size_t index)
 {
 	if (index >= std::size(AchievementList))
 		return 0;
-	return Read(Key((std::string{"Achievement."} + AchievementList[index].Key).c_str()));
+	auto key = Key((std::string{"Achievement."} + AchievementList[index].Key).c_str());
+	return options::HasSetting(key) ? std::atoll(options::GetSetting(key, "0").c_str()) : 0;
 }
 
 int DefinitiveStats::Unannounced()

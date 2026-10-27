@@ -150,7 +150,6 @@ void DefinitiveStatsScreen::RenderStats()
 	}
 
 	// Every mission by name, with how often it was finished
-	at = ImGui::GetCursorScreenPos();
 	ImGui::Dummy(ImVec2{0, 12 * scale});
 	at = ImGui::GetCursorScreenPos();
 	Ui::DrawText(ImGui::GetWindowDrawList(), Theme::TextFont(), Theme::LabelSize,
