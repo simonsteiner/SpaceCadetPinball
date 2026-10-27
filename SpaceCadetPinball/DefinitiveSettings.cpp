@@ -407,6 +407,34 @@ void DefinitiveSettings::RenderAudio(const DefinitiveHost& host)
 							   5, "%d%%");
 	if (ToPercent(options.MusicVolume) != music && host.SetMusicVolume)
 		host.SetMusicVolume(FromPercent(music));
+
+	// Space Cadet 2026's own, on the sound effects only
+	Ui::NextRowNote(Text(Msg::Definitive_RoomReverbNote));
+	if (Ui::ToggleRow("reverb", Text(Msg::Definitive_RoomReverb), options.RoomReverb))
+		options.RoomReverb = !options.RoomReverb;
+	Ui::NextRowNote(Text(Msg::Definitive_WideStereoNote));
+	if (Ui::ToggleRow("wide", Text(Msg::Definitive_WideStereo), options.WideStereo && options.SoundStereo,
+					  options.SoundStereo))
+		options.WideStereo = !options.WideStereo;
+
+	// The packs found, after None; choosing the row or right steps on, left steps back
+	if (!host.SoundPacks || !host.SetSoundPack)
+		return;
+	auto packs = host.SoundPacks();
+	packs.insert(packs.begin(), std::string{});
+	auto current = std::find(packs.begin(), packs.end(), options.SoundPack.V) - packs.begin();
+	if (current == static_cast<long>(packs.size()))
+		current = 0;
+	const auto& name = packs[current];
+	Ui::NextRowNote(Text(Msg::Definitive_SoundPackNote));
+	auto chosen = Ui::MenuRow("pack", Text(Msg::Definitive_SoundPack), false,
+							  name.empty() ? Text(Msg::Definitive_None) : name.c_str());
+	auto step = chosen ? 1 : Ui::RowStep();
+	if (step)
+	{
+		auto count = static_cast<long>(packs.size());
+		host.SetSoundPack(packs[(current + step + count) % count]);
+	}
 }
 
 void DefinitiveSettings::RenderControls()

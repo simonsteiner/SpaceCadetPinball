@@ -438,4 +438,9 @@ struct optionsStruct
 	IntOption TextSize;
 	BoolOption HighContrastHud;
 	IntOption ColourVision;
+	// Space Cadet 2026's sound (Sound::SetEffects): a room's reverb and wider stereo on the sound effects, and the
+	// sound pack in use, a folder name in Sound::PackFolder, empty for none
+	BoolOption RoomReverb;
+	BoolOption WideStereo;
+	StringOption SoundPack;
 };

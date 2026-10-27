@@ -6927,6 +6927,42 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_RoomReverb,
+		{
+			{ Lang::English, "Room reverb" },
+		}
+	},
+	{
+		Msg::Definitive_RoomReverbNote,
+		{
+			{ Lang::English, "The sound effects ring a little, as in the room a table stands in" },
+		}
+	},
+	{
+		Msg::Definitive_WideStereo,
+		{
+			{ Lang::English, "Wider stereo" },
+		}
+	},
+	{
+		Msg::Definitive_WideStereoNote,
+		{
+			{ Lang::English, "Spreads the sound effects further apart; needs stereo sound effects" },
+		}
+	},
+	{
+		Msg::Definitive_SoundPack,
+		{
+			{ Lang::English, "Sound pack" },
+		}
+	},
+	{
+		Msg::Definitive_SoundPackNote,
+		{
+			{ Lang::English, "Folders of WAV files in the sounds folder of the preferences folder, named as the table's sounds" },
+		}
+	},
+	{
 		Msg::Definitive_PressInput,
 		{
 			{ Lang::English, "Press a key..." },

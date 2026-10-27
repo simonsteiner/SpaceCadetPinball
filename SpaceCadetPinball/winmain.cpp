@@ -317,6 +317,14 @@ static DefinitiveHost MakeDefinitiveHost()
 		options::Options.Rotation = quarterTurns;
 		fullscrn::window_size_changed();
 	};
+#ifndef __EMSCRIPTEN__
+	host.SoundPacks = [] { return Sound::Packs(); };
+	host.SetSoundPack = [](const std::string& name)
+	{
+		options::Options.SoundPack.V = name;
+		Sound::SetPack(name);
+	};
+#endif
 	host.Layout = [](SDL_FRect& board, SDL_FRect& panel, bool& band)
 	{
 		// The layout is in pixels, ImGui in window coordinates
@@ -552,6 +560,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			srand(replay::Seed());
 
 		Sound::Init(mixer, Options.SoundChannels, Options.Sounds, Options.SoundVolume);
+#ifndef __EMSCRIPTEN__
+		Sound::SetPack(Options.SoundPack.V);
+#endif
 		if (!mixOpened)
 			Options.Sounds = false;
 
@@ -925,6 +936,9 @@ void winmain::RenderUi()
 {
 	// Space Cadet 2026's screens take the menu bar's place
 	auto definitive = options::GetEdition() == Editions::Definitive;
+	// And its sound, which Classic never has
+	Sound::SetEffects(definitive && Options.RoomReverb, definitive && Options.WideStereo && Options.SoundStereo,
+					  definitive);
 	if (definitive)
 		DefinitiveFrontEnd::Render(TableView::Get());
 

@@ -49,6 +49,10 @@ struct DefinitiveHost
 	void (*SetSoundVolume)(int volume);
 	void (*SetSoundChannels)(int channels);
 	void (*SetMusicVolume)(int volume);
+	// The sound packs found, by name, and the one to use, empty for none; null where there are none to find, as in a
+	// browser
+	std::vector<std::string> (*SoundPacks)();
+	void (*SetSoundPack)(const std::string& name);
 	void (*FrameRateChanged)();
 	void (*PreciseSleepChanged)();
 	// Restarts the game in another language, as the Classic menu does

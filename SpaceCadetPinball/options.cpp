@@ -197,6 +197,9 @@ optionsStruct options::Options
 	{"Text Size", 100},
 	{"High Contrast HUD", false},
 	{"Colour Vision", 0},
+	{"Room Reverb", false},
+	{"Wide Stereo", false},
+	{"Sound Pack", ""},
 };
 // clang-format on
 
