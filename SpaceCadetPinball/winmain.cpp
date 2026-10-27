@@ -25,6 +25,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "control.h"
 #include "DefinitiveEdition.h"
 #include "DefinitiveStats.h"
+#include "RecordingViewer.h"
 #include "DefinitiveFrontEnd.h"
 #include "DefinitiveText.h"
 #include "DefinitiveTheme.h"
@@ -325,6 +326,43 @@ static DefinitiveHost MakeDefinitiveHost()
 		Sound::SetPack(name);
 	};
 #endif
+#ifndef __EMSCRIPTEN__
+	host.Recordings = []
+	{
+		std::vector<DefinitiveHost::Recording> recordings;
+		for (const auto& recording : RecordingViewer::List())
+			recordings.push_back({recording.Name, recording.Path, recording.Summary.Length,
+								  static_cast<int>(recording.Summary.Games.size()), recording.Playable});
+		return recordings;
+	};
+	host.DeleteRecording = [](const std::string& path) { RecordingViewer::Delete(path); };
+	host.ViewRecording = [](const std::string& path) { RecordingViewer::Request(path); };
+#endif
+	host.Viewing = [] { return replay::IsViewing(); };
+	host.ViewerState = []
+	{
+		const auto& summary = replay::Viewed();
+		auto frame = replay::Frame();
+		auto frames = static_cast<unsigned>(summary.FrameStarts.size());
+		return DefinitiveHost::Viewer{frame,
+									  frames,
+									  frame < frames ? summary.FrameStarts[frame] : summary.Length,
+									  summary.Length,
+									  summary.Games,
+									  RecordingViewer::Paused(),
+									  RecordingViewer::Ended(),
+									  replay::PlaybackFailed(),
+									  RecordingViewer::Speed()};
+	};
+	host.ViewerSeek = [](unsigned frame) { RecordingViewer::Seek(frame); };
+	host.ViewerFrameAt = [](float time)
+	{
+		const auto& starts = replay::Viewed().FrameStarts;
+		return static_cast<unsigned>(std::upper_bound(starts.begin(), starts.end(), time) - starts.begin()) - 1;
+	};
+	host.ViewerPause = [](bool paused) { RecordingViewer::SetPaused(paused); };
+	host.ViewerSpeed = [](float speed) { RecordingViewer::SetSpeed(speed); };
+	host.StopViewing = [] { RecordingViewer::Stop(); };
 	host.Layout = [](SDL_FRect& board, SDL_FRect& panel, bool& band)
 	{
 		// The layout is in pixels, ImGui in window coordinates
@@ -454,6 +492,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	do
 	{
 		restart = false;
+		// Space Cadet 2026's Recordings play a recording in the window, from a fresh start of the table
+		RecordingViewer::Begin();
 
 		// ImGui init
 		IMGUI_CHECKVERSION();
@@ -544,6 +584,11 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		// Second step: run updates that depend on .DAT file selection
 		options::InitSecondary();
 
+		if (replay::IsViewing() && !replay::CheckDatFile())
+		{
+			replay::Stop();
+			RecordingViewer::Forget();
+		}
 		if (replay::IsPlaying())
 		{
 			if (!replay::CheckDatFile())
@@ -556,6 +601,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			if (!replay::StartRecording(recordPath))
 				return 1;
 		}
+		else
+			RecordingViewer::StartSessionRecording();
 		if (replay::IsRecording() || replay::IsPlaying())
 			srand(replay::Seed());
 
@@ -578,7 +625,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			if (options::GetEdition() == Editions::Definitive && !replay::IsPlaying())
 			{
 				// The recording has no table to name; the run with the folder chosen writes it again from the start
-				replay::Stop();
+				RecordingViewer::EndSessionRecording();
 				auto chosen = FindGameData(searchPaths);
 				options::uninit();
 				midi::music_shutdown();
@@ -620,10 +667,12 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 #ifndef __EMSCRIPTEN__
 		// Also in full screen, where it sets the size the window returns to.
 		// Only the first open centres it, so a restart keeps where the player put the window.
-		fullscrn::ResetWindowSize(firstOpen);
+		// Not into or out of a recording, which restarts the game only to load the table afresh
+		if (!RecordingViewer::TakeRestarted())
+			fullscrn::ResetWindowSize(firstOpen);
 		firstOpen = false;
 #endif
-		if (replay::IsPlaying())
+		if (replay::IsPlaying() && !replay::IsViewing())
 		{
 			// The recording holds the command that started the game
 			while (replay::PlayStep())
@@ -642,8 +691,13 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			fullscrn::set_screen_mode(Options.FullScreen);
 
 			// Space Cadet 2026 opens on its title, with the demo behind it. Not toggle_demo: after a restart its flag
-			// still says the demo of the run before is on.
-			if (options::GetEdition() == Editions::Definitive)
+			// still says the demo of the run before is on. A recording being viewed starts the way it was recorded.
+			if (replay::IsViewing())
+			{
+				RecordingViewer::Prepare();
+				DefinitiveFrontEnd::ShowViewer();
+			}
+			else if (options::GetEdition() == Editions::Definitive)
 			{
 				pb::replay_level(true);
 				DefinitiveFrontEnd::ShowTitle();
@@ -662,7 +716,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 #endif
 		}
 		auto played = replay::IsPlaying();
-		replay::Stop();
+		RecordingViewer::EndSessionRecording();
 
 		if (!played)
 			options::uninit();
@@ -761,7 +815,10 @@ void winmain::MainLoop()
 				last_mouse_y = y;
 			}
 			auto ballAlpha = 1.0f;
-			if (!single_step && !no_time_loss)
+			// A recording plays at its own pace, and nothing else moves the table
+			if (replay::IsViewing())
+				RecordingViewer::Advance(static_cast<double>(frameDuration.count()));
+			else if (!single_step && !no_time_loss)
 			{
 				// Normally one update per loop. With more frames than updates per second, the loop runs at the frame
 				// rate and the table still advances in steps of 1000/UPS ms, so the physics see the same time steps.
@@ -1547,6 +1604,27 @@ int winmain::event_handler(const SDL_Event* event)
 		}
 	}
 
+	// While a recording plays, only its own commands reach the table; Space Cadet 2026's viewer has the keys
+	if (replay::IsViewing())
+	{
+		switch (event->type)
+		{
+		case SDL_EVENT_KEY_DOWN:
+		case SDL_EVENT_KEY_UP:
+		case SDL_EVENT_MOUSE_BUTTON_DOWN:
+		case SDL_EVENT_MOUSE_BUTTON_UP:
+		case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+		case SDL_EVENT_GAMEPAD_BUTTON_UP:
+		case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+		case SDL_EVENT_FINGER_DOWN:
+		case SDL_EVENT_FINGER_UP:
+		case SDL_EVENT_FINGER_CANCELED:
+			return 1;
+		default:
+			break;
+		}
+	}
+
 	switch (event->type)
 	{
 	case SDL_EVENT_QUIT:
@@ -1672,7 +1750,8 @@ int winmain::event_handler(const SDL_Event* event)
 		Sound::Deactivate();
 		midi::music_stop();
 		has_focus = false;
-		pb::loose_focus();
+		if (!replay::IsViewing())
+			pb::loose_focus();
 		break;
 	case SDL_EVENT_WINDOW_DISPLAY_CHANGED:
 	case SDL_EVENT_DISPLAY_CURRENT_MODE_CHANGED:

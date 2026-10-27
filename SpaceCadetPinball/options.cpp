@@ -200,6 +200,7 @@ optionsStruct options::Options
 	{"Room Reverb", false},
 	{"Wide Stereo", false},
 	{"Sound Pack", ""},
+	{"Record Sessions", false},
 };
 // clang-format on
 

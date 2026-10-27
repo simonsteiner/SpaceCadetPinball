@@ -6711,6 +6711,90 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_Recordings,
+		{
+			{ Lang::English, "Recordings" },
+		}
+	},
+	{
+		Msg::Definitive_RecordSessions,
+		{
+			{ Lang::English, "Record sessions" },
+		}
+	},
+	{
+		Msg::Definitive_RecordSessionsNote,
+		{
+			{ Lang::English, "From the next start, each session is kept here to play back; about 60 MB an hour, and one without a game isn't kept" },
+		}
+	},
+	{
+		Msg::Definitive_NoRecordings,
+		{
+			{ Lang::English, "No recordings yet. With Record sessions on, the games played from the next start show here." },
+		}
+	},
+	{
+		Msg::Definitive_RecordingGames,
+		{
+			{ Lang::English, "%s games" },
+		}
+	},
+	{
+		Msg::Definitive_OtherGameData,
+		{
+			{ Lang::English, "Recorded with other game data" },
+		}
+	},
+	{
+		Msg::Definitive_PlayRecording,
+		{
+			{ Lang::English, "Play" },
+		}
+	},
+	{
+		Msg::Definitive_DeleteRecording,
+		{
+			{ Lang::English, "Delete" },
+		}
+	},
+	{
+		Msg::Definitive_DeleteRecordingConfirm,
+		{
+			{ Lang::English, "Delete this recording for good?" },
+		}
+	},
+	{
+		Msg::Definitive_Recording,
+		{
+			{ Lang::English, "Recording" },
+		}
+	},
+	{
+		Msg::Definitive_RecordingEnded,
+		{
+			{ Lang::English, "End of the recording" },
+		}
+	},
+	{
+		Msg::Definitive_RecordingDiverged,
+		{
+			{ Lang::English, "This recording plays differently in this version of the game, so it stops here" },
+		}
+	},
+	{
+		Msg::Definitive_Pause,
+		{
+			{ Lang::English, "Pause" },
+		}
+	},
+	{
+		Msg::Definitive_Seek,
+		{
+			{ Lang::English, "Seek" },
+		}
+	},
+	{
 		Msg::Definitive_AchFirstGame,
 		{
 			{ Lang::English, "Lift-off" },

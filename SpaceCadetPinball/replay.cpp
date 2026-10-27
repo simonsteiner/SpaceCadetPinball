@@ -59,6 +59,9 @@ unsigned replay::HeaderSeed = 1;
 int replay::HeaderResolution = 0;
 std::string replay::HeaderDatFile;
 bool replay::Failed = false;
+bool replay::Viewing = false;
+bool replay::GameRecorded = false;
+replay::Summary replay::ViewedSummary{};
 
 replay::Scope::Scope(float frameDtMilliSec) : IsFrame(true), FrameDt(frameDtMilliSec)
 {
@@ -71,9 +74,13 @@ replay::Scope::Scope(const char* format, ...)
 	{
 		va_list args;
 		va_start(args, format);
-		vfprintf(Output, format, args);
+		char line[256];
+		vsnprintf(line, sizeof line, format, args);
 		va_end(args);
-		fputc('\n', Output);
+		fprintf(Output, "%s\n", line);
+		// replay_level's line, for a game rather than the demo
+		if (std::strncmp(line, "n 0 ", 4) == 0)
+			GameRecorded = true;
 	}
 	Depth++;
 }
@@ -99,6 +106,7 @@ bool replay::StartRecording(const std::string& path)
 
 	// The C library starts unseeded generators at 1, so recording with seed 1 changes nothing
 	HeaderSeed = 1;
+	GameRecorded = false;
 	HeaderResolution = fullscrn::GetResolution();
 	fprintf(Output, "%s\n", Magic);
 	fprintf(Output, "game %s\n", winmain::Version);
@@ -155,6 +163,57 @@ bool replay::StartPlayback(const std::string& path)
 	return true;
 }
 
+bool replay::StartViewing(const std::string& path)
+{
+	ViewedSummary = Summarize(path);
+	if (ViewedSummary.FrameStarts.empty() || !StartPlayback(path))
+		return false;
+	Viewing = true;
+	FrameIndex = 0;
+	Failed = false;
+	return true;
+}
+
+replay::Summary replay::Summarize(const std::string& path)
+{
+	Summary summary;
+	auto file = fopenu(path.c_str(), "rb");
+	if (!file)
+		return summary;
+	std::string line, rest;
+	auto started = false;
+	if (ReadLine(file, line) && line == Magic)
+	{
+		while (ReadLine(file, line))
+		{
+			if (!started)
+			{
+				auto key = SplitFirst(line, rest);
+				if (key == "dat")
+					summary.DatFile = rest;
+				started = line == "start";
+				continue;
+			}
+			if (line.size() > 2 && line[0] == 'f' && line[1] == ' ')
+			{
+				summary.FrameStarts.push_back(summary.Length);
+				summary.Length += std::strtof(line.c_str() + 2, nullptr);
+			}
+			else if (line.starts_with("n 0 "))
+				summary.Games.push_back(static_cast<unsigned>(summary.FrameStarts.size()));
+		}
+	}
+	fclose(file);
+	if (!started)
+		summary.FrameStarts.clear();
+	return summary;
+}
+
+std::string replay::LoadedDatFile()
+{
+	return pb::DatFileName + " " + DatFileHash();
+}
+
 void replay::Stop()
 {
 	if (Output)
@@ -162,6 +221,7 @@ void replay::Stop()
 	if (Input)
 		fclose(Input);
 	Output = Input = nullptr;
+	Viewing = false;
 }
 
 bool replay::CheckDatFile()
@@ -205,7 +265,8 @@ bool replay::PlayStep()
 			const auto& view = TableView::Get();
 			if (options::GetEdition() == Editions::Definitive)
 				DefinitiveEdition::Update(view);
-			printf("view %u %016llx\n", FrameIndex, static_cast<unsigned long long>(view.Hash()));
+			if (!Viewing)
+				printf("view %u %016llx\n", FrameIndex, static_cast<unsigned long long>(view.Hash()));
 			auto actual = FormatState();
 			if (actual != expected)
 			{
@@ -233,8 +294,9 @@ bool replay::PlayStep()
 			}
 
 			GameInput input{static_cast<InputTypes>(type), value};
-			// The edition switch is the one shortcut that recordings replay, so switching mid-game is checked too
-			if (key == "d" &&
+			// The edition switch is the one shortcut that recordings replay, so switching mid-game is checked too;
+			// the viewer keeps the edition the player watches in
+			if (key == "d" && !Viewing &&
 				std::find(bindings.begin(), bindings.end(), GameBindings::ToggleEdition) != bindings.end())
 				options::SetEdition(options::GetEdition() == Editions::Definitive ? Editions::Classic
 																				  : Editions::Definitive);

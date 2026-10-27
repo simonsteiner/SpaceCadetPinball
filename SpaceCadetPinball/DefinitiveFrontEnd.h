@@ -74,6 +74,49 @@ struct DefinitiveHost
 	std::string (*DataFolder)();
 	// Turns the picture by quarter turns clockwise, for a monitor on its side, and lays the table out for it
 	void (*SetRotation)(int quarterTurns);
+	// Recordings, from the recordings folder; null where there is none, as in a browser
+	struct Recording
+	{
+		std::string Name;
+		std::string Path;
+		// Milliseconds of play, and the games started in it
+		float Length;
+		int Games;
+		// Recorded with the game data loaded now
+		bool Playable;
+	};
+	std::vector<Recording> (*Recordings)();
+	void (*DeleteRecording)(const std::string& path);
+	// Restarts the game into a recording, which plays in the window
+	void (*ViewRecording)(const std::string& path);
+
+	// The recording that plays: whether one does, and where it is
+	struct Viewer
+	{
+		unsigned Frame;
+		unsigned Frames;
+		// Milliseconds of the recording, played and in all
+		float Time;
+		float Length;
+		// The frames where games start, for marks on the timeline
+		std::vector<unsigned> Games;
+		bool Paused;
+		bool Ended;
+		// It played differently from how it was recorded, and stopped there
+		bool Failed;
+		float Speed;
+	};
+	bool (*Viewing)();
+	Viewer (*ViewerState)();
+	// Seeking back starts the recording again and runs it to the frame, which takes a moment
+	void (*ViewerSeek)(unsigned frame);
+	// The frame that plays at a time of the recording, in milliseconds
+	unsigned (*ViewerFrameAt)(float time);
+	void (*ViewerPause)(bool paused);
+	void (*ViewerSpeed)(float speed);
+	// Back to the title, which restarts the game
+	void (*StopViewing)();
+
 	// Where the table and its score panel are drawn, in window coordinates; the panel is empty when the table has none.
 	// band is set in a window taller than wide, where the panel is the band under the table, as wide as the window.
 	void (*Layout)(SDL_FRect& board, SDL_FRect& panel, bool& band);
@@ -93,6 +136,8 @@ public:
 	static void ShowSettings(bool controls = false);
 	// The pause screen, which pauses the game in play; it comes back on its own while the game is paused
 	static void ShowPause();
+	// The bar of a recording that plays, which stays until the player goes back to the title
+	static void ShowViewer();
 	// The first-run screen when no game data was found: where it looked and a way to choose the folder; the game
 	// runs it in place of the table until a folder is chosen or the player quits
 	static void RenderMissingData(const std::vector<std::string>& looked, bool chosenFolderFailed);
@@ -120,6 +165,8 @@ private:
 		NameEntry,
 		Guide,
 		Stats,
+		Recordings,
+		Viewer,
 	};
 
 	static DefinitiveHost Host;

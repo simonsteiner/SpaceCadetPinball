@@ -134,6 +134,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/render.h
         SpaceCadetPinball/replay.cpp
         SpaceCadetPinball/replay.h
+        SpaceCadetPinball/RecordingViewer.cpp
+        SpaceCadetPinball/RecordingViewer.h
         SpaceCadetPinball/Rumble.cpp
         SpaceCadetPinball/Rumble.h
         SpaceCadetPinball/Upscale.cpp
@@ -244,6 +246,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/DefinitiveInGame.cpp
         SpaceCadetPinball/DefinitiveScene.cpp
         SpaceCadetPinball/DefinitiveScene.h
+        SpaceCadetPinball/DefinitiveRecordings.cpp
+        SpaceCadetPinball/DefinitiveRecordings.h
         SpaceCadetPinball/DefinitiveSettings.cpp
         SpaceCadetPinball/DefinitiveSettings.h
         SpaceCadetPinball/DefinitiveStats.cpp

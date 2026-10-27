@@ -62,6 +62,12 @@ The script plays every `.replay` file in the first folder twice, in Classic and 
 
 For Full Tilt data, a `linux-sanitize` build currently stops while loading `CADET.DAT`, at a misaligned 16-bit read in `GroupData::SplitSplicedBitmap` that UBSan reports. It happens before any replay command runs, and on `main` too. To check the rest with the sanitizers, build with `-fno-sanitize=alignment` added to `SCP_SANITIZER_FLAGS` in `CMakeLists.txt`, locally.
 
+## Recordings in Space Cadet 2026
+
+Space Cadet 2026 shows the same files to the player as Recordings, from the title, because a Replay is the free game the table awards (`GLOSSARY.md`). With Record sessions on (off by default), each start of the game records the session into the `recordings` folder of the user preferences folder (`~/.local/share/SpaceCadetPinball/recordings/` on Linux), named for the local time it started; a session that never starts a game is deleted when it ends. A session is about 60 MB an hour.
+
+Playing one back (`RecordingViewer`) restarts the game into it: the table loads afresh with the recording's seed, as `-replay` does, and the recording's frames run at their recorded pace, faster or slower as chosen, through the same `replay::PlayStep`, which still checks the state after every frame. A restart keeps the table clock's fraction of a tick and the nudge, which a new process starts at zero, so the viewer sets them to zero before the first frame. Seeking forward runs the frames quietly; seeking back restarts and runs from the start to the frame. While a recording plays, no key, button or touch reaches the table, the recorded edition switches are skipped, nothing is printed per frame and the stats don't count. If a frame differs, the viewer stops there and says so. The browser build has no Recordings.
+
 ## What gets recorded
 
 Everything that reaches the table from outside goes through a handful of `pb` functions, and those are what a replay records:

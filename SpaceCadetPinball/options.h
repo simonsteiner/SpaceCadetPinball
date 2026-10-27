@@ -443,4 +443,6 @@ struct optionsStruct
 	BoolOption RoomReverb;
 	BoolOption WideStereo;
 	StringOption SoundPack;
+	// Each start records the session into the recordings folder (RecordingViewer)
+	BoolOption RecordSessions;
 };

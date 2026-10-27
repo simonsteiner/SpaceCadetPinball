@@ -72,6 +72,10 @@ _Avoid_: Level
 A free game awarded when a score threshold is reached.
 _Avoid_: Extra game, free game (as the term), recording
 
+**Recording**:
+A session's frame time steps and commands, kept in a file that plays back exactly (`docs/replays.md`). The player sees them as Recordings.
+_Avoid_: Replay (the free game), demo
+
 **Extra ball**:
 An additional ball awarded within the current game.
 _Avoid_: Replay

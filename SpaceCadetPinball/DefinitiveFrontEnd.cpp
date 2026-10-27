@@ -2,6 +2,7 @@
 #include "DefinitiveFrontEnd.h"
 
 #include "DefinitiveGuide.h"
+#include "DefinitiveRecordings.h"
 #include "DefinitiveSettings.h"
 #include "DefinitiveStatsScreen.h"
 
@@ -81,6 +82,11 @@ void DefinitiveFrontEnd::ShowSettings(bool controls)
 	DefinitiveSettings::Open(controls ? DefinitiveSettings::Group::Controls : DefinitiveSettings::Group::Edition);
 }
 
+void DefinitiveFrontEnd::ShowViewer()
+{
+	Open(Screen::Viewer);
+}
+
 bool DefinitiveFrontEnd::ScreenOpen()
 {
 	return Current != Screen::None;
@@ -132,7 +138,8 @@ void DefinitiveFrontEnd::FollowGame(const TableView& view, bool playing)
 	}
 	// The demo plays behind the title and the screens it leads to, not behind a game that has just ended
 	auto title = Current == Screen::Title || Current == Screen::Records || Current == Screen::Credits ||
-				 Current == Screen::Stats || (Current == Screen::Settings && SettingsFrom != Screen::Pause);
+				 Current == Screen::Stats || Current == Screen::Recordings ||
+				 (Current == Screen::Settings && SettingsFrom != Screen::Pause);
 	if (title && view.GameOver && !busy && Host.StartDemo)
 		Host.StartDemo();
 }
@@ -151,6 +158,16 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 		Host.Layout(board, panel, band);
 		DefinitiveHud::Render(view, board, panel, band);
 	}
+
+	// A recording that plays has its own bar and none of the game's screens, which would follow the game it shows
+	if (Host.Viewing && Host.Viewing())
+	{
+		Current = Screen::Viewer;
+		DefinitiveRecordings::RenderViewer(Host);
+		return;
+	}
+	if (Current == Screen::Viewer)
+		Current = Screen::Title;
 
 	auto playing = !view.GameOver && !view.Demo;
 	FollowGame(view, playing);
@@ -173,6 +190,12 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 	case Screen::Stats:
 		if (!DefinitiveStatsScreen::Render())
 			Open(Screen::Title);
+		break;
+	case Screen::Recordings:
+		if (!DefinitiveRecordings::Render(Host))
+			Open(Screen::Title);
+		break;
+	case Screen::Viewer:
 		break;
 	case Screen::Guide:
 		if (!DefinitiveGuide::Render(view))
@@ -250,7 +273,7 @@ bool DefinitiveFrontEnd::BackPressed()
 void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 {
 	auto viewport = ImGui::GetMainViewport();
-	auto rows = Host.Quit ? 8 : 7;
+	auto rows = (Host.Quit ? 8 : 7) + (Host.Recordings ? 1 : 0);
 	// Margins, the name, the year, the rows and the hints, shrunk to fit a small window
 	auto needed = 56 + 60 + 14 + 40 + 48 + rows * (Ui::RowHeight() + 2) + 24 + 26 + 24;
 	Ui::SetScale(std::min(Ui::Scale(), viewport->Size.y / needed));
@@ -333,6 +356,11 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 	{
 		Open(Screen::Stats);
 		DefinitiveStatsScreen::Open();
+	}
+	if (Host.Recordings && Ui::MenuRow("recordings", Text(Msg::Definitive_Recordings)))
+	{
+		Open(Screen::Recordings);
+		DefinitiveRecordings::Open(Host);
 	}
 	if (Ui::MenuRow("credits", Text(Msg::Definitive_Credits)))
 		Open(Screen::Credits);
