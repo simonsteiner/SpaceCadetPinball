@@ -245,3 +245,9 @@ void high_score::RenderHighScoreDialog()
 		}
 	}
 }
+
+void high_score::ClearQueue()
+{
+	ScoreQueue.clear();
+	ShowDialog = false;
+}

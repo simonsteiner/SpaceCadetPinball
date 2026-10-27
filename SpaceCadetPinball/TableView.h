@@ -59,6 +59,15 @@ struct TableView
 	// The lit lights of the rank circle (middle_circle), 1 for Cadet up to 9; the rank names are Msg::STRING185 to
 	// Msg::STRING193
 	int Rank;
+	// The lit lamps of the rank progress ring (outer_circle): a finished mission lights some, a new rank clears them
+	int RankProgress;
+	// How many messages the info text box has started showing, counting one shown again, so presentation can tell a
+	// message that repeats from one that stays
+	int InfoMessages;
+	// The current player's extra balls still to come
+	int ExtraBalls;
+	// Whether a cheat was used in this game, which keeps it out of the high scores
+	bool CheatsUsed;
 
 	// 64-bit FNV-1a over every field, so two runs can compare their views frame by frame
 	uint64_t Hash() const;

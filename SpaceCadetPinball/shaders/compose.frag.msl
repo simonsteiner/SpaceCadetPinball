@@ -1,0 +1,130 @@
+// The Metal version of compose.frag.hlsl and compositor.frag.hlsli, with the bindings SDL's Metal backend expects
+#include <metal_stdlib>
+using namespace metal;
+
+struct Context
+{
+    float2 frame_size;
+    float frame_scale;
+    float lighting;
+    float2 proj_center;
+    float proj_d;
+    float glow;
+    float z_min;
+    float z_scaler;
+    float2 padding;
+    float4 up;
+    float4 light;
+};
+
+struct main0_in
+{
+    float4 v_color [[user(locn0)]];
+    float2 v_uv [[user(locn1)]];
+    float4 v_position [[position]];
+};
+
+struct main0_out
+{
+    float4 o_color [[color(0)]];
+};
+
+constant float NoDepth = 65535.0;
+constant float Ambient = 0.5;
+constant float Diffuse = 0.5;
+constant float Specular = 0.4;
+constant float Shininess = 20.0;
+constant float SteepShine = 1.5;
+constant float GlowLimit = 1.5;
+
+static float DepthAt(constant Context& context, texture2d<float> depthMap, int2 texel)
+{
+    texel = clamp(texel, int2(0, 0), int2(context.frame_size) - 1);
+    float2 bytes = round(depthMap.read(uint2(texel)).rg * 255.0);
+    return bytes.x * 256.0 + bytes.y;
+}
+
+static float3 PositionAt(constant Context& context, int2 texel, float depth)
+{
+    float2 table = (float2(texel) + 0.5) / context.frame_scale;
+    float3 ray = normalize(float3((table - context.proj_center) / context.proj_d, 1.0));
+    return ray * (depth / context.z_scaler + context.z_min);
+}
+
+static float3 LimitGlow(constant Context& context, float4 glows)
+{
+    float brightest = max(glows.r, max(glows.g, glows.b));
+    if (brightest <= 0.0)
+        return float3(0.0);
+    float others = max(glows.a - brightest, 0.0);
+    float peak = brightest + 0.5 * others;
+    float knee = context.glow;
+    if (peak > knee)
+    {
+        float room = knee * (GlowLimit - 1.0);
+        peak = knee + room * (1.0 - exp(-(peak - knee) / room));
+    }
+    return glows.rgb * (peak / brightest);
+}
+
+static float3 Slope(constant Context& context, texture2d<float> depthMap, int2 texel, int2 step, float3 center,
+                    float depth)
+{
+    float before = DepthAt(context, depthMap, texel - step), after = DepthAt(context, depthMap, texel + step);
+    bool useAfter = abs(after - depth) <= abs(depth - before);
+    if (after >= NoDepth)
+        useAfter = false;
+    if (before >= NoDepth && !useAfter)
+        return float3(0.0);
+    return useAfter ? PositionAt(context, texel + step, after) - center
+                    : center - PositionAt(context, texel - step, before);
+}
+
+static float Shade(float3 normal, float3 toLight)
+{
+    return Ambient + Diffuse * saturate(dot(normal, toLight));
+}
+
+static float Shine(float3 normal, float3 halfway)
+{
+    return pow(saturate(dot(normal, halfway)), Shininess);
+}
+
+static float3 Lit(constant Context& context, texture2d<float> depthMap, int2 texel, float3 color)
+{
+    float depth = DepthAt(context, depthMap, texel);
+    if (context.lighting <= 0.0 || depth >= NoDepth)
+        return color;
+
+    int step = max(int(context.frame_scale), 1);
+    float3 center = PositionAt(context, texel, depth);
+    float3 alongX = Slope(context, depthMap, texel, int2(step, 0), center, depth);
+    float3 alongY = Slope(context, depthMap, texel, int2(0, step), center, depth);
+    float3 normal = cross(alongX, alongY);
+    if (dot(normal, normal) < 1e-12)
+        return color;
+    normal = normalize(normal);
+    if (dot(normal, center) > 0.0)
+        normal = -normal;
+
+    float3 toLight = context.light.xyz;
+    float3 halfway = normalize(toLight - normalize(center));
+    float3 flat = context.up.xyz;
+    float3 lit = color * Shade(normal, toLight) / Shade(flat, toLight);
+    float steep = 1.0 - saturate(dot(normal, flat));
+    lit += Specular * (1.0 + SteepShine * steep) * max(Shine(normal, halfway) - Shine(flat, halfway), 0.0) *
+           (0.5 + 0.5 * color);
+    return mix(color, saturate(lit), context.lighting);
+}
+
+fragment main0_out main0(main0_in in [[stage_in]], constant Context& context [[buffer(0)]],
+                         texture2d<float> u_texture [[texture(0)]], sampler u_sampler [[sampler(0)]],
+                         texture2d<float> u_depth [[texture(1)]], sampler u_depth_sampler [[sampler(1)]],
+                         texture2d<float> u_glow [[texture(2)]], sampler u_glow_sampler [[sampler(2)]])
+{
+    main0_out out = {};
+    int2 texel = int2(in.v_position.xy);
+    float3 color = Lit(context, u_depth, texel, u_texture.read(uint2(texel)).rgb);
+    out.o_color = float4(saturate(color + LimitGlow(context, u_glow.read(uint2(texel)))), 1.0);
+    return out;
+}

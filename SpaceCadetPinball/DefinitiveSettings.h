@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 struct DefinitiveHost;
 struct GameInput;
 
@@ -30,6 +33,9 @@ private:
 	static bool Opened, Languages, ShownLanguages, BackChosen, FocusLanguage;
 	static int Slot;
 	static GameInput* Waited;
+	// The sound packs found when the Audio tab opened, after None
+	static std::vector<std::string> Packs;
+	static bool PacksRead;
 
 	static void RenderEdition(const DefinitiveHost& host, bool gameRunning);
 	static void RenderLanguages(const DefinitiveHost& host, bool opened);
