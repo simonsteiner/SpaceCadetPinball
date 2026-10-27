@@ -344,11 +344,14 @@ static DefinitiveHost MakeDefinitiveHost()
 		const auto& summary = replay::Viewed();
 		auto frame = replay::Frame();
 		auto frames = static_cast<unsigned>(summary.FrameStarts.size());
+		std::vector<float> games;
+		for (auto game : summary.Games)
+			games.push_back(game < frames ? summary.FrameStarts[game] : summary.Length);
 		return DefinitiveHost::Viewer{frame,
 									  frames,
 									  frame < frames ? summary.FrameStarts[frame] : summary.Length,
 									  summary.Length,
-									  summary.Games,
+									  games,
 									  RecordingViewer::Paused(),
 									  RecordingViewer::Ended(),
 									  replay::PlaybackFailed(),
@@ -588,6 +591,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		{
 			replay::Stop();
 			RecordingViewer::Forget();
+			// A normal start, which saves as one does
+			io.IniFilename = iniPath.c_str();
 		}
 		if (replay::IsPlaying())
 		{
@@ -716,6 +721,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 #endif
 		}
 		auto played = replay::IsPlaying();
+		// A recording's games end in its own high scores, which the player's table doesn't take
+		if (replay::IsViewing())
+			high_score::ClearQueue();
 		RecordingViewer::EndSessionRecording();
 
 		if (!played)

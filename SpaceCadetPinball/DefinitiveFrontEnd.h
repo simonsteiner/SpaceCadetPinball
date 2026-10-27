@@ -98,8 +98,8 @@ struct DefinitiveHost
 		// Milliseconds of the recording, played and in all
 		float Time;
 		float Length;
-		// The frames where games start, for marks on the timeline
-		std::vector<unsigned> Games;
+		// When games start, in milliseconds of the recording, for marks on the timeline
+		std::vector<float> Games;
 		bool Paused;
 		bool Ended;
 		// It played differently from how it was recorded, and stopped there

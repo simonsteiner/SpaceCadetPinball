@@ -309,6 +309,7 @@ enum class Msg : int
 	Definitive_RecordSessionsNote,
 	Definitive_NoRecordings,
 	Definitive_RecordingGames,
+	Definitive_RecordingGame,
 	Definitive_OtherGameData,
 	Definitive_PlayRecording,
 	Definitive_DeleteRecording,

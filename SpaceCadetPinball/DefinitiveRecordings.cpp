@@ -128,11 +128,14 @@ bool DefinitiveRecordings::Render(const DefinitiveHost& host)
 		{
 			const auto& recording = List[index];
 			auto aside = Duration(recording.Length) + " \xC2\xB7 " +
-						 Ui::Fill(Text(Msg::Definitive_RecordingGames), std::to_string(recording.Games));
+						 (recording.Games == 1
+							  ? std::string{Text(Msg::Definitive_RecordingGame)}
+							  : Ui::Fill(Text(Msg::Definitive_RecordingGames), std::to_string(recording.Games)));
 			if (!recording.Playable)
 				Ui::NextRowNote(Text(Msg::Definitive_OtherGameData));
 			ImGui::PushID(static_cast<int>(index));
-			if (Ui::MenuRow("recording", recording.Name.c_str(), false, aside.c_str(), recording.Playable))
+			// One recorded with other data can't play, but can be deleted
+			if (Ui::MenuRow("recording", recording.Name.c_str(), false, aside.c_str()))
 			{
 				Selected = static_cast<int>(index);
 				ConfirmDelete = false;
@@ -147,7 +150,10 @@ bool DefinitiveRecordings::Render(const DefinitiveHost& host)
 	{
 		// A recording's actions: play it, or delete it after a confirmation
 		const auto& recording = List[static_cast<size_t>(Selected)];
-		if (Ui::MenuRow("play", Text(Msg::Definitive_PlayRecording)) && host.ViewRecording)
+		if (!recording.Playable)
+			Ui::NextRowNote(Text(Msg::Definitive_OtherGameData));
+		if (Ui::MenuRow("play", Text(Msg::Definitive_PlayRecording), false, nullptr, recording.Playable) &&
+			host.ViewRecording)
 			host.ViewRecording(recording.Path);
 		if (!ConfirmDelete)
 		{
@@ -230,7 +236,7 @@ void DefinitiveRecordings::RenderViewer(const DefinitiveHost& host)
 		setSpeed(speed + 1);
 	if (pressed(ImGuiKey_DownArrow) || pressed(ImGuiKey_GamepadL1))
 		setSpeed(speed - 1);
-	if (pressed(ImGuiKey_Home))
+	if (pressed(ImGuiKey_Home) && host.ViewerSeek)
 		host.ViewerSeek(0);
 	auto stop = pressed(ImGuiKey_Escape) || pressed(ImGuiKey_GamepadFaceRight);
 
@@ -276,7 +282,7 @@ void DefinitiveRecordings::RenderViewer(const DefinitiveHost& host)
 							Theme::LedOrange, 3 * scale);
 	for (auto game : state.Games)
 	{
-		auto x = trackMin.x + (trackMax.x - trackMin.x) * (state.Frames ? static_cast<float>(game) / state.Frames : 0);
+		auto x = trackMin.x + (trackMax.x - trackMin.x) * (state.Length > 0 ? game / state.Length : 0);
 		drawList->AddLine(ImVec2{x, trackMin.y - 5 * scale}, ImVec2{x, trackMax.y + 5 * scale}, Theme::Chrome50,
 						  2 * scale);
 	}

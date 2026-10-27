@@ -6725,7 +6725,7 @@ const TextArray translations::Translations =
 	{
 		Msg::Definitive_RecordSessionsNote,
 		{
-			{ Lang::English, "From the next start, each session is kept here to play back; about 60 MB an hour, and one without a game isn't kept" },
+			{ Lang::English, "From the next launch, the session is kept here to play back until the game restarts; about 60 MB an hour, and one without a game isn't kept" },
 		}
 	},
 	{
@@ -6738,6 +6738,12 @@ const TextArray translations::Translations =
 		Msg::Definitive_RecordingGames,
 		{
 			{ Lang::English, "%s games" },
+		}
+	},
+	{
+		Msg::Definitive_RecordingGame,
+		{
+			{ Lang::English, "1 game" },
 		}
 	},
 	{

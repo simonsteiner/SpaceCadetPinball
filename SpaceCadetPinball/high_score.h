@@ -29,6 +29,8 @@ public:
 	// The next score waiting for a name, taken from the queue the dialog reads; false when none is left. Space Cadet
 	// 2026 asks for the names itself.
 	static bool TakeNextEntry(high_score_entry& entry);
+	// Drops the scores waiting for a name
+	static void ClearQueue();
 	static void place_new_score_into(high_score_entry data);
 
 private:

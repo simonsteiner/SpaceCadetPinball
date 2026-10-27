@@ -2,6 +2,7 @@
 #include "RecordingViewer.h"
 
 #include "options.h"
+#include "control.h"
 #include "nudge.h"
 #include "pb.h"
 #include "Sound.h"
@@ -67,7 +68,10 @@ std::vector<RecordingViewer::Recording> RecordingViewer::List()
 	{
 		if (!entry.is_regular_file(error) || entry.path().extension() != ".replay")
 			continue;
+		// Not the session being recorded now
 		auto path = Utf8(entry.path());
+		if (path == SessionPath)
+			continue;
 		auto size = entry.file_size(error);
 		auto written = entry.last_write_time(error);
 		auto& cached = Summaries[path];
@@ -77,7 +81,7 @@ std::vector<RecordingViewer::Recording> RecordingViewer::List()
 			continue;
 		recordings.push_back({Utf8(entry.path().stem()), path, cached.Summary, cached.Summary.DatFile == LoadedDat});
 	}
-	// The names are the times they were recorded at, so the newest sorts last
+	// The names are the times they were recorded at, so sorting them backwards puts the newest first
 	std::sort(recordings.begin(), recordings.end(),
 			  [](const Recording& a, const Recording& b) { return a.Name > b.Name; });
 	return recordings;
@@ -95,7 +99,12 @@ void RecordingViewer::Delete(const std::string& path)
 
 void RecordingViewer::StartSessionRecording()
 {
-	if (!options::Options.RecordSessions || replay::IsPlaying() || replay::IsRecording())
+	// Only the first start of the game records, as -record does: a restart keeps state from the run before, such as
+	// the table clock's fraction of a tick and cheats, which a new process, and so every playback, starts without
+	static auto firstStart = true;
+	auto first = firstStart;
+	firstStart = false;
+	if (!first || !options::Options.RecordSessions || replay::IsPlaying() || replay::IsRecording())
 		return;
 
 	// Named for the local time it started, which sorts by time too
@@ -160,6 +169,9 @@ void RecordingViewer::Prepare()
 	pb::time_now = pb::time_next = pb::time_ticks_remainder = 0;
 	nudge::nudged_left = nudge::nudged_right = nudge::nudged_up = 0;
 	nudge::nudge_count = 0;
+	// The cheats too, which a recording made with them turns on again with its own commands
+	pb::cheat_mode = false;
+	control::easyMode = control::table_unlimited_balls = false;
 	HasEnded = false;
 	Clock = 0;
 	RunTo(RequestedFrame);
@@ -181,7 +193,8 @@ void RecordingViewer::RunTo(unsigned frame)
 
 void RecordingViewer::Advance(double elapsed)
 {
-	if (IsPaused || HasEnded)
+	// After a frame that played differently, nothing more runs
+	if (IsPaused || HasEnded || replay::PlaybackFailed())
 		return;
 
 	// Each frame runs once the clock has passed its end, as the recording ran it; a slow machine catches up a little
@@ -211,7 +224,8 @@ void RecordingViewer::Seek(unsigned frame)
 {
 	const auto& starts = replay::Viewed().FrameStarts;
 	frame = std::min(frame, static_cast<unsigned>(starts.size()));
-	if (frame >= replay::Frame())
+	// Forward runs on from here, unless a frame played differently, back starts again
+	if (frame >= replay::Frame() && !replay::PlaybackFailed())
 		RunTo(frame);
 	else
 		Request(RequestedPath, frame);
@@ -224,5 +238,5 @@ void RecordingViewer::SetPaused(bool paused)
 
 void RecordingViewer::SetSpeed(float speed)
 {
-	PlaySpeed = std::clamp(speed, 0.25f, 8.0f);
+	PlaySpeed = std::clamp(speed, 0.25f, 4.0f);
 }
