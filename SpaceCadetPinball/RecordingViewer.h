@@ -68,9 +68,12 @@ public:
 	}
 
 private:
-	static std::string RequestedPath, SessionPath;
+	static std::string RequestedPath;
+	static std::string SessionPath;
 	static unsigned RequestedFrame;
-	static bool IsPaused, HasEnded, Restarted;
+	static bool IsPaused;
+	static bool HasEnded;
+	static bool Restarted;
 	static float PlaySpeed;
 	// Milliseconds of the recording played
 	static double Clock;

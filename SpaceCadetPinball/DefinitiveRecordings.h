@@ -17,5 +17,8 @@ private:
 	static std::vector<DefinitiveHost::Recording> List;
 	// The recording whose actions show, or -1 for the list, and whether its deletion waits for a confirmation
 	static int Selected;
-	static bool ConfirmDelete, Opened, BackChosen, Refocus;
+	static bool ConfirmDelete;
+	static bool Opened;
+	static bool BackChosen;
+	static bool Refocus;
 };

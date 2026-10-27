@@ -10,7 +10,8 @@
 
 #include <filesystem>
 
-std::string RecordingViewer::RequestedPath, RecordingViewer::SessionPath;
+std::string RecordingViewer::RequestedPath;
+std::string RecordingViewer::SessionPath;
 unsigned RecordingViewer::RequestedFrame = 0;
 bool RecordingViewer::IsPaused = false;
 bool RecordingViewer::HasEnded = false;
@@ -166,12 +167,17 @@ void RecordingViewer::Prepare()
 {
 	// A recording starts from a fresh start of the game, and the table's clock carries on across a restart: its
 	// fraction of a tick and the time pb::init leaves alone are as a new process has them, and so is the nudge
-	pb::time_now = pb::time_next = pb::time_ticks_remainder = 0;
-	nudge::nudged_left = nudge::nudged_right = nudge::nudged_up = 0;
+	pb::time_now = 0;
+	pb::time_next = 0;
+	pb::time_ticks_remainder = 0;
+	nudge::nudged_left = 0;
+	nudge::nudged_right = 0;
+	nudge::nudged_up = 0;
 	nudge::nudge_count = 0;
 	// The cheats too, which a recording made with them turns on again with its own commands
 	pb::cheat_mode = false;
-	control::easyMode = control::table_unlimited_balls = false;
+	control::easyMode = false;
+	control::table_unlimited_balls = false;
 	HasEnded = false;
 	Clock = 0;
 	RunTo(RequestedFrame);
@@ -184,6 +190,7 @@ void RecordingViewer::RunTo(unsigned frame)
 	Sound::Enable(false);
 	while (replay::Frame() < frame && replay::PlayStep())
 	{
+		// Each step plays a frame
 	}
 	Sound::Enable(options::Options.Sounds);
 	auto played = replay::Frame();

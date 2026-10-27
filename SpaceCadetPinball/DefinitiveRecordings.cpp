@@ -64,48 +64,20 @@ void DefinitiveRecordings::Open(const DefinitiveHost& host)
 
 bool DefinitiveRecordings::Render(const DefinitiveHost& host)
 {
-	auto viewport = ImGui::GetMainViewport();
 	auto scale = Ui::Scale();
-	auto margin = 24 * scale;
-	ImVec2 min{viewport->Pos.x + margin, viewport->Pos.y + margin};
-	ImVec2 size{std::min(640 * scale, viewport->Size.x - margin * 2), viewport->Size.y - margin * 2};
-
-	ImGui::SetNextWindowPos(min);
-	ImGui::SetNextWindowSize(size);
-	if (Opened || (!ImGui::GetTopMostPopupModal() && !GImGui->NavWindow))
-		ImGui::SetNextWindowFocus();
+	auto title = Selected >= 0 ? List[static_cast<size_t>(Selected)].Name.c_str() : Text(Msg::Definitive_Recordings);
+	auto panel = Ui::BeginPanel("##DefinitiveRecordings", title, Opened);
 	auto opened = Opened;
 	Opened = false;
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{});
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0, 2 * scale});
-	ImGui::PushStyleColor(ImGuiCol_NavCursor, 0U);
-	ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, 0U);
-	ImGui::Begin("##DefinitiveRecordings", nullptr,
-				 Ui::Combine(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoMove,
-							 ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoScrollWithMouse));
-	auto drawList = ImGui::GetWindowDrawList();
-	Theme::DrawPanel(drawList, min, ImVec2{min.x + size.x, min.y + size.y});
-	auto padding = 24 * scale;
-	auto innerWidth = size.x - padding * 2;
-	auto title = Selected >= 0 ? List[static_cast<size_t>(Selected)].Name.c_str() : Text(Msg::Definitive_Recordings);
-	Ui::DrawText(drawList, Theme::HeadingFont(), Theme::TitleSize, ImVec2{min.x + padding, min.y + padding},
-				 Theme::Chrome50, title, innerWidth);
 
-	auto rowsY = min.y + padding + 56 * scale;
-	auto hintsHeight = 26 * scale + padding * 1.5f;
-	ImGui::SetCursorScreenPos(ImVec2{min.x + padding / 2, rowsY});
-	ImGui::BeginChild("##rows", ImVec2{size.x - padding, min.y + size.y - hintsHeight - rowsY},
-					  ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoBackground);
 	// The first row takes the focus when the screen opens and when it changes between the list and a recording's
-	// actions, which happens part way through a frame, so it waits for the next
-	if (opened || Refocus || (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !GImGui->NavId))
+	// actions, which happens part way through a frame, so it waits for the next; ImGui's Escape takes it off too
+	if (Ui::BeginPanelRows(panel, panel.Min.y + panel.Padding + 56 * scale) || opened || Refocus)
 	{
 		Ui::FocusNextRow();
 		ImGui::SetScrollY(0);
 		Refocus = false;
 	}
-	ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - (ImGui::GetScrollMaxY() > 0 ? 12 * scale : 0));
 
 	auto back = false;
 	if (Selected < 0)
@@ -177,13 +149,9 @@ bool DefinitiveRecordings::Render(const DefinitiveHost& host)
 		if (Ui::MenuRow("back", Text(Msg::Definitive_Back)))
 			back = true;
 	}
-	ImGui::PopItemWidth();
-	ImGui::EndChild();
+	Ui::EndPanelRows();
 
-	auto cancel =
-		ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
-		(ImGui::IsKeyPressed(ImGuiKey_Escape, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) ||
-		 ImGui::IsMouseClicked(ImGuiMouseButton_Right));
+	auto cancel = Ui::PanelBack();
 	// Back from a recording's actions goes to the list, from the list to the title
 	auto leave = false;
 	if (back || (cancel && Selected >= 0))
@@ -195,13 +163,9 @@ bool DefinitiveRecordings::Render(const DefinitiveHost& host)
 	else if (BackChosen || cancel)
 		leave = true;
 	BackChosen = false;
-	Ui::DrawHints(drawList, ImVec2{min.x + padding, min.y + size.y - padding - 26 * scale},
-				  {{Ui::Action::Choose, Text(Msg::Definitive_Choose)},
-				   {Ui::Action::Select, Text(Msg::Definitive_Select)},
-				   {Ui::Action::Back, Text(Msg::Definitive_Back)}});
-	ImGui::End();
-	ImGui::PopStyleColor(2);
-	ImGui::PopStyleVar(3);
+	Ui::EndPanel(panel, {{Ui::Action::Choose, Text(Msg::Definitive_Choose)},
+						 {Ui::Action::Select, Text(Msg::Definitive_Select)},
+						 {Ui::Action::Back, Text(Msg::Definitive_Back)}});
 	return !leave;
 }
 
