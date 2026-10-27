@@ -13,7 +13,9 @@ public:
 
 private:
 	static int Current;
-	static bool Opened, ConfirmClear, BackChosen;
+	static bool Opened;
+	static bool ConfirmClear;
+	static bool BackChosen;
 
 	static void RenderStats();
 	static void RenderAchievements();

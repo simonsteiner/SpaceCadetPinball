@@ -124,9 +124,8 @@ void DefinitiveStats::Update(const TableView& view)
 	// does one a cheat was used in, as the high scores don't take it
 	auto playing = Playing(view);
 	auto wasPlaying = Playing(Previous);
-	auto zeroed = std::all_of(view.Scores.begin(), view.Scores.end(), [](int score) { return score == 0; });
-	auto restarted =
-		zeroed && std::any_of(Previous.Scores.begin(), Previous.Scores.end(), [](int score) { return score != 0; });
+	auto zeroed = std::ranges::all_of(view.Scores, [](int score) { return score == 0; });
+	auto restarted = zeroed && std::ranges::any_of(Previous.Scores, [](int score) { return score != 0; });
 	if (playing && (!wasPlaying || restarted))
 		Current = Game{true, false, {}, {}};
 	if (view.CheatsUsed)
