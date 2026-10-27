@@ -39,6 +39,7 @@ float pb::BallMaxSpeed, pb::BallHalfRadius, pb::BallToBallCollisionDistance;
 float pb::IdleTimerMs = 0;
 bool pb::GameEnded = true;
 Tables pb::Table = Tables::SpaceCadet3DPB;
+std::optional<Tables> pb::RequestedTable;
 bool pb::FullTiltMode = false, pb::FullTiltDemoMode = false, pb::cheat_mode = false, pb::demo_mode = false, pb::CreditsActive = false;
 std::string pb::DatFileName, pb::BasePath;
 ImU32 pb::TextBoxColor;
@@ -139,8 +140,7 @@ int pb::uninit()
 
 std::string pb::FindDatFile(const std::string& folder)
 {
-	std::string datFileNames[3]
-	{
+	std::vector<std::string> datFileNames{
 		"CADET.DAT",
 		"PINBALL.DAT",
 		"DEMO.DAT",
@@ -151,6 +151,8 @@ std::string pb::FindDatFile(const std::string& folder)
 	{
 		std::swap(datFileNames[0], datFileNames[1]);
 	}
+	if (RequestedTable == Tables::DragonsKeep)
+		datFileNames = {"DRAGON.DAT"};
 	for (const auto& datFileName : datFileNames)
 	{
 		auto fileName = datFileName;
@@ -195,6 +197,8 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 			Table = Tables::SpaceCadetFullTilt;
 		if (upper == "DEMO.DAT")
 			Table = Tables::FullTiltDemo;
+		if (upper == "DRAGON.DAT")
+			Table = Tables::DragonsKeep;
 		FullTiltMode = Table != Tables::SpaceCadet3DPB;
 		FullTiltDemoMode = Table == Tables::FullTiltDemo;
 		printf("Loading game from: %s\n", make_path_name(fileName).c_str());

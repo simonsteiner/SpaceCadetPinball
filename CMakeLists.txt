@@ -149,6 +149,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/Sound.cpp
         SpaceCadetPinball/Sound.h
         SpaceCadetPinball/SpaceCadetPinball.cpp
+        SpaceCadetPinball/TAccelerator.cpp
+        SpaceCadetPinball/TAccelerator.h
         SpaceCadetPinball/TBall.cpp
         SpaceCadetPinball/TBall.h
         SpaceCadetPinball/TBlocker.cpp
@@ -208,6 +210,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/TPopupTarget.h
         SpaceCadetPinball/TRamp.cpp
         SpaceCadetPinball/TRamp.h
+        SpaceCadetPinball/TRampExit.cpp
+        SpaceCadetPinball/TRampExit.h
         SpaceCadetPinball/translations.cpp
         SpaceCadetPinball/translations.h
         SpaceCadetPinball/TRollover.cpp

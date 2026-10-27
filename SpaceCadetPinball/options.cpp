@@ -803,6 +803,8 @@ void options::RemoveSetting(const std::string& key)
 
 const char* options::TableKeyPrefix()
 {
+	if (pb::Table == Tables::DragonsKeep)
+		return DragonsKeepKeyPrefix;
 	if (pb::FullTiltDemoMode)
 		return FullTiltDemoKeyPrefix;
 	if (pb::FullTiltMode)

@@ -235,6 +235,7 @@ No SoundFont ships with the game. Music needs an audio device, so `-noaudio` and
 | `-record <file>` | record the session to a replay file; see [replays.md](replays.md) |
 | `-replay <file>` | play a replay back headless, check every frame, and exit; status 1 if play differs |
 | `-edition classic` or `-edition definitive` | start in that edition and save it, like the Tab switch; playback runs Classic unless this says otherwise, and saves nothing |
+| `-table dragon` | load Full Tilt!'s Dragon's Keep (`DRAGON.DAT`) instead of Space Cadet; a developer flag while its engine and rules are recovered (Phase F), so it plays without rules and builds only some of its objects |
 
 ## Troubleshooting
 

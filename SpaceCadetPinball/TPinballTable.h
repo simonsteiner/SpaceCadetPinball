@@ -101,4 +101,6 @@ public:
 
 private:
 	static int score_multipliers[5];
+
+	static void LogNotBuilt(int objectType, int groupIndex);
 };

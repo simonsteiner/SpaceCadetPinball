@@ -1,5 +1,6 @@
 #pragma once
 #include "high_score.h"
+#include <optional>
 
 class TEdgeSegment;
 struct ray_type;
@@ -12,7 +13,7 @@ class TTextBox;
 enum class Msg : int;
 
 // The table the DAT file holds. Space Cadet comes as 3D Pinball's, Full Tilt's and Full Tilt's demo;
-// Skulduggery and Dragon's Keep are Full Tilt's bonus tables (Phase F), which don't load yet.
+// Skulduggery and Dragon's Keep are Full Tilt's bonus tables (Phase F), which load only when asked for (-table).
 enum class Tables
 {
 	SpaceCadet3DPB,
@@ -39,6 +40,8 @@ public:
 	static DatFile* record_table;
 	static TPinballTable* MainTable;
 	static Tables Table;
+	// A bonus table asked for with -table, which FindDatFile then looks for instead of Space Cadet's DAT files
+	static std::optional<Tables> RequestedTable;
 	// Set with Table: Full Tilt's DAT format and behaviour, and its demo's
 	static bool FullTiltMode, FullTiltDemoMode;
 	// False from the start of a game until end_game has checked its high scores, which the table does a few seconds

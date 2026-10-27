@@ -106,6 +106,11 @@ enum class MessageCode
 	ControlDisableMultiplier = 65,
 	ControlMissionComplete = 66,
 	ControlMissionStarted = 67,
+	// Full Tilt only (Phase F): the ball crossed a ramp exit (TRampExit) into its second or its first layer.
+	// CADET.EXE numbers them 0x56 and 0x55 and its TRamp sends them too, for walls 1302 and 1301; this TRamp,
+	// like Pinball.exe's, doesn't.
+	ControlRampExitToLayer2 = 68,
+	ControlRampExitToLayer1 = 69,
 
 	// Public codes 1000+, apply to all components
 	LeftFlipperInputPressed = 1000,

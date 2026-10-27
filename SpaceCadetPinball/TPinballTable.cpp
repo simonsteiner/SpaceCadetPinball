@@ -8,6 +8,7 @@
 #include "midi.h"
 #include "pb.h"
 #include "render.h"
+#include "TAccelerator.h"
 #include "TBall.h"
 #include "TBlocker.h"
 #include "TBumper.h"
@@ -26,6 +27,7 @@
 #include "TOneway.h"
 #include "TPopupTarget.h"
 #include "TRamp.h"
+#include "TRampExit.h"
 #include "TRollover.h"
 #include "TSink.h"
 #include "TSoloTarget.h"
@@ -117,6 +119,12 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 				Drain = new TDrain(this, groupIndex);
 				break;
 			case 1011:
+				// Dragon's Keep's blockers are animated props that Pinball.exe's TBlocker can't build (F4)
+				if (pb::Table == Tables::DragonsKeep)
+				{
+					LogNotBuilt(objectType, groupIndex);
+					continue;
+				}
 				new TBlocker(this, groupIndex);
 				break;
 			case 1012:
@@ -179,7 +187,14 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 			case 1033:
 				new TTextBox(this, groupIndex);
 				break;
+			case 1035:
+				new TRampExit(this, groupIndex);
+				break;
+			case 1036:
+				new TAccelerator(this, groupIndex);
+				break;
 			default:
+				LogNotBuilt(objectType, groupIndex);
 				continue;
 			}
 		}
@@ -187,10 +202,22 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 
 	render::build_occlude_list();
 	pb::InfoTextBox = dynamic_cast<TTextBox*>(find_component("info_text_box"));
-	pb::MissTextBox = dynamic_cast<TTextBox*>(find_component("mission_text_box"));
+	// Dragon's Keep has only the info text box
+	pb::MissTextBox =
+		pb::Table == Tables::DragonsKeep ? nullptr : dynamic_cast<TTextBox*>(find_component("mission_text_box"));
 	TableRules::Current().MakeLinks(this);
 }
 
+
+void TPinballTable::LogNotBuilt(int objectType, int groupIndex)
+{
+	// Space Cadet builds every object it has; a bonus table may have types the engine doesn't build yet (Phase F)
+	if (pb::Table != Tables::DragonsKeep && pb::Table != Tables::Skulduggery)
+		return;
+	auto name = loader::query_name(groupIndex);
+	printf("Object type %d not built: %s\n", objectType, name ? name : "");
+	fflush(stdout);
+}
 
 TPinballTable::~TPinballTable()
 {
@@ -292,7 +319,9 @@ void TPinballTable::tilt(float time)
 	if (!TiltLockFlag && !BallInDrainFlag)
 	{
 		pb::InfoTextBox->Clear();
-		pb::MissTextBox->Clear();
+		// Dragon's Keep has no mission text box
+		if (pb::MissTextBox)
+			pb::MissTextBox->Clear();
 		pb::InfoTextBox->Display(pb::get_rc_string(Msg::STRING136), -1.0);
 		loader::play_sound(SoundIndex3, nullptr, "TPinballTable1");
 		TiltTimeoutTimer = timer::set(30.0, this, tilt_timeout);
@@ -449,7 +478,8 @@ int TPinballTable::Message(MessageCode code, float value)
 			BonusScoreFlag = false;
 			UnknownP71 = 0;
 			pb::InfoTextBox->Clear();
-			pb::MissTextBox->Clear();
+			if (pb::MissTextBox)
+				pb::MissTextBox->Clear();
 			LightGroup->Message(MessageCode::TLightGroupLightShowAnimation, 0.2f);
 			auto time = loader::play_sound(SoundIndex1, nullptr, "TPinballTable2");
 			if (time < 0)
@@ -557,7 +587,8 @@ int TPinballTable::Message(MessageCode code, float value)
 		break;
 	case MessageCode::GameOver:
 		loader::play_sound(SoundIndex2, nullptr, "TPinballTable3");
-		pb::MissTextBox->Clear();
+		if (pb::MissTextBox)
+			pb::MissTextBox->Clear();
 		pb::InfoTextBox->Display(pb::get_rc_string(Msg::STRING135), -1.0);
 		EndGameTimeoutTimer = timer::set(3.0, this, EndGame_timeout);
 		break;
