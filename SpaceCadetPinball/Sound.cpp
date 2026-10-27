@@ -235,7 +235,7 @@ void Sound::Init(MIX_Mixer* mixer, int channels, bool enableFlag, int volume)
 		SDL_AudioSpec spec{};
 		if (MIX_GetMixerFormat(Mixer, &spec))
 			Reverb.Prepare(spec.freq);
-		ReverbSend.reserve(1 << 16);
+		ReverbSend.reserve(65536);
 		EffectsGroup = MIX_CreateGroup(Mixer);
 		if (EffectsGroup)
 			MIX_SetGroupPostMixCallback(EffectsGroup, EffectsMix, nullptr);
