@@ -299,9 +299,9 @@ void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunn
 		options::toggle(Menu1::WindowStackedLayout);
 	// For a cabinet's monitor on its side; a window taller than wide then puts the HUD under the table
 	Ui::NextRowNote(Text(Msg::Definitive_RotationNote));
-	auto rotation = Ui::ChoiceRow("rotation", Text(Msg::Definitive_Rotation),
-								  {"0\xC2\xB0", "90\xC2\xB0", "180\xC2\xB0", "270\xC2\xB0"}, options.Rotation);
-	if (rotation != options.Rotation && host.SetRotation)
+	if (auto rotation =
+			Ui::ChoiceRow("rotation", Text(Msg::Definitive_Rotation), {"0°", "90°", "180°", "270°"}, options.Rotation);
+		rotation != options.Rotation && host.SetRotation)
 		host.SetRotation(rotation);
 
 	auto rateChanged = false;

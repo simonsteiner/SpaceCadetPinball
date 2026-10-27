@@ -299,7 +299,8 @@ SDL_FPoint fullscrn::ToPicture(SDL_FPoint point)
 
 void fullscrn::TurnPointerEvent(SDL_Event& event)
 {
-	float *x, *y;
+	float* x;
+	float* y;
 	switch (event.type)
 	{
 	case SDL_EVENT_MOUSE_MOTION:
@@ -321,7 +322,8 @@ void fullscrn::TurnPointerEvent(SDL_Event& event)
 	if (!Rotation())
 		return;
 
-	int width, height;
+	int width;
+	int height;
 	SDL_GetWindowSize(winmain::MainWindow, &width, &height);
 	if (width <= 0 || height <= 0)
 		return;
@@ -338,9 +340,11 @@ void fullscrn::BeginFrame()
 		return;
 
 	// The picture is drawn into a texture of its own size, which EndFrame turns into the window
-	int width, height;
+	int width;
+	int height;
 	OutputSize(width, height);
-	float textureWidth = 0, textureHeight = 0;
+	float textureWidth = 0;
+	float textureHeight = 0;
 	if (TurnedFrame)
 		SDL_GetTextureSize(TurnedFrame, &textureWidth, &textureHeight);
 	if (!TurnedFrame || static_cast<int>(textureWidth) != width || static_cast<int>(textureHeight) != height)
@@ -364,9 +368,11 @@ void fullscrn::EndFrame()
 
 	SDL_SetRenderTarget(winmain::Renderer, nullptr);
 	SDL_RenderClear(winmain::Renderer);
-	int width, height;
+	int width;
+	int height;
 	SDL_GetRenderOutputSize(winmain::Renderer, &width, &height);
-	float textureWidth, textureHeight;
+	float textureWidth;
+	float textureHeight;
 	SDL_GetTextureSize(TurnedFrame, &textureWidth, &textureHeight);
 	// Turned about the window's centre, so the texture goes where it would lie unturned around that centre
 	SDL_FRect dst{(static_cast<float>(width) - textureWidth) / 2, (static_cast<float>(height) - textureHeight) / 2,

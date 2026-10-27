@@ -73,6 +73,42 @@ namespace
 		auto needed = Theme::LedSize(size, text).x;
 		return needed > width ? size * width / needed : size;
 	}
+
+	// The rank's nine lamps in a row from a point, lit up to the rank as the rank circle on the table is
+	void DrawRankLamps(ImDrawList* drawList, ImVec2 at, int rank, float scale)
+	{
+		for (auto lamp = 0; lamp < 9; lamp++)
+		{
+			ImVec2 centre{at.x + (LampRadius + static_cast<float>(lamp) * (LampRadius * 2 + LampGap)) * scale,
+						  at.y + LampRadius * scale};
+			Theme::DrawLamp(drawList, centre, LampRadius * scale, lamp < rank ? Theme::Lamp::Lit : Theme::Lamp::Dark);
+		}
+	}
+
+	// The info text box's message in a box, in the LED orange of the table's text: from the top of its place at the
+	// earliest, else ending at bottom; returns the box's bottom. Without a draw list it only measures.
+	float DrawMessage(ImDrawList* drawList, const TableView& view, ImVec2 at, float width, float bottom)
+	{
+		auto scale = Ui::Scale();
+		ImVec2 inset{16 * scale, 12 * scale};
+		auto textWidth = width - inset.x * 2;
+		auto height = MessageHeight * scale;
+		if (!view.InfoText.empty())
+		{
+			auto textHeight = Ui::DrawWrapped(nullptr, Theme::HeadingFont(), MessageSize, ImVec2{}, 0,
+											  view.InfoText.c_str(), textWidth);
+			height = std::max(height, textHeight + inset.y * 2);
+		}
+		ImVec2 boxMin{at.x, std::max(at.y, bottom - height)};
+		ImVec2 boxMax{at.x + width, boxMin.y + height};
+		if (!drawList)
+			return boxMax.y;
+		DrawMessageBox(drawList, boxMin, boxMax, scale);
+		if (!view.InfoText.empty())
+			Ui::DrawWrapped(drawList, Theme::HeadingFont(), MessageSize, ImVec2{boxMin.x + inset.x, boxMin.y + inset.y},
+							Theme::LedOrange, view.InfoText.c_str(), textWidth);
+		return boxMax.y;
+	}
 } // namespace
 
 int DefinitiveHud::MissionOf(int state)
@@ -182,33 +218,11 @@ float DefinitiveHud::DrawContents(ImDrawList* drawList, const TableView& view, I
 		heading(name);
 		y += LabelGap * scale;
 	}
-	for (auto lamp = 0; lamp < 9; lamp++)
-	{
-		ImVec2 centre{left + (LampRadius + static_cast<float>(lamp) * (LampRadius * 2 + LampGap)) * scale,
-					  y + LampRadius * scale};
-		Theme::DrawLamp(drawList, centre, LampRadius * scale, lamp < view.Rank ? Theme::Lamp::Lit : Theme::Lamp::Dark);
-	}
+	DrawRankLamps(drawList, ImVec2{left, y}, view.Rank, scale);
 	y += (LampRadius * 2 + Gap) * scale;
 
-	// The info text box's message at the bottom, in the LED orange of the table's text
-	auto messageInset = ImVec2{16 * scale, 12 * scale};
-	auto messageWidth = width - messageInset.x * 2;
-	auto messageHeight = MessageHeight * scale;
-	if (!view.InfoText.empty())
-	{
-		auto textHeight = Ui::DrawWrapped(nullptr, Theme::HeadingFont(), MessageSize, ImVec2{}, 0,
-										  view.InfoText.c_str(), messageWidth);
-		messageHeight = std::max(messageHeight, textHeight + messageInset.y * 2);
-	}
-	ImVec2 boxMin{left, std::max(y, max.y - Padding * scale - messageHeight)};
-	ImVec2 boxMax{left + width, boxMin.y + messageHeight};
-	DrawMessageBox(drawList, boxMin, boxMax, scale);
-	if (!view.InfoText.empty())
-		Ui::DrawWrapped(drawList, Theme::HeadingFont(), MessageSize,
-						ImVec2{boxMin.x + messageInset.x, boxMin.y + messageInset.y}, Theme::LedOrange,
-						view.InfoText.c_str(), messageWidth);
-
-	return boxMax.y + Padding * scale - min.y;
+	// The info text box's message at the bottom
+	return DrawMessage(drawList, view, ImVec2{left, y}, width, max.y - Padding * scale) + Padding * scale - min.y;
 }
 
 float DefinitiveHud::DrawBand(ImDrawList* drawList, const TableView& view, ImVec2 min, ImVec2 max)
@@ -284,34 +298,12 @@ float DefinitiveHud::DrawBand(ImDrawList* drawList, const TableView& view, ImVec
 					 columnWidth);
 		rankY += Theme::HeadingSize * Ui::TextScale() + LabelGap * scale;
 	}
-	for (auto lamp = 0; lamp < 9; lamp++)
-	{
-		ImVec2 centre{rankLeft + (LampRadius + static_cast<float>(lamp) * (LampRadius * 2 + LampGap)) * scale,
-					  rankY + LampRadius * scale};
-		Theme::DrawLamp(drawList, centre, LampRadius * scale, lamp < view.Rank ? Theme::Lamp::Lit : Theme::Lamp::Dark);
-	}
+	DrawRankLamps(drawList, ImVec2{rankLeft, rankY}, view.Rank, scale);
 	rankY += LampRadius * 2 * scale;
 	y = std::max(missionY, rankY) + Gap * scale;
 
 	// The info text box's message, across the band at its bottom
-	auto messageInset = ImVec2{16 * scale, 12 * scale};
-	auto messageWidth = width - messageInset.x * 2;
-	auto messageHeight = MessageHeight * scale;
-	if (!view.InfoText.empty())
-	{
-		auto textHeight = Ui::DrawWrapped(nullptr, Theme::HeadingFont(), MessageSize, ImVec2{}, 0,
-										  view.InfoText.c_str(), messageWidth);
-		messageHeight = std::max(messageHeight, textHeight + messageInset.y * 2);
-	}
-	ImVec2 boxMin{left, std::max(y, max.y - Padding * scale - messageHeight)};
-	ImVec2 boxMax{left + width, boxMin.y + messageHeight};
-	DrawMessageBox(drawList, boxMin, boxMax, scale);
-	if (!view.InfoText.empty())
-		Ui::DrawWrapped(drawList, Theme::HeadingFont(), MessageSize,
-						ImVec2{boxMin.x + messageInset.x, boxMin.y + messageInset.y}, Theme::LedOrange,
-						view.InfoText.c_str(), messageWidth);
-
-	return boxMax.y + Padding * scale - min.y;
+	return DrawMessage(drawList, view, ImVec2{left, y}, width, max.y - Padding * scale) + Padding * scale - min.y;
 }
 
 void DefinitiveHud::RenderBand(const TableView& view, SDL_FRect panel)
