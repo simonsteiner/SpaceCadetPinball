@@ -14,8 +14,9 @@ ImVec2 DefinitiveUi::Footer{};
 
 void DefinitiveUi::NewFrame()
 {
-	auto height = ImGui::GetMainViewport()->Size.y;
-	LayoutScale = std::clamp(height / 720.0f, 0.6f, 4.0f) * options::Options.UIScale;
+	// The height, or in a window taller than wide the width, so the screens keep their proportions there too
+	auto size = ImGui::GetMainViewport()->Size;
+	LayoutScale = std::clamp(std::min(size.x, size.y) / 720.0f, 0.6f, 4.0f) * options::Options.UIScale;
 
 	// The device whose input came last decides the hints
 	auto& io = ImGui::GetIO();

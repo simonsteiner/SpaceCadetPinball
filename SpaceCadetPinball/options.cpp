@@ -189,6 +189,7 @@ optionsStruct options::Options
 	{"Lamp Glow", true},
 	{"Shaded Ball", true},
 	{"Reduced Motion", false},
+	{"Screen Rotation", 0},
 };
 // clang-format on
 
@@ -625,6 +626,7 @@ void options::PostProcessOptions()
 	Options.MusicVolume = Clamp(Options.MusicVolume.V, MinVolume, MaxVolume);
 	Options.KeyBindingsVersion = KeyBindingsScancodes;
 	Options.Edition = Clamp(Options.Edition.V, 0, static_cast<int>(Editions::Max) - 1);
+	Options.Rotation = Clamp(Options.Rotation.V, 0, 3);
 	// Also a folder typed into the settings file by hand
 	Options.GameDataFolder.V = FolderPath(Options.GameDataFolder.V);
 	// The drawing options of each edition are clamped while that edition's are on show

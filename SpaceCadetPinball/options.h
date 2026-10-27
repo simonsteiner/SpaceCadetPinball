@@ -431,4 +431,6 @@ struct optionsStruct
 	BoolOption ShadedBall;
 	// No glow pulse and no shaking of the table when it is nudged, in Space Cadet 2026
 	BoolOption ReducedMotion;
+	// Quarter turns clockwise of Space Cadet 2026's picture, for a monitor on its side (fullscrn::Rotation)
+	IntOption Rotation;
 };

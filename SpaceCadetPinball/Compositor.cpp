@@ -178,6 +178,8 @@ SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int fra
 	Uint8 blue;
 	Uint8 alpha;
 	SDL_GetRenderDrawColor(Renderer, &red, &green, &blue, &alpha);
+	// The window, or the picture Space Cadet 2026 turns for a monitor on its side
+	auto output = SDL_GetRenderTarget(Renderer);
 	SDL_SetRenderTarget(Renderer, GlowTarget);
 	SDL_SetRenderDrawColor(Renderer, 0, 0, 0, 0);
 	SDL_RenderClear(Renderer);
@@ -188,7 +190,7 @@ SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int fra
 	SDL_RenderTexture(Renderer, frame, nullptr, nullptr);
 	DrawBalls(frame, frameScale, scene);
 	SDL_SetGPURenderState(Renderer, nullptr);
-	SDL_SetRenderTarget(Renderer, nullptr);
+	SDL_SetRenderTarget(Renderer, output);
 	return Target;
 #else
 	(void)frame;

@@ -46,8 +46,8 @@ public:
 
 	// Once a frame, before any screen draws
 	static void NewFrame();
-	// Sizes are given for a window 720 pixels high and multiplied by this: the window's height over 720, times the UI
-	// Scale option, within limits
+	// Sizes are given for a window 720 pixels high and multiplied by this: the window's height over 720, or its width
+	// where that is smaller, times the UI Scale option, within limits
 	static float Scale();
 	static void SetScale(float scale);
 	static Device LastDevice();

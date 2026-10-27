@@ -146,8 +146,9 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 	{
 		SDL_FRect board;
 		SDL_FRect panel;
-		Host.Layout(board, panel);
-		DefinitiveHud::Render(view, board, panel);
+		auto band = false;
+		Host.Layout(board, panel, band);
+		DefinitiveHud::Render(view, board, panel, band);
 	}
 
 	auto playing = !view.GameOver && !view.Demo;

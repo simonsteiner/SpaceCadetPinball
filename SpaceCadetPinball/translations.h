@@ -259,6 +259,8 @@ enum class Msg : int
 	Definitive_Uncapped,
 	Definitive_PreciseSleep,
 	Definitive_HideCursor,
+	Definitive_Rotation,
+	Definitive_RotationNote,
 	Definitive_UpscaleSize,
 	Definitive_Backdrop,
 	Definitive_LinearFiltering,

@@ -311,7 +311,12 @@ static DefinitiveHost MakeDefinitiveHost()
 	host.ChosenFolderEmpty = [] { return ChosenFolderEmpty; };
 	host.DataFolder = []
 	{ return pb::BasePath.empty() ? std::string{pb::get_rc_string(Msg::Definitive_DataStartFolder)} : pb::BasePath; };
-	host.Layout = [](SDL_FRect& board, SDL_FRect& panel)
+	host.SetRotation = [](int quarterTurns)
+	{
+		options::Options.Rotation = quarterTurns;
+		fullscrn::window_size_changed();
+	};
+	host.Layout = [](SDL_FRect& board, SDL_FRect& panel, bool& band)
 	{
 		// The layout is in pixels, ImGui in window coordinates
 		auto fbScale = ImGui::GetIO().DisplayFramebufferScale;
@@ -322,6 +327,7 @@ static DefinitiveHost MakeDefinitiveHost()
 		};
 		board = convert(render::BoardRect);
 		panel = convert(render::SidebarRect);
+		band = fullscrn::Portrait;
 	};
 	return host;
 }
@@ -668,6 +674,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 	Compositor::Uninit();
 	PostEffect::Uninit();
+	fullscrn::ReleaseFrame();
 	SDL_DestroyRenderer(Renderer);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
@@ -784,10 +791,14 @@ void winmain::MainLoop()
 					ImGui::SetMouseCursor(ImGuiMouseCursor_None);
 				ImGui_ImplSDLRenderer3_NewFrame();
 				ImGui_ImplSDL3_NewFrame();
+				// ImGui lays out the picture, which a quarter turn makes taller than the window or wider
+				if (fullscrn::Rotation() % 2)
+					std::swap(ImIO->DisplaySize.x, ImIO->DisplaySize.y);
 				ApplyEditionLook();
 				ImGui::NewFrame();
 				RenderUi();
 
+				fullscrn::BeginFrame();
 				SDL_RenderClear(Renderer);
 				// Alternative clear hack, clear might fail on some systems
 				// Todo: remove original clear, if save for all platforms
@@ -804,6 +815,7 @@ void winmain::MainLoop()
 				SDL_SetRenderScale(Renderer, fbScale.x, fbScale.y);
 				ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), Renderer);
 				SDL_SetRenderScale(Renderer, 1.0f, 1.0f);
+				fullscrn::EndFrame();
 
 				SDL_RenderPresent(Renderer);
 				frameCounter++;
@@ -1472,7 +1484,12 @@ int winmain::event_handler(const SDL_Event* event)
 	default: break;
 	}
 	if ((!options::WaitingForInput() || !inputDown) && !shortcut)
-		ImGui_ImplSDL3_ProcessEvent(event);
+	{
+		// ImGui lays out the picture, which Space Cadet 2026 may turn for a monitor on its side
+		auto turned = *event;
+		fullscrn::TurnPointerEvent(turned);
+		ImGui_ImplSDL3_ProcessEvent(&turned);
+	}
 
 	bool mouseEvent;
 	switch (event->type)
@@ -1744,9 +1761,12 @@ void winmain::TouchInput(const SDL_TouchFingerEvent& event)
 	if (ImIO->WantCaptureMouse)
 		return;
 
+	// Where the finger is in the picture, which Space Cadet 2026 may turn for a monitor on its side
 	int width, height;
-	SDL_GetRenderOutputSize(Renderer, &width, &height);
-	SDL_Point point{static_cast<int>(event.x * width), static_cast<int>(event.y * height)};
+	fullscrn::OutputSize(width, height);
+	auto position = fullscrn::ToPicture({event.x, event.y});
+	SDL_Point point{static_cast<int>(position.x * static_cast<float>(width)),
+					static_cast<int>(position.y * static_cast<float>(height))};
 	// Only the table and the panel bind, not the menu bar or the margins: the ImGui capture flag is last frame's
 	auto& board = render::BoardRect;
 	GameBindings binding;
@@ -1832,6 +1852,7 @@ bool winmain::CreateRenderer(bool gpu)
 	// The GPU renderer, for post-processing; otherwise the default, falling back to the software renderer
 	Compositor::Uninit();
 	PostEffect::Uninit();
+	fullscrn::ReleaseFrame();
 	if (Renderer)
 		SDL_DestroyRenderer(Renderer);
 	Renderer = nullptr;

@@ -6441,6 +6441,18 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_Rotation,
+		{
+			{ Lang::English, "Screen rotation" },
+		}
+	},
+	{
+		Msg::Definitive_RotationNote,
+		{
+			{ Lang::English, "Clockwise, for a monitor on its side as in a cabinet" },
+		}
+	},
+	{
 		Msg::Definitive_UpscaleSize,
 		{
 			{ Lang::English, "Upscale size" },

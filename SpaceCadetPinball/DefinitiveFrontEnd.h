@@ -68,8 +68,11 @@ struct DefinitiveHost
 	bool (*ChosenFolderEmpty)();
 	// The folder the game data was loaded from
 	std::string (*DataFolder)();
-	// Where the table and its score panel are drawn, in window coordinates; the panel is empty when the table has none
-	void (*Layout)(SDL_FRect& board, SDL_FRect& panel);
+	// Turns the picture by quarter turns clockwise, for a monitor on its side, and lays the table out for it
+	void (*SetRotation)(int quarterTurns);
+	// Where the table and its score panel are drawn, in window coordinates; the panel is empty when the table has none.
+	// band is set in a window taller than wide, where the panel is the band under the table, as wide as the window.
+	void (*Layout)(SDL_FRect& board, SDL_FRect& panel, bool& band);
 };
 
 // Space Cadet 2026's front end: the title with the main menu and the screens it leads to. It takes the place of
