@@ -330,7 +330,8 @@ void DefinitiveHud::RenderBand(const TableView& view, SDL_FRect panel)
 		width = std::min(panel.w / scale - Margin * 2, BandMaxWidth);
 		Ui::SetScale(1);
 		needed = DrawBand(&scratch, view, ImVec2{}, ImVec2{width, 0});
-		scale = std::min(screenScale, panel.h / (needed + Margin * 2));
+		// Within the band's width too, which the scale before set
+		scale = std::min({screenScale, panel.h / (needed + Margin * 2), panel.w / (width + Margin * 2)});
 	}
 	Ui::SetScale(scale);
 

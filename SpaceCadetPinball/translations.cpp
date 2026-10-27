@@ -6587,7 +6587,7 @@ const TextArray translations::Translations =
 	{
 		Msg::Definitive_HighContrastNote,
 		{
-			{ Lang::English, "A black panel with white text, and no unlit digit segments" },
+			{ Lang::English, "A black panel with white labels and a white rim, and no unlit digit segments" },
 		}
 	},
 	{

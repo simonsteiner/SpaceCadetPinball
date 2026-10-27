@@ -388,8 +388,8 @@ void DefinitiveFrontEnd::RenderRecords()
 		char rank[4];
 		snprintf(rank, sizeof rank, "%d", static_cast<int>(i) + 1);
 		auto rankSize = Ui::TextSize(Theme::HeadingFont(), Theme::BodySize, rank);
-		drawList->AddText(Theme::HeadingFont(), Theme::BodySize * scale, ImVec2{left, centre - rankSize.y / 2},
-						  Theme::Chrome400, rank);
+		Ui::DrawText(drawList, Theme::HeadingFont(), Theme::BodySize, ImVec2{left, centre - rankSize.y / 2},
+					 Theme::Chrome400, rank);
 		if (i < records.size() && records[i].Score >= 0)
 		{
 			auto score = Ui::FormatScore(records[i].Score, 11);
@@ -524,7 +524,8 @@ SDL_native_midi, MMPX)");
 	// The list scrolls with the arrow keys, the d-pad and the wheel, under the title and over the back row
 	auto top = origin.y + (40 + 32) * scale;
 	auto bottom = viewport->Pos.y + viewport->Size.y - (Ui::RowHeight() + 24 + 26 + 40) * scale;
-	auto lineHeight = 26 * scale;
+	// Lines grow with the Text Size option
+	auto lineHeight = 26 * Ui::TextScale();
 	auto contentHeight = 0.0f;
 	for (auto& line : credits)
 		contentHeight += line.Heading ? lineHeight * 1.3f : lineHeight;
@@ -549,8 +550,8 @@ SDL_native_midi, MMPX)");
 		auto size = line.Heading ? Theme::BodySize * 1.1f : Theme::LabelSize * 1.1f;
 		if (line.Heading)
 			y += lineHeight * 0.3f;
-		drawList->AddText(font, size * scale, ImVec2{origin.x + 16 * scale, y},
-						  line.Heading ? Theme::LedOrange : Theme::Chrome200, line.Text.c_str());
+		Ui::DrawText(drawList, font, size, ImVec2{origin.x + 16 * scale, y},
+					 line.Heading ? Theme::LedOrange : Theme::Chrome200, line.Text.c_str());
 		y += lineHeight;
 	}
 	drawList->PopClipRect();
@@ -604,9 +605,9 @@ void DefinitiveFrontEnd::RenderMissingData(const std::vector<std::string>& looke
 	for (auto& path : looked)
 	{
 		Theme::DrawLamp(drawList, ImVec2{left + 5 * scale, y + 9 * scale}, 4 * scale, Theme::Lamp::Off);
-		drawList->AddText(Theme::TextFont(), Theme::LabelSize * scale, ImVec2{left + 18 * scale, y}, Theme::Chrome400,
-						  path.c_str());
-		y += 22 * scale;
+		Ui::DrawText(drawList, Theme::TextFont(), Theme::LabelSize, ImVec2{left + 18 * scale, y}, Theme::Chrome400,
+					 path.c_str());
+		y += 22 * Ui::TextScale();
 	}
 	if (chosenFolderFailed)
 	{

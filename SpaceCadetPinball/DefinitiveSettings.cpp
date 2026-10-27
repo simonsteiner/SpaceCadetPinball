@@ -447,10 +447,10 @@ void DefinitiveSettings::RenderControls()
 			auto label = isWaiting ? std::string{Text(Msg::Definitive_PressInput)} : Describe(input);
 			auto size = Ui::TextSize(Theme::TextFont(), Theme::LabelSize, label.c_str());
 			drawList->PushClipRect(slotMin, slotMax, true);
-			drawList->AddText(Theme::TextFont(), Theme::LabelSize * scale,
-							  ImVec2{std::max(slotMin.x + 4 * scale, (slotMin.x + slotMax.x - size.x) / 2),
-									 (slotMin.y + slotMax.y - size.y) / 2},
-							  isWaiting ? Theme::LedOrange : Theme::Chrome200, label.c_str());
+			Ui::DrawText(drawList, Theme::TextFont(), Theme::LabelSize,
+						 ImVec2{std::max(slotMin.x + 4 * scale, (slotMin.x + slotMax.x - size.x) / 2),
+								(slotMin.y + slotMax.y - size.y) / 2},
+						 isWaiting ? Theme::LedOrange : Theme::Chrome200, label.c_str());
 			drawList->PopClipRect();
 		}
 
@@ -509,5 +509,8 @@ void DefinitiveSettings::RenderAccessibility()
 
 	Ui::NextRowNote(Text(Msg::Definitive_ReducedMotionNote));
 	if (Ui::ToggleRow("motion", Text(Msg::Definitive_ReducedMotion), options::Options.ReducedMotion))
+	{
 		options::Options.ReducedMotion = !options::Options.ReducedMotion;
+		options::Options.ReducedMotionChosen = true;
+	}
 }
