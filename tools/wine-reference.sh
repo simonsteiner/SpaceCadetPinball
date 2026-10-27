@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Runs the original Full Tilt! executables under Wine as a reference, without root and without network.
 # See docs/wine-reference.md. Everything lives in $SCP_WINE (default ~/.cache/scp/wine), outside the repository.
+# It runs without sound; set SCP_WINE_SOUND=1 to hear the EXE.
 #
 #   tools/wine-reference.sh setup                       unpack Ubuntu's Wine packages and make the prefix
 #   tools/wine-reference.sh start <data folder> <EXE> [args...]
@@ -23,6 +24,12 @@ export WINEPREFIX=$W/prefix
 export WINEARCH=win64
 export WINEDEBUG=${WINEDEBUG:--all}
 export WINEDLLOVERRIDES="mscoree,mshtml="
+# Silent unless SCP_WINE_SOUND=1: without its audio drivers Wine has no sound device. Under WSLg it would otherwise
+# reach the desktop's PulseAudio server through PULSE_SERVER, a socket the namespace doesn't cut off.
+if [[ ${SCP_WINE_SOUND:-0} != 1 ]]; then
+	WINEDLLOVERRIDES+=";winepulse.drv,winealsa.drv,wineoss.drv="
+	unset PULSE_SERVER
+fi
 export DISPLAY=:$DISPLAY_NUM
 
 # The namespace has no network but its own loopback. Xvfb runs inside it, because WSLg's /tmp/.X11-unix is

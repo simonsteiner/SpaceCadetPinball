@@ -32,7 +32,8 @@ tools/wine-reference.sh exec uv run --with python-xlib --with pillow python3 -I 
 tools/wine-reference.sh stop
 ```
 
-- **`start`** copies the folder into the prefix's `C:\scratch\` the first time, starts the EXE there and waits for its window. `-nomovie` skips the intro movie, which Wine can't play. The table appears about half a minute later, once the startup sound has played; there's no sound device, so Wine only times it.
+- **`start`** copies the folder into the prefix's `C:\scratch\` the first time, starts the EXE there and waits for its window. `-nomovie` skips the intro movie, which Wine can't play. The table appears about half a minute later, once the startup sound has played; without a sound device, Wine only times it.
+- **Sound:** off. The script disables Wine's audio drivers, so the EXE has no sound device. Under WSLg it would otherwise play through the desktop's PulseAudio server, whose socket (`PULSE_SERVER`) the namespace doesn't cut off. `SCP_WINE_SOUND=1` turns sound on.
 - **Networking:** Wine runs in a user and network namespace (`unshare -n --map-current-user`) that has only a loopback interface, which is down.
 - **Display:** Xvfb (`:93`, or `SCP_WINE_DISPLAY`) runs inside the same namespace. Under WSLg `/tmp/.X11-unix` is read-only, so Xvfb listens only on an abstract socket, and a client in another network namespace can't reach that. So anything that talks to the display, such as XTest, screenshots or `wineserver`, runs through `exec`.
 - **Window position:** Xvfb has no window manager, and `CADET.EXE` puts its window partly off screen, so `start` moves it to 0,0. Don't use Wine's virtual desktop: inside it the window stays off screen and can't be moved.
