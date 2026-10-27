@@ -105,6 +105,23 @@ public:
 	// How wide the next ParagraphRow's paragraph and footer are at ImGui's item width
 	static float ParagraphWidth();
 
+	// A panel down the left of the window, as the guide and the stats are: its window, which takes the focus when
+	// asked to or when nothing has it, the panel and its title. Returns where the panel is; EndPanel closes it.
+	struct Panel
+	{
+		ImVec2 Min, Size;
+		float Padding;
+		ImDrawList* DrawList;
+	};
+	static Panel BeginPanel(const char* name, const char* title, bool takeFocus);
+	// The panel's rows, which scroll from y down to above the hints, at ImGui's item width; true when ImGui's Escape
+	// took the focus off the rows, for the panel to give it back. EndPanelRows closes them.
+	static bool BeginPanelRows(const Panel& panel, float y);
+	static void EndPanelRows();
+	// Whether Escape, the pad's right button or a right click asks the panel to go back
+	static bool PanelBack();
+	static void EndPanel(const Panel& panel, std::initializer_list<Hint> hints);
+
 	// -1 or 1 when left or right was pressed this frame while the last row has focus, else 0
 	static int RowStep();
 

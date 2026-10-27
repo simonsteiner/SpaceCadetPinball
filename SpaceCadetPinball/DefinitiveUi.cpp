@@ -650,3 +650,68 @@ void DefinitiveUi::DrawHints(ImDrawList* drawList, ImVec2 position, std::initial
 		x += size.x + 24 * scale;
 	}
 }
+
+DefinitiveUi::Panel DefinitiveUi::BeginPanel(const char* name, const char* title, bool takeFocus)
+{
+	auto viewport = ImGui::GetMainViewport();
+	auto scale = LayoutScale;
+	auto margin = 24 * scale;
+	Panel panel{ImVec2{viewport->Pos.x + margin, viewport->Pos.y + margin},
+				ImVec2{std::min(640 * scale, viewport->Size.x - margin * 2), viewport->Size.y - margin * 2}, 24 * scale,
+				nullptr};
+
+	ImGui::SetNextWindowPos(panel.Min);
+	ImGui::SetNextWindowSize(panel.Size);
+	if (takeFocus || (!ImGui::GetTopMostPopupModal() && !GImGui->NavWindow))
+		ImGui::SetNextWindowFocus();
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{});
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0, 2 * scale});
+	ImGui::PushStyleColor(ImGuiCol_NavCursor, 0U);
+	ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, 0U);
+	ImGui::Begin(name, nullptr,
+				 Combine(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoMove,
+						 ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoScrollWithMouse));
+	panel.DrawList = ImGui::GetWindowDrawList();
+	DefinitiveTheme::DrawPanel(panel.DrawList, panel.Min,
+							   ImVec2{panel.Min.x + panel.Size.x, panel.Min.y + panel.Size.y});
+	DrawText(panel.DrawList, DefinitiveTheme::HeadingFont(), DefinitiveTheme::TitleSize,
+			 ImVec2{panel.Min.x + panel.Padding, panel.Min.y + panel.Padding}, DefinitiveTheme::Chrome50, title,
+			 panel.Size.x - panel.Padding * 2);
+	return panel;
+}
+
+bool DefinitiveUi::BeginPanelRows(const Panel& panel, float y)
+{
+	auto scale = LayoutScale;
+	auto hintsHeight = 26 * scale + panel.Padding * 1.5f;
+	ImGui::SetCursorScreenPos(ImVec2{panel.Min.x + panel.Padding / 2, y});
+	ImGui::BeginChild("##rows", ImVec2{panel.Size.x - panel.Padding, panel.Min.y + panel.Size.y - hintsHeight - y},
+					  ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoBackground);
+	auto lost = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !GImGui->NavId;
+	ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - (ImGui::GetScrollMaxY() > 0 ? 12 * scale : 0));
+	return lost;
+}
+
+void DefinitiveUi::EndPanelRows()
+{
+	ImGui::PopItemWidth();
+	ImGui::EndChild();
+}
+
+bool DefinitiveUi::PanelBack()
+{
+	return ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
+		   (ImGui::IsKeyPressed(ImGuiKey_Escape, false) || ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) ||
+			ImGui::IsMouseClicked(ImGuiMouseButton_Right));
+}
+
+void DefinitiveUi::EndPanel(const Panel& panel, std::initializer_list<Hint> hints)
+{
+	DrawHints(panel.DrawList,
+			  ImVec2{panel.Min.x + panel.Padding, panel.Min.y + panel.Size.y - panel.Padding - 26 * LayoutScale},
+			  hints);
+	ImGui::End();
+	ImGui::PopStyleColor(2);
+	ImGui::PopStyleVar(3);
+}
