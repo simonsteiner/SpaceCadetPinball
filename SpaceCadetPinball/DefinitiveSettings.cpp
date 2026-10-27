@@ -299,9 +299,9 @@ void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunn
 		options::toggle(Menu1::WindowStackedLayout);
 	// For a cabinet's monitor on its side; a window taller than wide then puts the HUD under the table
 	Ui::NextRowNote(Text(Msg::Definitive_RotationNote));
-	auto rotation = Ui::ChoiceRow("rotation", Text(Msg::Definitive_Rotation),
-								  {"0\xC2\xB0", "90\xC2\xB0", "180\xC2\xB0", "270\xC2\xB0"}, options.Rotation);
-	if (rotation != options.Rotation && host.SetRotation)
+	if (auto rotation =
+			Ui::ChoiceRow("rotation", Text(Msg::Definitive_Rotation), {"0°", "90°", "180°", "270°"}, options.Rotation);
+		rotation != options.Rotation && host.SetRotation)
 		host.SetRotation(rotation);
 
 	auto rateChanged = false;
@@ -492,11 +492,11 @@ void DefinitiveSettings::RenderAccessibility()
 
 	auto& options = options::Options;
 	Ui::NextRowNote(Text(Msg::Definitive_TextSizeNote));
-	auto sizes = {100, 125, 150};
-	auto size = static_cast<int>(std::find(sizes.begin(), sizes.end(), options.TextSize.V) - sizes.begin());
-	auto chosenSize = Ui::ChoiceRow("textsize", Text(Msg::Definitive_TextSize), {"100%", "125%", "150%"}, size);
-	if (chosenSize != size)
-		options.TextSize = *(sizes.begin() + chosenSize);
+	constexpr std::array sizes{100, 125, 150};
+	auto size = static_cast<int>(std::ranges::find(sizes, options.TextSize.V) - sizes.begin());
+	if (auto chosenSize = Ui::ChoiceRow("textsize", Text(Msg::Definitive_TextSize), {"100%", "125%", "150%"}, size);
+		chosenSize != size)
+		options.TextSize = sizes[static_cast<size_t>(chosenSize)];
 
 	Ui::NextRowNote(Text(Msg::Definitive_HighContrastNote));
 	if (Ui::ToggleRow("contrast", Text(Msg::Definitive_HighContrast), options.HighContrastHud))
