@@ -3,6 +3,7 @@
 
 #include "DefinitiveGuide.h"
 #include "DefinitiveSettings.h"
+#include "DefinitiveStatsScreen.h"
 
 #include "DefinitiveHud.h"
 #include "DefinitiveTheme.h"
@@ -131,7 +132,7 @@ void DefinitiveFrontEnd::FollowGame(const TableView& view, bool playing)
 	}
 	// The demo plays behind the title and the screens it leads to, not behind a game that has just ended
 	auto title = Current == Screen::Title || Current == Screen::Records || Current == Screen::Credits ||
-				 (Current == Screen::Settings && SettingsFrom != Screen::Pause);
+				 Current == Screen::Stats || (Current == Screen::Settings && SettingsFrom != Screen::Pause);
 	if (title && view.GameOver && !busy && Host.StartDemo)
 		Host.StartDemo();
 }
@@ -169,6 +170,10 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 	case Screen::Credits:
 		RenderCredits();
 		break;
+	case Screen::Stats:
+		if (!DefinitiveStatsScreen::Render())
+			Open(Screen::Title);
+		break;
 	case Screen::Guide:
 		if (!DefinitiveGuide::Render(view))
 			Open(Screen::Pause);
@@ -185,6 +190,7 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 	case Screen::None:
 		break;
 	}
+	DefinitiveStatsScreen::RenderNotice();
 }
 
 float DefinitiveFrontEnd::BeginColumn(const char* name, float width)
@@ -244,7 +250,7 @@ bool DefinitiveFrontEnd::BackPressed()
 void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 {
 	auto viewport = ImGui::GetMainViewport();
-	auto rows = Host.Quit ? 7 : 6;
+	auto rows = Host.Quit ? 8 : 7;
 	// Margins, the name, the year, the rows and the hints, shrunk to fit a small window
 	auto needed = 56 + 60 + 14 + 40 + 48 + rows * (Ui::RowHeight() + 2) + 24 + 26 + 24;
 	Ui::SetScale(std::min(Ui::Scale(), viewport->Size.y / needed));
@@ -323,6 +329,11 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 		ShowSettings(true);
 	if (Ui::MenuRow("records", Text(Msg::HIGHSCORES_Caption)))
 		Open(Screen::Records);
+	if (Ui::MenuRow("stats", Text(Msg::Definitive_Stats)))
+	{
+		Open(Screen::Stats);
+		DefinitiveStatsScreen::Open();
+	}
 	if (Ui::MenuRow("credits", Text(Msg::Definitive_Credits)))
 		Open(Screen::Credits);
 	if (Host.Quit && Ui::MenuRow("quit", Text(Msg::Menu1_Exit)))

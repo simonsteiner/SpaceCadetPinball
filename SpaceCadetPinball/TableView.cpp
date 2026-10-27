@@ -21,6 +21,10 @@ namespace
 	std::vector<TLight*> TableLights;
 	TLight* MissionLight = nullptr;
 	TLightGroup* RankCircle = nullptr;
+	TLightGroup* ProgressRing = nullptr;
+	// The info text box's message shown at the last update, and when it was to end
+	const TTextBoxMessage* InfoMessage = nullptr;
+	int InfoEnd = 0;
 
 	SDL_Rect SpriteRect(const render_sprite* sprite)
 	{
@@ -104,6 +108,9 @@ namespace
 		}
 		MissionLight = dynamic_cast<TLight*>(FindComponent("lite198"));
 		RankCircle = dynamic_cast<TLightGroup*>(FindComponent("middle_circle"));
+		ProgressRing = dynamic_cast<TLightGroup*>(FindComponent("outer_circle"));
+		InfoMessage = nullptr;
+		InfoEnd = 0;
 	}
 } // namespace
 
@@ -136,7 +143,7 @@ uint64_t TableView::Hash() const
 	hash.Add(InfoText);
 	hash.Add(MissionText);
 	for (auto value : {PlayerCount, CurrentPlayer, Scores[0], Scores[1], Scores[2], Scores[3], BallCount, MaxBallCount,
-					   Mission, Rank})
+					   Mission, Rank, RankProgress, InfoMessages, ExtraBalls})
 		hash.Add(value);
 	for (auto value : {GameOver, Demo, Tilted, FullTilt})
 		hash.Add(value);
@@ -199,15 +206,28 @@ void TableView::Fill()
 	View.Tilted = Table->TiltLockFlag != 0;
 	View.FullTilt = pb::FullTiltMode;
 	View.Mission = MissionLight ? MissionLight->MessageField : -1;
-	View.Rank = 0;
-	if (RankCircle)
+	auto litCount = [](const TLightGroup* group)
 	{
-		for (auto light : RankCircle->List)
+		auto count = 0;
+		if (group)
 		{
-			if (light->LightOnFlag)
-				View.Rank++;
+			for (auto light : group->List)
+			{
+				if (light->LightOnFlag)
+					count++;
+			}
 		}
-	}
+		return count;
+	};
+	View.Rank = litCount(RankCircle);
+	View.RankProgress = litCount(ProgressRing);
+	// A new message, or the one shown refreshed, which TTextBox::Display does when it is shown again
+	auto info = pb::InfoTextBox ? pb::InfoTextBox->CurrentMessage : nullptr;
+	if (info && (info != InfoMessage || info->EndTicks != InfoEnd))
+		View.InfoMessages++;
+	InfoMessage = info;
+	InfoEnd = info ? info->EndTicks : 0;
+	View.ExtraBalls = Table->ExtraBalls;
 }
 
 void TableView::Clear()
@@ -217,4 +237,7 @@ void TableView::Clear()
 	TableLights.clear();
 	MissionLight = nullptr;
 	RankCircle = nullptr;
+	ProgressRing = nullptr;
+	InfoMessage = nullptr;
+	InfoEnd = 0;
 }

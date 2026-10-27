@@ -115,6 +115,7 @@ private:
 		GameOver,
 		NameEntry,
 		Guide,
+		Stats,
 	};
 
 	static DefinitiveHost Host;

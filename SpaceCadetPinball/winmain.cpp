@@ -24,6 +24,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 
 #include "control.h"
 #include "DefinitiveEdition.h"
+#include "DefinitiveStats.h"
 #include "DefinitiveFrontEnd.h"
 #include "DefinitiveText.h"
 #include "DefinitiveTheme.h"
@@ -658,6 +659,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		Sound::Close();
 		pb::uninit();
 		DefinitiveEdition::Reset();
+		DefinitiveStats::Reset();
 
 		ImGui_ImplSDLRenderer3_Shutdown();
 		ImGui_ImplSDL3_Shutdown();
@@ -894,6 +896,8 @@ void winmain::MainLoop()
 void winmain::TableFrame(float dtMilliSec)
 {
 	pb::frame(dtMilliSec);
+	// Stats count the game in either edition, so switching during a game loses nothing
+	DefinitiveStats::Update(TableView::Get());
 	if (options::GetEdition() == Editions::Definitive)
 		DefinitiveEdition::Update(TableView::Get());
 }

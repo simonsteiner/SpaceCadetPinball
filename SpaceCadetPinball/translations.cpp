@@ -6615,6 +6615,294 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_Stats,
+		{
+			{ Lang::English, "Stats" },
+		}
+	},
+	{
+		Msg::Definitive_Achievements,
+		{
+			{ Lang::English, "Achievements" },
+		}
+	},
+	{
+		Msg::Definitive_StatsPlace,
+		{
+			{ Lang::English, "Kept on this computer, for this table only" },
+		}
+	},
+	{
+		Msg::Definitive_StatGames,
+		{
+			{ Lang::English, "Games played" },
+		}
+	},
+	{
+		Msg::Definitive_StatMissions,
+		{
+			{ Lang::English, "Missions finished" },
+		}
+	},
+	{
+		Msg::Definitive_StatBestRank,
+		{
+			{ Lang::English, "Highest rank" },
+		}
+	},
+	{
+		Msg::Definitive_StatBallsSaved,
+		{
+			{ Lang::English, "Balls saved" },
+		}
+	},
+	{
+		Msg::Definitive_StatExtraBalls,
+		{
+			{ Lang::English, "Extra balls earned" },
+		}
+	},
+	{
+		Msg::Definitive_StatMultiballs,
+		{
+			{ Lang::English, "Multiballs" },
+		}
+	},
+	{
+		Msg::Definitive_StatBestScore,
+		{
+			{ Lang::English, "Best score" },
+		}
+	},
+	{
+		Msg::Definitive_StatEachMission,
+		{
+			{ Lang::English, "Missions finished, one by one" },
+		}
+	},
+	{
+		Msg::Definitive_Locked,
+		{
+			{ Lang::English, "Locked" },
+		}
+	},
+	{
+		Msg::Definitive_Unlocked,
+		{
+			{ Lang::English, "Unlocked %s" },
+		}
+	},
+	{
+		Msg::Definitive_AchievementUnlocked,
+		{
+			{ Lang::English, "Achievement unlocked" },
+		}
+	},
+	{
+		Msg::Definitive_ClearStats,
+		{
+			{ Lang::English, "Clear stats and achievements" },
+		}
+	},
+	{
+		Msg::Definitive_ClearStatsConfirm,
+		{
+			{ Lang::English, "Clear this table's stats and achievements?" },
+		}
+	},
+	{
+		Msg::Definitive_AchFirstGame,
+		{
+			{ Lang::English, "Lift-off" },
+		}
+	},
+	{
+		Msg::Definitive_AchFirstGameText,
+		{
+			{ Lang::English, "Play a game to the end" },
+		}
+	},
+	{
+		Msg::Definitive_AchFirstMission,
+		{
+			{ Lang::English, "Mission accomplished" },
+		}
+	},
+	{
+		Msg::Definitive_AchFirstMissionText,
+		{
+			{ Lang::English, "Finish a mission" },
+		}
+	},
+	{
+		Msg::Definitive_AchFiveMissions,
+		{
+			{ Lang::English, "Busy shift" },
+		}
+	},
+	{
+		Msg::Definitive_AchFiveMissionsText,
+		{
+			{ Lang::English, "Finish five missions in one game" },
+		}
+	},
+	{
+		Msg::Definitive_AchEveryMission,
+		{
+			{ Lang::English, "Seen it all" },
+		}
+	},
+	{
+		Msg::Definitive_AchEveryMissionText,
+		{
+			{ Lang::English, "Finish each of the 17 missions at least once" },
+		}
+	},
+	{
+		Msg::Definitive_AchEnsign,
+		{
+			{ Lang::English, "Promoted" },
+		}
+	},
+	{
+		Msg::Definitive_AchEnsignText,
+		{
+			{ Lang::English, "Reach the rank of Ensign" },
+		}
+	},
+	{
+		Msg::Definitive_AchCaptain,
+		{
+			{ Lang::English, "Captain on the bridge" },
+		}
+	},
+	{
+		Msg::Definitive_AchCaptainText,
+		{
+			{ Lang::English, "Reach the rank of Captain" },
+		}
+	},
+	{
+		Msg::Definitive_AchCommodore,
+		{
+			{ Lang::English, "Flag officer" },
+		}
+	},
+	{
+		Msg::Definitive_AchCommodoreText,
+		{
+			{ Lang::English, "Reach the rank of Commodore" },
+		}
+	},
+	{
+		Msg::Definitive_AchFleetAdmiral,
+		{
+			{ Lang::English, "Fleet Admiral" },
+		}
+	},
+	{
+		Msg::Definitive_AchFleetAdmiralText,
+		{
+			{ Lang::English, "Reach the highest rank, Fleet Admiral" },
+		}
+	},
+	{
+		Msg::Definitive_AchBallSaved,
+		{
+			{ Lang::English, "Second chance" },
+		}
+	},
+	{
+		Msg::Definitive_AchBallSavedText,
+		{
+			{ Lang::English, "Have a drained ball sent back into play" },
+		}
+	},
+	{
+		Msg::Definitive_AchExtraBall,
+		{
+			{ Lang::English, "Shoot again" },
+		}
+	},
+	{
+		Msg::Definitive_AchExtraBallText,
+		{
+			{ Lang::English, "Earn an extra ball" },
+		}
+	},
+	{
+		Msg::Definitive_AchMultiball,
+		{
+			{ Lang::English, "Multiball" },
+		}
+	},
+	{
+		Msg::Definitive_AchMultiballText,
+		{
+			{ Lang::English, "Have two balls in play at once" },
+		}
+	},
+	{
+		Msg::Definitive_AchMillion,
+		{
+			{ Lang::English, "Millionaire" },
+		}
+	},
+	{
+		Msg::Definitive_AchMillionText,
+		{
+			{ Lang::English, "Score 1,000,000 points in one game" },
+		}
+	},
+	{
+		Msg::Definitive_AchTenMillion,
+		{
+			{ Lang::English, "Ten million" },
+		}
+	},
+	{
+		Msg::Definitive_AchTenMillionText,
+		{
+			{ Lang::English, "Score 10,000,000 points in one game" },
+		}
+	},
+	{
+		Msg::Definitive_AchHundredMillion,
+		{
+			{ Lang::English, "Hundred million" },
+		}
+	},
+	{
+		Msg::Definitive_AchHundredMillionText,
+		{
+			{ Lang::English, "Score 100,000,000 points in one game" },
+		}
+	},
+	{
+		Msg::Definitive_AchSteadyHands,
+		{
+			{ Lang::English, "Steady hands" },
+		}
+	},
+	{
+		Msg::Definitive_AchSteadyHandsText,
+		{
+			{ Lang::English, "Play a game to the end without tilting" },
+		}
+	},
+	{
+		Msg::Definitive_AchRegular,
+		{
+			{ Lang::English, "Regular" },
+		}
+	},
+	{
+		Msg::Definitive_AchRegularText,
+		{
+			{ Lang::English, "Play 25 games to the end" },
+		}
+	},
+	{
 		Msg::Definitive_SoundVolume,
 		{
 			{ Lang::English, "Sound volume" },

@@ -246,6 +246,10 @@ set(SOURCE_FILES
         SpaceCadetPinball/DefinitiveScene.h
         SpaceCadetPinball/DefinitiveSettings.cpp
         SpaceCadetPinball/DefinitiveSettings.h
+        SpaceCadetPinball/DefinitiveStats.cpp
+        SpaceCadetPinball/DefinitiveStats.h
+        SpaceCadetPinball/DefinitiveStatsScreen.cpp
+        SpaceCadetPinball/DefinitiveStatsScreen.h
         SpaceCadetPinball/DefinitiveText.cpp
         SpaceCadetPinball/DefinitiveText.h
         SpaceCadetPinball/DefinitiveTheme.cpp
