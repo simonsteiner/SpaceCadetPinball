@@ -43,10 +43,16 @@ struct DefinitiveHost
 	void (*SetPostProcessing)(int effect);
 	// Why post-processing can't show here, or null
 	const char* (*PostProcessingUnavailable)();
+	// Why the lighting, glow and shaded ball can't show here, or null
+	const char* (*EffectsUnavailable)();
 	void (*SetUpscaleFactor)(int factor);
 	void (*SetSoundVolume)(int volume);
 	void (*SetSoundChannels)(int channels);
 	void (*SetMusicVolume)(int volume);
+	// The sound packs found, by name, and the one to use, empty for none; null where there are none to find, as in a
+	// browser
+	std::vector<std::string> (*SoundPacks)();
+	void (*SetSoundPack)(const std::string& name);
 	void (*FrameRateChanged)();
 	void (*PreciseSleepChanged)();
 	// Restarts the game in another language, as the Classic menu does
@@ -66,8 +72,54 @@ struct DefinitiveHost
 	bool (*ChosenFolderEmpty)();
 	// The folder the game data was loaded from
 	std::string (*DataFolder)();
-	// Where the table and its score panel are drawn, in window coordinates; the panel is empty when the table has none
-	void (*Layout)(SDL_FRect& board, SDL_FRect& panel);
+	// Turns the picture by quarter turns clockwise, for a monitor on its side, and lays the table out for it
+	void (*SetRotation)(int quarterTurns);
+	// Recordings, from the recordings folder; null where there is none, as in a browser
+	struct Recording
+	{
+		std::string Name;
+		std::string Path;
+		// Milliseconds of play, and the games started in it
+		float Length;
+		int Games;
+		// Recorded with the game data loaded now
+		bool Playable;
+	};
+	std::vector<Recording> (*Recordings)();
+	void (*DeleteRecording)(const std::string& path);
+	// Restarts the game into a recording, which plays in the window
+	void (*ViewRecording)(const std::string& path);
+
+	// The recording that plays: whether one does, and where it is
+	struct Viewer
+	{
+		unsigned Frame;
+		unsigned Frames;
+		// Milliseconds of the recording, played and in all
+		float Time;
+		float Length;
+		// When games start, in milliseconds of the recording, for marks on the timeline
+		std::vector<float> Games;
+		bool Paused;
+		bool Ended;
+		// It played differently from how it was recorded, and stopped there
+		bool Failed;
+		float Speed;
+	};
+	bool (*Viewing)();
+	Viewer (*ViewerState)();
+	// Seeking back starts the recording again and runs it to the frame, which takes a moment
+	void (*ViewerSeek)(unsigned frame);
+	// The frame that plays at a time of the recording, in milliseconds
+	unsigned (*ViewerFrameAt)(float time);
+	void (*ViewerPause)(bool paused);
+	void (*ViewerSpeed)(float speed);
+	// Back to the title, which restarts the game
+	void (*StopViewing)();
+
+	// Where the table and its score panel are drawn, in window coordinates; the panel is empty when the table has none.
+	// band is set in a window taller than wide, where the panel is the band under the table, as wide as the window.
+	void (*Layout)(SDL_FRect& board, SDL_FRect& panel, bool& band);
 };
 
 // Space Cadet 2026's front end: the title with the main menu and the screens it leads to. It takes the place of
@@ -84,6 +136,8 @@ public:
 	static void ShowSettings(bool controls = false);
 	// The pause screen, which pauses the game in play; it comes back on its own while the game is paused
 	static void ShowPause();
+	// The bar of a recording that plays, which stays until the player goes back to the title
+	static void ShowViewer();
 	// The first-run screen when no game data was found: where it looked and a way to choose the folder; the game
 	// runs it in place of the table until a folder is chosen or the player quits
 	static void RenderMissingData(const std::vector<std::string>& looked, bool chosenFolderFailed);
@@ -110,6 +164,9 @@ private:
 		GameOver,
 		NameEntry,
 		Guide,
+		Stats,
+		Recordings,
+		Viewer,
 	};
 
 	static DefinitiveHost Host;

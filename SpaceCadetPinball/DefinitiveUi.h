@@ -46,9 +46,13 @@ public:
 
 	// Once a frame, before any screen draws
 	static void NewFrame();
-	// Sizes are given for a window 720 pixels high and multiplied by this: the window's height over 720, times the UI
-	// Scale option, within limits
+	// Sizes are given for a window 720 pixels high and multiplied by this: the window's height over 720, or its width
+	// where that is smaller, times the UI Scale option, within limits
 	static float Scale();
+	// The scale text is drawn at: Scale() times the Text Size option, for laying out lines of text
+	static float TextScale();
+	// A menu row's height at scale 1, which grows with the Text Size option
+	static float RowHeight();
 	static void SetScale(float scale);
 	static Device LastDevice();
 
@@ -57,7 +61,8 @@ public:
 	// A translated text with its %s replaced by value, without handing the translation to printf as a format
 	static std::string Fill(const char* text, std::string_view value);
 
-	// A font size for ImGui::PushFont that comes out at size * Scale() pixels, whatever ImGui's own scaling is
+	// The text functions below draw at TextScale(), so the Text Size option enlarges text without the layout
+	// A font size for ImGui::PushFont that comes out at size * TextScale() pixels, whatever ImGui's own scaling is
 	static float FontSize(float size);
 	static ImVec2 TextSize(ImFont* font, float size, const char* text);
 	// Text in the order it is drawn in (DefinitiveText), right-aligned in width for right-to-left languages
@@ -100,6 +105,23 @@ public:
 	// How wide the next ParagraphRow's paragraph and footer are at ImGui's item width
 	static float ParagraphWidth();
 
+	// A panel down the left of the window, as the guide and the stats are: its window, which takes the focus when
+	// asked to or when nothing has it, the panel and its title. Returns where the panel is; EndPanel closes it.
+	struct Panel
+	{
+		ImVec2 Min, Size;
+		float Padding;
+		ImDrawList* DrawList;
+	};
+	static Panel BeginPanel(const char* name, const char* title, bool takeFocus);
+	// The panel's rows, which scroll from y down to above the hints, at ImGui's item width; true when ImGui's Escape
+	// took the focus off the rows, for the panel to give it back. EndPanelRows closes them.
+	static bool BeginPanelRows(const Panel& panel, float y);
+	static void EndPanelRows();
+	// Whether Escape, the pad's right button or a right click asks the panel to go back
+	static bool PanelBack();
+	static void EndPanel(const Panel& panel, std::initializer_list<Hint> hints);
+
 	// -1 or 1 when left or right was pressed this frame while the last row has focus, else 0
 	static int RowStep();
 
@@ -120,6 +142,7 @@ private:
 	static constexpr float ParagraphPadding = 16;
 	static constexpr float ParagraphTextX = ParagraphPadding * 2 + 12;
 	static float LayoutScale;
+	static float TextFactor;
 	static Device Last;
 	static ImRect Row;
 	static ImVec2 Footer;

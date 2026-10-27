@@ -24,6 +24,8 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 
 #include "control.h"
 #include "DefinitiveEdition.h"
+#include "DefinitiveStats.h"
+#include "RecordingViewer.h"
 #include "DefinitiveFrontEnd.h"
 #include "DefinitiveText.h"
 #include "DefinitiveTheme.h"
@@ -34,6 +36,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "options.h"
 #include "pb.h"
 #include "PostEffect.h"
+#include "Compositor.h"
 #include "Upscale.h"
 #include "render.h"
 #include "replay.h"
@@ -185,6 +188,9 @@ static void SDLCALL FolderChosen(void* userData, const char* const* files, int f
 
 // Whether a folder was chosen since the last call that has game data; it becomes the Game Data Folder. A folder
 // without data leaves the saved one as it was and sets ChosenFolderEmpty.
+// The Screen Rotation chosen in Settings, until the next frame takes it; -1 for none
+static int PendingRotation = -1;
+
 static bool TakeChosenFolder()
 {
 	std::string folder;
@@ -256,6 +262,7 @@ static DefinitiveHost MakeDefinitiveHost()
 	host.Version = winmain::Version;
 	host.SetPostProcessing = [](int effect) { winmain::SetPostProcessing(static_cast<PostEffects>(effect)); };
 	host.PostProcessingUnavailable = winmain::PostProcessingUnavailable;
+	host.EffectsUnavailable = winmain::EffectsUnavailable;
 	host.SetUpscaleFactor = [](int factor)
 	{
 		options::Options.UpscaleFactor = factor;
@@ -309,7 +316,58 @@ static DefinitiveHost MakeDefinitiveHost()
 	host.ChosenFolderEmpty = [] { return ChosenFolderEmpty; };
 	host.DataFolder = []
 	{ return pb::BasePath.empty() ? std::string{pb::get_rc_string(Msg::Definitive_DataStartFolder)} : pb::BasePath; };
-	host.Layout = [](SDL_FRect& board, SDL_FRect& panel)
+	// Taken at the start of the next frame, so ImGui lays out that whole frame for the new turn
+	host.SetRotation = [](int quarterTurns) { PendingRotation = quarterTurns; };
+#ifndef __EMSCRIPTEN__
+	host.SoundPacks = [] { return Sound::Packs(); };
+	host.SetSoundPack = [](const std::string& name)
+	{
+		options::Options.SoundPack.V = name;
+		Sound::SetPack(name);
+	};
+#endif
+#ifndef __EMSCRIPTEN__
+	host.Recordings = []
+	{
+		std::vector<DefinitiveHost::Recording> recordings;
+		for (const auto& recording : RecordingViewer::List())
+			recordings.push_back({recording.Name, recording.Path, recording.Summary.Length,
+								  static_cast<int>(recording.Summary.Games.size()), recording.Playable});
+		return recordings;
+	};
+	host.DeleteRecording = [](const std::string& path) { RecordingViewer::Delete(path); };
+	host.ViewRecording = [](const std::string& path) { RecordingViewer::Request(path); };
+#endif
+	host.Viewing = [] { return replay::IsViewing(); };
+	host.ViewerState = []
+	{
+		const auto& summary = replay::Viewed();
+		auto frame = replay::Frame();
+		auto frames = static_cast<unsigned>(summary.FrameStarts.size());
+		std::vector<float> games;
+		games.reserve(summary.Games.size());
+		for (auto game : summary.Games)
+			games.push_back(game < frames ? summary.FrameStarts[game] : summary.Length);
+		return DefinitiveHost::Viewer{frame,
+									  frames,
+									  frame < frames ? summary.FrameStarts[frame] : summary.Length,
+									  summary.Length,
+									  games,
+									  RecordingViewer::Paused(),
+									  RecordingViewer::Ended(),
+									  replay::PlaybackFailed(),
+									  RecordingViewer::Speed()};
+	};
+	host.ViewerSeek = [](unsigned frame) { RecordingViewer::Seek(frame); };
+	host.ViewerFrameAt = [](float time)
+	{
+		const auto& starts = replay::Viewed().FrameStarts;
+		return static_cast<unsigned>(std::upper_bound(starts.begin(), starts.end(), time) - starts.begin()) - 1;
+	};
+	host.ViewerPause = [](bool paused) { RecordingViewer::SetPaused(paused); };
+	host.ViewerSpeed = [](float speed) { RecordingViewer::SetSpeed(speed); };
+	host.StopViewing = [] { RecordingViewer::Stop(); };
+	host.Layout = [](SDL_FRect& board, SDL_FRect& panel, bool& band)
 	{
 		// The layout is in pixels, ImGui in window coordinates
 		auto fbScale = ImGui::GetIO().DisplayFramebufferScale;
@@ -320,6 +378,7 @@ static DefinitiveHost MakeDefinitiveHost()
 		};
 		board = convert(render::BoardRect);
 		panel = convert(render::SidebarRect);
+		band = fullscrn::Portrait;
 	};
 	return host;
 }
@@ -437,6 +496,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	do
 	{
 		restart = false;
+		// Space Cadet 2026's Recordings play a recording in the window, from a fresh start of the table
+		RecordingViewer::Begin();
 
 		// ImGui init
 		IMGUI_CHECKVERSION();
@@ -470,6 +531,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		// drawn plain
 		PostEffect::Init(Renderer);
 		PostEffect::SetEffect(static_cast<PostEffects>(Options.PostProcessing.V));
+		Compositor::Init(Renderer);
 
 		if (!Options.FontFileName.V.empty())
 		{
@@ -526,6 +588,13 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		// Second step: run updates that depend on .DAT file selection
 		options::InitSecondary();
 
+		if (replay::IsViewing() && !replay::CheckDatFile())
+		{
+			replay::Stop();
+			RecordingViewer::Forget();
+			// A normal start, which saves as one does
+			io.IniFilename = iniPath.c_str();
+		}
 		if (replay::IsPlaying())
 		{
 			if (!replay::CheckDatFile())
@@ -538,10 +607,15 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			if (!replay::StartRecording(recordPath))
 				return 1;
 		}
+		else
+			RecordingViewer::StartSessionRecording();
 		if (replay::IsRecording() || replay::IsPlaying())
 			srand(replay::Seed());
 
 		Sound::Init(mixer, Options.SoundChannels, Options.Sounds, Options.SoundVolume);
+#ifndef __EMSCRIPTEN__
+		Sound::SetPack(Options.SoundPack.V);
+#endif
 		if (!mixOpened)
 			Options.Sounds = false;
 
@@ -557,7 +631,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			if (options::GetEdition() == Editions::Definitive && !replay::IsPlaying())
 			{
 				// The recording has no table to name; the run with the folder chosen writes it again from the start
-				replay::Stop();
+				RecordingViewer::EndSessionRecording();
 				auto chosen = FindGameData(searchPaths);
 				options::uninit();
 				midi::music_shutdown();
@@ -599,10 +673,12 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 #ifndef __EMSCRIPTEN__
 		// Also in full screen, where it sets the size the window returns to.
 		// Only the first open centres it, so a restart keeps where the player put the window.
-		fullscrn::ResetWindowSize(firstOpen);
+		// Not into or out of a recording, which restarts the game only to load the table afresh
+		if (!RecordingViewer::TakeRestarted())
+			fullscrn::ResetWindowSize(firstOpen);
 		firstOpen = false;
 #endif
-		if (replay::IsPlaying())
+		if (replay::IsPlaying() && !replay::IsViewing())
 		{
 			// The recording holds the command that started the game
 			while (replay::PlayStep())
@@ -621,8 +697,13 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			fullscrn::set_screen_mode(Options.FullScreen);
 
 			// Space Cadet 2026 opens on its title, with the demo behind it. Not toggle_demo: after a restart its flag
-			// still says the demo of the run before is on.
-			if (options::GetEdition() == Editions::Definitive)
+			// still says the demo of the run before is on. A recording being viewed starts the way it was recorded.
+			if (replay::IsViewing())
+			{
+				RecordingViewer::Prepare();
+				DefinitiveFrontEnd::ShowViewer();
+			}
+			else if (options::GetEdition() == Editions::Definitive)
 			{
 				pb::replay_level(true);
 				DefinitiveFrontEnd::ShowTitle();
@@ -641,7 +722,10 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 #endif
 		}
 		auto played = replay::IsPlaying();
-		replay::Stop();
+		// A recording's games end in its own high scores, which the player's table doesn't take
+		if (replay::IsViewing())
+			high_score::ClearQueue();
+		RecordingViewer::EndSessionRecording();
 
 		if (!played)
 			options::uninit();
@@ -649,6 +733,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		Sound::Close();
 		pb::uninit();
 		DefinitiveEdition::Reset();
+		DefinitiveStats::Reset();
 
 		ImGui_ImplSDLRenderer3_Shutdown();
 		ImGui_ImplSDL3_Shutdown();
@@ -663,7 +748,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		MIX_Quit();
 	}
 
+	Compositor::Uninit();
 	PostEffect::Uninit();
+	fullscrn::ReleaseFrame();
 	SDL_DestroyRenderer(Renderer);
 	SDL_DestroyWindow(window);
 	SDL_Quit();
@@ -737,7 +824,10 @@ void winmain::MainLoop()
 				last_mouse_y = y;
 			}
 			auto ballAlpha = 1.0f;
-			if (!single_step && !no_time_loss)
+			// A recording plays at its own pace, and nothing else moves the table
+			if (replay::IsViewing())
+				RecordingViewer::Advance(static_cast<double>(frameDuration.count()));
+			else if (!single_step && !no_time_loss)
 			{
 				// Normally one update per loop. With more frames than updates per second, the loop runs at the frame
 				// rate and the table still advances in steps of 1000/UPS ms, so the physics see the same time steps.
@@ -778,19 +868,36 @@ void winmain::MainLoop()
 			{
 				if (Options.HideCursor && CursorIdleCounter <= 0)
 					ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+				if (PendingRotation >= 0)
+				{
+					Options.Rotation = PendingRotation;
+					PendingRotation = -1;
+					fullscrn::window_size_changed();
+				}
 				ImGui_ImplSDLRenderer3_NewFrame();
 				ImGui_ImplSDL3_NewFrame();
+				// ImGui lays out the picture, which a quarter turn makes taller than the window or wider. The backend
+				// gives it the pointer's position unturned while the pointer is outside the window, so it is put
+				// outside the picture instead.
+				if (fullscrn::Rotation())
+				{
+					if (fullscrn::Rotation() % 2)
+						std::swap(ImIO->DisplaySize.x, ImIO->DisplaySize.y);
+					if (!SDL_GetMouseFocus())
+						ImIO->AddMousePosEvent(-FLT_MAX, -FLT_MAX);
+				}
 				ApplyEditionLook();
 				ImGui::NewFrame();
 				RenderUi();
 
+				fullscrn::BeginFrame();
 				SDL_RenderClear(Renderer);
 				// Alternative clear hack, clear might fail on some systems
 				// Todo: remove original clear, if save for all platforms
 				SDL_RenderFillRect(Renderer, nullptr);
 				if (HighRefresh && ballAlpha < 1.0f)
 					render::InterpolateBalls(ballAlpha);
-				render::PresentVScreen();
+				render::PresentVScreen(HighRefresh ? ballAlpha : 1.0f);
 				render::RestoreBalls();
 
 				ImGui::Render();
@@ -800,6 +907,7 @@ void winmain::MainLoop()
 				SDL_SetRenderScale(Renderer, fbScale.x, fbScale.y);
 				ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), Renderer);
 				SDL_SetRenderScale(Renderer, 1.0f, 1.0f);
+				fullscrn::EndFrame();
 
 				SDL_RenderPresent(Renderer);
 				frameCounter++;
@@ -878,6 +986,8 @@ void winmain::MainLoop()
 void winmain::TableFrame(float dtMilliSec)
 {
 	pb::frame(dtMilliSec);
+	// Stats count the game in either edition, so switching during a game loses nothing
+	DefinitiveStats::Update(TableView::Get());
 	if (options::GetEdition() == Editions::Definitive)
 		DefinitiveEdition::Update(TableView::Get());
 }
@@ -905,6 +1015,9 @@ void winmain::RenderUi()
 {
 	// Space Cadet 2026's screens take the menu bar's place
 	auto definitive = options::GetEdition() == Editions::Definitive;
+	// And its sound, which Classic never has
+	Sound::SetEffects(definitive && Options.RoomReverb, definitive && Options.WideStereo && Options.SoundStereo,
+					  definitive);
 	if (definitive)
 		DefinitiveFrontEnd::Render(TableView::Get());
 
@@ -1468,7 +1581,12 @@ int winmain::event_handler(const SDL_Event* event)
 	default: break;
 	}
 	if ((!options::WaitingForInput() || !inputDown) && !shortcut)
-		ImGui_ImplSDL3_ProcessEvent(event);
+	{
+		// ImGui lays out the picture, which Space Cadet 2026 may turn for a monitor on its side
+		auto turned = *event;
+		fullscrn::TurnPointerEvent(turned);
+		ImGui_ImplSDL3_ProcessEvent(&turned);
+	}
 
 	bool mouseEvent;
 	switch (event->type)
@@ -1505,6 +1623,27 @@ int winmain::event_handler(const SDL_Event* event)
 		case SDL_EVENT_GAMEPAD_BUTTON_UP:
 			return 1;
 		default: ;
+		}
+	}
+
+	// While a recording plays, only its own commands reach the table; Space Cadet 2026's viewer has the keys
+	if (replay::IsViewing())
+	{
+		switch (event->type)
+		{
+		case SDL_EVENT_KEY_DOWN:
+		case SDL_EVENT_KEY_UP:
+		case SDL_EVENT_MOUSE_BUTTON_DOWN:
+		case SDL_EVENT_MOUSE_BUTTON_UP:
+		case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
+		case SDL_EVENT_GAMEPAD_BUTTON_UP:
+		case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+		case SDL_EVENT_FINGER_DOWN:
+		case SDL_EVENT_FINGER_UP:
+		case SDL_EVENT_FINGER_CANCELED:
+			return 1;
+		default:
+			break;
 		}
 	}
 
@@ -1633,7 +1772,8 @@ int winmain::event_handler(const SDL_Event* event)
 		Sound::Deactivate();
 		midi::music_stop();
 		has_focus = false;
-		pb::loose_focus();
+		if (!replay::IsViewing())
+			pb::loose_focus();
 		break;
 	case SDL_EVENT_WINDOW_DISPLAY_CHANGED:
 	case SDL_EVENT_DISPLAY_CURRENT_MODE_CHANGED:
@@ -1740,9 +1880,12 @@ void winmain::TouchInput(const SDL_TouchFingerEvent& event)
 	if (ImIO->WantCaptureMouse)
 		return;
 
+	// Where the finger is in the picture, which Space Cadet 2026 may turn for a monitor on its side
 	int width, height;
-	SDL_GetRenderOutputSize(Renderer, &width, &height);
-	SDL_Point point{static_cast<int>(event.x * width), static_cast<int>(event.y * height)};
+	fullscrn::OutputSize(width, height);
+	auto position = fullscrn::ToPicture({event.x, event.y});
+	SDL_Point point{static_cast<int>(position.x * static_cast<float>(width)),
+					static_cast<int>(position.y * static_cast<float>(height))};
 	// Only the table and the panel bind, not the menu bar or the margins: the ImGui capture flag is last frame's
 	auto& board = render::BoardRect;
 	GameBindings binding;
@@ -1826,7 +1969,9 @@ void winmain::RenderEditionHint()
 bool winmain::CreateRenderer(bool gpu)
 {
 	// The GPU renderer, for post-processing; otherwise the default, falling back to the software renderer
+	Compositor::Uninit();
 	PostEffect::Uninit();
+	fullscrn::ReleaseFrame();
 	if (Renderer)
 		SDL_DestroyRenderer(Renderer);
 	Renderer = nullptr;
@@ -1925,6 +2070,14 @@ const char* winmain::PostProcessingUnavailable()
 		return pb::get_rc_string(Msg::Definitive_NoGpu);
 	return nullptr;
 #endif
+}
+
+const char* winmain::EffectsUnavailable()
+{
+	// Where post-processing can't show, the compositor can't either; it can also fail on its own, with its shaders
+	if (auto reason = PostProcessingUnavailable())
+		return reason;
+	return Compositor::Available() ? nullptr : pb::get_rc_string(Msg::Definitive_EffectsFailed);
 }
 
 void winmain::ResetPreciseSleep()

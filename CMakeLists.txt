@@ -129,6 +129,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/PeResource.h
         SpaceCadetPinball/PostEffect.cpp
         SpaceCadetPinball/PostEffect.h
+        SpaceCadetPinball/Compositor.cpp
+        SpaceCadetPinball/Compositor.h
         SpaceCadetPinball/shaders/PostEffectShaders.h
         SpaceCadetPinball/proj.cpp
         SpaceCadetPinball/proj.h
@@ -136,6 +138,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/render.h
         SpaceCadetPinball/replay.cpp
         SpaceCadetPinball/replay.h
+        SpaceCadetPinball/RecordingViewer.cpp
+        SpaceCadetPinball/RecordingViewer.h
         SpaceCadetPinball/Rumble.cpp
         SpaceCadetPinball/Rumble.h
         SpaceCadetPinball/Upscale.cpp
@@ -246,8 +250,16 @@ set(SOURCE_FILES
         SpaceCadetPinball/DefinitiveHud.cpp
         SpaceCadetPinball/DefinitiveHud.h
         SpaceCadetPinball/DefinitiveInGame.cpp
+        SpaceCadetPinball/DefinitiveScene.cpp
+        SpaceCadetPinball/DefinitiveScene.h
+        SpaceCadetPinball/DefinitiveRecordings.cpp
+        SpaceCadetPinball/DefinitiveRecordings.h
         SpaceCadetPinball/DefinitiveSettings.cpp
         SpaceCadetPinball/DefinitiveSettings.h
+        SpaceCadetPinball/DefinitiveStats.cpp
+        SpaceCadetPinball/DefinitiveStats.h
+        SpaceCadetPinball/DefinitiveStatsScreen.cpp
+        SpaceCadetPinball/DefinitiveStatsScreen.h
         SpaceCadetPinball/DefinitiveText.cpp
         SpaceCadetPinball/DefinitiveText.h
         SpaceCadetPinball/DefinitiveTheme.cpp

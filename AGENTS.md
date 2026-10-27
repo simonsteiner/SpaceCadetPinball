@@ -32,13 +32,14 @@ There are no automated tests of the game yet, only `tools/check-bidi.sh` for rig
 - **Open files with `fopenu`, not `fopen`.** It handles UTF-8 paths on Windows (`SpaceCadetPinball/pch.h`).
 - **Every game `.cpp` starts with `#include "pch.h"`.** It is the shared precompiled header; only vendored ImGui files and the generated `EmbeddedData.cpp` skip it.
 - **The game compiles without warnings.** CI builds with `SCP_WARNINGS=ON`, which treats warnings as errors with GCC, Clang and MSVC. Fix a new warning instead of silencing it; a variable used only in `assertm` gets `[[maybe_unused]]`, because Release builds drop the assert.
+- **Space Cadet 2026's compositor draws the balls itself.** While it runs (`Compositor`, on SDL's GPU renderer), `render::PresentVScreen` takes the ball sprites off the frame only for the upload and puts them straight back, so the software frame stays the one Classic shows after Tab. A new way of painting balls has to keep that pair in step; `DefinitiveScene` works out what the compositor draws, from the view and the player's options.
 - **Upscaled Art keeps a second, larger frame in step with the original one.** `render` composes both: every paint at 1x is repeated at `HiScale` with the art from `Upscale`, and the score panel, which text boxes and digits draw straight into the 1x frame, is magnified from there when it changes. A new way of drawing into the frame has to do the same, or it shows only with the toggle off.
 
 ### Build
 
 - **Source files are listed by hand in `CMakeLists.txt`.** Add each new `.cpp` and `.h` to `SOURCE_FILES`; there is no glob. Vendored ImGui is listed in `IMGUI_SOURCE_FILES` and builds as the separate `imgui` library, without the game's precompiled header and warnings.
 - **SDL comes from `SCP_VENDORED_SDL`.** `ON` (Windows, macOS, `mingw`, `linux-vendored`) fetches the SDL3 and SDL3_mixer versions pinned in `CMakeLists.txt` and links them statically. `OFF` (the Linux default) uses the system packages. Keep both paths working, because distribution packagers use the system one. CI builds the system path in a Debian testing container, because Ubuntu 24.04 has no SDL3 packages. To bump SDL, change the URL and the `URL_HASH` together.
-- **Post-processing shaders are compiled ahead of time.** `SpaceCadetPinball/shaders/*.frag.hlsl` become SPIR-V and DXIL, and the hand-written `*.frag.msl` are embedded as text, in the generated `PostEffectShaders.h`; run `tools/build-shaders.sh` after changing a shader (it fetches a pinned DXC). Keep each `.msl` in step with its `.hlsl`.
+- **Post-processing and compositor shaders are compiled ahead of time.** `SpaceCadetPinball/shaders/*.frag.hlsl` become SPIR-V and DXIL, and the hand-written `*.frag.msl` are embedded as text, in the generated `PostEffectShaders.h`; run `tools/build-shaders.sh` after changing a shader (it fetches a pinned DXC). Keep each `.msl` in step with its `.hlsl`.
 
 ### Git
 
