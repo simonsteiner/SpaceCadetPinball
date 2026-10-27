@@ -445,4 +445,6 @@ struct optionsStruct
 	StringOption SoundPack;
 	// Each start records the session into the recordings folder (RecordingViewer)
 	BoolOption RecordSessions;
+	// Whether the player has set Reduced Motion; until then the web build follows the browser's
+	BoolOption ReducedMotionChosen;
 };

@@ -315,12 +315,11 @@ void DefinitiveTheme::ApplyPaletteColors(ImGuiStyle& style)
 
 void DefinitiveTheme::SetPalette(int colourVision)
 {
-	if (colourVision == Palette)
-		return;
 	Palette = colourVision;
 	// Amber and blue from the Okabe-Ito set, told apart by people with any kind of red-green colour blindness
 	LedOrange = colourVision == 1 ? DefinitiveColor(0xFF, 0xB0, 0x00) : DefinitiveColor(0xFF, 0x8C, 0x1A);
 	LedRed = colourVision == 1 ? DefinitiveColor(0x4F, 0xA8, 0xFF) : DefinitiveColor(0xFF, 0x3B, 0x24);
+	// Every time, as winmain puts the style back from its copy when the edition or the display scale changes
 	ApplyPaletteColors(ImGui::GetStyle());
 }
 

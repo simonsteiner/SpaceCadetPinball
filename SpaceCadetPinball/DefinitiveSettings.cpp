@@ -17,6 +17,8 @@ bool DefinitiveSettings::BackChosen = false;
 bool DefinitiveSettings::FocusLanguage = false;
 int DefinitiveSettings::Slot = 0;
 GameInput* DefinitiveSettings::Waited = nullptr;
+std::vector<std::string> DefinitiveSettings::Packs{};
+bool DefinitiveSettings::PacksRead = false;
 
 namespace
 {
@@ -126,6 +128,9 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 	ImGui::BeginChild("##rows", ImVec2{size.x - padding, min.y + size.y - hintsHeight - rowsY},
 					  ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoBackground);
 	// ImGui's Escape takes the focus off the rows too; the screen gives it back to the first
+	// The sound packs are looked for again each time the screen or a tab opens, not every frame
+	if (opened || Current != previous)
+		PacksRead = false;
 	if (opened || Current != previous ||
 		(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !GImGui->NavId))
 	{
@@ -420,8 +425,13 @@ void DefinitiveSettings::RenderAudio(const DefinitiveHost& host)
 	// The packs found, after None; choosing the row or right steps on, left steps back
 	if (!host.SoundPacks || !host.SetSoundPack)
 		return;
-	auto packs = host.SoundPacks();
-	packs.insert(packs.begin(), std::string{});
+	if (!PacksRead)
+	{
+		Packs = host.SoundPacks();
+		Packs.insert(Packs.begin(), std::string{});
+		PacksRead = true;
+	}
+	const auto& packs = Packs;
 	auto current = std::find(packs.begin(), packs.end(), options.SoundPack.V) - packs.begin();
 	if (current == static_cast<long>(packs.size()))
 		current = 0;
@@ -475,10 +485,10 @@ void DefinitiveSettings::RenderControls()
 			auto label = isWaiting ? std::string{Text(Msg::Definitive_PressInput)} : Describe(input);
 			auto size = Ui::TextSize(Theme::TextFont(), Theme::LabelSize, label.c_str());
 			drawList->PushClipRect(slotMin, slotMax, true);
-			drawList->AddText(Theme::TextFont(), Theme::LabelSize * scale,
-							  ImVec2{std::max(slotMin.x + 4 * scale, (slotMin.x + slotMax.x - size.x) / 2),
-									 (slotMin.y + slotMax.y - size.y) / 2},
-							  isWaiting ? Theme::LedOrange : Theme::Chrome200, label.c_str());
+			Ui::DrawText(drawList, Theme::TextFont(), Theme::LabelSize,
+						 ImVec2{std::max(slotMin.x + 4 * scale, (slotMin.x + slotMax.x - size.x) / 2),
+								(slotMin.y + slotMax.y - size.y) / 2},
+						 isWaiting ? Theme::LedOrange : Theme::Chrome200, label.c_str());
 			drawList->PopClipRect();
 		}
 
@@ -537,5 +547,8 @@ void DefinitiveSettings::RenderAccessibility()
 
 	Ui::NextRowNote(Text(Msg::Definitive_ReducedMotionNote));
 	if (Ui::ToggleRow("motion", Text(Msg::Definitive_ReducedMotion), options::Options.ReducedMotion))
+	{
 		options::Options.ReducedMotion = !options::Options.ReducedMotion;
+		options::Options.ReducedMotionChosen = true;
+	}
 }

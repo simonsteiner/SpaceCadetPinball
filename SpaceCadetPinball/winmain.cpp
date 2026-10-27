@@ -188,6 +188,9 @@ static void SDLCALL FolderChosen(void* userData, const char* const* files, int f
 
 // Whether a folder was chosen since the last call that has game data; it becomes the Game Data Folder. A folder
 // without data leaves the saved one as it was and sets ChosenFolderEmpty.
+// The Screen Rotation chosen in Settings, until the next frame takes it; -1 for none
+static int PendingRotation = -1;
+
 static bool TakeChosenFolder()
 {
 	std::string folder;
@@ -313,11 +316,8 @@ static DefinitiveHost MakeDefinitiveHost()
 	host.ChosenFolderEmpty = [] { return ChosenFolderEmpty; };
 	host.DataFolder = []
 	{ return pb::BasePath.empty() ? std::string{pb::get_rc_string(Msg::Definitive_DataStartFolder)} : pb::BasePath; };
-	host.SetRotation = [](int quarterTurns)
-	{
-		options::Options.Rotation = quarterTurns;
-		fullscrn::window_size_changed();
-	};
+	// Taken at the start of the next frame, so ImGui lays out that whole frame for the new turn
+	host.SetRotation = [](int quarterTurns) { PendingRotation = quarterTurns; };
 #ifndef __EMSCRIPTEN__
 	host.SoundPacks = [] { return Sound::Packs(); };
 	host.SetSoundPack = [](const std::string& name)
@@ -859,11 +859,24 @@ void winmain::MainLoop()
 			{
 				if (Options.HideCursor && CursorIdleCounter <= 0)
 					ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+				if (PendingRotation >= 0)
+				{
+					Options.Rotation = PendingRotation;
+					PendingRotation = -1;
+					fullscrn::window_size_changed();
+				}
 				ImGui_ImplSDLRenderer3_NewFrame();
 				ImGui_ImplSDL3_NewFrame();
-				// ImGui lays out the picture, which a quarter turn makes taller than the window or wider
-				if (fullscrn::Rotation() % 2)
-					std::swap(ImIO->DisplaySize.x, ImIO->DisplaySize.y);
+				// ImGui lays out the picture, which a quarter turn makes taller than the window or wider. The backend
+				// gives it the pointer's position unturned while the pointer is outside the window, so it is put
+				// outside the picture instead.
+				if (fullscrn::Rotation())
+				{
+					if (fullscrn::Rotation() % 2)
+						std::swap(ImIO->DisplaySize.x, ImIO->DisplaySize.y);
+					if (!SDL_GetMouseFocus())
+						ImIO->AddMousePosEvent(-FLT_MAX, -FLT_MAX);
+				}
 				ApplyEditionLook();
 				ImGui::NewFrame();
 				RenderUi();

@@ -158,9 +158,11 @@ namespace
 
 	void SDLCALL EffectsMix(void*, MIX_Group*, const SDL_AudioSpec* spec, float* pcm, int samples)
 	{
-		if (WideOn && spec->channels == 2)
+		// The front left and right, also on a device with more channels
+		auto channels = spec->channels;
+		if (WideOn && channels >= 2)
 		{
-			for (auto index = 0; index + 1 < samples; index += 2)
+			for (auto index = 0; index + 1 < samples; index += channels)
 			{
 				auto middle = (pcm[index] + pcm[index + 1]) / 2;
 				auto side = (pcm[index] - pcm[index + 1]) / 2 * StereoWidth;
@@ -168,8 +170,8 @@ namespace
 				pcm[index + 1] = middle - side;
 			}
 		}
-		if (ReverbOn)
-			ReverbSend.assign(pcm, pcm + samples);
+		// Kept even while the room is off, so the final mix never takes a send left from before it was turned on
+		ReverbSend.assign(pcm, pcm + samples);
 	}
 } // namespace
 
@@ -177,7 +179,9 @@ static void SDLCALL SoftClipMix(void*, MIX_Mixer*, const SDL_AudioSpec* spec, fl
 {
 	// The room goes on ringing after the last effect stops, so it runs while it is on, fed silence when no effect
 	// played in this mix
-	if (ReverbOn)
+	// Read once, so a switch between the two callbacks can't leave them disagreeing
+	auto on = ReverbOn.load();
+	if (on)
 	{
 		if (!ReverbWasOn)
 			Reverb.Clear();
@@ -185,9 +189,9 @@ static void SDLCALL SoftClipMix(void*, MIX_Mixer*, const SDL_AudioSpec* spec, fl
 		if (ReverbSend.size() != static_cast<size_t>(samples))
 			ReverbSend.assign(samples, 0);
 		Reverb.Process(ReverbSend.data(), pcm, samples / std::max(spec->channels, 1), spec->channels);
-		std::fill(ReverbSend.begin(), ReverbSend.end(), 0.0f);
 	}
-	ReverbWasOn = ReverbOn;
+	std::fill(ReverbSend.begin(), ReverbSend.end(), 0.0f);
+	ReverbWasOn = on;
 	for (auto i = 0; i < samples; i++)
 		pcm[i] = Sound::SoftClip(pcm[i], MixClipKnee, MixClipCeiling);
 }
@@ -227,6 +231,11 @@ void Sound::Init(MIX_Mixer* mixer, int channels, bool enableFlag, int volume)
 	{
 		MIX_SetPostMixCallback(Mixer, SoftClipMix, nullptr);
 		// The sound effects mix in a group of their own, so Space Cadet 2026's effects leave the music alone
+		// Memory for the room, here rather than on the audio thread, before the callbacks run
+		SDL_AudioSpec spec{};
+		if (MIX_GetMixerFormat(Mixer, &spec))
+			Reverb.Prepare(spec.freq);
+		ReverbSend.reserve(1 << 16);
 		EffectsGroup = MIX_CreateGroup(Mixer);
 		if (EffectsGroup)
 			MIX_SetGroupPostMixCallback(EffectsGroup, EffectsMix, nullptr);
