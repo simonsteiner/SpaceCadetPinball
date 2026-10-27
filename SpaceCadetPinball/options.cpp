@@ -12,6 +12,10 @@
 #include "winmain.h"
 #include "translations.h"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 constexpr int options::MaxUps, options::MaxFps, options::MinUps, options::MinFps, options::DefUps, options::DefFps;
 constexpr int options::MaxSoundChannels, options::MinSoundChannels, options::DefSoundChannels;
 constexpr int options::MaxVolume, options::MinVolume, options::DefVolume;
@@ -190,6 +194,9 @@ optionsStruct options::Options
 	{"Shaded Ball", true},
 	{"Reduced Motion", false},
 	{"Screen Rotation", 0},
+	{"Text Size", 100},
+	{"High Contrast HUD", false},
+	{"Colour Vision", 0},
 };
 // clang-format on
 
@@ -231,8 +238,16 @@ void options::InitPrimary()
 	MigrateKeycodes = !HasSetting(Options.KeyBindingsVersion.Name);
 	auto& toggleEdition = Options.Key[~GameBindings::ToggleEdition];
 	auto newToggleEdition = !HasSetting(std::string{toggleEdition.Name} + " 0 input");
+	// Loading an option saves its default when the settings lack it
+	[[maybe_unused]] auto newReducedMotion = !HasSetting(Options.ReducedMotion.Name);
 	for (const auto opt : AllOptions)
 		opt->Load();
+#ifdef __EMSCRIPTEN__
+	// Until the player chooses, Reduced Motion follows the browser's, which follows the system's
+	if (newReducedMotion)
+		Options.ReducedMotion =
+			EM_ASM_INT({ return matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 0; }) != 0;
+#endif
 	if (newToggleEdition)
 	{
 		// Settings from before the switch existed may already use its default key; then it starts unbound
@@ -627,6 +642,8 @@ void options::PostProcessOptions()
 	Options.KeyBindingsVersion = KeyBindingsScancodes;
 	Options.Edition = Clamp(Options.Edition.V, 0, static_cast<int>(Editions::Max) - 1);
 	Options.Rotation = Clamp(Options.Rotation.V, 0, 3);
+	Options.TextSize = Options.TextSize.V >= 150 ? 150 : Options.TextSize.V >= 125 ? 125 : 100;
+	Options.ColourVision = Clamp(Options.ColourVision.V, 0, 1);
 	// Also a folder typed into the settings file by hand
 	Options.GameDataFolder.V = FolderPath(Options.GameDataFolder.V);
 	// The drawing options of each edition are clamped while that edition's are on show

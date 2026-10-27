@@ -433,4 +433,9 @@ struct optionsStruct
 	BoolOption ReducedMotion;
 	// Quarter turns clockwise of Space Cadet 2026's picture, for a monitor on its side (fullscrn::Rotation)
 	IntOption Rotation;
+	// Space Cadet 2026's accessibility: text size in percent (100, 125 or 150), a HUD in high contrast, and colours
+	// that don't tell things apart by red and green alone (0 standard, 1 red-green safe)
+	IntOption TextSize;
+	BoolOption HighContrastHud;
+	IntOption ColourVision;
 };

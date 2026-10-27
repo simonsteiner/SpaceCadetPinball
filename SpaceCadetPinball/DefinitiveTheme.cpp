@@ -7,6 +7,8 @@
 ImFont* DefinitiveTheme::Text = nullptr;
 ImFont* DefinitiveTheme::Heading = nullptr;
 ImFont* DefinitiveTheme::Digits = nullptr;
+int DefinitiveTheme::Palette = 0;
+bool DefinitiveTheme::Contrast = false;
 
 namespace
 {
@@ -260,9 +262,7 @@ void DefinitiveTheme::ApplyStyle(ImGuiStyle& style)
 	colors[ImGuiCol_ScrollbarGrab] = color(Chrome600);
 	colors[ImGuiCol_ScrollbarGrabHovered] = color(Chrome400);
 	colors[ImGuiCol_ScrollbarGrabActive] = color(Chrome200);
-	colors[ImGuiCol_CheckMark] = color(LedOrange);
 	colors[ImGuiCol_SliderGrab] = color(Chrome200);
-	colors[ImGuiCol_SliderGrabActive] = color(LedOrange);
 	colors[ImGuiCol_Button] = color(Space800);
 	colors[ImGuiCol_ButtonHovered] = color(Space700);
 	colors[ImGuiCol_ButtonActive] = color(Space600);
@@ -271,26 +271,19 @@ void DefinitiveTheme::ApplyStyle(ImGuiStyle& style)
 	colors[ImGuiCol_HeaderActive] = color(Space600);
 	colors[ImGuiCol_Separator] = color(Chrome600);
 	colors[ImGuiCol_SeparatorHovered] = color(Chrome400);
-	colors[ImGuiCol_SeparatorActive] = color(LedOrange);
 	colors[ImGuiCol_ResizeGrip] = color(Chrome600, 0.4f);
 	colors[ImGuiCol_ResizeGripHovered] = color(Chrome400, 0.6f);
-	colors[ImGuiCol_ResizeGripActive] = color(LedOrange);
 	colors[ImGuiCol_Tab] = color(Space800);
 	colors[ImGuiCol_TabHovered] = color(Space700);
 	colors[ImGuiCol_TabSelected] = color(Space600);
-	colors[ImGuiCol_TabSelectedOverline] = color(LedOrange);
 	colors[ImGuiCol_TabDimmed] = color(Space900);
 	colors[ImGuiCol_TabDimmedSelected] = color(Space800);
 	colors[ImGuiCol_TableHeaderBg] = color(Space800);
 	colors[ImGuiCol_TableBorderStrong] = color(Chrome600);
 	colors[ImGuiCol_TableBorderLight] = color(Space700);
-	colors[ImGuiCol_TextSelectedBg] = color(LedOrange, 0.35f);
-	colors[ImGuiCol_NavCursor] = color(LedOrange);
 	colors[ImGuiCol_ModalWindowDimBg] = color(Space950, 0.6f);
 	colors[ImGuiCol_PlotLines] = color(Chrome200);
-	colors[ImGuiCol_PlotLinesHovered] = color(LedOrange);
-	colors[ImGuiCol_PlotHistogram] = color(LedOrange);
-	colors[ImGuiCol_PlotHistogramHovered] = color(LedRed);
+	ApplyPaletteColors(style);
 
 	style.WindowRounding = Rounding;
 	style.ChildRounding = Rounding;
@@ -303,6 +296,44 @@ void DefinitiveTheme::ApplyStyle(ImGuiStyle& style)
 	style.PopupBorderSize = 1;
 }
 
+void DefinitiveTheme::ApplyPaletteColors(ImGuiStyle& style)
+{
+	auto color = [](ImU32 value, float alpha = 1.0f)
+	{ return ImGui::ColorConvertU32ToFloat4(WithAlpha(value, alpha)); };
+	auto& colors = style.Colors;
+	colors[ImGuiCol_CheckMark] = color(LedOrange);
+	colors[ImGuiCol_SliderGrabActive] = color(LedOrange);
+	colors[ImGuiCol_SeparatorActive] = color(LedOrange);
+	colors[ImGuiCol_ResizeGripActive] = color(LedOrange);
+	colors[ImGuiCol_TabSelectedOverline] = color(LedOrange);
+	colors[ImGuiCol_TextSelectedBg] = color(LedOrange, 0.35f);
+	colors[ImGuiCol_NavCursor] = color(LedOrange);
+	colors[ImGuiCol_PlotLinesHovered] = color(LedOrange);
+	colors[ImGuiCol_PlotHistogram] = color(LedOrange);
+	colors[ImGuiCol_PlotHistogramHovered] = color(LedRed);
+}
+
+void DefinitiveTheme::SetPalette(int colourVision)
+{
+	if (colourVision == Palette)
+		return;
+	Palette = colourVision;
+	// Amber and blue from the Okabe-Ito set, told apart by people with any kind of red-green colour blindness
+	LedOrange = colourVision == 1 ? DefinitiveColor(0xFF, 0xB0, 0x00) : DefinitiveColor(0xFF, 0x8C, 0x1A);
+	LedRed = colourVision == 1 ? DefinitiveColor(0x4F, 0xA8, 0xFF) : DefinitiveColor(0xFF, 0x3B, 0x24);
+	ApplyPaletteColors(ImGui::GetStyle());
+}
+
+void DefinitiveTheme::SetHighContrast(bool on)
+{
+	Contrast = on;
+}
+
+bool DefinitiveTheme::HighContrast()
+{
+	return Contrast;
+}
+
 void DefinitiveTheme::DrawLamp(ImDrawList* drawList, ImVec2 centre, float radius, Lamp state)
 {
 	if (state == Lamp::Off)
@@ -313,8 +344,10 @@ void DefinitiveTheme::DrawLamp(ImDrawList* drawList, ImVec2 centre, float radius
 	auto color = state == Lamp::Warning ? LedRed : LedOrange;
 	if (state == Lamp::Dark)
 	{
-		drawList->AddCircleFilled(centre, radius, WithAlpha(color, 0.15f));
-		drawList->AddCircle(centre, radius - 0.5f, WithAlpha(color, 0.35f), 0, 1);
+		// In high contrast an unlit lamp is a clear ring, so lit and unlit differ by more than brightness
+		drawList->AddCircleFilled(centre, radius, WithAlpha(color, Contrast ? 0 : 0.15f));
+		drawList->AddCircle(centre, radius - 0.5f, Contrast ? Chrome200 : WithAlpha(color, 0.35f), 0,
+							Contrast ? 1.5f : 1.0f);
 		return;
 	}
 	// A soft glow around a lit core, with a hot spot towards the light
@@ -323,10 +356,20 @@ void DefinitiveTheme::DrawLamp(ImDrawList* drawList, ImVec2 centre, float radius
 	drawList->AddCircleFilled(centre, radius, color);
 	drawList->AddCircleFilled(ImVec2{centre.x - radius * 0.25f, centre.y - radius * 0.3f}, radius * 0.45f,
 							  DefinitiveColor(0xFF, 0xE2, 0xB8, 0xD0));
+	// With the red-green-safe colours a warning also shows by its shape: a dark bar across the lamp
+	if (state == Lamp::Warning && Palette == 1)
+		drawList->AddLine(ImVec2{centre.x - radius * 0.6f, centre.y}, ImVec2{centre.x + radius * 0.6f, centre.y},
+						  Space950, std::max(1.5f, radius * 0.35f));
 }
 
 void DefinitiveTheme::DrawPanel(ImDrawList* drawList, ImVec2 min, ImVec2 max)
 {
+	if (Contrast)
+	{
+		drawList->AddRectFilled(min, max, DefinitiveColor(0, 0, 0), Rounding);
+		drawList->AddRect(min, max, Chrome50, Rounding, 2);
+		return;
+	}
 	drawList->AddRectFilled(min, max, WithAlpha(Space900, 0.96f), Rounding);
 	drawList->AddRect(min, max, WithAlpha(Chrome400, 0.35f), Rounding);
 	// The light catches the top edge, and the bottom one falls into shadow
@@ -343,8 +386,12 @@ void DefinitiveTheme::DrawLed(ImDrawList* drawList, ImVec2 position, float size,
 
 void DefinitiveTheme::DrawLed(ImDrawList* drawList, ImVec2 position, float size, const char* text, ImU32 color)
 {
-	auto ghost = Ghost(text);
-	drawList->AddText(Digits, size, position, WithAlpha(color, 0.1f), ghost.c_str());
+	// The unlit segments are left out in high contrast, where they only blur the digits' shapes
+	if (!Contrast)
+	{
+		auto ghost = Ghost(text);
+		drawList->AddText(Digits, size, position, WithAlpha(color, 0.1f), ghost.c_str());
+	}
 	drawList->AddText(Digits, size, position, color, text);
 }
 

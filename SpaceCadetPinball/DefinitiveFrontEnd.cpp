@@ -246,7 +246,7 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 	auto viewport = ImGui::GetMainViewport();
 	auto rows = Host.Quit ? 7 : 6;
 	// Margins, the name, the year, the rows and the hints, shrunk to fit a small window
-	auto needed = 56 + 60 + 14 + 40 + 48 + rows * (Theme::RowHeight + 2) + 24 + 26 + 24;
+	auto needed = 56 + 60 + 14 + 40 + 48 + rows * (Ui::RowHeight() + 2) + 24 + 26 + 24;
 	Ui::SetScale(std::min(Ui::Scale(), viewport->Size.y / needed));
 	auto scale = Ui::Scale();
 
@@ -353,7 +353,7 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 void DefinitiveFrontEnd::RenderRecords()
 {
 	auto viewport = ImGui::GetMainViewport();
-	auto needed = 56 + 40 + 24 + 5 * 44 + 32 + 2 * (Theme::RowHeight + 2) + 24 + 26 + 24;
+	auto needed = 56 + 40 + 24 + 5 * 44 + 32 + 2 * (Ui::RowHeight() + 2) + 24 + 26 + 24;
 	Ui::SetScale(std::min(Ui::Scale(), viewport->Size.y / needed));
 	auto scale = Ui::Scale();
 
@@ -512,7 +512,7 @@ SDL_native_midi, MMPX)");
 
 	// The list scrolls with the arrow keys, the d-pad and the wheel, under the title and over the back row
 	auto top = origin.y + (40 + 32) * scale;
-	auto bottom = viewport->Pos.y + viewport->Size.y - (Theme::RowHeight + 24 + 26 + 40) * scale;
+	auto bottom = viewport->Pos.y + viewport->Size.y - (Ui::RowHeight() + 24 + 26 + 40) * scale;
 	auto lineHeight = 26 * scale;
 	auto contentHeight = 0.0f;
 	for (auto& line : credits)
@@ -560,7 +560,7 @@ void DefinitiveFrontEnd::RenderMissingData(const std::vector<std::string>& looke
 	Ui::NewFrame();
 	auto lines = static_cast<float>(looked.size());
 	auto needed =
-		56 + 60 + 14 + 40 + 40 + 40 + 72 + 26 + lines * 22 + 28 + 40 + 2 * (Theme::RowHeight + 2) + 40 + 26 + 24;
+		56 + 60 + 14 + 40 + 40 + 40 + 72 + 26 + lines * 22 + 28 + 40 + 2 * (Ui::RowHeight() + 2) + 40 + 26 + 24;
 	Ui::SetScale(std::min(Ui::Scale(), viewport->Size.y / needed));
 	auto scale = Ui::Scale();
 

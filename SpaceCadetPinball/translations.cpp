@@ -6563,7 +6563,55 @@ const TextArray translations::Translations =
 	{
 		Msg::Definitive_ReducedMotionNote,
 		{
-			{ Lang::English, "The lamps' glow holds still and the table doesn't shake when nudged" },
+			{ Lang::English, "The lamps' glow holds still, the table doesn't shake when nudged and the cursor doesn't blink" },
+		}
+	},
+	{
+		Msg::Definitive_TextSize,
+		{
+			{ Lang::English, "Text size" },
+		}
+	},
+	{
+		Msg::Definitive_TextSizeNote,
+		{
+			{ Lang::English, "Larger text in the menus, the guide and the HUD" },
+		}
+	},
+	{
+		Msg::Definitive_HighContrast,
+		{
+			{ Lang::English, "High-contrast HUD" },
+		}
+	},
+	{
+		Msg::Definitive_HighContrastNote,
+		{
+			{ Lang::English, "A black panel with white text, and no unlit digit segments" },
+		}
+	},
+	{
+		Msg::Definitive_Colours,
+		{
+			{ Lang::English, "Colours" },
+		}
+	},
+	{
+		Msg::Definitive_ColoursStandard,
+		{
+			{ Lang::English, "Standard" },
+		}
+	},
+	{
+		Msg::Definitive_ColoursSafe,
+		{
+			{ Lang::English, "Red-green safe" },
+		}
+	},
+	{
+		Msg::Definitive_ColoursNote,
+		{
+			{ Lang::English, "Amber and blue in place of orange and red; warnings also show a bar" },
 		}
 	},
 	{

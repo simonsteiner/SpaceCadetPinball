@@ -5,6 +5,7 @@
 #include "options.h"
 
 float DefinitiveUi::LayoutScale = 1;
+float DefinitiveUi::TextFactor = 1;
 DefinitiveUi::Device DefinitiveUi::Last = DefinitiveUi::Device::Keyboard;
 ImRect DefinitiveUi::Row{};
 bool DefinitiveUi::RowFocused = false;
@@ -17,6 +18,8 @@ void DefinitiveUi::NewFrame()
 	// The height, or in a window taller than wide the width, so the screens keep their proportions there too
 	auto size = ImGui::GetMainViewport()->Size;
 	LayoutScale = std::clamp(std::min(size.x, size.y) / 720.0f, 0.6f, 4.0f) * options::Options.UIScale;
+	TextFactor = static_cast<float>(options::Options.TextSize.V) / 100;
+	DefinitiveTheme::SetPalette(options::Options.ColourVision);
 
 	// The device whose input came last decides the hints
 	auto& io = ImGui::GetIO();
@@ -37,6 +40,16 @@ void DefinitiveUi::NewFrame()
 float DefinitiveUi::Scale()
 {
 	return LayoutScale;
+}
+
+float DefinitiveUi::TextScale()
+{
+	return LayoutScale * TextFactor;
+}
+
+float DefinitiveUi::RowHeight()
+{
+	return DefinitiveTheme::RowHeight * TextFactor;
 }
 
 void DefinitiveUi::SetScale(float scale)
@@ -76,12 +89,12 @@ std::string DefinitiveUi::FormatScore(int score, size_t places)
 float DefinitiveUi::FontSize(float size)
 {
 	const auto& style = ImGui::GetStyle();
-	return size * LayoutScale / (style.FontScaleMain * style.FontScaleDpi);
+	return size * LayoutScale * TextFactor / (style.FontScaleMain * style.FontScaleDpi);
 }
 
 ImVec2 DefinitiveUi::TextSize(ImFont* font, float size, const char* text)
 {
-	return font->CalcTextSizeA(size * LayoutScale, FLT_MAX, 0, DefinitiveText::Visual(text));
+	return font->CalcTextSizeA(size * LayoutScale * TextFactor, FLT_MAX, 0, DefinitiveText::Visual(text));
 }
 
 void DefinitiveUi::DrawText(ImDrawList* drawList, ImFont* font, float size, ImVec2 position, ImU32 color,
@@ -89,8 +102,8 @@ void DefinitiveUi::DrawText(ImDrawList* drawList, ImFont* font, float size, ImVe
 {
 	auto visual = DefinitiveText::Visual(text);
 	if (width > 0 && DefinitiveText::RightToLeft())
-		position.x += width - font->CalcTextSizeA(size * LayoutScale, FLT_MAX, 0, visual).x;
-	drawList->AddText(font, size * LayoutScale, position, color, visual);
+		position.x += width - font->CalcTextSizeA(size * LayoutScale * TextFactor, FLT_MAX, 0, visual).x;
+	drawList->AddText(font, size * LayoutScale * TextFactor, position, color, visual);
 }
 
 float DefinitiveUi::DrawWrapped(ImDrawList* drawList, ImFont* font, float size, ImVec2 position, ImU32 color,
@@ -98,7 +111,7 @@ float DefinitiveUi::DrawWrapped(ImDrawList* drawList, ImFont* font, float size, 
 {
 	// Lines break in reading order and only then each goes into drawing order, so a right-to-left paragraph starts on
 	// its first line too
-	auto fontSize = size * LayoutScale;
+	auto fontSize = size * LayoutScale * TextFactor;
 	auto rightToLeft = DefinitiveText::RightToLeft();
 	auto lines = 0;
 	auto drawLine = [&](std::string_view line)
@@ -146,7 +159,7 @@ bool DefinitiveUi::MenuRow(const char* id, const char* label, bool warning, cons
 						   float trailing)
 {
 	auto scale = LayoutScale;
-	ImVec2 size{ImGui::CalcItemWidth(), DefinitiveTheme::RowHeight * scale};
+	ImVec2 size{ImGui::CalcItemWidth(), RowHeight() * scale};
 	ImGui::BeginDisabled(!enabled);
 	// Invisible buttons stay out of keyboard and gamepad navigation unless asked
 	auto chosen = ImGui::InvisibleButton(id, size, ImGuiButtonFlags_EnableNav);

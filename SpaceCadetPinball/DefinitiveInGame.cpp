@@ -368,7 +368,8 @@ void DefinitiveFrontEnd::RenderNameEntry()
 	ime.InputPos = ImVec2{caretX, fieldMin.y};
 	ime.InputLineHeight = fieldMax.y - fieldMin.y;
 	ime.ViewportId = ImGui::GetMainViewport()->ID;
-	if (static_cast<int>(ImGui::GetTime() * 2) % 2 == 0)
+	// It blinks, unless Reduced Motion holds it still
+	if (options::Options.ReducedMotion || static_cast<int>(ImGui::GetTime() * 2) % 2 == 0)
 	{
 		drawList->AddRectFilled(ImVec2{caretX, fieldMax.y - 14 * scale},
 								ImVec2{caretX + 14 * scale, fieldMax.y - 11 * scale}, Theme::LedOrange);

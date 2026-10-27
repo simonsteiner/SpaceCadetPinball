@@ -4,6 +4,7 @@
 #include "DefinitiveTheme.h"
 #include "DefinitiveUi.h"
 #include "TableView.h"
+#include "options.h"
 #include "translations.h"
 
 #include <utility>
@@ -39,6 +40,26 @@ namespace
 	const char* Text(Msg id)
 	{
 		return translations::GetTranslation(id);
+	}
+
+	// The HUD's text colours, all white in high contrast
+	ImU32 LabelColor()
+	{
+		return Theme::HighContrast() ? Theme::Chrome50 : Theme::Chrome400;
+	}
+
+	ImU32 NoteColor()
+	{
+		return Theme::HighContrast() ? Theme::Chrome50 : Theme::Chrome200;
+	}
+
+	// The info message's box, black with a white rim in high contrast
+	void DrawMessageBox(ImDrawList* drawList, ImVec2 min, ImVec2 max, float scale)
+	{
+		auto contrast = Theme::HighContrast();
+		drawList->AddRectFilled(min, max, contrast ? DefinitiveColor(0, 0, 0) : Theme::Space950, 4 * scale);
+		drawList->AddRect(min, max, contrast ? Theme::Chrome50 : Theme::Chrome600, 4 * scale,
+						  contrast ? 2 * scale : 1.0f);
 	}
 
 	const char* PlayerName(int player)
@@ -96,13 +117,13 @@ float DefinitiveHud::DrawContents(ImDrawList* drawList, const TableView& view, I
 	auto y = min.y + Padding * scale;
 	auto label = [&](const char* text)
 	{
-		Ui::DrawText(drawList, Theme::TextFont(), LabelSize, ImVec2{left, y}, Theme::Chrome400, text, width);
-		y += (LabelSize + LabelGap) * scale;
+		Ui::DrawText(drawList, Theme::TextFont(), LabelSize, ImVec2{left, y}, LabelColor(), text, width);
+		y += LabelSize * Ui::TextScale() + LabelGap * scale;
 	};
 	auto heading = [&](const char* text)
 	{
 		Ui::DrawText(drawList, Theme::HeadingFont(), Theme::HeadingSize, ImVec2{left, y}, Theme::Chrome50, text, width);
-		y += Theme::HeadingSize * scale;
+		y += Theme::HeadingSize * Ui::TextScale();
 	};
 
 	// The score of the player playing, as large as the panel allows
@@ -128,17 +149,18 @@ float DefinitiveHud::DrawContents(ImDrawList* drawList, const TableView& view, I
 				continue;
 			auto text = Ui::FormatScore(view.Scores[other], 0);
 			auto size = Theme::LedSize(OtherScoreSize * scale, text.c_str());
-			auto rowHeight = std::max(size.y, NoteSize * scale);
-			Ui::DrawText(drawList, Theme::TextFont(), NoteSize, ImVec2{left, y + rowHeight - NoteSize * scale},
-						 Theme::Chrome200, PlayerName(other));
+			auto rowHeight = std::max(size.y, NoteSize * Ui::TextScale());
+			Ui::DrawText(drawList, Theme::TextFont(), NoteSize,
+						 ImVec2{left, y + rowHeight - NoteSize * Ui::TextScale()}, NoteColor(), PlayerName(other));
 			Theme::DrawLed(drawList, ImVec2{left + width - size.x, y + rowHeight - size.y}, OtherScoreSize * scale,
-						   text.c_str(), Theme::Chrome200);
+						   text.c_str(), NoteColor());
 			y += rowHeight + OtherGap * scale;
 		}
 		y += (Gap - OtherGap) * scale;
 	}
 
-	drawList->AddLine(ImVec2{left, y}, ImVec2{left + width, y}, Theme::WithAlpha(Theme::Chrome600, 0.6f));
+	drawList->AddLine(ImVec2{left, y}, ImVec2{left + width, y},
+					  Theme::HighContrast() ? Theme::Chrome200 : Theme::WithAlpha(Theme::Chrome600, 0.6f));
 	y += 1 + Gap * scale;
 
 	// The mission that runs, and the mission text box, which says what it needs next or how to start one
@@ -149,7 +171,7 @@ float DefinitiveHud::DrawContents(ImDrawList* drawList, const TableView& view, I
 		y += 6 * scale;
 	}
 	if (!view.MissionText.empty())
-		y += Ui::DrawWrapped(drawList, Theme::TextFont(), NoteSize, ImVec2{left, y}, Theme::Chrome200,
+		y += Ui::DrawWrapped(drawList, Theme::TextFont(), NoteSize, ImVec2{left, y}, NoteColor(),
 							 view.MissionText.c_str(), width);
 	y += Gap * scale;
 
@@ -180,8 +202,7 @@ float DefinitiveHud::DrawContents(ImDrawList* drawList, const TableView& view, I
 	}
 	ImVec2 boxMin{left, std::max(y, max.y - Padding * scale - messageHeight)};
 	ImVec2 boxMax{left + width, boxMin.y + messageHeight};
-	drawList->AddRectFilled(boxMin, boxMax, Theme::Space950, 4 * scale);
-	drawList->AddRect(boxMin, boxMax, Theme::Chrome600, 4 * scale);
+	DrawMessageBox(drawList, boxMin, boxMax, scale);
 	if (!view.InfoText.empty())
 		Ui::DrawWrapped(drawList, Theme::HeadingFont(), MessageSize,
 						ImVec2{boxMin.x + messageInset.x, boxMin.y + messageInset.y}, Theme::LedOrange,
@@ -198,8 +219,8 @@ float DefinitiveHud::DrawBand(ImDrawList* drawList, const TableView& view, ImVec
 	auto y = min.y + Padding * scale;
 	auto label = [&](const char* text, float x, float columnWidth, float top)
 	{
-		Ui::DrawText(drawList, Theme::TextFont(), LabelSize, ImVec2{x, top}, Theme::Chrome400, text, columnWidth);
-		return top + (LabelSize + LabelGap) * scale;
+		Ui::DrawText(drawList, Theme::TextFont(), LabelSize, ImVec2{x, top}, LabelColor(), text, columnWidth);
+		return top + LabelSize * Ui::TextScale() + LabelGap * scale;
 	};
 
 	// The score of the player playing and the ball side by side, the ball at the end
@@ -230,14 +251,15 @@ float DefinitiveHud::DrawBand(ImDrawList* drawList, const TableView& view, ImVec
 			auto text = Ui::FormatScore(view.Scores[other], 0);
 			auto size = FittedLedSize(OtherScoreSize * scale, cellWidth, text.c_str());
 			auto ledTopOther = label(PlayerName(other), x, cellWidth, y);
-			Theme::DrawLed(drawList, ImVec2{x, ledTopOther}, size, text.c_str(), Theme::Chrome200);
+			Theme::DrawLed(drawList, ImVec2{x, ledTopOther}, size, text.c_str(), NoteColor());
 			rowHeight = std::max(rowHeight, ledTopOther + Theme::LedSize(size, text.c_str()).y - y);
 			x += cellWidth + Gap * scale;
 		}
 		y += rowHeight + Gap * scale;
 	}
 
-	drawList->AddLine(ImVec2{left, y}, ImVec2{left + width, y}, Theme::WithAlpha(Theme::Chrome600, 0.6f));
+	drawList->AddLine(ImVec2{left, y}, ImVec2{left + width, y},
+					  Theme::HighContrast() ? Theme::Chrome200 : Theme::WithAlpha(Theme::Chrome600, 0.6f));
 	y += 1 + Gap * scale;
 
 	// The mission and the rank, side by side where the band is wide enough, else one under the other
@@ -248,10 +270,10 @@ float DefinitiveHud::DrawBand(ImDrawList* drawList, const TableView& view, ImVec
 	{
 		Ui::DrawText(drawList, Theme::HeadingFont(), Theme::HeadingSize, ImVec2{left, missionY}, Theme::Chrome50, name,
 					 columnWidth);
-		missionY += (Theme::HeadingSize + 6) * scale;
+		missionY += Theme::HeadingSize * Ui::TextScale() + 6 * scale;
 	}
 	if (!view.MissionText.empty())
-		missionY += Ui::DrawWrapped(drawList, Theme::TextFont(), NoteSize, ImVec2{left, missionY}, Theme::Chrome200,
+		missionY += Ui::DrawWrapped(drawList, Theme::TextFont(), NoteSize, ImVec2{left, missionY}, NoteColor(),
 									view.MissionText.c_str(), columnWidth);
 
 	auto rankLeft = columns ? left + columnWidth + Gap * scale : left;
@@ -260,7 +282,7 @@ float DefinitiveHud::DrawBand(ImDrawList* drawList, const TableView& view, ImVec
 	{
 		Ui::DrawText(drawList, Theme::HeadingFont(), Theme::HeadingSize, ImVec2{rankLeft, rankY}, Theme::Chrome50, name,
 					 columnWidth);
-		rankY += (Theme::HeadingSize + LabelGap) * scale;
+		rankY += Theme::HeadingSize * Ui::TextScale() + LabelGap * scale;
 	}
 	for (auto lamp = 0; lamp < 9; lamp++)
 	{
@@ -283,8 +305,7 @@ float DefinitiveHud::DrawBand(ImDrawList* drawList, const TableView& view, ImVec
 	}
 	ImVec2 boxMin{left, std::max(y, max.y - Padding * scale - messageHeight)};
 	ImVec2 boxMax{left + width, boxMin.y + messageHeight};
-	drawList->AddRectFilled(boxMin, boxMax, Theme::Space950, 4 * scale);
-	drawList->AddRect(boxMin, boxMax, Theme::Chrome600, 4 * scale);
+	DrawMessageBox(drawList, boxMin, boxMax, scale);
 	if (!view.InfoText.empty())
 		Ui::DrawWrapped(drawList, Theme::HeadingFont(), MessageSize,
 						ImVec2{boxMin.x + messageInset.x, boxMin.y + messageInset.y}, Theme::LedOrange,
@@ -329,6 +350,20 @@ void DefinitiveHud::Render(const TableView& view, SDL_FRect board, SDL_FRect pan
 {
 	if (panel.w < 1 || panel.h < 1)
 		return;
+	// The panel's pieces in high contrast while it draws, and the screens' as before after it
+	struct Contrast
+	{
+		Contrast()
+		{
+			Theme::SetHighContrast(options::Options.HighContrastHud);
+		}
+		~Contrast()
+		{
+			Theme::SetHighContrast(false);
+		}
+		Contrast(const Contrast&) = delete;
+		Contrast& operator=(const Contrast&) = delete;
+	} contrast;
 	if (band)
 	{
 		RenderBand(view, panel);

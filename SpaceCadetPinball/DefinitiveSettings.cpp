@@ -490,6 +490,23 @@ void DefinitiveSettings::RenderAccessibility()
 		ImGui::GetStyle().FontScaleMain = options::Options.UIScale;
 	}
 
+	auto& options = options::Options;
+	Ui::NextRowNote(Text(Msg::Definitive_TextSizeNote));
+	auto sizes = {100, 125, 150};
+	auto size = static_cast<int>(std::find(sizes.begin(), sizes.end(), options.TextSize.V) - sizes.begin());
+	auto chosenSize = Ui::ChoiceRow("textsize", Text(Msg::Definitive_TextSize), {"100%", "125%", "150%"}, size);
+	if (chosenSize != size)
+		options.TextSize = *(sizes.begin() + chosenSize);
+
+	Ui::NextRowNote(Text(Msg::Definitive_HighContrastNote));
+	if (Ui::ToggleRow("contrast", Text(Msg::Definitive_HighContrast), options.HighContrastHud))
+		options.HighContrastHud = !options.HighContrastHud;
+
+	Ui::NextRowNote(Text(Msg::Definitive_ColoursNote));
+	options.ColourVision =
+		Ui::ChoiceRow("colours", Text(Msg::Definitive_Colours),
+					  {Text(Msg::Definitive_ColoursStandard), Text(Msg::Definitive_ColoursSafe)}, options.ColourVision);
+
 	Ui::NextRowNote(Text(Msg::Definitive_ReducedMotionNote));
 	if (Ui::ToggleRow("motion", Text(Msg::Definitive_ReducedMotion), options::Options.ReducedMotion))
 		options::Options.ReducedMotion = !options::Options.ReducedMotion;
