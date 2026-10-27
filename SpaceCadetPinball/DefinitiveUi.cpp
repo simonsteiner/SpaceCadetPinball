@@ -382,7 +382,8 @@ bool DefinitiveUi::ToggleRow(const char* id, const char* label, bool on, bool en
 	auto knob = size.y / 2 - 4 * scale;
 	if (on && enabled)
 	{
-		drawList->AddRectFilled(min, max, DefinitiveColor(0xFF, 0x8C, 0x1A, 0x2E), radius);
+		drawList->AddRectFilled(min, max, DefinitiveTheme::WithAlpha(DefinitiveTheme::LedOrange, 0x2E / 255.0f),
+								radius);
 		drawList->AddRect(min, max, DefinitiveTheme::LedOrange, radius);
 		DefinitiveTheme::DrawLamp(drawList, ImVec2{max.x - radius, min.y + radius}, knob, DefinitiveTheme::Lamp::Lit);
 	}
