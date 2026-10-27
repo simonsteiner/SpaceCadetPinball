@@ -44,8 +44,8 @@ public:
 	static void replay_timer_callback(int timerId, void* caller);
 	static void tilt_timeout(int timerId, void* caller);
 
-	TFlipper* FlipperL;
-	TFlipper* FlipperR;
+	// Space Cadet has one flipper on each side; Full Tilt's engine (CADET.EXE) keeps a list for each
+	std::vector<TFlipper*> FlippersL, FlippersR;
 	scoreStruct* CurScoreStruct;
 	scoreStruct* ScoreBallcount;
 	scoreStruct* ScorePlayerNumber1;

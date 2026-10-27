@@ -10,10 +10,12 @@
 #include "render.h"
 #include "TAccelerator.h"
 #include "TBall.h"
+#include "TAnimatedBlocker.h"
 #include "TBlocker.h"
 #include "TBumper.h"
 #include "TComponentGroup.h"
 #include "TDemo.h"
+#include "TDiverter.h"
 #include "TFlagSpinner.h"
 #include "TGate.h"
 #include "THole.h"
@@ -24,6 +26,7 @@
 #include "TLightBargraph.h"
 #include "TLightGroup.h"
 #include "TLightRollover.h"
+#include "TLightSweeps.h"
 #include "TOneway.h"
 #include "TPopupTarget.h"
 #include "TRamp.h"
@@ -65,7 +68,7 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 	auto ball = AddBall({0.0f, 0.0f});
 	ball->Disable();
 
-	new TTableLayer(this);
+	auto tableLayer = new TTableLayer(this);
 	LightGroup = new TLightGroup(this, 0);
 
 	auto score1 = score::create("score1", render::background_bitmap);
@@ -104,10 +107,10 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 				LightGroup->List.push_back(new TLight(this, groupIndex));
 				break;
 			case 1003:
-				FlipperL = new TFlipper(this, groupIndex);
+				FlippersL.push_back(new TFlipper(this, groupIndex));
 				break;
 			case 1004:
-				FlipperR = new TFlipper(this, groupIndex);
+				FlippersR.push_back(new TFlipper(this, groupIndex));
 				break;
 			case 1005:
 				new TBumper(this, groupIndex);
@@ -119,13 +122,11 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 				Drain = new TDrain(this, groupIndex);
 				break;
 			case 1011:
-				// Dragon's Keep's blockers are animated props that Pinball.exe's TBlocker can't build (F4)
-				if (pb::Table == Tables::DragonsKeep)
-				{
-					LogNotBuilt(objectType, groupIndex);
-					continue;
-				}
-				new TBlocker(this, groupIndex);
+				// The bonus tables' blockers are animated props, which need CADET.EXE's later TBlocker
+				if (pb::Table == Tables::DragonsKeep || pb::Table == Tables::Skulduggery)
+					new TAnimatedBlocker(this, groupIndex);
+				else
+					new TBlocker(this, groupIndex);
 				break;
 			case 1012:
 				new TKickout(this, groupIndex, true);
@@ -192,6 +193,12 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 				break;
 			case 1036:
 				new TAccelerator(this, groupIndex);
+				break;
+			case 1038:
+				new TLightSweeps(this, *tableLayer, *LightGroup, groupIndex);
+				break;
+			case 1043:
+				new TDiverter(this, groupIndex);
 				break;
 			default:
 				LogNotBuilt(objectType, groupIndex);
@@ -354,25 +361,29 @@ int TPinballTable::Message(MessageCode code, float value)
 	case MessageCode::LeftFlipperInputPressed:
 		if (!TiltLockFlag)
 		{
-			FlipperL->Message(MessageCode::TFlipperExtend, value);
+			for (auto flipper : FlippersL)
+				flipper->Message(MessageCode::TFlipperExtend, value);
 		}
 		break;
 	case MessageCode::LeftFlipperInputReleased:
 		if (!TiltLockFlag)
 		{
-			FlipperL->Message(MessageCode::TFlipperRetract, value);
+			for (auto flipper : FlippersL)
+				flipper->Message(MessageCode::TFlipperRetract, value);
 		}
 		break;
 	case MessageCode::RightFlipperInputPressed:
 		if (!TiltLockFlag)
 		{
-			FlipperR->Message(MessageCode::TFlipperExtend, value);
+			for (auto flipper : FlippersR)
+				flipper->Message(MessageCode::TFlipperExtend, value);
 		}
 		break;
 	case MessageCode::RightFlipperInputReleased:
 		if (!TiltLockFlag)
 		{
-			FlipperR->Message(MessageCode::TFlipperRetract, value);
+			for (auto flipper : FlippersR)
+				flipper->Message(MessageCode::TFlipperRetract, value);
 		}
 		break;
 	case MessageCode::PlungerInputPressed:
