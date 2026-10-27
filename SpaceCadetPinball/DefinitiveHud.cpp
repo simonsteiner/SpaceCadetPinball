@@ -356,7 +356,8 @@ void DefinitiveHud::Render(const TableView& view, SDL_FRect board, SDL_FRect pan
 		}
 		Contrast(const Contrast&) = delete;
 		Contrast& operator=(const Contrast&) = delete;
-	} contrast;
+	};
+	Contrast contrast;
 	if (band)
 	{
 		RenderBand(view, panel);

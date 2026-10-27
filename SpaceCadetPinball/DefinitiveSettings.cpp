@@ -492,11 +492,11 @@ void DefinitiveSettings::RenderAccessibility()
 
 	auto& options = options::Options;
 	Ui::NextRowNote(Text(Msg::Definitive_TextSizeNote));
-	auto sizes = {100, 125, 150};
-	auto size = static_cast<int>(std::find(sizes.begin(), sizes.end(), options.TextSize.V) - sizes.begin());
-	auto chosenSize = Ui::ChoiceRow("textsize", Text(Msg::Definitive_TextSize), {"100%", "125%", "150%"}, size);
-	if (chosenSize != size)
-		options.TextSize = *(sizes.begin() + chosenSize);
+	constexpr std::array sizes{100, 125, 150};
+	auto size = static_cast<int>(std::ranges::find(sizes, options.TextSize.V) - sizes.begin());
+	if (auto chosenSize = Ui::ChoiceRow("textsize", Text(Msg::Definitive_TextSize), {"100%", "125%", "150%"}, size);
+		chosenSize != size)
+		options.TextSize = sizes[static_cast<size_t>(chosenSize)];
 
 	Ui::NextRowNote(Text(Msg::Definitive_HighContrastNote));
 	if (Ui::ToggleRow("contrast", Text(Msg::Definitive_HighContrast), options.HighContrastHud))
