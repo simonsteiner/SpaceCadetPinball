@@ -11,6 +11,7 @@ cmake --build --preset linux  # build; the executable lands in bin/ in the sourc
 cmake --preset linux-vendored && cmake --build --preset linux-vendored  # build with SDL fetched from source, as the Windows and macOS presets do
 ./bin/SpaceCadetPinball -noaudio  # run; needs game data, see docs/setup.md
 tools/run-headless.sh ../gamedata -noaudio  # run on a free Xvfb display of its own, as a renamed copy; prints the display and PID, stop it with kill <PID>, never pkill by name
+tools/wine-reference.sh start ../gamedata-fulltilt CADET.EXE -nomovie  # the original EXE under Wine, without network, as a reference (docs/wine-reference.md); setup once with `tools/wine-reference.sh setup`
 tools/check-replays.sh ../replays ../gamedata  # play back recorded sessions and report any that play differently
 lefthook install  # optional Git hooks from lefthook.yml: game-data guard, source-list and presentation-include checks, build and replays before push
 uvx --from clang-format==23.1.3 git-clang-format main  # format only the lines changed since main; never a whole file
@@ -68,6 +69,7 @@ There are no automated tests of the game yet, only `tools/check-bidi.sh` for rig
 - `docs/setup.md` — building on each platform, Git hooks, where the game looks for data, command-line flags, troubleshooting.
 - `docs/deployment.md` — producing release builds and where the version number lives.
 - `docs/replays.md` — recording and checking sessions, and the replay file format.
+- `docs/wine-reference.md` — running the original Full Tilt! EXEs under Wine as a reference, and how far it can be trusted.
 - `docs/reference/` — DAT file format and dumps of the original DAT and PDB; read before touching `loader.cpp` or `partman.cpp`.
 - `docs/plan/` — dated work plans; read the latest before starting new work.
 - `GLOSSARY.md` — game and data terms.
