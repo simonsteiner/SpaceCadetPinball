@@ -256,7 +256,7 @@ long long DefinitiveStats::UnlockedAt(size_t index)
 	if (index >= std::size(AchievementList))
 		return 0;
 	auto key = Key((std::string{"Achievement."} + AchievementList[index].Key).c_str());
-	return options::HasSetting(key) ? std::atoll(options::GetSetting(key, "0").c_str()) : 0;
+	return options::HasSetting(key) ? std::strtoll(options::GetSetting(key, "0").c_str(), nullptr, 10) : 0;
 }
 
 int DefinitiveStats::Unannounced()
