@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compiles the post-processing shaders in SpaceCadetPinball/shaders/ into PostEffectShaders.h:
+# Compiles the post-processing and compositor shaders in SpaceCadetPinball/shaders/ into PostEffectShaders.h:
 # SPIR-V (Vulkan) and DXIL (Direct3D 12) from the HLSL with a pinned DXC, MSL (Metal) from the hand-written .msl files.
 # The header is committed, so building the game needs none of this. Run it after changing a shader.
 set -euo pipefail

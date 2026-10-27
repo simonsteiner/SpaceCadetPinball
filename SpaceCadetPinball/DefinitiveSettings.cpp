@@ -343,7 +343,23 @@ void DefinitiveSettings::RenderGraphics(const DefinitiveHost& host)
 	if (Ui::ToggleRow("filtering", Text(Msg::Definitive_LinearFiltering), options.LinearFiltering))
 		options::toggle(Menu1::WindowLinearFilter);
 
-	// Effects need SDL's GPU renderer; without it the choice is kept for when it is there
+	// The compositor's effects and the post effect need SDL's GPU renderer; without it the choices are kept for when it
+	// is there
+	// A note shows under the next row only, so each of the three gets it
+	auto effectsUnavailable = host.EffectsUnavailable ? host.EffectsUnavailable() : nullptr;
+	if (effectsUnavailable)
+		Ui::NextRowNote(effectsUnavailable);
+	if (Ui::ToggleRow("lighting", Text(Msg::Definitive_Lighting), options.Lighting))
+		options.Lighting = !options.Lighting;
+	if (effectsUnavailable)
+		Ui::NextRowNote(effectsUnavailable);
+	if (Ui::ToggleRow("glow", Text(Msg::Definitive_LampGlow), options.LampGlow))
+		options.LampGlow = !options.LampGlow;
+	if (effectsUnavailable)
+		Ui::NextRowNote(effectsUnavailable);
+	if (Ui::ToggleRow("ball", Text(Msg::Definitive_ShadedBall), options.ShadedBall))
+		options.ShadedBall = !options.ShadedBall;
+
 	if (auto unavailable = host.PostProcessingUnavailable ? host.PostProcessingUnavailable() : nullptr)
 		Ui::NextRowNote(unavailable);
 	auto effect = options.PostProcessing.V;
@@ -467,4 +483,8 @@ void DefinitiveSettings::RenderAccessibility()
 		options::Options.UIScale.V = static_cast<float>(chosen) / 100;
 		ImGui::GetStyle().FontScaleMain = options::Options.UIScale;
 	}
+
+	Ui::NextRowNote(Text(Msg::Definitive_ReducedMotionNote));
+	if (Ui::ToggleRow("motion", Text(Msg::Definitive_ReducedMotion), options::Options.ReducedMotion))
+		options::Options.ReducedMotion = !options::Options.ReducedMotion;
 }

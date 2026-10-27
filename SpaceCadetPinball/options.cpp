@@ -185,6 +185,10 @@ optionsStruct options::Options
 	{"Edition", static_cast<int>(Editions::Definitive)},
 	{"Edition Hint Shown", false},
 	{"Game Data Folder", ""},
+	{"Lighting", true},
+	{"Lamp Glow", true},
+	{"Shaded Ball", true},
+	{"Reduced Motion", false},
 };
 // clang-format on
 

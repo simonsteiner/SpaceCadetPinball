@@ -34,6 +34,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "options.h"
 #include "pb.h"
 #include "PostEffect.h"
+#include "Compositor.h"
 #include "Upscale.h"
 #include "render.h"
 #include "replay.h"
@@ -256,6 +257,7 @@ static DefinitiveHost MakeDefinitiveHost()
 	host.Version = winmain::Version;
 	host.SetPostProcessing = [](int effect) { winmain::SetPostProcessing(static_cast<PostEffects>(effect)); };
 	host.PostProcessingUnavailable = winmain::PostProcessingUnavailable;
+	host.EffectsUnavailable = winmain::EffectsUnavailable;
 	host.SetUpscaleFactor = [](int factor)
 	{
 		options::Options.UpscaleFactor = factor;
@@ -470,6 +472,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		// drawn plain
 		PostEffect::Init(Renderer);
 		PostEffect::SetEffect(static_cast<PostEffects>(Options.PostProcessing.V));
+		Compositor::Init(Renderer);
 
 		if (!Options.FontFileName.V.empty())
 		{
@@ -663,6 +666,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		MIX_Quit();
 	}
 
+	Compositor::Uninit();
 	PostEffect::Uninit();
 	SDL_DestroyRenderer(Renderer);
 	SDL_DestroyWindow(window);
@@ -790,7 +794,7 @@ void winmain::MainLoop()
 				SDL_RenderFillRect(Renderer, nullptr);
 				if (HighRefresh && ballAlpha < 1.0f)
 					render::InterpolateBalls(ballAlpha);
-				render::PresentVScreen();
+				render::PresentVScreen(HighRefresh ? ballAlpha : 1.0f);
 				render::RestoreBalls();
 
 				ImGui::Render();
@@ -1826,6 +1830,7 @@ void winmain::RenderEditionHint()
 bool winmain::CreateRenderer(bool gpu)
 {
 	// The GPU renderer, for post-processing; otherwise the default, falling back to the software renderer
+	Compositor::Uninit();
 	PostEffect::Uninit();
 	if (Renderer)
 		SDL_DestroyRenderer(Renderer);
@@ -1925,6 +1930,14 @@ const char* winmain::PostProcessingUnavailable()
 		return pb::get_rc_string(Msg::Definitive_NoGpu);
 	return nullptr;
 #endif
+}
+
+const char* winmain::EffectsUnavailable()
+{
+	// Where post-processing can't show, the compositor can't either; it can also fail on its own, with its shaders
+	if (auto reason = PostProcessingUnavailable())
+		return reason;
+	return Compositor::Available() ? nullptr : pb::get_rc_string(Msg::Definitive_EffectsFailed);
 }
 
 void winmain::ResetPreciseSleep()
