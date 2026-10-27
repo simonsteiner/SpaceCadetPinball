@@ -266,7 +266,9 @@ float* loader::query_float_attribute(int groupIndex, int groupIndexOffset, int f
 			return floatArr + 1;
 	}
 
-	error(13, 22);
+	// Full Tilt's loader (CADET.EXE) returns no attribute without an error, and its components check for it
+	if (!pb::FullTiltMode)
+		error(13, 22);
 	return nullptr;
 }
 
@@ -403,7 +405,12 @@ int loader::kicker(int groupIndex, visualKickerStruct* kicker)
 			index += 4;
 			break;
 		case 410:
-			std::copy_n(floatArr, 8, kicker->Attr410);
+			// Full Tilt's bonus tables give the throw as two points, x y z and an unused fourth float each.
+			// CADET.EXE throws from the first towards the second and normalizes x and y; it does that for 404 too,
+			// where Pinball.exe and this code keep the direction as given.
+			kicker->ThrowBallDirection = {floatArr[4] - floatArr[0], floatArr[5] - floatArr[1],
+										  floatArr[6] - floatArr[2]};
+			maths::normalize_2d(kicker->ThrowBallDirection);
 			floatArr += 8;
 			index += 9;
 			break;
