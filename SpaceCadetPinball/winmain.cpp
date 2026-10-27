@@ -345,6 +345,7 @@ static DefinitiveHost MakeDefinitiveHost()
 		auto frame = replay::Frame();
 		auto frames = static_cast<unsigned>(summary.FrameStarts.size());
 		std::vector<float> games;
+		games.reserve(summary.Games.size());
 		for (auto game : summary.Games)
 			games.push_back(game < frames ? summary.FrameStarts[game] : summary.Length);
 		return DefinitiveHost::Viewer{frame,
