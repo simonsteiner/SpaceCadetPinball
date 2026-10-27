@@ -49,74 +49,37 @@ void DefinitiveStatsScreen::Open()
 
 bool DefinitiveStatsScreen::Render()
 {
-	auto viewport = ImGui::GetMainViewport();
 	auto scale = Ui::Scale();
-	auto margin = 24 * scale;
-	ImVec2 min{viewport->Pos.x + margin, viewport->Pos.y + margin};
-	ImVec2 size{std::min(640 * scale, viewport->Size.x - margin * 2), viewport->Size.y - margin * 2};
-
-	ImGui::SetNextWindowPos(min);
-	ImGui::SetNextWindowSize(size);
-	if (Opened || (!ImGui::GetTopMostPopupModal() && !GImGui->NavWindow))
-		ImGui::SetNextWindowFocus();
+	auto panel = Ui::BeginPanel("##DefinitiveStats", Text(Msg::Definitive_Stats), Opened);
 	auto opened = Opened;
 	Opened = false;
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{});
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{0, 2 * scale});
-	ImGui::PushStyleColor(ImGuiCol_NavCursor, 0U);
-	ImGui::PushStyleColor(ImGuiCol_ScrollbarBg, 0U);
-	ImGui::Begin("##DefinitiveStats", nullptr,
-				 Ui::Combine(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_NoBackground, ImGuiWindowFlags_NoMove,
-							 ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoScrollWithMouse));
-	auto drawList = ImGui::GetWindowDrawList();
-	Theme::DrawPanel(drawList, min, ImVec2{min.x + size.x, min.y + size.y});
-	auto padding = 24 * scale;
-	auto innerWidth = size.x - padding * 2;
-	Ui::DrawText(drawList, Theme::HeadingFont(), Theme::TitleSize, ImVec2{min.x + padding, min.y + padding},
-				 Theme::Chrome50, Text(Msg::Definitive_Stats), innerWidth);
 
-	auto tabsY = min.y + padding + 48 * scale;
+	auto tabsY = panel.Min.y + panel.Padding + 48 * scale;
 	auto previous = Current;
-	Current = Ui::Tabs(drawList, ImVec2{min.x + padding, tabsY}, innerWidth,
+	Current = Ui::Tabs(panel.DrawList, ImVec2{panel.Min.x + panel.Padding, tabsY}, panel.Size.x - panel.Padding * 2,
 					   {Text(Msg::Definitive_Stats), Text(Msg::Definitive_Achievements)}, Current);
 
-	// The rows scroll under the tabs, and the focus follows them
-	auto rowsY = tabsY + Ui::TabHeight * scale + 12 * scale;
-	auto hintsHeight = 26 * scale + padding * 1.5f;
-	ImGui::SetCursorScreenPos(ImVec2{min.x + padding / 2, rowsY});
-	ImGui::BeginChild("##rows", ImVec2{size.x - padding, min.y + size.y - hintsHeight - rowsY},
-					  ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoBackground);
-	// ImGui's Escape takes the focus off the rows too; the screen gives it back to the first
-	if (opened || Current != previous ||
-		(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !GImGui->NavId))
+	// The rows scroll under the tabs, and the focus follows them; ImGui's Escape takes it off the rows too, and the
+	// screen gives it back to the first
+	if (Ui::BeginPanelRows(panel, tabsY + Ui::TabHeight * scale + 12 * scale) || opened || Current != previous)
 	{
 		Ui::FocusNextRow();
 		ImGui::SetScrollY(0);
 		ConfirmClear = false;
 	}
-	ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - (ImGui::GetScrollMaxY() > 0 ? 12 * scale : 0));
 	if (Current == 0)
 		RenderStats();
 	else
 		RenderAchievements();
 	if (Ui::MenuRow("back", Text(Msg::Definitive_Back)))
 		BackChosen = true;
-	ImGui::PopItemWidth();
-	ImGui::EndChild();
+	Ui::EndPanelRows();
 
-	auto back = BackChosen || (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&
-							   (ImGui::IsKeyPressed(ImGuiKey_Escape, false) ||
-								ImGui::IsKeyPressed(ImGuiKey_GamepadFaceRight, false) ||
-								ImGui::IsMouseClicked(ImGuiMouseButton_Right)));
+	auto back = BackChosen || Ui::PanelBack();
 	BackChosen = false;
-	Ui::DrawHints(drawList, ImVec2{min.x + padding, min.y + size.y - padding - 26 * scale},
-				  {{Ui::Action::Group, Text(Msg::Definitive_Group)},
-				   {Ui::Action::Choose, Text(Msg::Definitive_Scroll)},
-				   {Ui::Action::Back, Text(Msg::Definitive_Back)}});
-	ImGui::End();
-	ImGui::PopStyleColor(2);
-	ImGui::PopStyleVar(3);
+	Ui::EndPanel(panel, {{Ui::Action::Group, Text(Msg::Definitive_Group)},
+						 {Ui::Action::Choose, Text(Msg::Definitive_Scroll)},
+						 {Ui::Action::Back, Text(Msg::Definitive_Back)}});
 	return !back;
 }
 

@@ -645,7 +645,13 @@ void options::PostProcessOptions()
 	Options.KeyBindingsVersion = KeyBindingsScancodes;
 	Options.Edition = Clamp(Options.Edition.V, 0, static_cast<int>(Editions::Max) - 1);
 	Options.Rotation = Clamp(Options.Rotation.V, 0, 3);
-	Options.TextSize = Options.TextSize.V >= 150 ? 150 : Options.TextSize.V >= 125 ? 125 : 100;
+	// 100, 125 or 150 percent, rounding down
+	if (Options.TextSize.V >= 150)
+		Options.TextSize = 150;
+	else if (Options.TextSize.V >= 125)
+		Options.TextSize = 125;
+	else
+		Options.TextSize = 100;
 	Options.ColourVision = Clamp(Options.ColourVision.V, 0, 1);
 	// A sound pack is a folder name in the sounds folder, never a path out of it
 	auto& pack = Options.SoundPack.V;
