@@ -85,6 +85,13 @@ zmap_header_type* Upscale::ZMap(zmap_header_type* zMap)
 		for (int x = 0; x < result->Width; x++)
 			dst[x] = src[x / factor];
 	}
+	if (!zMap->Holes.empty())
+	{
+		result->Holes.resize(static_cast<size_t>(result->Stride) * result->Height);
+		for (int y = 0; y < result->Height; y++)
+			for (int x = 0; x < result->Width; x++)
+				result->Holes[y * result->Stride + x] = zMap->Holes[(y / factor) * zMap->Stride + x / factor];
+	}
 	ZMaps[zMap].reset(result);
 	return result;
 }
