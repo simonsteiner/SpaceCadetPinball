@@ -47,7 +47,7 @@ None of these classes exist in `Pinball.exe` or this code, so they have to be re
 
 ### Known types with other attributes
 
-The spike guarded the first two; the others don't crash but may behave differently:
+The spike guarded the first two; the others don't crash but may behave differently. F4 settled the ramps and blockers for Dragon's Keep (the [plan](2026-10-20-space-cadet-2026.md), F4's engine milestone):
 
 - Ramps (1021) without wall 1303: Skulduggery's `a_ramp5`, `a_ramp8`, `a_ramp13`, `a_ramp18`, and six of Dragon's Keep's.
 - Blockers (1011) without a wall (600) or material (300): `a_cannon` and `a_bloce`, and Dragon's Keep's `a_sword`, `a_jaw`, `a_center_post`, `a_rocka`, `a_rockb`. They look like animated props more than blockers.

@@ -1,8 +1,8 @@
 # Sends keys to a window through XTest and takes screenshots of it, for comparing runs step by step.
 # Usage: uv run --with python-xlib --with pillow python3 -I tools/xtest-drive.py DISPLAY TITLE OUTDIR [--move] STEP...
 # TITLE is part of the window's title or class. --move puts the window at 0,0 first (Xvfb has no window manager).
-# Steps: k:KEYSYM[:HOLD_SECONDS] presses a key, t:TEXT types letters and spaces, s:SECONDS waits,
-# p:NAME saves the window as OUTDIR/NAME.png.
+# Steps: k:KEYSYM[:HOLD_SECONDS] presses a key, d:KEYSYM and u:KEYSYM hold it down and let it go,
+# t:TEXT types letters and spaces, s:SECONDS waits, p:NAME saves the window as OUTDIR/NAME.png.
 import sys
 import time
 
@@ -63,6 +63,10 @@ for step in steps:
     if op == "k":
         keysym, _, hold = arg.partition(":")
         press(keysym, float(hold) if hold else 0.08)
+    elif op in ("d", "u"):
+        code = d.keysym_to_keycode(XK.string_to_keysym(arg))
+        xtest.fake_input(d, X.KeyPress if op == "d" else X.KeyRelease, code)
+        d.sync()
     elif op == "t":
         for ch in arg:
             press("space" if ch == " " else ch)
