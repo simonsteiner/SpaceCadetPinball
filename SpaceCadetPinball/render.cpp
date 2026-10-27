@@ -699,7 +699,7 @@ void render::DrawBackdrop()
 	// Cover the whole window, keeping the art's proportions
 	int width, height;
 	float textureWidth, textureHeight;
-	SDL_GetRenderOutputSize(winmain::Renderer, &width, &height);
+	fullscrn::OutputSize(width, height);
 	SDL_GetTextureSize(BackdropTexture, &textureWidth, &textureHeight);
 	auto scale = std::max(width / textureWidth, height / textureHeight);
 	auto dstRect = SDL_FRect{(width - textureWidth * scale) / 2, (height - textureHeight * scale) / 2,

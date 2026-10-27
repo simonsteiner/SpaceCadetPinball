@@ -166,7 +166,13 @@ The LLVM version is set once, in `tools/llvm-requirements.txt`: CI installs it f
 
 The game has two editions: **Space Cadet 2026**, the definitive edition, and **Classic**, the game as it was. Both play the same table with the same physics and rules. Space Cadet 2026 is the default, also for settings saved by an earlier version, and the first start shows a hint that names the key for switching. Tab switches at any time, also during a game, and so does **Options → Space Cadet 2026**; the key can be changed in Player Controls. The choice is saved.
 
-So far the editions differ only in their own copy of the drawing options under Options → Graphics: Integer Scaling, Linear Filtering, Backdrop, Panel Under Table in Tall Windows, Upscaled Art and Upscaled Art Size. Each edition remembers its own, so switching changes them together and switching back restores them. Classic starts from the defaults below; Space Cadet 2026 starts with Upscaled Art on at 2×. Everything else, such as Uniform Scaling, Post-Processing, the frame rate, sound and controls, is shared.
+Besides Space Cadet 2026's own settings, such as its sound below, the editions differ only in their own copy of the drawing options under Options → Graphics: Integer Scaling, Linear Filtering, Backdrop, Panel Under Table in Tall Windows, Upscaled Art and Upscaled Art Size. Each edition remembers its own, so switching changes them together and switching back restores them. Classic starts from the defaults below; Space Cadet 2026 starts with Upscaled Art on at 2×. Everything else, such as Uniform Scaling, Post-Processing, the frame rate, sound and controls, is shared.
+
+Space Cadet 2026 has three sound settings of its own, in Settings → Audio, all off by default; Classic always plays the table's sounds as they are:
+
+- **Room reverb:** the sound effects ring a little, as in the room a table stands in. The music is left alone.
+- **Wider stereo:** the sound effects placed left and right are spread further apart. It needs Stereo sound effects.
+- **Sound pack:** a folder of WAV files in the `sounds` folder of the user preferences folder (`~/.local/share/SpaceCadetPinball/sounds/<pack>/` on Linux) replaces the table's sounds whose files have the same names, such as `SOUND12.WAV`, in any letter case; sounds the pack lacks stay the table's own. Choosing a pack takes effect at once, and Classic always plays the table's own sounds. Packs stay on the player's machine; the web build has no place for them, so it hides the row.
 
 ## Display
 

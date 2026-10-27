@@ -12,6 +12,10 @@
 #include "winmain.h"
 #include "translations.h"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 constexpr int options::MaxUps, options::MaxFps, options::MinUps, options::MinFps, options::DefUps, options::DefFps;
 constexpr int options::MaxSoundChannels, options::MinSoundChannels, options::DefSoundChannels;
 constexpr int options::MaxVolume, options::MinVolume, options::DefVolume;
@@ -189,6 +193,15 @@ optionsStruct options::Options
 	{"Lamp Glow", true},
 	{"Shaded Ball", true},
 	{"Reduced Motion", false},
+	{"Screen Rotation", 0},
+	{"Text Size", 100},
+	{"High Contrast HUD", false},
+	{"Colour Vision", 0},
+	{"Room Reverb", false},
+	{"Wide Stereo", false},
+	{"Sound Pack", ""},
+	{"Record Sessions", false},
+	{"Reduced Motion Chosen", false},
 };
 // clang-format on
 
@@ -232,6 +245,12 @@ void options::InitPrimary()
 	auto newToggleEdition = !HasSetting(std::string{toggleEdition.Name} + " 0 input");
 	for (const auto opt : AllOptions)
 		opt->Load();
+#ifdef __EMSCRIPTEN__
+	// Until the player sets it, Reduced Motion follows the browser's, which follows the system's, at every start
+	if (!Options.ReducedMotionChosen)
+		Options.ReducedMotion =
+			EM_ASM_INT({ return matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 0; }) != 0;
+#endif
 	if (newToggleEdition)
 	{
 		// Settings from before the switch existed may already use its default key; then it starts unbound
@@ -625,6 +644,19 @@ void options::PostProcessOptions()
 	Options.MusicVolume = Clamp(Options.MusicVolume.V, MinVolume, MaxVolume);
 	Options.KeyBindingsVersion = KeyBindingsScancodes;
 	Options.Edition = Clamp(Options.Edition.V, 0, static_cast<int>(Editions::Max) - 1);
+	Options.Rotation = Clamp(Options.Rotation.V, 0, 3);
+	// 100, 125 or 150 percent, rounding down
+	if (Options.TextSize.V >= 150)
+		Options.TextSize = 150;
+	else if (Options.TextSize.V >= 125)
+		Options.TextSize = 125;
+	else
+		Options.TextSize = 100;
+	Options.ColourVision = Clamp(Options.ColourVision.V, 0, 1);
+	// A sound pack is a folder name in the sounds folder, never a path out of it
+	auto& pack = Options.SoundPack.V;
+	if (pack.find_first_of("/\\") != std::string::npos || pack == "." || pack == "..")
+		pack.clear();
 	// Also a folder typed into the settings file by hand
 	Options.GameDataFolder.V = FolderPath(Options.GameDataFolder.V);
 	// The drawing options of each edition are clamped while that edition's are on show

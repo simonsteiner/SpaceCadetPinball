@@ -22,6 +22,8 @@ float fullscrn::ScaleX = 1;
 float fullscrn::ScaleY = 1;
 int fullscrn::OffsetX = 0;
 int fullscrn::OffsetY = 0;
+bool fullscrn::Portrait = false;
+SDL_Texture* fullscrn::TurnedFrame = nullptr;
 
 void fullscrn::init()
 {
@@ -113,13 +115,30 @@ void fullscrn::window_size_changed()
 
 	// The renderer works in pixels, ImGui and the menu height in window coordinates
 	int width, height;
-	SDL_GetRenderOutputSize(winmain::Renderer, &width, &height);
+	OutputSize(width, height);
 	int menuHeight =
 		winmain::MenuBarShown() ? static_cast<int>(std::ceil(winmain::MainMenuHeight * PixelDensity())) : 0;
 	height -= menuHeight;
 	auto res = &resolution_array[resolution];
 	auto boardWidth = render::BoardWidth();
 	auto sidebarWidth = res->TableWidth - boardWidth;
+
+	// Space Cadet 2026 in a window taller than wide, such as a phone held upright or a monitor on its side: the table
+	// at the top, as large as it fits with a share of the height left for the HUD, which takes the band under it
+	Portrait = options::GetEdition() == Editions::Definitive && options::Options.UniformScaling && height > width;
+	if (Portrait)
+	{
+		constexpr float HudShare = 0.2f;
+		FitScale(width, static_cast<int>(static_cast<float>(height) * (1 - HudShare)), boardWidth, res->TableHeight,
+				 ScaleX, ScaleY);
+		auto boardW = static_cast<int>(std::round(boardWidth * ScaleX));
+		auto tableH = static_cast<int>(std::round(res->TableHeight * ScaleY));
+		OffsetX = (width - boardW) / 2;
+		OffsetY = 0;
+		render::BoardRect = SDL_Rect{OffsetX, OffsetY, boardW, tableH};
+		render::SidebarRect = SDL_Rect{0, tableH, width, height - tableH};
+		return;
+	}
 
 	// Classic: the score panel beside the table, as the original drew it
 	FitScale(width, height, res->TableWidth, res->TableHeight, ScaleX, ScaleY);
@@ -248,4 +267,122 @@ float fullscrn::GetScreenToPinballRatio()
 {
 	// Window coordinates per table pixel
 	return static_cast<float>(render::BoardRect.w) / render::BoardWidth() / PixelDensity();
+}
+
+int fullscrn::Rotation()
+{
+	return options::GetEdition() == Editions::Definitive ? options::Options.Rotation.V : 0;
+}
+
+void fullscrn::OutputSize(int& width, int& height)
+{
+	SDL_GetRenderOutputSize(winmain::Renderer, &width, &height);
+	if (Rotation() % 2)
+		std::swap(width, height);
+}
+
+SDL_FPoint fullscrn::ToPicture(SDL_FPoint point)
+{
+	// A quarter turn clockwise puts the picture's left edge at the window's top
+	switch (Rotation())
+	{
+	case 1:
+		return {point.y, 1 - point.x};
+	case 2:
+		return {1 - point.x, 1 - point.y};
+	case 3:
+		return {1 - point.y, point.x};
+	default:
+		return point;
+	}
+}
+
+void fullscrn::TurnPointerEvent(SDL_Event& event)
+{
+	float* x;
+	float* y;
+	switch (event.type)
+	{
+	case SDL_EVENT_MOUSE_MOTION:
+		x = &event.motion.x;
+		y = &event.motion.y;
+		break;
+	case SDL_EVENT_MOUSE_BUTTON_DOWN:
+	case SDL_EVENT_MOUSE_BUTTON_UP:
+		x = &event.button.x;
+		y = &event.button.y;
+		break;
+	case SDL_EVENT_MOUSE_WHEEL:
+		x = &event.wheel.mouse_x;
+		y = &event.wheel.mouse_y;
+		break;
+	default:
+		return;
+	}
+	if (!Rotation())
+		return;
+
+	int width;
+	int height;
+	SDL_GetWindowSize(winmain::MainWindow, &width, &height);
+	if (width <= 0 || height <= 0)
+		return;
+	auto point = ToPicture({*x / static_cast<float>(width), *y / static_cast<float>(height)});
+	if (Rotation() % 2)
+		std::swap(width, height);
+	*x = point.x * static_cast<float>(width);
+	*y = point.y * static_cast<float>(height);
+}
+
+void fullscrn::BeginFrame()
+{
+	if (!Rotation())
+		return;
+
+	// The picture is drawn into a texture of its own size, which EndFrame turns into the window
+	int width;
+	int height;
+	OutputSize(width, height);
+	float textureWidth = 0;
+	float textureHeight = 0;
+	if (TurnedFrame)
+		SDL_GetTextureSize(TurnedFrame, &textureWidth, &textureHeight);
+	if (!TurnedFrame || static_cast<int>(textureWidth) != width || static_cast<int>(textureHeight) != height)
+	{
+		if (TurnedFrame)
+			SDL_DestroyTexture(TurnedFrame);
+		TurnedFrame =
+			SDL_CreateTexture(winmain::Renderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_TARGET, width, height);
+		if (!TurnedFrame)
+			return;
+		SDL_SetTextureScaleMode(TurnedFrame, SDL_SCALEMODE_NEAREST);
+		SDL_SetTextureBlendMode(TurnedFrame, SDL_BLENDMODE_NONE);
+	}
+	SDL_SetRenderTarget(winmain::Renderer, TurnedFrame);
+}
+
+void fullscrn::EndFrame()
+{
+	if (!TurnedFrame || SDL_GetRenderTarget(winmain::Renderer) != TurnedFrame)
+		return;
+
+	SDL_SetRenderTarget(winmain::Renderer, nullptr);
+	SDL_RenderClear(winmain::Renderer);
+	int width;
+	int height;
+	SDL_GetRenderOutputSize(winmain::Renderer, &width, &height);
+	float textureWidth;
+	float textureHeight;
+	SDL_GetTextureSize(TurnedFrame, &textureWidth, &textureHeight);
+	// Turned about the window's centre, so the texture goes where it would lie unturned around that centre
+	SDL_FRect dst{(static_cast<float>(width) - textureWidth) / 2, (static_cast<float>(height) - textureHeight) / 2,
+				  textureWidth, textureHeight};
+	SDL_RenderTextureRotated(winmain::Renderer, TurnedFrame, nullptr, &dst, 90.0 * Rotation(), nullptr, SDL_FLIP_NONE);
+}
+
+void fullscrn::ReleaseFrame()
+{
+	if (TurnedFrame)
+		SDL_DestroyTexture(TurnedFrame);
+	TurnedFrame = nullptr;
 }

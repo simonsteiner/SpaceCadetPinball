@@ -27,9 +27,43 @@ public:
 
 	static bool StartRecording(const std::string& path);
 	static bool StartPlayback(const std::string& path);
+	// Plays a recording back in the window, for Space Cadet 2026's Recordings: as playback, but quiet, without the
+	// recorded edition switches, and with the frames counted first for a timeline
+	static bool StartViewing(const std::string& path);
 	static void Stop();
 	static bool IsRecording() { return Output != nullptr; }
 	static bool IsPlaying() { return Input != nullptr; }
+	static bool IsViewing()
+	{
+		return Input != nullptr && Viewing;
+	}
+
+	// What a recording holds, read without playing it: its frames, where each starts in milliseconds of play, and
+	// the frames at which a game (not the demo) starts. Empty when the file isn't a recording.
+	struct Summary
+	{
+		std::string DatFile;
+		std::vector<float> FrameStarts;
+		float Length = 0;
+		std::vector<unsigned> Games;
+	};
+	static Summary Summarize(const std::string& path);
+	// The summary of the recording being viewed, and the frames played so far
+	static const Summary& Viewed()
+	{
+		return ViewedSummary;
+	}
+	static unsigned Frame()
+	{
+		return FrameIndex;
+	}
+	// The game data file name and hash this one is, as a recording's dat line holds them
+	static std::string LoadedDatFile();
+	// Whether the recording being made has started a game yet; one that never does isn't worth keeping
+	static bool RecordedGame()
+	{
+		return GameRecorded;
+	}
 
 	// Seed and resolution to apply before pb::init, from the recording when playing back
 	static unsigned Seed() { return HeaderSeed; }
@@ -50,6 +84,9 @@ private:
 	static int HeaderResolution;
 	static std::string HeaderDatFile;
 	static bool Failed;
+	static bool Viewing;
+	static bool GameRecorded;
+	static Summary ViewedSummary;
 
 	static std::string FormatState();
 	static std::string DatFileHash();
