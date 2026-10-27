@@ -10,6 +10,7 @@ cmake --preset linux  # configure (presets: linux, linux-debug, linux-sanitize, 
 cmake --build --preset linux  # build; the executable lands in bin/ in the source tree
 cmake --preset linux-vendored && cmake --build --preset linux-vendored  # build with SDL fetched from source, as the Windows and macOS presets do
 ./bin/SpaceCadetPinball -noaudio  # run; needs game data, see docs/setup.md
+tools/run-headless.sh ../gamedata -noaudio  # run on a free Xvfb display of its own, as a renamed copy; prints the display and PID, stop it with kill <PID>, never pkill by name
 tools/check-replays.sh ../replays ../gamedata  # play back recorded sessions and report any that play differently
 lefthook install  # optional Git hooks from lefthook.yml: game-data guard, source-list and presentation-include checks, build and replays before push
 uvx --from clang-format==23.1.3 git-clang-format main  # format only the lines changed since main; never a whole file
