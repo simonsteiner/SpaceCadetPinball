@@ -200,6 +200,7 @@ optionsStruct options::Options
 	{"Room Reverb", false},
 	{"Wide Stereo", false},
 	{"Sound Pack", ""},
+	{"Reduced Motion Chosen", false},
 };
 // clang-format on
 
@@ -241,13 +242,11 @@ void options::InitPrimary()
 	MigrateKeycodes = !HasSetting(Options.KeyBindingsVersion.Name);
 	auto& toggleEdition = Options.Key[~GameBindings::ToggleEdition];
 	auto newToggleEdition = !HasSetting(std::string{toggleEdition.Name} + " 0 input");
-	// Loading an option saves its default when the settings lack it
-	[[maybe_unused]] auto newReducedMotion = !HasSetting(Options.ReducedMotion.Name);
 	for (const auto opt : AllOptions)
 		opt->Load();
 #ifdef __EMSCRIPTEN__
-	// Until the player chooses, Reduced Motion follows the browser's, which follows the system's
-	if (newReducedMotion)
+	// Until the player sets it, Reduced Motion follows the browser's, which follows the system's, at every start
+	if (!Options.ReducedMotionChosen)
 		Options.ReducedMotion =
 			EM_ASM_INT({ return matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 0; }) != 0;
 #endif

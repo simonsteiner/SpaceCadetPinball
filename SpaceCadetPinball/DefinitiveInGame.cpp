@@ -138,7 +138,9 @@ ImVec2 DefinitiveFrontEnd::BeginCentred(const char* name, ImVec2 size)
 void DefinitiveFrontEnd::RenderPause(const TableView& view)
 {
 	// Six rows and a separator, or the question and two rows
-	auto rowsHeight = ConfirmRestart || ConfirmQuit ? 32 + 2 * 50.0f : 6 * 50.0f + 12;
+	// Rows grow with the Text Size option
+	auto row = Ui::RowHeight() + 2;
+	auto rowsHeight = ConfirmRestart || ConfirmQuit ? 32 + 2 * row : 6 * row + 12;
 	auto min = BeginCentred("##DefinitivePause", ImVec2{420, 24 + 40 + 24 + 16 + rowsHeight + 24 + 44});
 	auto scale = Ui::Scale();
 	auto drawList = ImGui::GetWindowDrawList();
@@ -231,8 +233,8 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 void DefinitiveFrontEnd::RenderGameOver(const TableView& view)
 {
 	auto players = std::clamp(view.PlayerCount, 1, 4);
-	auto min =
-		BeginCentred("##DefinitiveGameOver", ImVec2{560, 24 + 40 + 24 + players * 56.0f + 24 + 2 * 50 + 24 + 32});
+	auto min = BeginCentred("##DefinitiveGameOver",
+							ImVec2{560, 24 + 40 + 24 + players * 56.0f + 24 + 2 * (Ui::RowHeight() + 2) + 24 + 32});
 	auto scale = Ui::Scale();
 	auto drawList = ImGui::GetWindowDrawList();
 	auto padding = 16 * scale;
@@ -397,10 +399,10 @@ void DefinitiveFrontEnd::RenderNameEntry()
 								4 * scale);
 		if (focused)
 			drawList->AddRect(at, max, Theme::LedOrange, 4 * scale);
-		auto labelSize = Theme::HeadingFont()->CalcTextSizeA(Theme::BodySize * scale, FLT_MAX, 0, label);
-		drawList->AddText(Theme::HeadingFont(), Theme::BodySize * scale,
-						  ImVec2{(at.x + max.x - labelSize.x) / 2, (at.y + max.y - labelSize.y) / 2},
-						  focused ? Theme::Chrome50 : Theme::Chrome200, label);
+		auto labelSize = Ui::TextSize(Theme::HeadingFont(), Theme::BodySize, label);
+		Ui::DrawText(drawList, Theme::HeadingFont(), Theme::BodySize,
+					 ImVec2{(at.x + max.x - labelSize.x) / 2, (at.y + max.y - labelSize.y) / 2},
+					 focused ? Theme::Chrome50 : Theme::Chrome200, label);
 		// Space and Enter on a keyboard type and finish the name; only a pad, a tap or a click picks a cell
 		return chosen && !typedSpace && !keyboardDone;
 	};
