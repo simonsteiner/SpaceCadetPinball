@@ -1,6 +1,6 @@
 # Bonus tables spike (Phase F, F1 and F2)
 
-Date: 2026-10-26. Status: report for decision, waiting on F3. The spike code is on `spike/skulduggery` (#67), marked `SPIKE (F2)`, and isn't meant to merge. Phase F is in the [Space Cadet 2026 plan](2026-10-20-space-cadet-2026.md).
+Date: 2026-10-26. Status: F3 decided; F4's sizing (below) narrows the estimate. The spike code is on `spike/skulduggery` (#67), marked `SPIKE (F2)`, and isn't meant to merge. Phase F is in the [Space Cadet 2026 plan](2026-10-20-space-cadet-2026.md).
 
 ## F1: reference files
 
@@ -100,6 +100,47 @@ In total that's months, not weeks: about **4 to 7 months** of focused work for b
 5. **The loader changes go to `main` on their own** (128 sounds, kicker attribute 410). They change nothing for Space Cadet.
 6. **A reference for the recovered rules.** REA reads the code but nothing records how the original plays. Running the original EXE in an isolated Wine prefix would give reference scores and light patterns; it means running a binary from the CD, which F1 avoided, so it's the owner's call.
 7. **A launcher for test runs,** so parallel threads stop killing each other's games: during the spike, another thread's `pkill -x SpaceCadetPinba` ended runs on a shared Xvfb display.
+
+## F4 sizing (2026-10-27)
+
+Ghidra 12.1.4 through REA decompiled the table constructors of `CADET.EXE` and `DRAGON.EXE`, and a headless Ghidra script hashed every function of both, with absolute addresses masked, to match them. The script and its output stay in `~/.cache/scp/f4/`, outside the repository. Ghidra's own analysis misses functions that only data points to (vtables, handler tables), so the script also creates a function at every pointer into code first.
+
+### Are types 1034 to 1043 in `CADET.EXE`?
+
+Yes, all seven. Its table constructor is the same function as `DRAGON.EXE`'s, apart from addresses, and its type switch has a case for each of them. The engine shared by the three EXEs builds every object type; each table's DAT uses only some.
+
+| Type | Class in `CADET.EXE` | Code | Table |
+| --- | --- | --- | --- |
+| 1034 | No new class: the plunger's constructor (type 1001's) with a flag of 1 | | Skulduggery |
+| 1035 | Collision component; overrides `Collision` | about 220 instructions | both |
+| 1036 | Collision component; overrides `Collision` and the field effect | about 155 instructions | both |
+| 1037 | Own class (555 bytes), kept in a list on the table | | Skulduggery |
+| 1038 | Plain component (not collision), kept in its own slot on the table; overrides `Message` and drawing | about 750 instructions | both |
+| 1042 | Subclass of type 1029's class (our `TKickout`) with a flag of 1 | | Skulduggery |
+| 1043 | Collision component; overrides `Message` and `Collision` | about 420 instructions | Dragon's Keep |
+
+Dragon's Keep's four types (1035, 1036, 1038, 1043) are about 5 KB of code, 1,600 instructions in all, identical in `DRAGON.EXE`. They can be recovered from `CADET.EXE`, whose engine functions around them already match our code.
+
+### How much of `DRAGON.EXE` matches the shared engine?
+
+Of `DRAGON.EXE`'s 925 functions, 801 (140 KB) match a function of `CADET.EXE` instruction for instruction. The engine sits at the same addresses in both EXEs, and the C runtime follows each table's own code. That code is one block after the engine: 122 functions and 37 KB in `DRAGON.EXE`, against 108 functions and 31 KB in `CADET.EXE`. `CADET.EXE`'s block is Space Cadet's rules, which `control.cpp` holds in 116 functions and about 4,500 lines; it also holds the table's credits text and its music names (`tabc1` to `tabc7` in Dragon's Keep). So Dragon's Keep's rules are about 1.2 times Space Cadet's, roughly 5,000 to 5,500 lines.
+
+### Which types and variants does Dragon's Keep need?
+
+- **The four new types** above, each in its own `T*.cpp`.
+- **Flippers:** `CADET.EXE` keeps a list of flippers on each side, where our code, from `Pinball.exe`, keeps one. Dragon's Keep needs the lists for its two right flippers.
+- **Variants:** `CADET.EXE`'s engine is a later revision than `Pinball.exe`'s, and its constructors already handle what Dragon's Keep leaves out. Its `TRamp` treats wall 1303 as optional, and its `TBlocker` is a different design: up to eight walls, one per sprite, each optional, which fits Dragon's Keep's props (`a_sword`, `a_jaw` and the rest). The spot targets without bitmaps, the light rollovers without sound 304 and the kicker attribute 410 are to be compared the same way.
+- **Space Cadet stays as it is.** `TRamp`'s optional wall changes nothing when the wall is there. `TBlocker` is different: porting `CADET.EXE`'s version for all tables could change Space Cadet's blockers, so it goes in only where Space Cadet's data doesn't reach, or as its own class for the bonus tables, unless the owner decides otherwise.
+
+### Narrowed estimate
+
+| Step | Work | Before | Now |
+| --- | --- | --- | --- |
+| F4, engine | `-table dragon`, the loader changes, music names; four classes from `CADET.EXE`; flipper lists; the variants; the plunger sprite | 3 to 5 weeks (F4 for Skulduggery) | **2 to 3 weeks** |
+| F4, rules | Dragon's Keep's rules: about 120 functions to name, against `CADET.EXE`'s rules matched to `control.cpp`, which gives every engine call they make a name | 6 to 10 weeks (F6) | **5 to 8 weeks** |
+| F6, engine | Skulduggery: 1034 as a plunger with a flag, 1037 and 1042, left flipper list, its variants | 3 to 5 weeks | **1 to 2 weeks** |
+
+The rules stay the bulk of the work, because without symbols every function and flag of Dragon's Keep's block needs a name. What shrinks is the engine: no class has to be recovered from a table's EXE alone.
 
 ## Spike code
 
