@@ -24,9 +24,10 @@ public:
 	static constexpr ImU32 Chrome200 = DefinitiveColor(0xC2, 0xCB, 0xDD);
 	static constexpr ImU32 Chrome400 = DefinitiveColor(0x8A, 0x95, 0xB0);
 	static constexpr ImU32 Chrome600 = DefinitiveColor(0x4E, 0x5A, 0x78);
-	// The lamps and score digits: orange for focus and scores, red for the ball count and warnings
-	static constexpr ImU32 LedOrange = DefinitiveColor(0xFF, 0x8C, 0x1A);
-	static constexpr ImU32 LedRed = DefinitiveColor(0xFF, 0x3B, 0x24);
+	// The lamps and score digits: orange for focus and scores, red for the ball count and warnings. SetPalette changes
+	// them for players who don't tell red from green, to amber and blue.
+	static inline ImU32 LedOrange = DefinitiveColor(0xFF, 0x8C, 0x1A);
+	static inline ImU32 LedRed = DefinitiveColor(0xFF, 0x3B, 0x24);
 
 	// Type sizes in pixels for a window 720 pixels high at UI scale 1; screens scale them with the window
 	static constexpr float DisplaySize = 60, TitleSize = 32, HeadingSize = 22, BodySize = 17, LabelSize = 14;
@@ -54,6 +55,12 @@ public:
 
 	// Turns ImGui's dark style into Space Cadet 2026's, at scale 1
 	static void ApplyStyle(ImGuiStyle& style);
+	// The LED colours for the Colour Vision option: 0 the table's orange and red, 1 amber and blue, which differ
+	// without red and green; the style's colours follow. Warning lamps then also carry a mark.
+	static void SetPalette(int colourVision);
+	// Panels, LED digits and lamps in high contrast while on: an opaque black ground, a white rim, no unlit segments
+	static void SetHighContrast(bool on);
+	static bool HighContrast();
 
 	// A lamp like the playfield's inserts, which lights on the row that has focus
 	// The colour with its alpha replaced, from 0 for clear to 1 for opaque
@@ -69,4 +76,8 @@ public:
 
 private:
 	static ImFont *Text, *Heading, *Digits;
+	static int Palette;
+	static bool Contrast;
+
+	static void ApplyPaletteColors(ImGuiStyle& style);
 };

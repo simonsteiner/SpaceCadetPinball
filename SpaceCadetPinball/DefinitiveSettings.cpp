@@ -17,6 +17,8 @@ bool DefinitiveSettings::BackChosen = false;
 bool DefinitiveSettings::FocusLanguage = false;
 int DefinitiveSettings::Slot = 0;
 GameInput* DefinitiveSettings::Waited = nullptr;
+std::vector<std::string> DefinitiveSettings::Packs{};
+bool DefinitiveSettings::PacksRead = false;
 
 namespace
 {
@@ -126,6 +128,9 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 	ImGui::BeginChild("##rows", ImVec2{size.x - padding, min.y + size.y - hintsHeight - rowsY},
 					  ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoBackground);
 	// ImGui's Escape takes the focus off the rows too; the screen gives it back to the first
+	// The sound packs are looked for again each time the screen or a tab opens, not every frame
+	if (opened || Current != previous)
+		PacksRead = false;
 	if (opened || Current != previous ||
 		(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !GImGui->NavId))
 	{
@@ -297,6 +302,12 @@ void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunn
 		options::toggle(Menu1::WindowIntegerScale);
 	if (Ui::ToggleRow("stacked", Text(Msg::Definitive_StackedLayout), options.StackedLayout, options.UniformScaling))
 		options::toggle(Menu1::WindowStackedLayout);
+	// For a cabinet's monitor on its side; a window taller than wide then puts the HUD under the table
+	Ui::NextRowNote(Text(Msg::Definitive_RotationNote));
+	if (auto rotation =
+			Ui::ChoiceRow("rotation", Text(Msg::Definitive_Rotation), {"0°", "90°", "180°", "270°"}, options.Rotation);
+		rotation != options.Rotation && host.SetRotation)
+		host.SetRotation(rotation);
 
 	auto rateChanged = false;
 	if (Ui::ToggleRow("match", Text(Msg::Definitive_MatchRefresh), options.MatchRefreshRate))
@@ -343,7 +354,23 @@ void DefinitiveSettings::RenderGraphics(const DefinitiveHost& host)
 	if (Ui::ToggleRow("filtering", Text(Msg::Definitive_LinearFiltering), options.LinearFiltering))
 		options::toggle(Menu1::WindowLinearFilter);
 
-	// Effects need SDL's GPU renderer; without it the choice is kept for when it is there
+	// The compositor's effects and the post effect need SDL's GPU renderer; without it the choices are kept for when it
+	// is there
+	// A note shows under the next row only, so each of the three gets it
+	auto effectsUnavailable = host.EffectsUnavailable ? host.EffectsUnavailable() : nullptr;
+	if (effectsUnavailable)
+		Ui::NextRowNote(effectsUnavailable);
+	if (Ui::ToggleRow("lighting", Text(Msg::Definitive_Lighting), options.Lighting))
+		options.Lighting = !options.Lighting;
+	if (effectsUnavailable)
+		Ui::NextRowNote(effectsUnavailable);
+	if (Ui::ToggleRow("glow", Text(Msg::Definitive_LampGlow), options.LampGlow))
+		options.LampGlow = !options.LampGlow;
+	if (effectsUnavailable)
+		Ui::NextRowNote(effectsUnavailable);
+	if (Ui::ToggleRow("ball", Text(Msg::Definitive_ShadedBall), options.ShadedBall))
+		options.ShadedBall = !options.ShadedBall;
+
 	if (auto unavailable = host.PostProcessingUnavailable ? host.PostProcessingUnavailable() : nullptr)
 		Ui::NextRowNote(unavailable);
 	auto effect = options.PostProcessing.V;
@@ -385,6 +412,39 @@ void DefinitiveSettings::RenderAudio(const DefinitiveHost& host)
 							   5, "%d%%");
 	if (ToPercent(options.MusicVolume) != music && host.SetMusicVolume)
 		host.SetMusicVolume(FromPercent(music));
+
+	// Space Cadet 2026's own, on the sound effects only
+	Ui::NextRowNote(Text(Msg::Definitive_RoomReverbNote));
+	if (Ui::ToggleRow("reverb", Text(Msg::Definitive_RoomReverb), options.RoomReverb))
+		options.RoomReverb = !options.RoomReverb;
+	Ui::NextRowNote(Text(Msg::Definitive_WideStereoNote));
+	if (Ui::ToggleRow("wide", Text(Msg::Definitive_WideStereo), options.WideStereo && options.SoundStereo,
+					  options.SoundStereo))
+		options.WideStereo = !options.WideStereo;
+
+	// The packs found, after None; choosing the row or right steps on, left steps back
+	if (!host.SoundPacks || !host.SetSoundPack)
+		return;
+	if (!PacksRead)
+	{
+		Packs = host.SoundPacks();
+		Packs.insert(Packs.begin(), std::string{});
+		PacksRead = true;
+	}
+	const auto& packs = Packs;
+	auto current = std::find(packs.begin(), packs.end(), options.SoundPack.V) - packs.begin();
+	if (current == static_cast<long>(packs.size()))
+		current = 0;
+	const auto& name = packs[current];
+	Ui::NextRowNote(Text(Msg::Definitive_SoundPackNote));
+	auto chosen = Ui::MenuRow("pack", Text(Msg::Definitive_SoundPack), false,
+							  name.empty() ? Text(Msg::Definitive_None) : name.c_str());
+	auto step = chosen ? 1 : Ui::RowStep();
+	if (step)
+	{
+		auto count = static_cast<long>(packs.size());
+		host.SetSoundPack(packs[(current + step + count) % count]);
+	}
 }
 
 void DefinitiveSettings::RenderControls()
@@ -425,10 +485,10 @@ void DefinitiveSettings::RenderControls()
 			auto label = isWaiting ? std::string{Text(Msg::Definitive_PressInput)} : Describe(input);
 			auto size = Ui::TextSize(Theme::TextFont(), Theme::LabelSize, label.c_str());
 			drawList->PushClipRect(slotMin, slotMax, true);
-			drawList->AddText(Theme::TextFont(), Theme::LabelSize * scale,
-							  ImVec2{std::max(slotMin.x + 4 * scale, (slotMin.x + slotMax.x - size.x) / 2),
-									 (slotMin.y + slotMax.y - size.y) / 2},
-							  isWaiting ? Theme::LedOrange : Theme::Chrome200, label.c_str());
+			Ui::DrawText(drawList, Theme::TextFont(), Theme::LabelSize,
+						 ImVec2{std::max(slotMin.x + 4 * scale, (slotMin.x + slotMax.x - size.x) / 2),
+								(slotMin.y + slotMax.y - size.y) / 2},
+						 isWaiting ? Theme::LedOrange : Theme::Chrome200, label.c_str());
 			drawList->PopClipRect();
 		}
 
@@ -466,5 +526,29 @@ void DefinitiveSettings::RenderAccessibility()
 	{
 		options::Options.UIScale.V = static_cast<float>(chosen) / 100;
 		ImGui::GetStyle().FontScaleMain = options::Options.UIScale;
+	}
+
+	auto& options = options::Options;
+	Ui::NextRowNote(Text(Msg::Definitive_TextSizeNote));
+	constexpr std::array sizes{100, 125, 150};
+	auto size = static_cast<int>(std::ranges::find(sizes, options.TextSize.V) - sizes.begin());
+	if (auto chosenSize = Ui::ChoiceRow("textsize", Text(Msg::Definitive_TextSize), {"100%", "125%", "150%"}, size);
+		chosenSize != size)
+		options.TextSize = sizes[static_cast<size_t>(chosenSize)];
+
+	Ui::NextRowNote(Text(Msg::Definitive_HighContrastNote));
+	if (Ui::ToggleRow("contrast", Text(Msg::Definitive_HighContrast), options.HighContrastHud))
+		options.HighContrastHud = !options.HighContrastHud;
+
+	Ui::NextRowNote(Text(Msg::Definitive_ColoursNote));
+	options.ColourVision =
+		Ui::ChoiceRow("colours", Text(Msg::Definitive_Colours),
+					  {Text(Msg::Definitive_ColoursStandard), Text(Msg::Definitive_ColoursSafe)}, options.ColourVision);
+
+	Ui::NextRowNote(Text(Msg::Definitive_ReducedMotionNote));
+	if (Ui::ToggleRow("motion", Text(Msg::Definitive_ReducedMotion), options::Options.ReducedMotion))
+	{
+		options::Options.ReducedMotion = !options::Options.ReducedMotion;
+		options::Options.ReducedMotionChosen = true;
 	}
 }

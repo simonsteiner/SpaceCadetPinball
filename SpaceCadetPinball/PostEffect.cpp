@@ -14,12 +14,6 @@ SDL_GPURenderState* PostEffect::States[static_cast<int>(PostEffects::Max)]{};
 
 namespace
 {
-	struct ShaderCode
-	{
-		const unsigned char* Code;
-		size_t Size;
-	};
-
 	struct EffectUniforms
 	{
 		float TextureSize[2];
@@ -78,10 +72,32 @@ void PostEffect::Init(SDL_Renderer* renderer)
 	constexpr ShaderCode msl[] = {{}, {crt_frag_msl, sizeof crt_frag_msl}, {smooth_frag_msl, sizeof smooth_frag_msl}};
 	static_assert(std::size(spirv) == static_cast<size_t>(PostEffects::Max), "One shader per effect");
 
-	auto device = SDL_GetGPURendererDevice(renderer);
+	for (int i = static_cast<int>(PostEffects::None) + 1; i < static_cast<int>(PostEffects::Max); i++)
+	{
+		Shaders[i] = CreateShader(renderer, spirv[i], dxil[i], msl[i], 1);
+		if (Shaders[i])
+		{
+			SDL_GPURenderStateCreateInfo stateInfo{};
+			stateInfo.fragment_shader = Shaders[i];
+			States[i] = SDL_CreateGPURenderState(renderer, &stateInfo);
+		}
+		if (!States[i])
+		{
+			printf("Could not create the post-processing shader.\nSDL Error: %s\n", SDL_GetError());
+			SDL_ClearError();
+		}
+	}
+#endif
+}
+
+SDL_GPUShader* PostEffect::CreateShader(SDL_Renderer* renderer, ShaderCode spirv, ShaderCode dxil, ShaderCode msl,
+										int samplers)
+{
+#if SDL_VERSION_ATLEAST(3, 4, 0)
+	auto device = IsGpuRenderer(renderer) ? SDL_GetGPURendererDevice(renderer) : nullptr;
 	auto formats = device ? SDL_GetGPUShaderFormats(device) : SDL_GPU_SHADERFORMAT_INVALID;
 	SDL_GPUShaderCreateInfo info{};
-	const ShaderCode* code;
+	ShaderCode code;
 	if (formats & SDL_GPU_SHADERFORMAT_SPIRV)
 	{
 		info.format = SDL_GPU_SHADERFORMAT_SPIRV;
@@ -99,30 +115,18 @@ void PostEffect::Init(SDL_Renderer* renderer)
 	}
 	else
 	{
-		printf("The GPU renderer takes no shader format the game has; no post-processing.\n");
-		return;
+		if (device)
+			printf("The GPU renderer takes no shader format the game has.\n");
+		return nullptr;
 	}
 	info.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-	info.num_samplers = 1;
+	info.num_samplers = samplers;
 	info.num_uniform_buffers = 1;
-
-	for (int i = static_cast<int>(PostEffects::None) + 1; i < static_cast<int>(PostEffects::Max); i++)
-	{
-		info.code = code[i].Code;
-		info.code_size = code[i].Size;
-		Shaders[i] = SDL_CreateGPUShader(device, &info);
-		if (Shaders[i])
-		{
-			SDL_GPURenderStateCreateInfo stateInfo{};
-			stateInfo.fragment_shader = Shaders[i];
-			States[i] = SDL_CreateGPURenderState(renderer, &stateInfo);
-		}
-		if (!States[i])
-		{
-			printf("Could not create the post-processing shader.\nSDL Error: %s\n", SDL_GetError());
-			SDL_ClearError();
-		}
-	}
+	info.code = code.Code;
+	info.code_size = code.Size;
+	return SDL_CreateGPUShader(device, &info);
+#else
+	return nullptr;
 #endif
 }
 

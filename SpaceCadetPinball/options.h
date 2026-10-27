@@ -425,4 +425,26 @@ struct optionsStruct
 	BoolOption EditionHintShown;
 	// The folder the player chose for the game data, searched before the usual places; empty when none was chosen
 	StringOption GameDataFolder;
+	// Space Cadet 2026's effects on SDL's GPU renderer (Compositor)
+	BoolOption Lighting;
+	BoolOption LampGlow;
+	BoolOption ShadedBall;
+	// No glow pulse and no shaking of the table when it is nudged, in Space Cadet 2026
+	BoolOption ReducedMotion;
+	// Quarter turns clockwise of Space Cadet 2026's picture, for a monitor on its side (fullscrn::Rotation)
+	IntOption Rotation;
+	// Space Cadet 2026's accessibility: text size in percent (100, 125 or 150), a HUD in high contrast, and colours
+	// that don't tell things apart by red and green alone (0 standard, 1 red-green safe)
+	IntOption TextSize;
+	BoolOption HighContrastHud;
+	IntOption ColourVision;
+	// Space Cadet 2026's sound (Sound::SetEffects): a room's reverb and wider stereo on the sound effects, and the
+	// sound pack in use, a folder name in Sound::PackFolder, empty for none
+	BoolOption RoomReverb;
+	BoolOption WideStereo;
+	StringOption SoundPack;
+	// Each start records the session into the recordings folder (RecordingViewer)
+	BoolOption RecordSessions;
+	// Whether the player has set Reduced Motion; until then the web build follows the browser's
+	BoolOption ReducedMotionChosen;
 };

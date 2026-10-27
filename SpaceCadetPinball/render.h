@@ -61,7 +61,8 @@ public:
 	static void shift(int offsetX, int offsetY);
 	static void build_occlude_list();
 	static void SpriteViewer(bool* show);
-	static void PresentVScreen();
+	// ballAlpha is how far the frame is from the update before the last to the last, for Space Cadet 2026's balls
+	static void PresentVScreen(float ballAlpha = 1.0f);
 	static int BoardWidth();
 	static void InterpolateBalls(float alpha);
 	static void RestoreBalls();
@@ -88,6 +89,12 @@ private:
 	static zmap_header_type* zscreenHi;
 	static int HiScale;
 	static std::vector<ColorRgba> SidebarCopy;
+	// The depth map as a texture for Space Cadet 2026's compositor, and the part of the frame whose depth changed
+	// since it was last updated, at 1x; DepthChangedAll when all of it did
+	static SDL_Texture* DepthTexture;
+	static rectangle_type DepthChanged;
+	static bool DepthChangedAll;
+	static std::vector<ColorRgba> DepthRows;
 
 	static void repaint(const render_sprite& sprite);
 	static void paint_balls();
@@ -97,4 +104,7 @@ private:
 	static void RefreshSidebarHi();
 	static void DrawBackdrop();
 	static void CreateBackdrop();
+	static void DepthChange(const rectangle_type& rect);
+	// Brings the depth texture up to date with the depth map that goes with the frame on show, or null if it can't
+	static SDL_Texture* UpdateDepthTexture();
 };
