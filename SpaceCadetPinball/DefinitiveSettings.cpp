@@ -17,6 +17,8 @@ bool DefinitiveSettings::BackChosen = false;
 bool DefinitiveSettings::FocusLanguage = false;
 int DefinitiveSettings::Slot = 0;
 GameInput* DefinitiveSettings::Waited = nullptr;
+std::vector<std::string> DefinitiveSettings::Packs{};
+bool DefinitiveSettings::PacksRead = false;
 
 namespace
 {
@@ -126,6 +128,9 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 	ImGui::BeginChild("##rows", ImVec2{size.x - padding, min.y + size.y - hintsHeight - rowsY},
 					  ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_NoBackground);
 	// ImGui's Escape takes the focus off the rows too; the screen gives it back to the first
+	// The sound packs are looked for again each time the screen or a tab opens, not every frame
+	if (opened || Current != previous)
+		PacksRead = false;
 	if (opened || Current != previous ||
 		(ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !GImGui->NavId))
 	{
@@ -420,8 +425,13 @@ void DefinitiveSettings::RenderAudio(const DefinitiveHost& host)
 	// The packs found, after None; choosing the row or right steps on, left steps back
 	if (!host.SoundPacks || !host.SetSoundPack)
 		return;
-	auto packs = host.SoundPacks();
-	packs.insert(packs.begin(), std::string{});
+	if (!PacksRead)
+	{
+		Packs = host.SoundPacks();
+		Packs.insert(Packs.begin(), std::string{});
+		PacksRead = true;
+	}
+	const auto& packs = Packs;
 	auto current = std::find(packs.begin(), packs.end(), options.SoundPack.V) - packs.begin();
 	if (current == static_cast<long>(packs.size()))
 		current = 0;

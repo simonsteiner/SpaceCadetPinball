@@ -646,6 +646,10 @@ void options::PostProcessOptions()
 	Options.Rotation = Clamp(Options.Rotation.V, 0, 3);
 	Options.TextSize = Options.TextSize.V >= 150 ? 150 : Options.TextSize.V >= 125 ? 125 : 100;
 	Options.ColourVision = Clamp(Options.ColourVision.V, 0, 1);
+	// A sound pack is a folder name in the sounds folder, never a path out of it
+	auto& pack = Options.SoundPack.V;
+	if (pack.find_first_of("/\\") != std::string::npos || pack == "." || pack == "..")
+		pack.clear();
 	// Also a folder typed into the settings file by hand
 	Options.GameDataFolder.V = FolderPath(Options.GameDataFolder.V);
 	// The drawing options of each edition are clamped while that edition's are on show
