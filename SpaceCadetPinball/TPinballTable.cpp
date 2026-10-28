@@ -68,7 +68,7 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 	auto ball = AddBall({0.0f, 0.0f});
 	ball->Disable();
 
-	auto tableLayer = new TTableLayer(this);
+	TableLayer = new TTableLayer(this);
 	LightGroup = new TLightGroup(this, 0);
 
 	auto score1 = score::create("score1", render::background_bitmap);
@@ -195,7 +195,7 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 				new TAccelerator(this, groupIndex);
 				break;
 			case 1038:
-				new TLightSweeps(this, *tableLayer, *LightGroup, groupIndex);
+				new TLightSweeps(this, *TableLayer, *LightGroup, groupIndex);
 				break;
 			case 1043:
 				new TDiverter(this, groupIndex);
@@ -723,7 +723,9 @@ void TPinballTable::EndGame_timeout(int timerId, void* caller)
 	}
 	if (table->Demo)
 		table->Demo->Message(MessageCode::GameOver, 0.0);
-	control::handler(MessageCode::ControlMissionStarted, pb::MissTextBox);
+	// Dragon's Keep has no mission text box
+	if (pb::MissTextBox)
+		control::handler(MessageCode::ControlMissionStarted, pb::MissTextBox);
 	pb::InfoTextBox->Display(pb::get_rc_string(Msg::STRING125), -1.0);
 }
 
