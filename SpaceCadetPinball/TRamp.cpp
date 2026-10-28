@@ -37,7 +37,7 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	auto wall0Arr = loader::query_float_attribute(groupIndex, 0, 1303);
 	if (wall0Arr)
 	{
-		auto wall0CollisionGroup = 1 << static_cast<int>(floor(wall0Arr[0]));
+		auto wall0CollisionGroup = static_cast<int>(1u << static_cast<unsigned>(floor(wall0Arr[0])));
 		auto wall0Pts = reinterpret_cast<wall_point_type*>(wall0Arr + 2);
 		Line1 = new TLine(this, &ActiveFlag, wall0CollisionGroup, wall0Pts->Pt1, wall0Pts->Pt0);
 		Line1->WallValue = nullptr;
@@ -48,7 +48,7 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	auto wall1Arr = loader::query_float_attribute(groupIndex, 0, 1301);
 	if (wall1Arr)
 	{
-		Wall1CollisionGroup = 1 << static_cast<int>(floor(wall1Arr[0]));
+		Wall1CollisionGroup = static_cast<int>(1u << static_cast<unsigned>(floor(wall1Arr[0])));
 		wall1Enabled = static_cast<int>(floor(wall1Arr[1]));
 		Wall1BallOffset = wall1Arr[7];
 		maths::find_closest_edge(RampPlane, RampPlaneCount, reinterpret_cast<wall_point_type*>(wall1Arr + 3), wall1End,
@@ -63,7 +63,7 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	auto wall2Arr = loader::query_float_attribute(groupIndex, 0, 1302);
 	if (wall2Arr)
 	{
-		Wall2CollisionGroup = 1 << static_cast<int>(floor(wall2Arr[0]));
+		Wall2CollisionGroup = static_cast<int>(1u << static_cast<unsigned>(floor(wall2Arr[0])));
 		wall2Enabled = static_cast<int>(floor(wall2Arr[1]));
 		Wall2BallOffset = wall2Arr[7];
 		maths::find_closest_edge(RampPlane, RampPlaneCount, reinterpret_cast<wall_point_type*>(wall2Arr + 3), wall2End,
