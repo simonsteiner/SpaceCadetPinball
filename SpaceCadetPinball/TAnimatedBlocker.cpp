@@ -24,9 +24,6 @@ TAnimatedBlocker::TAnimatedBlocker(TPinballTable* table, int groupIndex) : TColl
 	OnSoundIndex = visual.SoundIndex4;
 	OffSoundIndex = visual.SoundIndex3;
 
-	auto durations = loader::query_float_attribute(groupIndex, 0, 407);
-	InitialDuration = durations ? static_cast<int>(durations[0]) : 55;
-	ExtendedDuration = durations ? static_cast<int>(durations[1]) : 5;
 	FrameTime = loader::query_float_attribute(groupIndex, 0, 903, 0.1f);
 	InitialState = static_cast<int>(loader::query_float_attribute(groupIndex, 0, 409, -1.0f));
 	Threshold = 1000000000.0f;

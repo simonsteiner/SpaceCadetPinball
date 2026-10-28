@@ -20,7 +20,6 @@ public:
 	char StateActive[MaxStates]{};
 	int State = -1;
 	int InitialState;
-	int InitialDuration, ExtendedDuration;
 	int TimeoutTimer = 0;
 	int TargetState = -1;
 	float FrameTime;
