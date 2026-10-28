@@ -35,16 +35,17 @@
 // and game-over flow, with the ball save, the end-of-ball bonus and the music; the quest framework and the five
 // quests (Dragon Hoard, Fire Lizards, Rescue Maiden, Dragon Pass, Wizard's Fury). Everything else is still a stand-in
 // that keeps the table playable: kickouts and sinks give back the balls they catch, which only the rules would do
-// otherwise, Slay Dragon, the shop and the modes don't start, and a stuck ball is freed as Space Cadet's rules free
+// otherwise, Slay Dragon and the modes don't start, and a stuck ball is freed as Space Cadet's rules free
 // one.
 //
 // DRAGON.EXE's rules run a state machine whose state each player keeps in info_text_box's message field: the
 // component handlers and the engine report to one table-wide function (0x42c020), which hands every event to the
 // current state's function (0x42c120). States 0 (game over), 1 (new game), 2 (play), 3 (restart quest), 4 to 8 (the
-// quests), 10 (launch) and 11 (end of ball) are ported; Slay Dragon and the modes (9, 12 to 15) come with their
-// features. Addresses below are DRAGON.EXE's. Its message numbers differ from this port's above the light codes, so
-// each call uses the port's MessageCode: CADET.EXE's light groups number theirs 4 above this port's, its targets 4
-// above, its kickouts, sinks and timers 9 or 10 above; its animated blockers and diverters keep CADET.EXE's.
+// quests), 10 (launch), 11 (end of ball) and 12 (the shop) are ported; Slay Dragon and the modes (9, 13 to 15)
+// come with their features. Addresses below are DRAGON.EXE's. Its message numbers differ from this port's above the
+// light codes, so each call uses the port's MessageCode: CADET.EXE's light groups number theirs 4 above this port's,
+// its targets 4 above, its kickouts, sinks and timers 9 or 10 above; its animated blockers and diverters keep
+// CADET.EXE's.
 namespace
 {
 	// Codes DRAGON.EXE's rules functions send only among themselves; SkipBonusText comes from a rule not ported yet
@@ -71,6 +72,7 @@ namespace
 	constexpr int SlayDragonState = 9;
 	constexpr int LaunchState = 10;
 	constexpr int EndOfBallState = 11;
+	constexpr int ShopState = 12;
 	constexpr int TowerBarrageState = 13;
 	constexpr int DragonFlurryState = 15;
 
@@ -281,6 +283,9 @@ namespace
 	TSink* a_sink13;
 	TSink* a_sink15;
 	TSound* tabc10wave;
+	TSound* tabc33wave;
+	int ShopItem;        // 0x434d1c: what the shop offers, its price in dragon eggs; 0 for nothing
+	int ShopSpell;       // 0x434d28: the spell it offers
 	int MaidenLockLight; // 0x434d14: how v_lite48 was when Rescue Maiden started, 0 off, 1 on, 2 flashing
 
 	template <typename T> void Find(T*& component, const char* name)
@@ -1260,6 +1265,142 @@ namespace
 		}
 	}
 
+	void RaiseWeapon();
+
+	// State 12, 0x42ac80: the shop. The ball waits in s_hole118 while the dragon eggs buy what their number offers,
+	// or the best that is still of use: 1 to 3 the picked quest, 4 a spell, 5 a weapon, 6 armor, 7 the extra ball
+	// light, 8 an extra ball. The left flipper (a_flip1) buys it and spends that many eggs; any other declines
+	void ShopStateControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		auto eggs = dragon_egg_light_group;
+		if (code == TFlipperExtend)
+		{
+			GameState() = PlayState;
+			info_text_box->Clear();
+			if (caller == a_flip1)
+			{
+				switch (ShopItem)
+				{
+				case 1:
+				case 2:
+				case 3:
+					BallHeld = true;
+					if (StartQuest())
+					{
+						eggs->Message(TLightGroupResetAndTurnOff, 1.0f);
+						return;
+					}
+					BallHeld = false;
+					break;
+				case 4:
+					CastSpell(ShopSpell);
+					break;
+				case 5:
+					RaiseWeapon();
+					break;
+				case 6:
+					AwardArmor();
+					break;
+				case 7:
+					tabc35wave->Play(nullptr, "ShopStateControl");
+					v_lite57->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+					break;
+				default:
+					AwardExtraBall(2.0f);
+					break;
+				}
+				for (; ShopItem > 0; ShopItem--)
+					eggs->Message(TLightGroupResetAndTurnOff, 1.0f);
+				s_hole118->MessageField = 1;
+			}
+			else
+			{
+				AddScore(nullptr, 25000);
+				s_hole118->MessageField = 0;
+			}
+			s_hole118->Message(THoleRelease, 0.0f);
+			BallHeld = true;
+			TableHook(EnterState, nullptr);
+			return;
+		}
+
+		if (code == EnterState)
+		{
+			s_hole118->MessageField = 0;
+			info_text_box->Clear();
+			ShopItem = eggs->Message(TLightGroupGetOnCount, 0.0f);
+			auto allLit = [](std::initializer_list<TLight*> lights)
+			{ return std::ranges::all_of(lights, [](TLight* light) { return light->light_on(); }); };
+			// Each item that is of no use any more gives way to the one below it
+			if (ShopItem == 8 && Table->ExtraBalls)
+				ShopItem = 7;
+			if (ShopItem == 7 && v_lite57->light_on())
+				ShopItem = 6;
+			if (ShopItem == 6 && allLit({v_lite37, v_lite38, v_lite39}))
+				ShopItem = 5;
+			if (ShopItem == 5 && allLit({v_lite33, v_lite34, v_lite35, v_lite36}))
+				ShopItem = 4;
+			if (ShopItem == 4)
+			{
+				ShopSpell = PickSpell();
+				if (ShopSpell == -1)
+					ShopItem = 1;
+			}
+			if (ShopItem >= 1 && ShopItem <= 3)
+				ShopItem = 1;
+			else if (ShopItem < 1 || ShopItem > 8)
+				ShopItem = 0;
+		}
+		else if (code != ShowStateText)
+			return;
+
+		using enum Msg;
+		std::optional<Msg> text;
+		switch (ShopItem)
+		{
+		case 0:
+			tabc32wave->Play(nullptr, "ShopStateControl");
+			AddScore(nullptr, 25000);
+			s_hole118->MessageField = 0;
+			info_text_box->Display(pb::get_rc_string(Dragon_NoDragonEggs), 2.0f);
+			s_hole118->Message(THoleRelease, 2.0f);
+			BallHeld = true;
+			SetState(PlayState);
+			return;
+		case 1:
+			{
+				static constexpr std::array quests{Dragon_BuyDragonHoard, Dragon_BuyFireLizards, Dragon_BuyRescueMaiden,
+												   Dragon_BuyDragonPass, Dragon_BuyWizardsFury};
+				auto state = a_kout2->MessageField;
+				if (state >= DragonHoardState && state <= WizardsFuryState)
+					text = quests[state - DragonHoardState];
+				break;
+			}
+		case 4:
+			text = Dragon_PurchaseSpell;
+			break;
+		case 5:
+			text = Dragon_PurchaseWeapon;
+			break;
+		case 6:
+			text = Dragon_PurchaseArmor;
+			break;
+		case 7:
+			text = Dragon_PurchaseExtraBallLight;
+			break;
+		default:
+			text = Dragon_PurchaseExtraBall;
+			break;
+		}
+		if (text)
+		{
+			info_text_box->Display(pb::get_rc_string(*text), -1.0f);
+			if (code == EnterState)
+				tabc33wave->Play(nullptr, "ShopStateControl");
+		}
+	}
+
 	// State 7, 0x429b10: Dragon Pass. The gargoyle kickout (a_kout2) lays a dragon egg, the armor kickout (a_kout1)
 	// awards the jackpot, and a_spot8 and a_spot12 grow it, until the time runs out
 	void DragonPassStateControl(MessageCode code, TPinballComponent* caller)
@@ -1672,6 +1813,9 @@ namespace
 			break;
 		case WizardsFuryState:
 			WizardsFuryStateControl(code, caller);
+			break;
+		case ShopState:
+			ShopStateControl(code, caller);
 			break;
 		case LaunchState:
 			LaunchStateControl(code, caller);
@@ -2655,12 +2799,17 @@ namespace
 	}
 
 	// s_hole118, 0x426ee0: holds the ball until the rules let it go. In play with one ball it opens the shop
-	// (state 12), which isn't ported yet, so the hole lets the ball go as in the other states
+	// (state 12)
 	void HoleControl(MessageCode code, TPinballComponent*)
 	{
 		using enum MessageCode;
 		if (code == ControlBallCaptured)
 		{
+			if (GameState() == PlayState && Table->MultiballCount == 1)
+			{
+				SetState(ShopState);
+				return;
+			}
 			if (GameState() == LaunchState)
 			{
 				s_hole118->MessageField = 2;
@@ -3103,6 +3252,7 @@ namespace
 		Find(a_sink13, "a_sink13");
 		Find(a_sink15, "a_sink15");
 		Find(tabc10wave, "tabc10wave");
+		Find(tabc33wave, "tabc33wave");
 		Find(s_trip1, "s_trip1");
 		Find(s_trip2, "s_trip2");
 		Find(s_trip3, "s_trip3");
@@ -3301,6 +3451,7 @@ namespace
 											   a_sink13,
 											   a_sink15,
 											   tabc10wave,
+											   tabc33wave,
 											   s_trip1,
 											   s_trip2,
 											   s_trip3,

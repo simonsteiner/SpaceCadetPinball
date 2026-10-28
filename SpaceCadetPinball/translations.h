@@ -484,6 +484,17 @@ enum class Msg : int
 	Dragon_FireRidge,
 	Dragon_SuperJackpotIncreased,
 	Dragon_BallTrapped,
+	Dragon_PurchaseExtraBall,
+	Dragon_PurchaseExtraBallLight,
+	Dragon_PurchaseArmor,
+	Dragon_PurchaseWeapon,
+	Dragon_PurchaseSpell,
+	Dragon_BuyDragonHoard,
+	Dragon_BuyFireLizards,
+	Dragon_BuyRescueMaiden,
+	Dragon_BuyDragonPass,
+	Dragon_BuyWizardsFury,
+	Dragon_NoDragonEggs,
 
 	Max,
 };

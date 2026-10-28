@@ -7765,5 +7765,71 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "Ball Trapped\n%ld" },
 		}
+	},
+	{
+		Msg::Dragon_PurchaseExtraBall,
+		{
+			{ Lang::English, "Purchase Extra Ball?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_PurchaseExtraBallLight,
+		{
+			{ Lang::English, "Purchase Extra Ball Light?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_PurchaseArmor,
+		{
+			{ Lang::English, "Purchase Armor?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_PurchaseWeapon,
+		{
+			{ Lang::English, "Purchase Weapon?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_PurchaseSpell,
+		{
+			{ Lang::English, "Purchase Spell?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_BuyDragonHoard,
+		{
+			{ Lang::English, "Dragon Hoard?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_BuyFireLizards,
+		{
+			{ Lang::English, "Fire Lizards?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_BuyRescueMaiden,
+		{
+			{ Lang::English, "Rescue Maiden?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_BuyDragonPass,
+		{
+			{ Lang::English, "Dragon Pass?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_BuyWizardsFury,
+		{
+			{ Lang::English, "Wizard's Fury?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_NoDragonEggs,
+		{
+			{ Lang::English, "No Dragon Eggs" },
+		}
 	}
 };
