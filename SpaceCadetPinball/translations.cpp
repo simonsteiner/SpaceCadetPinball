@@ -7837,5 +7837,17 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "Tower Barrage" },
 		}
+	},
+	{
+		Msg::Dragon_GargoyleGaggleBall,
+		{
+			{ Lang::English, "Gargoyle Gaggle-Ball" },
+		}
+	},
+	{
+		Msg::Dragon_DragonFlurry,
+		{
+			{ Lang::English, "Dragon Flurry" },
+		}
 	}
 };

@@ -35,14 +35,14 @@
 // and game-over flow, with the ball save, the end-of-ball bonus and the music; the quest framework and the five
 // quests (Dragon Hoard, Fire Lizards, Rescue Maiden, Dragon Pass, Wizard's Fury). Everything else is still a stand-in
 // that keeps the table playable: kickouts and sinks give back the balls they catch, which only the rules would do
-// otherwise, Slay Dragon and the modes don't start, and a stuck ball is freed as Space Cadet's rules free
+// otherwise, Slay Dragon doesn't start, and a stuck ball is freed as Space Cadet's rules free
 // one.
 //
 // DRAGON.EXE's rules run a state machine whose state each player keeps in info_text_box's message field: the
 // component handlers and the engine report to one table-wide function (0x42c020), which hands every event to the
 // current state's function (0x42c120). States 0 (game over), 1 (new game), 2 (play), 3 (restart quest), 4 to 8 (the
-// quests), 10 (launch), 11 (end of ball), 12 (the shop) and 13 (Tower Barrage) are ported; Slay Dragon and the
-// other modes (9, 14, 15) come with their features. Addresses below are DRAGON.EXE's. Its message numbers differ from
+// quests), 10 (launch), 11 (end of ball), 12 (the shop) and 13 to 15 (the modes) are ported; Slay Dragon (9) comes
+// with its feature. Addresses below are DRAGON.EXE's. Its message numbers differ from
 // this port's above the light codes, so each call uses the port's MessageCode: CADET.EXE's light groups number theirs 4
 // above this port's, its targets 4 above, its kickouts, sinks and timers 9 or 10 above; its animated blockers and
 // diverters keep CADET.EXE's.
@@ -74,6 +74,7 @@ namespace
 	constexpr int EndOfBallState = 11;
 	constexpr int ShopState = 12;
 	constexpr int TowerBarrageState = 13;
+	constexpr int GaggleBallState = 14;
 	constexpr int DragonFlurryState = 15;
 
 	TPinballTable* Table = nullptr;
@@ -285,6 +286,9 @@ namespace
 	TSound* tabc10wave;
 	TSound* tabc33wave;
 	TLight* v_lite78;
+	TLight* v_lite77;
+	TLight* v_lite79;
+	TSound* tabc61wave;
 	int ShopItem;        // 0x434d1c: what the shop offers, its price in dragon eggs; 0 for nothing
 	int ShopSpell;       // 0x434d28: the spell it offers
 	int MaidenLockLight; // 0x434d14: how v_lite48 was when Rescue Maiden started, 0 off, 1 on, 2 flashing
@@ -1462,6 +1466,94 @@ namespace
 		}
 	}
 
+	// State 14, 0x42b3c0: Gargoyle Gaggle-Ball, a two-ball multiball the gargoyle kickout (a_kout2) starts in play:
+	// a second ball comes out of a_sink1 and the kickout lets its own go
+	void GaggleBallStateControl(MessageCode code, TPinballComponent*)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case EnterState:
+			QuestEndReset();
+			Table->MultiballCount++;
+			a_sink1->Message(TSinkResetTimer, -1.0f);
+			if (!BallHeld)
+				a_kout2->Message(TKickoutRestartTimer, -1.0f);
+			v_lite66->Message(TLightFlasherStartTimed, 1.0f);
+			v_lite65->Message(TLightFlasherStartTimed, 1.0f);
+			AddScore(nullptr, 100000);
+			v_lite77->Message(TLightFlasherStartTimedThenStayOn, -1.0f);
+			info_text_box->Clear();
+			tabc48wave->Play(nullptr, "GaggleBallStateControl");
+			PlayTrack(MidiTracks::Track1);
+			[[fallthrough]];
+		case ShowStateText:
+			info_text_box->Display(pb::get_rc_string(Msg::Dragon_GargoyleGaggleBall), -1.0f);
+			break;
+		case BallDrained:
+			if (Table->MultiballCount != 1)
+				break;
+			QuestLeave();
+			v_lite77->Message(TLightResetAndTurnOn, 0.0f);
+			SetState(PlayState);
+			v_lite63->Message(TLightResetAndTurnOff, 0.0f);
+			v_lite64->Message(TLightResetAndTurnOff, 0.0f);
+			break;
+		default:
+			break;
+		}
+	}
+
+	// State 15, 0x42b510: Dragon Flurry, a five-ball multiball once all six fire lizard lights (v_lite22 to
+	// v_lite27) are lit: balls come out of both fire lizard sinks, the well and the first lock, and a new one is
+	// served if the ball that started it is held
+	void DragonFlurryStateControl(MessageCode code, TPinballComponent*)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case EnterState:
+			QuestEndReset();
+			Table->MultiballCount += 4;
+			if (BallHeld)
+			{
+				Table->MultiballCount--;
+				plunger->Message(PlungerStartFeedTimer, 0.96f);
+			}
+			a_sink1->Message(TSinkResetTimer, -1.0f);
+			v_lite66->Message(TLightFlasherStartTimed, 1.0f);
+			a_sink2->Message(TSinkResetTimer, -1.0f);
+			v_lite65->Message(TLightFlasherStartTimed, 1.0f);
+			a_sink4->Message(TSinkResetTimer, 1.0f);
+			well_light_group->Message(TLightFlasherStartTimed, 1.0f);
+			a_sink18->Message(TSinkResetTimer, 1.0f);
+			v_lite48->Message(TLightFlasherStartTimedThenStayOff, 1.0f);
+			dragon_letter_light_group->Message(OverrideReset, 0.0f);
+			for (auto light : lizard_lights)
+				light->Message(TLightTurnOn, 0.0f);
+			for (auto light : lizard_lights)
+				light->Message(TLightFlasherStartTimed, -1.0f);
+			v_lite79->Message(TLightFlasherStartTimedThenStayOn, -1.0f);
+			info_text_box->Clear();
+			tabc61wave->Play(nullptr, "DragonFlurryStateControl");
+			[[fallthrough]];
+		case ShowStateText:
+			info_text_box->Display(pb::get_rc_string(Msg::Dragon_DragonFlurry), -1.0f);
+			break;
+		case BallDrained:
+			if (Table->MultiballCount != 1)
+				break;
+			QuestLeave();
+			v_lite79->Message(TLightResetAndTurnOn, 0.0f);
+			for (auto light : lizard_lights)
+				light->Message(TLightResetAndTurnOff, 0.0f);
+			SetState(PlayState);
+			break;
+		default:
+			break;
+		}
+	}
+
 	// State 7, 0x429b10: Dragon Pass. The gargoyle kickout (a_kout2) lays a dragon egg, the armor kickout (a_kout1)
 	// awards the jackpot, and a_spot8 and a_spot12 grow it, until the time runs out
 	void DragonPassStateControl(MessageCode code, TPinballComponent* caller)
@@ -1881,6 +1973,12 @@ namespace
 		case TowerBarrageState:
 			TowerBarrageStateControl(code, caller);
 			break;
+		case GaggleBallState:
+			GaggleBallStateControl(code, caller);
+			break;
+		case DragonFlurryState:
+			DragonFlurryStateControl(code, caller);
+			break;
 		case LaunchState:
 			LaunchStateControl(code, caller);
 			break;
@@ -2133,14 +2231,19 @@ namespace
 		a_kout1->Message(TKickoutRestartTimer, -1.0f);
 	}
 
-	// a_kout2, the gargoyle kickout, 0x426e40. In play it starts Gargoyle Gaggle-Ball (state 14), which isn't ported
-	// yet, so it scores as in the other states. Its message field is also the picked quest's state, so it counts
-	// up to 3 only while none is picked, and scores the score at that index
+	// a_kout2, the gargoyle kickout, 0x426e40. In play it starts Gargoyle Gaggle-Ball (state 14). Its message field is
+	// also the picked quest's state, so it counts up to 3 only while none is picked, and scores the score at that
+	// index
 	void GargoyleKickoutControl(MessageCode code, TPinballComponent*)
 	{
 		using enum MessageCode;
 		if (code != ControlCollision)
 			return;
+		if (GameState() == PlayState)
+		{
+			SetState(GaggleBallState);
+			return;
+		}
 		tabc32wave->Play(nullptr, "GargoyleKickoutControl");
 		if (GameState() == DragonPassState)
 			AwardDragonEggs(1);
@@ -3323,6 +3426,9 @@ namespace
 		Find(tabc10wave, "tabc10wave");
 		Find(tabc33wave, "tabc33wave");
 		Find(v_lite78, "v_lite78");
+		Find(v_lite77, "v_lite77");
+		Find(v_lite79, "v_lite79");
+		Find(tabc61wave, "tabc61wave");
 		Find(s_trip1, "s_trip1");
 		Find(s_trip2, "s_trip2");
 		Find(s_trip3, "s_trip3");
@@ -3523,6 +3629,9 @@ namespace
 											   tabc10wave,
 											   tabc33wave,
 											   v_lite78,
+											   v_lite77,
+											   v_lite79,
+											   tabc61wave,
 											   s_trip1,
 											   s_trip2,
 											   s_trip3,
