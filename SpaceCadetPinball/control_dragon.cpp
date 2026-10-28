@@ -66,6 +66,7 @@ namespace
 	TFlipper *a_flip1, *a_flip2, *a_flip3;
 	TSink *a_sink1, *a_sink4, *a_sink16, *a_sink17, *a_sink18;
 	TSound *tabc06wave, *tabc13wave, *tabc44wave, *tabc56wave;
+	TPinballComponent* s_oneway2;
 
 	template <typename T> void Find(T*& component, const char* name)
 	{
@@ -177,7 +178,8 @@ namespace
 	}
 
 	// The launch ends at the first object of these types the ball hits (DRAGON.EXE: 1000, 1005, 1006, 1012, 1014,
-	// 1015, 1017, 1018, 1019, 1020, 1021, 1024, 1030); TLightRollover and TTripwire are TRollovers
+	// 1015, 1017, 1018, 1019, 1020, 1021, 1024, 1030); TLightRollover and TTripwire are TRollovers. The types are
+	// what each class reports, so 1010's walls count as 1000 and 1029's kickouts as 1012, as in DRAGON.EXE
 	bool EndsLaunch(TPinballComponent* caller)
 	{
 		return dynamic_cast<TWall*>(caller) || dynamic_cast<TBumper*>(caller) || dynamic_cast<TPopupTarget*>(caller) ||
@@ -234,7 +236,7 @@ namespace
 			break;
 		case MessageCode::ControlTimerExpired:
 			// mode_timer: the bonus took too long; count the rest at once
-			if (caller != mode_timer)
+			if (!caller || caller != mode_timer)
 				return;
 			caller = nullptr;
 			LastBallRelease = 0;
@@ -691,6 +693,7 @@ namespace
 		Find(tabc13wave, "tabc13wave");
 		Find(tabc44wave, "tabc44wave");
 		Find(tabc56wave, "tabc56wave");
+		Find(s_oneway2, "s_oneway2");
 
 		const std::initializer_list<void*> all{drain,
 											   plunger,
@@ -720,7 +723,8 @@ namespace
 											   tabc06wave,
 											   tabc13wave,
 											   tabc44wave,
-											   tabc56wave};
+											   tabc56wave,
+											   s_oneway2};
 		if (std::find(all.begin(), all.end(), nullptr) != all.end())
 		{
 			// Not Dragon's Keep's DAT as DRAGON.EXE knows it; leave the table without rules
@@ -728,16 +732,17 @@ namespace
 			return;
 		}
 
-		auto laneExit = table->find_component("s_oneway2");
 		for (auto component : table->ComponentList)
 		{
+			if (!component)
+				continue;
 			if (component == drain)
 				component->Control = &DrainLink;
 			else if (component == plunger)
 				component->Control = &PlungerLink;
 			else if (component == v_lite40)
 				component->Control = &BallSaveLink;
-			else if (component == laneExit)
+			else if (component == s_oneway2)
 				component->Control = &LaneExitLink;
 			else if (dynamic_cast<TKickout*>(component) || dynamic_cast<TSink*>(component))
 				component->Control = &StandInLink;
