@@ -723,7 +723,9 @@ void TPinballTable::EndGame_timeout(int timerId, void* caller)
 	}
 	if (table->Demo)
 		table->Demo->Message(MessageCode::GameOver, 0.0);
-	control::handler(MessageCode::ControlMissionStarted, pb::MissTextBox);
+	// Dragon's Keep has no mission_text_box
+	if (pb::MissTextBox)
+		control::handler(MessageCode::ControlMissionStarted, pb::MissTextBox);
 	pb::InfoTextBox->Display(pb::get_rc_string(Msg::STRING125), -1.0);
 }
 

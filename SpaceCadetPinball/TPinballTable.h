@@ -98,9 +98,10 @@ public:
 	int UnknownP81{};
 	int UnknownP82{};
 	int TiltLockFlag;
+	// The factor of each ScoreMultiplier
+	static int score_multipliers[5];
 
 private:
-	static int score_multipliers[5];
 
 	static void LogNotBuilt(int objectType, int groupIndex);
 };

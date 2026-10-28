@@ -7441,5 +7441,71 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "Full Tilt!\nSpace Cadet Demo" },
 		}
+	},
+	{
+		Msg::Dragon_HitFireLizards,
+		{
+			{ Lang::English, "Hit Fire Lizards To Begin Quest" },
+		}
+	},
+	{
+		Msg::Dragon_TargetBonus,
+		{
+			{ Lang::English, "Target Bonus\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_QuestBonus,
+		{
+			{ Lang::English, "Quest Bonus\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_ArmorBonus,
+		{
+			{ Lang::English, "Armor Bonus\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_SpellBonus,
+		{
+			{ Lang::English, "Spell Bonus\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_BonusHold,
+		{
+			{ Lang::English, "Bonus Hold\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_TotalBonus,
+		{
+			{ Lang::English, "Total Bonus\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_HighScore,
+		{
+			{ Lang::English, "HIGH SCORE" },
+		}
+	},
+	{
+		Msg::Dragon_LaunchBall,
+		{
+			{ Lang::English, "Launch Ball" },
+		}
+	},
+	{
+		Msg::Dragon_DragonEggBonus,
+		{
+			{ Lang::English, "Dragon Egg Bonus\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_WeaponBonus,
+		{
+			{ Lang::English, "Weapon Bonus\n%ld" },
+		}
 	}
 };

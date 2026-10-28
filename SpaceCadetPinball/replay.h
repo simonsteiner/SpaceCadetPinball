@@ -68,6 +68,11 @@ public:
 	// Seed and resolution to apply before pb::init, from the recording when playing back
 	static unsigned Seed() { return HeaderSeed; }
 	static int Resolution() { return HeaderResolution; }
+	// The game data file name and hash the recording being played back was made with
+	static const std::string& RecordedDatFile()
+	{
+		return HeaderDatFile;
+	}
 	static bool CheckDatFile();
 
 	static void RecordInput(bool down, GameInput input, const std::vector<GameBindings>& bindings);

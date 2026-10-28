@@ -88,7 +88,12 @@ enum class MidiTracks
 	None,
 	Track1,
 	Track2,
-	Track3
+	Track3,
+	// Dragon's Keep has seven, TABC1 to TABC7
+	Track4,
+	Track5,
+	Track6,
+	Track7
 };
 
 // What plays the music: the system's synth, TinySoundFont with a SoundFont, or SDL_mixer's own MIDI decoders
@@ -114,7 +119,7 @@ public:
 	static MidiTracks get_active_track();
 private:
 	static std::vector<MidiSong*> LoadedTracks;
-	static MidiSong* track1, * track2, * track3;
+	static MidiSong *track1, *track2, *track3, *track4, *track5, *track6, *track7;
 	static MidiTracks active_track, NextTrack;
 	static int Volume;
 	static bool IsPlaying;

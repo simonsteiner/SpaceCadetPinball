@@ -130,6 +130,12 @@ enum class MessageCode
 	// Full Tilt only: a TAnimatedBlocker reached the state it was animating to (CADET.EXE's 0x3d)
 	ControlAnimationDone = 70,
 
+	// Dragon's Keep's rules only, DRAGON.EXE's numbers, which its rules send only among themselves
+	DragonSkipBonusText = 1,
+	DragonEnterState = 79,
+	DragonShowStateText = 80,
+	DragonBallDrained = 83,
+
 	// Public codes 1000+, apply to all components
 	LeftFlipperInputPressed = 1000,
 	LeftFlipperInputReleased = 1001,
