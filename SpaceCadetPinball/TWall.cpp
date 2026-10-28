@@ -3,6 +3,7 @@
 
 
 #include "control.h"
+#include "pb.h"
 #include "render.h"
 #include "timer.h"
 
@@ -14,6 +15,8 @@ TWall::TWall(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 
 int TWall::Message(MessageCode code, float value)
 {
+	if (pb::BonusTable())
+		KeepMessageFieldPerPlayer(code, value);
 	if (code == MessageCode::Reset && Timer)
 	{
 		timer::kill(Timer);

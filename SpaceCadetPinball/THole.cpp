@@ -56,6 +56,8 @@ THole::THole(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 
 int THole::Message(MessageCode code, float value)
 {
+	if (pb::BonusTable())
+		KeepMessageFieldPerPlayer(code, value);
 	if (code == MessageCode::Reset && BallCapturedFlag)
 	{
 		if (Timer)

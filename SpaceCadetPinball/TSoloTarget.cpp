@@ -4,6 +4,7 @@
 
 #include "control.h"
 #include "loader.h"
+#include "pb.h"
 #include "render.h"
 #include "timer.h"
 #include "TPinballTable.h"
@@ -21,6 +22,8 @@ TSoloTarget::TSoloTarget(TPinballTable* table, int groupIndex) : TCollisionCompo
 
 int TSoloTarget::Message(MessageCode code, float value)
 {
+	if (pb::BonusTable())
+		KeepMessageFieldPerPlayer(code, value);
 	switch (code)
 	{
 	case MessageCode::TSoloTargetDisable:

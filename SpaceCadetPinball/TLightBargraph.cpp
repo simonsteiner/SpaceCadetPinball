@@ -4,6 +4,7 @@
 
 #include "control.h"
 #include "loader.h"
+#include "pb.h"
 #include "timer.h"
 #include "TPinballTable.h"
 
@@ -34,6 +35,9 @@ TLightBargraph::~TLightBargraph()
 
 int TLightBargraph::Message(MessageCode code, float value)
 {
+	// Reset reaches TLightGroup::Message, which clears the field
+	if (pb::BonusTable() && code == MessageCode::PlayerChanged)
+		KeepMessageFieldPerPlayer(code, value);
 	switch (code)
 	{
 	case MessageCode::TLightGroupGetOnCount:

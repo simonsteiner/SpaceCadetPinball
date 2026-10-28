@@ -90,14 +90,16 @@ namespace
 		component = dynamic_cast<T*>(Table->find_component(name));
 	}
 
-	// info_text_box's message field in DRAGON.EXE, which keeps one value per player
-	std::array<int, 4> PlayerState{};
-	// drain's message field, the bonus a lit Bonus Hold (v_lite31) carries to the next ball, also per player
-	std::array<int, 4> PlayerBonusHold{};
-
+	// info_text_box's message field, which the engine keeps per player on the bonus tables, as CADET.EXE does
 	int& GameState()
 	{
-		return PlayerState[Table->CurrentPlayer];
+		return info_text_box->MessageField;
+	}
+
+	// drain's message field, the bonus a lit Bonus Hold (v_lite31) carries to the next ball, also per player
+	int& BonusHold()
+	{
+		return drain->MessageField;
 	}
 
 	int BallSaveStep;              // 0x434d2c: 3 lit until the ball leaves the lane, 2 lit 10 s, 1 flashing 5 s, 0 off
@@ -134,7 +136,8 @@ namespace
 		Table->AddScore(score);
 	}
 
-	// 0x423130: the score without multiplier, bonus or jackpot, as Space Cadet's SpecialAddScore
+	// 0x423130: the score without multiplier, bonus or first jackpot, as Space Cadet's SpecialAddScore; the second
+	// jackpot still counts it
 	void AddScoreUnmultiplied(TPinballComponent* scorer, int score)
 	{
 		LastScorer = scorer;
@@ -143,7 +146,7 @@ namespace
 		auto multiplier = Table->ScoreMultiplier;
 		Table->BonusScoreFlag = false;
 		Table->JackpotScoreFlag = false;
-		Table->ScoreMultiplier = 0;
+		Table->ScoreMultiplier = 1;
 		Table->AddScore(score);
 		Table->BonusScoreFlag = bonus;
 		Table->JackpotScoreFlag = jackpot;
@@ -353,8 +356,7 @@ namespace
 				}
 				break;
 			case 5:
-				// DRAGON.EXE's multiplier is the factor itself; this engine keeps an index into score_multipliers
-				count = TPinballTable::score_multipliers[Table->ScoreMultiplier];
+				count = Table->ScoreMultiplier;
 				if (count > 1)
 				{
 					TallyTotal += count * 75000;
@@ -367,12 +369,12 @@ namespace
 				}
 				break;
 			case 6:
-				if (PlayerBonusHold[Table->CurrentPlayer])
+				if (BonusHold())
 				{
-					TallyTotal += PlayerBonusHold[Table->CurrentPlayer];
+					TallyTotal += BonusHold();
 					if (!TallyQuiet)
 					{
-						ShowBonus(Msg::Dragon_BonusHold, PlayerBonusHold[Table->CurrentPlayer]);
+						ShowBonus(Msg::Dragon_BonusHold, BonusHold());
 						tabc06wave->Play(nullptr, "EndOfBallStateControl");
 						return;
 					}
@@ -382,11 +384,11 @@ namespace
 				if (v_lite31->light_on())
 				{
 					v_lite31->Message(TLightResetAndTurnOff, 0.0f);
-					PlayerBonusHold[Table->CurrentPlayer] = TallyTotal;
+					BonusHold() = TallyTotal;
 				}
 				else
 				{
-					PlayerBonusHold[Table->CurrentPlayer] = 0;
+					BonusHold() = 0;
 				}
 				if (TallyTotal)
 				{
@@ -570,7 +572,7 @@ namespace
 		// A new ball. DRAGON.EXE also resets the features' lights, diverters and blockers here, and picks the
 		// next quest (0x423e90), which starts state 9 once every quest is done; those come with their features.
 		BallDrainedFlag = false;
-		Table->ScoreMultiplier = 0;
+		Table->ScoreMultiplier = 1;
 		TargetHits = 0;
 		SpellCount = 0;
 		LastScorer = nullptr;
@@ -667,7 +669,7 @@ namespace
 			BallSaveStep = 3;
 			v_lite40->Message(TLightResetAndTurnOn, 0.0f);
 			Table->JackpotScore = 1000000;
-			// DRAGON.EXE also sets its engine's second jackpot to 2,500,000; this engine has none yet
+			Table->SecondJackpotScore = 2500000;
 			GameState() = NewGameState;
 			break;
 		case GameOver:
@@ -675,11 +677,6 @@ namespace
 			v_lite40->Message(TLightResetAndTurnOff, 0.0f);
 			for (auto light : {v_lite113, v_lite114, v_lite115})
 				light->ActiveFlag = 0;
-			break;
-		case Reset:
-			// DRAGON.EXE's components clear their message fields for every player on Reset
-			PlayerState.fill(0);
-			PlayerBonusHold.fill(0);
 			break;
 		default:
 			break;

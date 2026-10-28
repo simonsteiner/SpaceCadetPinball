@@ -82,6 +82,8 @@ bool TPlunger::CanStartPull() const
 
 int TPlunger::Message(MessageCode code, float value)
 {
+	if (pb::BonusTable())
+		KeepMessageFieldPerPlayer(code, value);
 	switch (code)
 	{
 	case MessageCode::PlungerInputPressed:

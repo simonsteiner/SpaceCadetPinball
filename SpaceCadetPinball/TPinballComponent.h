@@ -171,10 +171,14 @@ public:
 	virtual vector2 get_coordinates();
 	void SpriteSet(int index) const;
 	void SpriteSetBall(int index, vector2i pos, float depth) const;
+	// CADET.EXE, the bonus tables' engine, keeps every component's message field per player: a player change swaps it
+	// (0x413570) and Reset clears it for all players (0x413550). Its components but the flippers do this in Message.
+	void KeepMessageFieldPerPlayer(MessageCode code, float value);
 
 	char UnusedBaseFlag;
 	char ActiveFlag;
 	int MessageField;
+	std::array<int, 4> PlayerMessageFields{};
 	char* GroupName;
 	component_control* Control;
 	int GroupIndex;

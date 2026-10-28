@@ -215,7 +215,7 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 void TPinballTable::AddBlocker(int groupIndex)
 {
 	// The bonus tables' blockers are animated props, which need CADET.EXE's later TBlocker
-	if (pb::Table == Tables::DragonsKeep || pb::Table == Tables::Skulduggery)
+	if (pb::BonusTable())
 		new TAnimatedBlocker(this, groupIndex);
 	else
 		new TBlocker(this, groupIndex);
@@ -224,7 +224,7 @@ void TPinballTable::AddBlocker(int groupIndex)
 void TPinballTable::LogNotBuilt(int objectType, int groupIndex)
 {
 	// Space Cadet builds every object it has; a bonus table may have types the engine doesn't build yet (Phase F)
-	if (pb::Table != Tables::DragonsKeep && pb::Table != Tables::Skulduggery)
+	if (!pb::BonusTable())
 		return;
 	auto name = loader::query_name(groupIndex);
 	printf("Object type %d not built: %s\n", objectType, name ? name : "");
@@ -286,6 +286,11 @@ TPinballComponent* TPinballTable::find_component(int groupIndex)
 	return nullptr;
 }
 
+int TPinballTable::NoScoreMultiplier()
+{
+	return pb::BonusTable() ? 1 : 0;
+}
+
 int TPinballTable::AddScore(int score)
 {
 	if (JackpotScoreFlag)
@@ -295,13 +300,16 @@ int TPinballTable::AddScore(int score)
 		if (JackpotScore > jackpotLimit)
 			JackpotScore = jackpotLimit;
 	}
+	if (SecondJackpotScoreFlag)
+		SecondJackpotScore = std::min(SecondJackpotScore + score, 20000000);
 	if (BonusScoreFlag)
 	{
 		BonusScore += score;
 		if (BonusScore > 5000000)
 			BonusScore = 5000000;
 	}
-	int addedScore = ScoreAdded + score * score_multipliers[ScoreMultiplier];
+	const auto factor = pb::BonusTable() ? ScoreMultiplier : score_multipliers[ScoreMultiplier];
+	int addedScore = ScoreAdded + score * factor;
 	CurScore += addedScore;
 	if (CurScore > 1000000000)
 	{
@@ -466,7 +474,7 @@ int TPinballTable::Message(MessageCode code, float value)
 			CurScoreStruct = plr1Score;
 			CurScore = 0;
 			score::set(plr1Score, 0);
-			ScoreMultiplier = 0;
+			ScoreMultiplier = NoScoreMultiplier();
 
 			for (int plrIndex = 1; plrIndex < PlayerCount; ++plrIndex)
 			{
@@ -478,6 +486,7 @@ int TPinballTable::Message(MessageCode code, float value)
 				scorePtr->ExtraBalls = ExtraBalls;
 				scorePtr->BallLockedCounter = BallLockedCounter;
 				scorePtr->JackpotScore = JackpotScore;
+				scorePtr->SecondJackpotScore = SecondJackpotScore;
 			}
 
 			BallCount = MaxBallCount;
@@ -491,6 +500,7 @@ int TPinballTable::Message(MessageCode code, float value)
 			}
 
 			JackpotScoreFlag = false;
+			SecondJackpotScoreFlag = false;
 			BonusScoreFlag = false;
 			UnknownP71 = 0;
 			pb::InfoTextBox->Clear();
@@ -541,6 +551,7 @@ int TPinballTable::Message(MessageCode code, float value)
 			PlayerScores[CurrentPlayer].ExtraBalls = ExtraBalls;
 			PlayerScores[CurrentPlayer].BallLockedCounter = BallLockedCounter;
 			PlayerScores[CurrentPlayer].JackpotScore = JackpotScore;
+			PlayerScores[CurrentPlayer].SecondJackpotScore = SecondJackpotScore;
 
 			CurScore = nextScorePtr->Score;
 			CurScoreE9 = nextScorePtr->ScoreE9Part;
@@ -548,6 +559,7 @@ int TPinballTable::Message(MessageCode code, float value)
 			ExtraBalls = nextScorePtr->ExtraBalls;
 			BallLockedCounter = nextScorePtr->BallLockedCounter;
 			JackpotScore = nextScorePtr->JackpotScore;
+			SecondJackpotScore = nextScorePtr->SecondJackpotScore;
 
 			CurScoreStruct = nextScorePtr->ScoreStruct;
 			score::set(CurScoreStruct, CurScore);
@@ -596,6 +608,7 @@ int TPinballTable::Message(MessageCode code, float value)
 			if (textboxText != nullptr)
 				pb::InfoTextBox->Display(textboxText, -1);
 			JackpotScoreFlag = false;
+			SecondJackpotScoreFlag = false;
 			BonusScoreFlag = false;
 			UnknownP71 = 0;
 			CurrentPlayer = nextPlayer;
@@ -622,13 +635,15 @@ int TPinballTable::Message(MessageCode code, float value)
 			LightGroup->Message(MessageCode::TLightGroupReset, 0.0);
 		}
 		LightShowTimer = 0;
-		ScoreMultiplier = 0;
+		ScoreMultiplier = NoScoreMultiplier();
 		ScoreAdded = 0;
 		ReflexShotScore = 0;
 		BonusScore = 10000;
 		BonusScoreFlag = false;
 		JackpotScore = 20000;
 		JackpotScoreFlag = false;
+		SecondJackpotScore = 20000;
+		SecondJackpotScoreFlag = false;
 		UnknownP71 = 0;
 		ExtraBalls = 0;
 		MultiballCount = 0;
@@ -720,7 +735,7 @@ void TPinballTable::EndGame_timeout(int timerId, void* caller)
 {
 	auto table = static_cast<TPinballTable*>(caller);
 	table->EndGameTimeoutTimer = 0;
-	pb::end_game();
+	auto highScore = pb::end_game();
 
 	for (auto component : table->ComponentList)
 	{
@@ -731,7 +746,10 @@ void TPinballTable::EndGame_timeout(int timerId, void* caller)
 	// Dragon's Keep has no mission_text_box
 	if (pb::MissTextBox)
 		control::handler(MessageCode::ControlMissionStarted, pb::MissTextBox);
-	pb::InfoTextBox->Display(pb::get_rc_string(Msg::STRING125), -1.0);
+	// CADET.EXE shows this only once its modal high-score dialog has closed, so the bonus tables' rules keep "HIGH
+	// SCORE" up while it is open; this port's dialog doesn't block, so they keep it until the next game
+	if (!(pb::BonusTable() && highScore))
+		pb::InfoTextBox->Display(pb::get_rc_string(Msg::STRING125), -1.0);
 }
 
 void TPinballTable::LightShow_timeout(int timerId, void* caller)

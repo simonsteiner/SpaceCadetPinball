@@ -4,6 +4,7 @@
 
 #include "control.h"
 #include "loader.h"
+#include "pb.h"
 #include "render.h"
 #include "TPinballTable.h"
 #include "TBall.h"
@@ -30,6 +31,8 @@ TSink::TSink(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 
 int TSink::Message(MessageCode code, float value)
 {
+	if (pb::BonusTable())
+		KeepMessageFieldPerPlayer(code, value);
 	switch (code)
 	{
 	case MessageCode::TSinkResetTimer:

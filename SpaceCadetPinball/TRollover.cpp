@@ -5,6 +5,7 @@
 #include "control.h"
 #include "gdrv.h"
 #include "loader.h"
+#include "pb.h"
 #include "render.h"
 #include "TBall.h"
 #include "TEdgeSegment.h"
@@ -26,6 +27,8 @@ TRollover::TRollover(TPinballTable* table, int groupIndex) : TCollisionComponent
 
 int TRollover::Message(MessageCode code, float value)
 {
+	if (pb::BonusTable())
+		KeepMessageFieldPerPlayer(code, value);
 	if (code == MessageCode::Reset)
 	{
 		ActiveFlag = 1;

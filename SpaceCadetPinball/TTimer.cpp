@@ -2,6 +2,7 @@
 #include "TTimer.h"
 
 #include "control.h"
+#include "pb.h"
 #include "timer.h"
 
 TTimer::TTimer(TPinballTable* table, int groupIndex) : TPinballComponent(table, groupIndex, true)
@@ -11,6 +12,8 @@ TTimer::TTimer(TPinballTable* table, int groupIndex) : TPinballComponent(table, 
 
 int TTimer::Message(MessageCode code, float value)
 {
+	if (pb::BonusTable())
+		KeepMessageFieldPerPlayer(code, value);
 	switch (code)
 	{
 	case MessageCode::TTimerResetTimer:

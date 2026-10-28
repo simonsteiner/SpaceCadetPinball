@@ -755,8 +755,9 @@ void pb::launch_ball()
 	MainTable->Plunger->Message(MessageCode::PlungerLaunchBall, 0.0f);
 }
 
-void pb::end_game()
+bool pb::end_game()
 {
+	bool highScore = false;
 	int scores[4]{};
 	int scoreIndex[4]{};
 
@@ -814,9 +815,11 @@ void pb::end_game()
 
 				strncpy(entry.Name, playerName, sizeof entry.Name - 1);
 				high_score::show_and_set_high_score_dialog({entry, -1});
+				highScore = true;
 			}
 		}
 	}
+	return highScore;
 }
 
 void pb::high_scores()

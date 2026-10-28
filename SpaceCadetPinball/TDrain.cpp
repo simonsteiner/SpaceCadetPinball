@@ -17,6 +17,8 @@ TDrain::TDrain(TPinballTable* table, int groupIndex) : TCollisionComponent(table
 
 int TDrain::Message(MessageCode code, float value)
 {
+	if (pb::BonusTable())
+		KeepMessageFieldPerPlayer(code, value);
 	if (code == MessageCode::Reset)
 	{
 		if (Timer)
@@ -26,8 +28,7 @@ int TDrain::Message(MessageCode code, float value)
 		}
 		PinballTable->BallInDrainFlag = 0;
 	}
-	else if (code == MessageCode::SetTiltLock &&
-			 (pb::Table == Tables::DragonsKeep || pb::Table == Tables::Skulduggery) && Timer)
+	else if (code == MessageCode::SetTiltLock && pb::BonusTable() && Timer)
 	{
 		// Full Tilt's TDrain (CADET.EXE) also stops its timer here, which the bonus tables' rules use to serve a
 		// saved ball themselves; Space Cadet keeps Pinball.exe's
