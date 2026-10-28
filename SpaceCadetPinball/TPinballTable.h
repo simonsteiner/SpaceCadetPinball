@@ -106,5 +106,6 @@ public:
 
 private:
 
+	void AddBlocker(int groupIndex);
 	static void LogNotBuilt(int objectType, int groupIndex);
 };

@@ -122,11 +122,7 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 				Drain = new TDrain(this, groupIndex);
 				break;
 			case 1011:
-				// The bonus tables' blockers are animated props, which need CADET.EXE's later TBlocker
-				if (pb::Table == Tables::DragonsKeep || pb::Table == Tables::Skulduggery)
-					new TAnimatedBlocker(this, groupIndex);
-				else
-					new TBlocker(this, groupIndex);
+				AddBlocker(groupIndex);
 				break;
 			case 1012:
 				new TKickout(this, groupIndex, true);
@@ -215,6 +211,15 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 	TableRules::Current().MakeLinks(this);
 }
 
+
+void TPinballTable::AddBlocker(int groupIndex)
+{
+	// The bonus tables' blockers are animated props, which need CADET.EXE's later TBlocker
+	if (pb::Table == Tables::DragonsKeep || pb::Table == Tables::Skulduggery)
+		new TAnimatedBlocker(this, groupIndex);
+	else
+		new TBlocker(this, groupIndex);
+}
 
 void TPinballTable::LogNotBuilt(int objectType, int groupIndex)
 {
