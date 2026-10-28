@@ -33,17 +33,18 @@
 
 // Dragon's Keep's rules, recovered from DRAGON.EXE one feature at a time (Phase F). Ported so far: the serve, drain
 // and game-over flow, with the ball save, the end-of-ball bonus and the music; the quest framework and the Fire
-// Lizards quest. Everything else is still a stand-in that keeps the table playable: kickouts and sinks give back the
-// balls they catch, which only the rules would do otherwise, a quest whose state isn't ported doesn't start, and a
-// stuck ball is freed as Space Cadet's rules free one.
+// Lizards and Wizard's Fury quests. Everything else is still a stand-in that keeps the table playable: kickouts and
+// sinks give back the balls they catch, which only the rules would do otherwise, a quest whose state isn't ported
+// doesn't start, and a stuck ball is freed as Space Cadet's rules free one.
 //
 // DRAGON.EXE's rules run a state machine whose state each player keeps in info_text_box's message field: the
 // component handlers and the engine report to one table-wide function (0x42c020), which hands every event to the
 // current state's function (0x42c120). States 0 (game over), 1 (new game), 2 (play), 3 (restart quest), 5 (Fire
-// Lizards), 10 (launch) and 11 (end of ball) are ported; the other quests and modes (4, 6 to 9, 12 to 15) come with
-// their features. Addresses below are DRAGON.EXE's. Its message numbers differ from this port's above the light codes,
-// so each call uses the port's MessageCode: CADET.EXE's light groups number theirs 4 above this port's, its targets
-// 4 above, its kickouts, sinks and timers 9 or 10 above; its animated blockers and diverters keep CADET.EXE's.
+// Lizards), 8 (Wizard's Fury), 10 (launch) and 11 (end of ball) are ported; the other quests and modes (4, 6, 7, 9,
+// 12 to 15) come with their features. Addresses below are DRAGON.EXE's. Its message numbers differ from this port's
+// above the light codes, so each call uses the port's MessageCode: CADET.EXE's light groups number theirs 4 above this
+// port's, its targets 4 above, its kickouts, sinks and timers 9 or 10 above; its animated blockers and diverters keep
+// CADET.EXE's.
 namespace
 {
 	// Codes DRAGON.EXE's rules functions send only among themselves; SkipBonusText comes from a rule not ported yet
@@ -63,6 +64,7 @@ namespace
 	constexpr int PlayState = 2;
 	constexpr int RestartQuestState = 3;
 	constexpr int FireLizardsState = 5;
+	constexpr int WizardsFuryState = 8;
 	constexpr int SlayDragonState = 9;
 	constexpr int LaunchState = 10;
 	constexpr int EndOfBallState = 11;
@@ -162,6 +164,13 @@ namespace
 	TSound* tabc34wave;
 	TSound* tabc43wave;
 	TSound* tabc48wave;
+	// Wizard's Fury's, the spells' and the mystery award's
+	TLightGroup* well_light_group;
+	TSound* tabc21wave;
+	TSound* tabc24wave;
+	TSound* tabc35wave;
+	TSound* tabc41wave;
+	TSound* tabc55wave;
 
 	template <typename T> void Find(T*& component, const char* name)
 	{
@@ -192,7 +201,7 @@ namespace
 	int TallyStep;                 // 0x434d10
 	int TallyTotal;                // 0x434d00
 	int TargetHits;                // 0x434d08, Target Bonus
-	int SpellCount;                // 0x434d24, Spell Bonus; counted by the spells, not ported yet
+	int SpellCount;                // 0x434d24, Spell Bonus: the spells cast this ball
 	TPinballComponent* LastScorer; // 0x434d20
 
 	void TableHook(MessageCode code, TPinballComponent* caller);
@@ -427,7 +436,7 @@ namespace
 
 	bool QuestPorted(int state)
 	{
-		return state == FireLizardsState;
+		return state == FireLizardsState || state == WizardsFuryState;
 	}
 
 	// 0x424210: the picked quest starts. A quest whose state isn't ported yet doesn't, and its light keeps flashing
@@ -449,6 +458,78 @@ namespace
 	{
 		tabc43wave->Play(nullptr, "AwardJackpot");
 		AddScore(nullptr, Table->JackpotScore);
+	}
+
+	// 0x4231e0: an extra ball, with its text for <textTime> seconds
+	void AwardExtraBall(float textTime)
+	{
+		Table->ExtraBalls = 1;
+		tabc21wave->Play(nullptr, "AwardExtraBall");
+		if (textTime >= 0.0078125f)
+			info_text_box->Display(pb::get_rc_string(Msg::Dragon_ExtraBall), textTime);
+	}
+
+	// 0x423240: full armor, the kickback and the outlane kickers lit. With <show>, DRAGON.EXE also shows a picture
+	// in the text box's second font, which this engine doesn't have yet, and plays tabc41wave
+	void AwardMaxArmor(bool show)
+	{
+		a_kick1->ActiveFlag = 1;
+		v_lite37->MessageField = 0;
+		v_lite37->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 2.0f);
+		outlane_kicker_light_group->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
+		if (show)
+			tabc41wave->Play(nullptr, "AwardMaxArmor");
+	}
+
+	// 0x423600: a random spell whose light is off (v_lite28, v_lite29, v_lite31, v_lite32), or -1
+	int PickSpell()
+	{
+		std::array<int, 4> open{};
+		int count = 0;
+		for (auto [spell, light] : {std::pair{0, v_lite28}, {1, v_lite29}, {2, v_lite31}, {3, v_lite32}})
+		{
+			if (!light->light_on())
+				open[count++] = spell;
+		}
+		if (!count)
+			return -1;
+		return open[std::min(static_cast<int>(RandFloat() * count), count - 1)];
+	}
+
+	void BlocfControl(MessageCode code, TPinballComponent*);
+
+	// 0x4236b0: a spell, counted for the Spell Bonus. DRAGON.EXE also shows its picture in the text box's second
+	// font, which this engine doesn't have yet
+	void CastSpell(int spell)
+	{
+		using enum MessageCode;
+		SpellCount++;
+		switch (spell)
+		{
+		case 0:
+			v_lite28->Message(TLightTurnOnTimed, 30.0f);
+			break;
+		case 1:
+			v_lite29->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			v_lite30->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			a_kout3->ActiveFlag = 1;
+			break;
+		case 2:
+			v_lite31->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			break;
+		default:
+			BlocfControl(TAnimatedBlockerAnimateOff, a_blocf);
+			break;
+		}
+		AddScore(nullptr, 120000);
+		tabc35wave->Play(nullptr, "CastSpell");
+	}
+
+	void CastRandomSpell() // 0x4237f0
+	{
+		auto spell = PickSpell();
+		if (spell != -1)
+			CastSpell(spell);
 	}
 
 	// 0x4244e0: all six fire lizard lights start Dragon Flurry
@@ -777,6 +858,63 @@ namespace
 		}
 	}
 
+	// State 8, 0x429ec0: Wizard's Fury. The well (a_sink4) gives the mystery award each time until the time runs out
+	void WizardsFuryStateControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case ControlTimerExpired:
+			if (caller == mode_timer)
+			{
+				well_light_group->Message(TLightResetAndTurnOff, 0.0f);
+				spell_spot_light_group->Message(TLightResetAndTurnOff, 0.0f);
+				mode_timer->MessageField = GameState();
+				well_light_group->Message(OverrideOff, 0.0f);
+				SetState(RestartQuestState);
+			}
+			else if (caller == light_sweeps)
+			{
+				QuestEndReset();
+				KickOrShop(a_sink4, 0.0f);
+				mode_timer->Message(TTimerResetTimer, 30.69f);
+				TableHook(ShowStateText, nullptr);
+			}
+			break;
+		case EnterState:
+			light_sweeps->Message(TLightSweepsStart, 4.0f);
+			AddScore(nullptr, 100000);
+			info_text_box->Clear();
+			info_text_box->Display(pb::get_rc_string(Msg::Dragon_PutBallInWell), -1.0f);
+			well_light_group->Message(TLightFlasherStartTimed, -1.0f);
+			spell_spot_light_group->Message(TLightFlasherStartTimed, -1.0f);
+			tabc55wave->Play(nullptr, "WizardsFuryStateControl");
+			PlayTrack(MidiTracks::Track6);
+			break;
+		case QuestResume:
+			tabc55wave->Play(nullptr, "WizardsFuryStateControl");
+			well_light_group->Message(TLightFlasherStartTimed, -1.0f);
+			spell_spot_light_group->Message(TLightFlasherStartTimed, -1.0f);
+			mode_timer->Message(TTimerResetTimer, 15.0f);
+			if (info_text_box->CurrentMessage)
+				break;
+			[[fallthrough]];
+		case ShowStateText:
+			ShowTimeLeft(Msg::Dragon_WizardsFury);
+			break;
+		case BallDrained:
+			GameState() = PlayState;
+			mode_timer->Message(TTimerResetTimer, -1.0f);
+			[[fallthrough]];
+		case QuestEnd:
+			QuestLeave();
+			QuestDone();
+			break;
+		default:
+			break;
+		}
+	}
+
 	// 0x425c30: a ball in a fire lizard sink (a_sink1 or a_sink2) comes out of the other one. In play, the second
 	// starts the picked quest; in Fire Lizards each slays a lizard for 100,000 per lizard, and every third the jackpot
 	void FireLizardSlain(TSink* sink)
@@ -1045,6 +1183,9 @@ namespace
 		case FireLizardsState:
 			FireLizardsStateControl(code, caller);
 			break;
+		case WizardsFuryState:
+			WizardsFuryStateControl(code, caller);
+			break;
 		case LaunchState:
 			LaunchStateControl(code, caller);
 			break;
@@ -1186,6 +1327,80 @@ namespace
 		(first ? v_lite66 : v_lite65)->Message(TLightFlasherStartTimed, time);
 		ScoreBy(sink, 0);
 		FireLizardSlain(sink);
+	}
+
+	// a_sink4, the well, 0x426140. In play it starts the picked quest one time in four and casts a spell otherwise;
+	// in Wizard's Fury it gives the mystery award its message field holds (0 extra ball, 1 max weapons, 2 max armor,
+	// 3 jackpot, 4 one million) and sets the next, one of the other four, at random
+	void WellControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		auto roll = [] { return std::min(static_cast<int>(RandFloat() * 4), 3); };
+		auto state = GameState();
+		if (state == PlayState || state != WizardsFuryState)
+		{
+			if (state != PlayState)
+				CastRandomSpell();
+			else if (roll() == 1)
+			{
+				BallHeld = true;
+				if (!StartQuest())
+				{
+					BallHeld = false;
+					// DRAGON.EXE lets the ball go twice here, which serves a second ball once the first is clear. It
+					// does so only when no quest is picked; a picked quest not ported yet goes out once
+					if (!a_kout2->MessageField)
+						a_sink4->Message(TSinkResetTimer, -1.0f);
+				}
+			}
+			else
+				CastRandomSpell();
+			a_sink4->Message(TSinkResetTimer, -1.0f);
+			well_light_group->Message(TLightFlasherStartTimed, 1.0f);
+			spell_spot_light_group->Message(TLightFlasherStartTimed, 1.0f);
+			return;
+		}
+
+		auto award = a_sink4->MessageField;
+		switch (award)
+		{
+		case 0:
+			AwardExtraBall(2.0f);
+			break;
+		case 1:
+			for (auto light : {v_lite33, v_lite34, v_lite35, v_lite36})
+				light->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			Table->ScoreMultiplier = 5;
+			info_text_box->Display(pb::get_rc_string(Msg::Dragon_MaxWeapons), 2.0f);
+			break;
+		case 2:
+			AwardMaxArmor(false);
+			tabc24wave->Play(nullptr, "WellControl");
+			CenterPostControl(TAnimatedBlockerAnimateOn, a_center_post);
+			BloceControl(TAnimatedBlockerAnimateOn, a_bloce);
+			info_text_box->Display(pb::get_rc_string(Msg::Dragon_MaxArmor), 2.0f);
+			break;
+		case 3:
+			AwardJackpot();
+			break;
+		default:
+			AddScore(caller, 1000000);
+			info_text_box->Display(pb::get_rc_string(Msg::Dragon_OneMillion), 2.0f);
+			award = 4;
+			break;
+		}
+		auto next = roll();
+		if (next >= award)
+			next++;
+		a_sink4->MessageField = next;
+		using enum Msg;
+		static constexpr std::array mysteryTexts{Dragon_MysteryExtraBall, Dragon_MysteryMaxWeapons,
+												 Dragon_MysteryMaxArmor, Dragon_MysteryJackpot,
+												 Dragon_MysteryOneMillion};
+		info_text_box->Display(pb::get_rc_string(mysteryTexts[next]), 4.0f);
+		a_sink4->Message(TSinkResetTimer, -1.0f);
 	}
 
 	// s_hole118, 0x426ee0: holds the ball until the rules let it go. In play with one ball it opens the shop
@@ -1348,6 +1563,7 @@ namespace
 	component_control StandInLink{WithHook<StandInControl>, 0, nullptr};
 	component_control FireLizardSinkLink{WithHook<FireLizardSinkControl>, 0, nullptr};
 	component_control HoleLink{WithHook<HoleControl>, 0, nullptr};
+	component_control WellLink{WithHook<WellControl>, 0, nullptr};
 	component_control CenterPostLink{WithHook<CenterPostControl>, 0, nullptr};
 	component_control BloceLink{WithHook<BloceControl>, 0, nullptr};
 	component_control BlocfLink{WithHook<BlocfControl>, 0, nullptr};
@@ -1488,6 +1704,12 @@ namespace
 		Find(tabc34wave, "tabc34wave");
 		Find(tabc43wave, "tabc43wave");
 		Find(tabc48wave, "tabc48wave");
+		Find(well_light_group, "well_light_group");
+		Find(tabc21wave, "tabc21wave");
+		Find(tabc24wave, "tabc24wave");
+		Find(tabc35wave, "tabc35wave");
+		Find(tabc41wave, "tabc41wave");
+		Find(tabc55wave, "tabc55wave");
 
 		const std::initializer_list<void*> all{drain,
 											   plunger,
@@ -1575,7 +1797,13 @@ namespace
 											   tabc32wave,
 											   tabc34wave,
 											   tabc43wave,
-											   tabc48wave};
+											   tabc48wave,
+											   well_light_group,
+											   tabc21wave,
+											   tabc24wave,
+											   tabc35wave,
+											   tabc41wave,
+											   tabc55wave};
 		const bool listsFound = std::ranges::none_of(diverters, [](auto c) { return !c; }) &&
 								std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
 								std::ranges::none_of(lizard_lights, [](auto c) { return !c; });
@@ -1602,6 +1830,8 @@ namespace
 				component->Control = &FireLizardSinkLink;
 			else if (component == s_hole118)
 				component->Control = &HoleLink;
+			else if (component == a_sink4)
+				component->Control = &WellLink;
 			else if (component == a_center_post)
 				component->Control = &CenterPostLink;
 			else if (component == a_bloce)

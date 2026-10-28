@@ -7531,5 +7531,71 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "Fire Lizard Slain\n%ld" },
 		}
+	},
+	{
+		Msg::Dragon_ExtraBall,
+		{
+			{ Lang::English, "Extra Ball" },
+		}
+	},
+	{
+		Msg::Dragon_WizardsFury,
+		{
+			{ Lang::English, "Wizard's Fury\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_PutBallInWell,
+		{
+			{ Lang::English, "Put ball in Well and hit Spell Targets" },
+		}
+	},
+	{
+		Msg::Dragon_MysteryExtraBall,
+		{
+			{ Lang::English, "Mystery Bonus set to:\nExtra Ball" },
+		}
+	},
+	{
+		Msg::Dragon_MysteryMaxWeapons,
+		{
+			{ Lang::English, "Mystery Bonus set to:\nMax Weapons" },
+		}
+	},
+	{
+		Msg::Dragon_MysteryMaxArmor,
+		{
+			{ Lang::English, "Mystery Bonus set to:\nMax Armor" },
+		}
+	},
+	{
+		Msg::Dragon_MysteryJackpot,
+		{
+			{ Lang::English, "Mystery Bonus set to:\nJackpot" },
+		}
+	},
+	{
+		Msg::Dragon_MysteryOneMillion,
+		{
+			{ Lang::English, "Mystery Bonus set to:\nOne Million" },
+		}
+	},
+	{
+		Msg::Dragon_MaxArmor,
+		{
+			{ Lang::English, "Max Armor" },
+		}
+	},
+	{
+		Msg::Dragon_MaxWeapons,
+		{
+			{ Lang::English, "Max Weapons" },
+		}
+	},
+	{
+		Msg::Dragon_OneMillion,
+		{
+			{ Lang::English, "One Million" },
+		}
 	}
 };
