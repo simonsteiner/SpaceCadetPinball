@@ -316,10 +316,9 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 
 	if (pb::Table == Tables::DragonsKeep)
 	{
-		// Its rules pick the track (DRAGON.EXE loads all but TABC3, which no rule plays)
+		// Its rules pick the track. DRAGON.EXE loads all but TABC3, which no rule plays, so track 3 stays empty
 		track1 = load_track("TABC1");
 		track2 = load_track("TABC2");
-		track3 = load_track("TABC3");
 		track4 = load_track("TABC4");
 		track5 = load_track("TABC5");
 		track6 = load_track("TABC6");
