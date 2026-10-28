@@ -149,6 +149,10 @@ set(SOURCE_FILES
         SpaceCadetPinball/Sound.cpp
         SpaceCadetPinball/Sound.h
         SpaceCadetPinball/SpaceCadetPinball.cpp
+        SpaceCadetPinball/TAccelerator.cpp
+        SpaceCadetPinball/TAccelerator.h
+        SpaceCadetPinball/TAnimatedBlocker.cpp
+        SpaceCadetPinball/TAnimatedBlocker.h
         SpaceCadetPinball/TBall.cpp
         SpaceCadetPinball/TBall.h
         SpaceCadetPinball/TBlocker.cpp
@@ -163,6 +167,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/TComponentGroup.h
         SpaceCadetPinball/TDemo.cpp
         SpaceCadetPinball/TDemo.h
+        SpaceCadetPinball/TDiverter.cpp
+        SpaceCadetPinball/TDiverter.h
         SpaceCadetPinball/TDrain.cpp
         SpaceCadetPinball/TDrain.h
         SpaceCadetPinball/TEdgeBox.h
@@ -194,6 +200,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/TLightGroup.h
         SpaceCadetPinball/TLightRollover.cpp
         SpaceCadetPinball/TLightRollover.h
+        SpaceCadetPinball/TLightSweeps.cpp
+        SpaceCadetPinball/TLightSweeps.h
         SpaceCadetPinball/TLine.cpp
         SpaceCadetPinball/TLine.h
         SpaceCadetPinball/TOneway.cpp
@@ -208,6 +216,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/TPopupTarget.h
         SpaceCadetPinball/TRamp.cpp
         SpaceCadetPinball/TRamp.h
+        SpaceCadetPinball/TRampExit.cpp
+        SpaceCadetPinball/TRampExit.h
         SpaceCadetPinball/translations.cpp
         SpaceCadetPinball/translations.h
         SpaceCadetPinball/TRollover.cpp

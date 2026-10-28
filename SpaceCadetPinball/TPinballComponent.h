@@ -83,6 +83,22 @@ enum class MessageCode
 	TBlockerEnable = 52,
 	TBlockerRestartTimeout = 59,
 
+	// TAnimatedBlocker, Full Tilt's bonus tables: CADET.EXE's numbers, so their rules can send them as they are
+	TAnimatedBlockerAnimateOff = 55,
+	TAnimatedBlockerAnimateOn = 56,
+	TAnimatedBlockerSetState = 57,
+	TAnimatedBlockerAnimateTo = 58,
+	TAnimatedBlockerSetOn = 59,
+	TAnimatedBlockerSetOff = 60,
+	TAnimatedBlockerRestartTimeout = 69,
+
+	// TDiverter, CADET.EXE's numbers; CADET.EXE also takes 63 and 75 as Enable and 62 and 76 as Disable
+	TDiverterDisable = 55,
+	TDiverterEnable = 56,
+
+	// TLightSweeps, CADET.EXE's number: start the sweep whose attributes are in state <value> of light_sweeps
+	TLightSweepsStart = 27,
+
 	TGateDisable = 53,
 	TGateEnable = 54,
 
@@ -106,6 +122,19 @@ enum class MessageCode
 	ControlDisableMultiplier = 65,
 	ControlMissionComplete = 66,
 	ControlMissionStarted = 67,
+	// Full Tilt only (Phase F): the ball crossed a ramp exit (TRampExit) into its second or its first layer.
+	// CADET.EXE numbers them 0x56 and 0x55 and its TRamp sends them too, for walls 1302 and 1301; this TRamp,
+	// like Pinball.exe's, doesn't.
+	ControlRampExitToLayer2 = 68,
+	ControlRampExitToLayer1 = 69,
+	// Full Tilt only: a TAnimatedBlocker reached the state it was animating to (CADET.EXE's 0x3d)
+	ControlAnimationDone = 70,
+
+	// Dragon's Keep's rules only, DRAGON.EXE's numbers, which its rules send only among themselves
+	DragonSkipBonusText = 1,
+	DragonEnterState = 79,
+	DragonShowStateText = 80,
+	DragonBallDrained = 83,
 
 	// Public codes 1000+, apply to all components
 	LeftFlipperInputPressed = 1000,

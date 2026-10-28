@@ -109,6 +109,7 @@ void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, gdrv_bitmap8& bmp
 	bmp.Resolution = srcBmp.Resolution;
 
 	zdrv::fill(&zMap, zMap.Width, zMap.Height, 0, 0, 0xFFFF);
+	zMap.Holes.assign(static_cast<size_t>(zMap.Stride) * zMap.Height, 1);
 	zMap.Resolution = srcBmp.Resolution;
 
 	auto tableWidth = fullscrn::resolution_array[srcBmp.Resolution].TableWidth;
@@ -133,6 +134,7 @@ void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, gdrv_bitmap8& bmp
 			auto depth = *src++;
 			bmp.IndexedBmpPtr[dstInd] = **srcChar;
 			zMap.ZPtr1[dstInd] = depth;
+			zMap.Holes[dstInd] = 0;
 
 			(*srcChar)++;
 			dstInd++;
@@ -142,7 +144,10 @@ void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, gdrv_bitmap8& bmp
 
 void GroupData::SetBitmap(gdrv_bitmap8* bmp)
 {
-	assertm(Bitmaps[bmp->Resolution] == nullptr, "GroupData: bitmap override");
+	// Full Tilt's bonus tables give each ball frame a second bitmap, an alternative ball their rules can switch to.
+	// The game draws the first unless told otherwise (CADET.EXE's TBall), so a later one doesn't replace it.
+	if (Bitmaps[bmp->Resolution])
+		return;
 	Bitmaps[bmp->Resolution] = bmp;
 
 	auto zMap = ZMaps[bmp->Resolution];
@@ -158,7 +163,9 @@ void GroupData::SetZMap(zmap_header_type* zMap)
 	// Flip zMap to match with flipped non-indexed bitmaps
 	zdrv::FlipZMapHorizontally(*zMap);
 
-	assertm(ZMaps[zMap->Resolution] == nullptr, "GroupData: zMap override");
+	// The first one wins, as for bitmaps
+	if (ZMaps[zMap->Resolution])
+		return;
 	ZMaps[zMap->Resolution] = zMap;
 
 	auto bmp = Bitmaps[zMap->Resolution];

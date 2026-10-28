@@ -429,6 +429,19 @@ enum class Msg : int
 	FullTilt_About,
 	FullTilt_GameOver,
 
+	// Dragon's Keep, DRAGON.EXE's strings; the rules show "Player N Shoot Again" as STRING198 to STRING201
+	Dragon_HitFireLizards,
+	Dragon_TargetBonus,
+	Dragon_QuestBonus,
+	Dragon_ArmorBonus,
+	Dragon_SpellBonus,
+	Dragon_BonusHold,
+	Dragon_TotalBonus,
+	Dragon_HighScore,
+	Dragon_LaunchBall,
+	Dragon_DragonEggBonus,
+	Dragon_WeaponBonus,
+
 	Max,
 };
 

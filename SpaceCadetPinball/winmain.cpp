@@ -415,10 +415,31 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			printf("%s\n", message.c_str());
 		return 1;
 	}
+	// Bonus tables load only when asked for until their rules are done (Phase F)
+	auto tableArg = GetArgValue(args, "-table");
+	if (tableArg == "dragon")
+		pb::RequestedTable = Tables::DragonsKeep;
+	else if (!tableArg.empty() || HasArg(args, "-table"))
+	{
+		auto message = (tableArg.empty() || tableArg[0] == '-' ? std::string{"-table needs a value"}
+															   : "Unknown table: " + tableArg) +
+					   "; use -table dragon";
+		if (replayPath.empty())
+			pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not start", message.c_str());
+		else
+			printf("%s\n", message.c_str());
+		return 1;
+	}
 	if (!replayPath.empty())
 	{
 		if (!replay::StartPlayback(replayPath))
 			return 1;
+		// A recording of a bonus table plays it back without -table
+		auto recordedDat = replay::RecordedDatFile();
+		std::transform(recordedDat.begin(), recordedDat.end(), recordedDat.begin(),
+					   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+		if (recordedDat.starts_with("DRAGON.DAT "))
+			pb::RequestedTable = Tables::DragonsKeep;
 		// Playback is headless; the SDL_VIDEODRIVER environment variable still takes precedence
 		SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
 	}

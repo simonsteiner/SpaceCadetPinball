@@ -39,6 +39,7 @@ float pb::BallMaxSpeed, pb::BallHalfRadius, pb::BallToBallCollisionDistance;
 float pb::IdleTimerMs = 0;
 bool pb::GameEnded = true;
 Tables pb::Table = Tables::SpaceCadet3DPB;
+std::optional<Tables> pb::RequestedTable;
 bool pb::FullTiltMode = false, pb::FullTiltDemoMode = false, pb::cheat_mode = false, pb::demo_mode = false, pb::CreditsActive = false;
 std::string pb::DatFileName, pb::BasePath;
 ImU32 pb::TextBoxColor;
@@ -139,8 +140,7 @@ int pb::uninit()
 
 std::string pb::FindDatFile(const std::string& folder)
 {
-	std::string datFileNames[3]
-	{
+	std::vector<std::string> datFileNames{
 		"CADET.DAT",
 		"PINBALL.DAT",
 		"DEMO.DAT",
@@ -151,6 +151,8 @@ std::string pb::FindDatFile(const std::string& folder)
 	{
 		std::swap(datFileNames[0], datFileNames[1]);
 	}
+	if (RequestedTable == Tables::DragonsKeep)
+		datFileNames = {"DRAGON.DAT"};
 	for (const auto& datFileName : datFileNames)
 	{
 		auto fileName = datFileName;
@@ -195,6 +197,8 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 			Table = Tables::SpaceCadetFullTilt;
 		if (upper == "DEMO.DAT")
 			Table = Tables::FullTiltDemo;
+		if (upper == "DRAGON.DAT")
+			Table = Tables::DragonsKeep;
 		FullTiltMode = Table != Tables::SpaceCadet3DPB;
 		FullTiltDemoMode = Table == Tables::FullTiltDemo;
 		printf("Loading game from: %s\n", make_path_name(fileName).c_str());
@@ -272,7 +276,8 @@ void pb::toggle_demo()
 		mode_change(GameModes::GameOver);
 		// A stopped demo has no high scores to check, so it ends here rather than in end_game
 		GameEnded = true;
-		MissTextBox->Clear();
+		if (MissTextBox)
+			MissTextBox->Clear();
 		InfoTextBox->Display(get_rc_string(Msg::STRING125), -1.0);
 	}
 	else
@@ -518,7 +523,8 @@ void pb::pause_continue()
 	replay::Scope replayScope("p");
 	winmain::single_step ^= true;
 	InfoTextBox->Clear();
-	MissTextBox->Clear();
+	if (MissTextBox)
+		MissTextBox->Clear();
 	if (winmain::single_step)
 	{
 		if (MainTable)
@@ -669,7 +675,7 @@ void pb::KeyDown(SDL_Scancode scancode, SDL_Keycode key)
 
 void pb::GameInputDown(GameInput input, const std::vector<GameBindings>& bindings)
 {
-	if (CreditsActive)
+	if (CreditsActive && MissTextBox)
 		MissTextBox->Clear(true);
 	CreditsActive = false;
 	IdleTimerMs = 0;

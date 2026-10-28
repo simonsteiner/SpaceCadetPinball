@@ -162,6 +162,15 @@ The `lint` job also runs `tools/check-bidi.sh build/lint`, which builds a small 
 
 The LLVM version is set once, in `tools/llvm-requirements.txt`: CI installs it from there with hashes, and the script reads it for `uvx`. To bump it, regenerate that file's hashes, then update the version in the `uvx` commands above and in `AGENTS.md`.
 
+SonarCloud analyses the fork's pull requests automatically, with `.sonarcloud.properties`. That file only sets what is analysed, so the rules it ignores are set in SonarCloud's project settings (Analysis Scope, "Ignore Issues on Multiple Criteria") and are listed here, because git doesn't record them:
+
+| Rule | Files | Why |
+| --- | --- | --- |
+| `cpp:S5421`, global variables should be const | `**/control*.cpp` | A table's rules keep their state and components at namespace scope, as `control.cpp` does |
+| `cpp:S134` and `cpp:S3776`, nesting and complexity | `**/control*.cpp` | The rules follow the original EXE's branching, so they can be checked against its disassembly |
+| `cpp:S5025`, `new` without a smart pointer | `**/*` | Components register themselves in the table's `ComponentList`, which owns them |
+| `cpp:S5008`, `void*` parameters | `**/*` | The timer callbacks take the caller as `void*`, as the timer API requires |
+
 ## Editions
 
 The game has two editions: **Space Cadet 2026**, the definitive edition, and **Classic**, the game as it was. Both play the same table with the same physics and rules. Space Cadet 2026 is the default, also for settings saved by an earlier version, and the first start shows a hint that names the key for switching. Tab switches at any time, also during a game, and so does **Options → Space Cadet 2026**; the key can be changed in Player Controls. The choice is saved.
@@ -235,6 +244,7 @@ No SoundFont ships with the game. Music needs an audio device, so `-noaudio` and
 | `-record <file>` | record the session to a replay file; see [replays.md](replays.md) |
 | `-replay <file>` | play a replay back headless, check every frame, and exit; status 1 if play differs |
 | `-edition classic` or `-edition definitive` | start in that edition and save it, like the Tab switch; playback runs Classic unless this says otherwise, and saves nothing |
+| `-table dragon` | load Full Tilt!'s Dragon's Keep (`DRAGON.DAT`) instead of Space Cadet; a developer flag while its engine and rules are recovered (Phase F), so it plays without rules and builds only some of its objects |
 
 ## Troubleshooting
 

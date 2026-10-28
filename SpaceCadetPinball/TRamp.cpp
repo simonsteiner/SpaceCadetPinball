@@ -28,45 +28,48 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	RampPlaneCount = static_cast<int>(floor(*floatArr3Plane));
 	RampPlane = reinterpret_cast<ramp_plane_type*>(floatArr3Plane + 1);
 
-	auto wall0Arr = loader::query_float_attribute(groupIndex, 0, 1303);
-	auto wall0CollisionGroup = 1 << static_cast<int>(floor(wall0Arr[0]));
-	auto wall0Pts = reinterpret_cast<wall_point_type*>(wall0Arr + 2);
-	Line1 = new TLine(this, &ActiveFlag, wall0CollisionGroup, wall0Pts->Pt1, wall0Pts->Pt0);
-	Line1->WallValue = nullptr;
-	Line1->place_in_grid(&AABB);
-	EdgeList.push_back(Line1);
+	// Full Tilt's bonus tables leave out some of the three walls, which CADET.EXE then doesn't build; their members
+	// keep the defaults from TRamp.h
+	int wall1Enabled = 0;
+	int wall2Enabled = 0;
 
-	auto wall1Arr = loader::query_float_attribute(groupIndex, 0, 1301);
-	Wall1CollisionGroup = 1 << static_cast<int>(floor(wall1Arr[0]));
-	auto wall1Enabled = static_cast<int>(floor(wall1Arr[1]));
-	Wall1BallOffset = wall1Arr[7];
-	maths::find_closest_edge(
-		RampPlane,
-		RampPlaneCount,
-		reinterpret_cast<wall_point_type*>(wall1Arr + 3),
-		wall1End,
-		wall1Start);
+	if (auto wall0Arr = loader::query_float_attribute(groupIndex, 0, 1303))
+	{
+		auto wall0CollisionGroup = static_cast<int>(1u << static_cast<unsigned>(floor(wall0Arr[0])));
+		auto wall0Pts = reinterpret_cast<wall_point_type*>(wall0Arr + 2);
+		Line1 = new TLine(this, &ActiveFlag, wall0CollisionGroup, wall0Pts->Pt1, wall0Pts->Pt0);
+		Line1->WallValue = nullptr;
+		Line1->place_in_grid(&AABB);
+		EdgeList.push_back(Line1);
+	}
 
-	Line2 = new TLine(this, &ActiveFlag, CollisionGroup, wall1Start, wall1End);
-	Line2->WallValue = nullptr;
-	Line2->place_in_grid(&AABB);
-	EdgeList.push_back(Line2);
+	if (auto wall1Arr = loader::query_float_attribute(groupIndex, 0, 1301))
+	{
+		Wall1CollisionGroup = static_cast<int>(1u << static_cast<unsigned>(floor(wall1Arr[0])));
+		wall1Enabled = static_cast<int>(floor(wall1Arr[1]));
+		Wall1BallOffset = wall1Arr[7];
+		maths::find_closest_edge(RampPlane, RampPlaneCount, reinterpret_cast<wall_point_type*>(wall1Arr + 3), wall1End,
+								 wall1Start);
 
-	auto wall2Arr = loader::query_float_attribute(groupIndex, 0, 1302);
-	Wall2CollisionGroup = 1 << static_cast<int>(floor(wall2Arr[0]));
-	auto wall2Enabled = static_cast<int>(floor(wall2Arr[1]));
-	Wall2BallOffset = wall2Arr[7];
-	maths::find_closest_edge(
-		RampPlane,
-		RampPlaneCount,
-		reinterpret_cast<wall_point_type*>(wall2Arr + 3),
-		wall2End,
-		wall2Start);
+		Line2 = new TLine(this, &ActiveFlag, CollisionGroup, wall1Start, wall1End);
+		Line2->WallValue = nullptr;
+		Line2->place_in_grid(&AABB);
+		EdgeList.push_back(Line2);
+	}
 
-	Line3 = new TLine(this, &ActiveFlag, CollisionGroup, wall2Start, wall2End);
-	Line3->WallValue = nullptr;
-	Line3->place_in_grid(&AABB);
-	EdgeList.push_back(Line3);
+	if (auto wall2Arr = loader::query_float_attribute(groupIndex, 0, 1302))
+	{
+		Wall2CollisionGroup = static_cast<int>(1u << static_cast<unsigned>(floor(wall2Arr[0])));
+		wall2Enabled = static_cast<int>(floor(wall2Arr[1]));
+		Wall2BallOffset = wall2Arr[7];
+		maths::find_closest_edge(RampPlane, RampPlaneCount, reinterpret_cast<wall_point_type*>(wall2Arr + 3), wall2End,
+								 wall2Start);
+
+		Line3 = new TLine(this, &ActiveFlag, CollisionGroup, wall2Start, wall2End);
+		Line3->WallValue = nullptr;
+		Line3->place_in_grid(&AABB);
+		EdgeList.push_back(Line3);
+	}
 
 
 	auto xMin = 1000000000.0f;

@@ -16,11 +16,15 @@ int TTimer::Message(MessageCode code, float value)
 	case MessageCode::TTimerResetTimer:
 		if (Timer)
 			timer::kill(Timer);
-		Timer = timer::set(value, this, TimerExpired);
+		Timer = 0;
+		// Full Tilt's TTimer (CADET.EXE) only stops for a negative time; Space Cadet's rules never use this timer
+		if (value >= 0.0f)
+			Timer = timer::set(value, this, TimerExpired);
 		break;
 	case MessageCode::SetTiltLock:
 	case MessageCode::GameOver:
 	case MessageCode::Reset:
+	case MessageCode::PlayerChanged: // CADET.EXE stops it for the next player too
 		if (Timer)
 		{
 			timer::kill(Timer);

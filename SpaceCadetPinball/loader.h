@@ -29,8 +29,6 @@ struct visualKickerStruct
 	vector3 ThrowBallDirection;
 	float ThrowBallAngleMult;
 	int HardHitSoundId;
-	// Attribute 410, only in Full Tilt's bonus tables: 8 floats, not used yet
-	float Attr410[8];
 };
 
 struct SpriteData

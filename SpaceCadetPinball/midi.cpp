@@ -23,7 +23,7 @@ struct MidiSong
 };
 
 std::vector<MidiSong*> midi::LoadedTracks{};
-MidiSong* midi::track1, * midi::track2, * midi::track3;
+MidiSong *midi::track1, *midi::track2, *midi::track3, *midi::track4, *midi::track5, *midi::track6, *midi::track7;
 MidiTracks midi::active_track, midi::NextTrack;
 int midi::Volume = options::MaxVolume;
 bool midi::IsPlaying = false;
@@ -272,7 +272,13 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 	active_track = MidiTracks::None;
 	NextTrack = MidiTracks::None;
 	IsPlaying = false;
-	track1 = track2 = track3 = nullptr;
+	track1 = nullptr;
+	track2 = nullptr;
+	track3 = nullptr;
+	track4 = nullptr;
+	track5 = nullptr;
+	track6 = nullptr;
+	track7 = nullptr;
 
 	// Music needs an audio device, even with native MIDI, which plays outside of it.
 	// Native MIDI first: on Windows and macOS it is the original's synth.
@@ -314,7 +320,17 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 	}
 	SetVolume(volume);
 
-	if (pb::FullTiltMode)
+	if (pb::Table == Tables::DragonsKeep)
+	{
+		// Its rules pick the track. DRAGON.EXE loads all but TABC3, which no rule plays, so track 3 stays empty
+		track1 = load_track("TABC1");
+		track2 = load_track("TABC2");
+		track4 = load_track("TABC4");
+		track5 = load_track("TABC5");
+		track6 = load_track("TABC6");
+		track7 = load_track("TABC7");
+	}
+	else if (pb::FullTiltMode)
 	{
 		track1 = load_track("TABA1");
 		track2 = load_track("TABA2");
@@ -529,6 +545,18 @@ MidiSong* midi::TrackToMidi(MidiTracks track)
 		break;
 	case MidiTracks::Track3:
 		midi = track3;
+		break;
+	case MidiTracks::Track4:
+		midi = track4;
+		break;
+	case MidiTracks::Track5:
+		midi = track5;
+		break;
+	case MidiTracks::Track6:
+		midi = track6;
+		break;
+	case MidiTracks::Track7:
+		midi = track7;
 		break;
 	}
 	return midi;

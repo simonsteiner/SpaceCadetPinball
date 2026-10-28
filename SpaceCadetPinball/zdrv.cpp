@@ -54,6 +54,13 @@ void zdrv::paint(int width, int height, gdrv_bitmap8* dstBmp, int dstBmpXOff, in
 	auto srcPtrZ = &srcZMap->ZPtr1[srcZMap->Stride * srcZMapYOff + srcZMapXOff];
 	auto dstPtrZ = &dstZMap->ZPtr1[dstZMap->Stride * dstZMapYOff + dstZMapXOff];
 
+	if (!srcZMap->Holes.empty())
+	{
+		paint_with_holes(width, height, dstPtr, dstBmp->Stride, dstPtrZ, dstZMap->Stride, srcPtr, srcBmp->Stride,
+						 srcPtrZ, srcZMap, srcZMapXOff, srcZMapYOff);
+		return;
+	}
+
 	for (int y = height; y > 0; y--)
 	{
 		for (int x = width; x > 0; --x)
@@ -73,6 +80,30 @@ void zdrv::paint(int width, int height, gdrv_bitmap8* dstBmp, int dstBmpXOff, in
 		dstPtr += dstBmp->Stride - width;
 		srcPtrZ += srcZMap->Stride - width;
 		dstPtrZ += dstZMap->Stride - width;
+	}
+}
+
+void zdrv::paint_with_holes(int width, int height, ColorRgba* dstPtr, int dstStride, uint16_t* dstPtrZ, int dstZStride,
+							const ColorRgba* srcPtr, int srcStride, const uint16_t* srcPtrZ,
+							const zmap_header_type* srcZMap, int srcZMapXOff, int srcZMapYOff)
+{
+	// paint, skipping the pixels a spliced bitmap leaves out
+	auto holes = &srcZMap->Holes[srcZMap->Stride * srcZMapYOff + srcZMapXOff];
+	for (int y = 0; y < height; y++)
+	{
+		for (int x = 0; x < width; x++)
+		{
+			if (!holes[x] && dstPtrZ[x] >= srcPtrZ[x])
+			{
+				dstPtr[x] = srcPtr[x];
+				dstPtrZ[x] = srcPtrZ[x];
+			}
+		}
+		dstPtr += dstStride;
+		dstPtrZ += dstZStride;
+		srcPtr += srcStride;
+		srcPtrZ += srcZMap->Stride;
+		holes += srcZMap->Stride;
 	}
 }
 
@@ -137,7 +168,7 @@ void zdrv::CreatePreview(zmap_header_type& zMap)
 	delete[] tmpBuff;
 }
 
-void zdrv::FlipZMapHorizontally(const zmap_header_type& zMap)
+void zdrv::FlipZMapHorizontally(zmap_header_type& zMap)
 {
 	// Flip in-place, iterate over Height/2 lines
 	auto dst = zMap.ZPtr1;
@@ -150,5 +181,13 @@ void zdrv::FlipZMapHorizontally(const zmap_header_type& zMap)
 		}
 		dst += zMap.Stride - zMap.Width;
 		src -= zMap.Stride + zMap.Width;
+	}
+
+	if (!zMap.Holes.empty())
+	{
+		auto holes = zMap.Holes.data();
+		for (auto y = 0; y < zMap.Height / 2; y++)
+			std::swap_ranges(holes + zMap.Stride * y, holes + zMap.Stride * y + zMap.Width,
+							 holes + zMap.Stride * (zMap.Height - 1 - y));
 	}
 }

@@ -10,6 +10,7 @@ class TPlunger;
 class TDrain;
 class TDemo;
 class TLightGroup;
+class TTableLayer;
 
 struct score_struct_super
 {
@@ -44,8 +45,9 @@ public:
 	static void replay_timer_callback(int timerId, void* caller);
 	static void tilt_timeout(int timerId, void* caller);
 
-	TFlipper* FlipperL;
-	TFlipper* FlipperR;
+	// Space Cadet has one flipper on each side; Full Tilt's engine (CADET.EXE) keeps a list for each
+	std::vector<TFlipper*> FlippersL;
+	std::vector<TFlipper*> FlippersR;
 	scoreStruct* CurScoreStruct;
 	scoreStruct* ScoreBallcount;
 	scoreStruct* ScorePlayerNumber1;
@@ -73,6 +75,7 @@ public:
 	std::vector<TBall*> BallList;
 	std::vector<TFlipper*> FlipperList;
 	TLightGroup* LightGroup;
+	TTableLayer* TableLayer;
 	float GravityDirVectMult{};
 	float GravityAngleX{};
 	float GravityAnglY{};
@@ -98,7 +101,11 @@ public:
 	int UnknownP81{};
 	int UnknownP82{};
 	int TiltLockFlag;
+	// The factor of each ScoreMultiplier
+	static int score_multipliers[5];
 
 private:
-	static int score_multipliers[5];
+
+	void AddBlocker(int groupIndex);
+	static void LogNotBuilt(int objectType, int groupIndex);
 };
