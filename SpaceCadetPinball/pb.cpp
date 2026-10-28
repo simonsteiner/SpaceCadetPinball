@@ -276,7 +276,8 @@ void pb::toggle_demo()
 		mode_change(GameModes::GameOver);
 		// A stopped demo has no high scores to check, so it ends here rather than in end_game
 		GameEnded = true;
-		MissTextBox->Clear();
+		if (MissTextBox)
+			MissTextBox->Clear();
 		InfoTextBox->Display(get_rc_string(Msg::STRING125), -1.0);
 	}
 	else
@@ -522,7 +523,8 @@ void pb::pause_continue()
 	replay::Scope replayScope("p");
 	winmain::single_step ^= true;
 	InfoTextBox->Clear();
-	MissTextBox->Clear();
+	if (MissTextBox)
+		MissTextBox->Clear();
 	if (winmain::single_step)
 	{
 		if (MainTable)
@@ -673,7 +675,7 @@ void pb::KeyDown(SDL_Scancode scancode, SDL_Keycode key)
 
 void pb::GameInputDown(GameInput input, const std::vector<GameBindings>& bindings)
 {
-	if (CreditsActive)
+	if (CreditsActive && MissTextBox)
 		MissTextBox->Clear(true);
 	CreditsActive = false;
 	IdleTimerMs = 0;
