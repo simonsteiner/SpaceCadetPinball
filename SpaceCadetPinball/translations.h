@@ -459,6 +459,10 @@ enum class Msg : int
 	Dragon_DragonPass,
 	Dragon_PutBallInKickouts,
 	Dragon_PassClear,
+	Dragon_RescueMaiden,
+	Dragon_PutBallInPrisonTower,
+	Dragon_MaidenRescued,
+	Dragon_Score,
 
 	Max,
 };

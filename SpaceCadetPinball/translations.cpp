@@ -7615,5 +7615,29 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "Pass Clear" },
 		}
+	},
+	{
+		Msg::Dragon_RescueMaiden,
+		{
+			{ Lang::English, "Rescue Maiden\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_PutBallInPrisonTower,
+		{
+			{ Lang::English, "Put ball in Prison Tower" },
+		}
+	},
+	{
+		Msg::Dragon_MaidenRescued,
+		{
+			{ Lang::English, "Maiden Rescued\nExtra Ball Available" },
+		}
+	},
+	{
+		Msg::Dragon_Score,
+		{
+			{ Lang::English, "%ld" },
+		}
 	}
 };

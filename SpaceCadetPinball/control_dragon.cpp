@@ -33,18 +33,18 @@
 
 // Dragon's Keep's rules, recovered from DRAGON.EXE one feature at a time (Phase F). Ported so far: the serve, drain
 // and game-over flow, with the ball save, the end-of-ball bonus and the music; the quest framework and the Fire
-// Lizards, Dragon Pass and Wizard's Fury quests. Everything else is still a stand-in that keeps the table playable:
-// kickouts and sinks give back the balls they catch, which only the rules would do otherwise, a quest whose state isn't
-// ported doesn't start, and a stuck ball is freed as Space Cadet's rules free one.
+// Lizards, Rescue Maiden, Dragon Pass and Wizard's Fury quests. Everything else is still a stand-in that keeps the
+// table playable: kickouts and sinks give back the balls they catch, which only the rules would do otherwise, a quest
+// whose state isn't ported doesn't start, and a stuck ball is freed as Space Cadet's rules free one.
 //
 // DRAGON.EXE's rules run a state machine whose state each player keeps in info_text_box's message field: the
 // component handlers and the engine report to one table-wide function (0x42c020), which hands every event to the
 // current state's function (0x42c120). States 0 (game over), 1 (new game), 2 (play), 3 (restart quest), 5 (Fire
-// Lizards), 7 (Dragon Pass), 8 (Wizard's Fury), 10 (launch) and 11 (end of ball) are ported; the other quests and
-// modes (4, 6, 9, 12 to 15) come with their features. Addresses below are DRAGON.EXE's. Its message numbers differ from
-// this port's above the light codes, so each call uses the port's MessageCode: CADET.EXE's light groups number theirs 4
-// above this port's, its targets 4 above, its kickouts, sinks and timers 9 or 10 above; its animated blockers and
-// diverters keep CADET.EXE's.
+// Lizards), 6 (Rescue Maiden), 7 (Dragon Pass), 8 (Wizard's Fury), 10 (launch) and 11 (end of ball) are ported;
+// the other quest and the modes (4, 9, 12 to 15) come with their features. Addresses below are DRAGON.EXE's. Its
+// message numbers differ from this port's above the light codes, so each call uses the port's MessageCode: CADET.EXE's
+// light groups number theirs 4 above this port's, its targets 4 above, its kickouts, sinks and timers 9 or 10 above;
+// its animated blockers and diverters keep CADET.EXE's.
 namespace
 {
 	// Codes DRAGON.EXE's rules functions send only among themselves; SkipBonusText comes from a rule not ported yet
@@ -64,6 +64,7 @@ namespace
 	constexpr int PlayState = 2;
 	constexpr int RestartQuestState = 3;
 	constexpr int FireLizardsState = 5;
+	constexpr int RescueMaidenState = 6;
 	constexpr int DragonPassState = 7;
 	constexpr int WizardsFuryState = 8;
 	constexpr int SlayDragonState = 9;
@@ -189,6 +190,17 @@ namespace
 	TSound* tabc40wave;
 	TSound* tabc42wave;
 	TSound* tabc53wave;
+	// Rescue Maiden's: the tower's windows and the prison tripwires
+	TLightGroup* prison_window_light_group;
+	TLightGroup* watch_window_light_group;
+	TLightGroup* gate_window_light_group;
+	TLight* v_lite57;
+	TPinballComponent* s_trip5;
+	TPinballComponent* s_trip6;
+	TSound* tabc04wave;
+	TSound* tabc50wave;
+	TSound* tabc51wave;
+	int MaidenLockLight; // 0x434d14: how v_lite48 was when Rescue Maiden started, 0 off, 1 on, 2 flashing
 
 	template <typename T> void Find(T*& component, const char* name)
 	{
@@ -454,7 +466,8 @@ namespace
 
 	bool QuestPorted(int state)
 	{
-		return state == FireLizardsState || state == DragonPassState || state == WizardsFuryState;
+		return state == FireLizardsState || state == RescueMaidenState || state == DragonPassState ||
+			   state == WizardsFuryState;
 	}
 
 	// 0x424210: the picked quest starts. A quest whose state isn't ported yet doesn't, and its light keeps flashing
@@ -924,6 +937,140 @@ namespace
 		}
 	}
 
+	// The light at <index> of a light group, or nullptr
+	TLight* GroupLight(TLightGroup* group, int index)
+	{
+		return index >= 0 && index < static_cast<int>(group->List.size()) ? group->List[index] : nullptr;
+	}
+
+	// State 6, 0x429510: Rescue Maiden. The prison tripwires light the tower's windows; with all four lit, the ball
+	// in the prison tower (a_sink18) rescues the maiden. A highlight runs round the windows every 0.2 s
+	void RescueMaidenStateControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		auto windows = prison_window_light_group;
+		switch (code)
+		{
+		case ControlTimerExpired:
+			if (caller == mode_timer)
+			{
+				windows->Message(OverrideOff, 0.0f);
+				windows->Message(TLightGroupRestartNotifyTimer, -1.0f);
+				mode_timer->MessageField = GameState();
+				SetState(RestartQuestState);
+			}
+			else if (caller == light_sweeps)
+			{
+				QuestEndReset();
+				v_lite48->Message(TLightFlasherStartTimed, -1.0f);
+				v_lite48->Message(OverrideReset, 0.0f);
+				watch_window_light_group->Message(TLightResetAndTurnOff, 0.0f);
+				gate_window_light_group->Message(TLightResetAndTurnOff, 0.0f);
+				windows->Message(TLightResetAndTurnOff, 0.0f);
+				windows->Message(TLightGroupRestartNotifyTimer, 0.2f);
+				KickOrShop(a_sink18, 0.0f);
+				mode_timer->Message(TTimerResetTimer, 30.45f);
+				TableHook(ShowStateText, nullptr);
+			}
+			return;
+		case ControlNotifyTimerExpired:
+			if (caller != windows)
+				return;
+			{
+				windows->Message(TLightGroupRestartNotifyTimer, 0.2f);
+				auto index = windows->MessageField;
+				if (auto light = GroupLight(windows, index))
+					light->Message(OverrideReset, 0.0f);
+				index = index < 3 ? index + 1 : 0;
+				windows->MessageField = index;
+				if (auto light = GroupLight(windows, index))
+					light->Message(light->light_on() ? OverrideOff : MessageCode::TLightFtTmpOverrideOn, 0.0f);
+			}
+			return;
+		case ControlCollision:
+			if (caller != a_sink18 || windows->Message(TLightGroupGetOnCount, 0.0f) != 4)
+				return;
+			mode_timer->Message(TTimerResetTimer, -1.0f);
+			windows->Message(TLightGroupRestartNotifyTimer, -1.0f);
+			break;
+		case EnterState:
+			MaidenLockLight = v_lite48->FlasherOnFlag ? 2 : v_lite48->LightOnFlag || v_lite48->ToggledOnFlag ? 1 : 0;
+			light_sweeps->Message(TLightSweepsStart, 2.0f);
+			v_lite47->Message(TLightResetAndTurnOn, 0.0f);
+			diverters[0]->Message(TDiverterDisable, 0.0f);
+			diverters[1]->Message(TDiverterEnable, 0.0f);
+			diverters[2]->Message(TDiverterEnable, 0.0f);
+			diverters[3]->Message(TDiverterDisable, 0.0f);
+			diverters[4]->Message(TDiverterDisable, 0.0f);
+			diverters[5]->Message(TDiverterEnable, 0.0f);
+			v_lite125->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			v_lite126->Message(TLightResetAndTurnOff, 0.0f);
+			diverters[6]->Message(TDiverterDisable, 0.0f);
+			diverters[7]->Message(TDiverterEnable, 0.0f);
+			AddScore(nullptr, 100000);
+			info_text_box->Clear();
+			info_text_box->Display(pb::get_rc_string(Msg::Dragon_PutBallInPrisonTower), -1.0f);
+			tabc50wave->Play(nullptr, "RescueMaidenStateControl");
+			PlayTrack(MidiTracks::Track4);
+			v_lite48->Message(TLightFlasherStartTimed, -1.0f);
+			return;
+		case QuestResume:
+			tabc50wave->Play(nullptr, "RescueMaidenStateControl");
+			windows->Message(OverrideReset, 0.0f);
+			mode_timer->Message(TTimerResetTimer, 15.0f);
+			windows->Message(TLightGroupRestartNotifyTimer, 0.2f);
+			if (info_text_box->CurrentMessage)
+				return;
+			[[fallthrough]];
+		case ShowStateText:
+			ShowTimeLeft(Msg::Dragon_RescueMaiden);
+			return;
+		case BallDrained:
+			GameState() = PlayState;
+			mode_timer->Message(TTimerResetTimer, -1.0f);
+			break;
+		case QuestEnd:
+			break;
+		default:
+			return;
+		}
+
+		// The quest ends, rescued (ControlCollision), timed out (QuestEnd) or drained; v_lite48 is as it was
+		switch (MaidenLockLight)
+		{
+		case 0:
+			v_lite48->Message(TLightResetAndTurnOff, -1.0f);
+			break;
+		case 1:
+			v_lite48->Message(TLightResetAndTurnOn, -1.0f);
+			break;
+		default:
+			v_lite48->Message(TLightTurnOn, 0.0f);
+			v_lite48->Message(TLightFlasherStartTimed, -1.0f);
+			break;
+		}
+		QuestLeave();
+		windows->Message(TLightResetAndTurnOff, 0.0f);
+		windows->Message(OverrideReset, 0.0f);
+		if (code == ControlCollision)
+			SetState(PlayState);
+		QuestDone();
+		auto keep = [] { return GameState() == RescueMaidenState || GameState() == TowerBarrageState; };
+		if (!keep())
+		{
+			v_lite47->Message(TLightResetAndTurnOff, 0.0f);
+			diverters[0]->Message(TDiverterEnable, 0.0f);
+			diverters[1]->Message(TDiverterDisable, 0.0f);
+		}
+		if (!keep())
+		{
+			v_lite125->Message(TLightResetAndTurnOff, 0.0f);
+			v_lite126->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			diverters[6]->Message(TDiverterEnable, 0.0f);
+			diverters[7]->Message(TDiverterDisable, 0.0f);
+		}
+	}
+
 	// State 7, 0x429b10: Dragon Pass. The gargoyle kickout (a_kout2) lays a dragon egg, the armor kickout (a_kout1)
 	// awards the jackpot, and a_spot8 and a_spot12 grow it, until the time runs out
 	void DragonPassStateControl(MessageCode code, TPinballComponent* caller)
@@ -1325,6 +1472,9 @@ namespace
 		case FireLizardsState:
 			FireLizardsStateControl(code, caller);
 			break;
+		case RescueMaidenState:
+			RescueMaidenStateControl(code, caller);
+			break;
 		case DragonPassState:
 			DragonPassStateControl(code, caller);
 			break;
@@ -1599,6 +1749,72 @@ namespace
 		a_kout2->Message(TKickoutRestartTimer, -1.0f);
 	}
 
+	// s_trip5 and s_trip6, the prison tripwires, 0x427880: they light the prison windows one by one and score by the
+	// windows lit; in Rescue Maiden each window gives 250,000, 500,000, the jackpot, then the extra ball light
+	void PrisonTripControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		auto windows = prison_window_light_group;
+		auto showScore = [](int score)
+		{
+			std::array<char, 64> buffer{};
+			snprintf(buffer.data(), buffer.size(), pb::get_rc_string(Msg::Dragon_Score), static_cast<long>(score));
+			info_text_box->Display(buffer.data(), 2.0f);
+		};
+		switch (GameState())
+		{
+		case PlayState:
+			if (v_lite48->MessageField)
+				return;
+			tabc04wave->Play(nullptr, "PrisonTripControl");
+			break;
+		case RestartQuestState:
+			if (mode_timer->MessageField == RescueMaidenState)
+			{
+				showScore(ScoreBy(caller, 0));
+				return;
+			}
+			break;
+		case RescueMaidenState:
+			tabc51wave->Play(nullptr, "PrisonTripControl");
+			switch (windows->Message(TLightGroupGetOnCount, 0.0f))
+			{
+			case 0:
+				showScore(AddScore(caller, 250000));
+				break;
+			case 1:
+				showScore(AddScore(caller, 500000));
+				break;
+			case 2:
+				AwardJackpot();
+				break;
+			default:
+				v_lite57->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+				info_text_box->Display(pb::get_rc_string(Msg::Dragon_MaidenRescued), 2.0f);
+				break;
+			}
+			windows->Message(TLightGroupResetAndTurnOn, 1.0f);
+			return;
+		case TowerBarrageState:
+			AddScore(caller, 100000);
+			return;
+		default:
+			break;
+		}
+
+		auto lit = windows->Message(TLightGroupGetOnCount, 0.0f);
+		showScore(ScoreBy(caller, lit));
+		if (windows->Message(TLightGroupGetLightCount, 0.0f) - lit == 1)
+		{
+			windows->Message(TLightTurnOff, 0.0f);
+			windows->Message(TLightFlasherStartTimedThenStayOff, 1.0f);
+			return;
+		}
+		windows->Message(TLightGroupResetAndTurnOn, 1.0f);
+	}
+
 	// a_sink4, the well, 0x426140. In play it starts the picked quest one time in four and casts a spell otherwise;
 	// in Wizard's Fury it gives the mystery award its message field holds (0 extra ball, 1 max weapons, 2 max armor,
 	// 3 jackpot, 4 one million) and sets the next, one of the other four, at random
@@ -1724,7 +1940,7 @@ namespace
 			light->Message(TLightResetAndTurnOff, 0.0f);
 		Table->ScoreMultiplier = 1;
 		// Rescue Maiden (6) and Tower Barrage (13) keep the first and last diverter pairs
-		auto keep = GameState() == 6 || GameState() == TowerBarrageState;
+		auto keep = GameState() == RescueMaidenState || GameState() == TowerBarrageState;
 		if (!keep)
 		{
 			v_lite47->Message(TLightResetAndTurnOff, 0.0f);
@@ -1826,22 +2042,63 @@ namespace
 		TableHook(code, caller);
 	}
 
-	component_control DrainLink{WithHook<DrainControl>, 0, nullptr};
-	component_control PlungerLink{WithHook<PlungerControl>, 0, nullptr};
-	component_control BallSaveLink{WithHook<BallSaveControl>, 0, nullptr};
-	component_control LaneExitLink{WithHook<LaneExitControl>, 0, nullptr};
-	component_control StandInLink{WithHook<StandInControl>, 0, nullptr};
-	component_control FireLizardSinkLink{WithHook<FireLizardSinkControl>, 0, nullptr};
-	component_control HoleLink{WithHook<HoleControl>, 0, nullptr};
-	component_control WellLink{WithHook<WellControl>, 0, nullptr};
-	component_control GargoyleTargetLink{WithHook<GargoyleTargetControl>, 0, nullptr};
-	component_control PassTargetLink{WithHook<PassTargetControl>, 0, nullptr};
-	component_control ArmorKickoutLink{WithHook<ArmorKickoutControl>, 0, nullptr};
-	component_control GargoyleKickoutLink{WithHook<GargoyleKickoutControl>, 0, nullptr};
-	component_control CenterPostLink{WithHook<CenterPostControl>, 0, nullptr};
-	component_control BloceLink{WithHook<BloceControl>, 0, nullptr};
-	component_control BlocfLink{WithHook<BlocfControl>, 0, nullptr};
-	component_control HookOnlyLink{WithHook<NoControl>, 0, nullptr};
+
+	// The scores DRAGON.EXE's binding table (0x43afe0) gives its components, for ScoreBy
+	const std::map<std::string_view, std::vector<int>> ComponentScores{
+		{"a_bump1", {1500}},
+		{"a_bump2", {1500}},
+		{"a_bump3", {1500}},
+		{"a_bump4", {1500}},
+		{"a_rebo1", {1000}},
+		{"a_rebo2", {1000}},
+		{"a_spot4", {2500}},
+		{"a_spot5", {2500}},
+		{"a_spot6", {2500}},
+		{"a_spot7", {2500}},
+		{"a_spot22", {2500}},
+		{"a_spot3", {2000, 10000}},
+		{"a_spot2", {2000, 10000}},
+		{"a_spot1", {2000, 10000}},
+		{"a_spot10", {3000, 15000}},
+		{"a_spot8", {3000, 15000}},
+		{"a_spot14", {3000, 15000}},
+		{"a_spot12", {3000, 15000}},
+		{"a_spot27", {5000}},
+		{"a_spot19", {20000}},
+		{"a_spot26", {50000}},
+		{"a_spot30", {2500}},
+		{"a_spot31", {2500}},
+		{"a_sink1", {5000}},
+		{"a_sink2", {5000}},
+		{"s_oneway5", {25000, 75000, 100000, 125000, 150000}},
+		{"a_accl1", {75000, 500000}},
+		{"s_trip1", {20000, 50000, 100000, 1000000}},
+		{"s_trip2", {20000, 50000, 100000, 1000000}},
+		{"a_roll7", {15000}},
+		{"a_roll5", {30000}},
+		{"a_roll2", {30000}},
+		{"a_roll6", {10000}},
+		{"a_roll1", {10000}},
+		{"a_sink15", {100000}},
+		{"a_sink18", {100000}},
+		{"a_sink13", {200000}},
+		{"a_sink17", {200000}},
+		{"a_sink9", {300000}},
+		{"a_sink10", {300000}},
+		{"v_wlite96", {1500}},
+		{"v_wlite97", {1500}},
+		{"v_wlite98", {1500}},
+		{"v_wlite99", {1500}},
+		{"s_trip6", {25000, 50000, 75000, 100000}},
+		{"s_trip5", {25000, 50000, 75000, 100000}},
+		{"s_trip3", {40000, 80000, 120000}},
+		{"s_trip4", {40000, 80000, 120000}},
+		{"s_trip8", {50000, 100000}},
+		{"s_trip9", {50000, 100000}},
+	};
+
+	// One binding per component, with its scores; a deque keeps their addresses
+	std::deque<component_control> Links;
 
 	// The table's own events (DRAGON.EXE 0x424260)
 	void TableControl(MessageCode code)
@@ -1876,6 +2133,14 @@ namespace
 		default:
 			break;
 		}
+	}
+
+	void Link(TPinballComponent* component, void (&handler)(MessageCode, TPinballComponent*))
+	{
+		static const std::vector<int> none;
+		auto scores = component->GroupName ? ComponentScores.find(component->GroupName) : ComponentScores.end();
+		auto& list = scores != ComponentScores.end() ? scores->second : none;
+		component->Control = &Links.emplace_back(handler, static_cast<unsigned>(list.size()), list.data());
 	}
 
 	void MakeLinks(TPinballTable* table)
@@ -2000,6 +2265,15 @@ namespace
 		Find(tabc40wave, "tabc40wave");
 		Find(tabc42wave, "tabc42wave");
 		Find(tabc53wave, "tabc53wave");
+		Find(prison_window_light_group, "prison_window_light_group");
+		Find(watch_window_light_group, "watch_window_light_group");
+		Find(gate_window_light_group, "gate_window_light_group");
+		Find(v_lite57, "v_lite57");
+		Find(s_trip5, "s_trip5");
+		Find(s_trip6, "s_trip6");
+		Find(tabc04wave, "tabc04wave");
+		Find(tabc50wave, "tabc50wave");
+		Find(tabc51wave, "tabc51wave");
 
 		const std::initializer_list<void*> all{drain,
 											   plunger,
@@ -2109,7 +2383,16 @@ namespace
 											   tabc27wave,
 											   tabc40wave,
 											   tabc42wave,
-											   tabc53wave};
+											   tabc53wave,
+											   prison_window_light_group,
+											   watch_window_light_group,
+											   gate_window_light_group,
+											   v_lite57,
+											   s_trip5,
+											   s_trip6,
+											   tabc04wave,
+											   tabc50wave,
+											   tabc51wave};
 		const bool listsFound = std::ranges::none_of(diverters, [](auto c) { return !c; }) &&
 								std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
 								std::ranges::none_of(lizard_lights, [](auto c) { return !c; });
@@ -2120,42 +2403,45 @@ namespace
 			return;
 		}
 
+		Links.clear();
 		for (auto component : table->ComponentList)
 		{
 			if (!component)
 				continue;
 			if (component == drain)
-				component->Control = &DrainLink;
+				Link(component, WithHook<DrainControl>);
 			else if (component == plunger)
-				component->Control = &PlungerLink;
+				Link(component, WithHook<PlungerControl>);
 			else if (component == v_lite40)
-				component->Control = &BallSaveLink;
+				Link(component, WithHook<BallSaveControl>);
 			else if (component == s_oneway2)
-				component->Control = &LaneExitLink;
+				Link(component, WithHook<LaneExitControl>);
 			else if (component == a_sink1 || component == a_sink2)
-				component->Control = &FireLizardSinkLink;
+				Link(component, WithHook<FireLizardSinkControl>);
 			else if (component == s_hole118)
-				component->Control = &HoleLink;
+				Link(component, WithHook<HoleControl>);
 			else if (component == a_sink4)
-				component->Control = &WellLink;
+				Link(component, WithHook<WellControl>);
 			else if (component == a_spot10 || component == a_spot14)
-				component->Control = &GargoyleTargetLink;
+				Link(component, WithHook<GargoyleTargetControl>);
 			else if (component == a_spot8 || component == a_spot12)
-				component->Control = &PassTargetLink;
+				Link(component, WithHook<PassTargetControl>);
 			else if (component == a_kout1)
-				component->Control = &ArmorKickoutLink;
+				Link(component, WithHook<ArmorKickoutControl>);
 			else if (component == a_kout2)
-				component->Control = &GargoyleKickoutLink;
+				Link(component, WithHook<GargoyleKickoutControl>);
+			else if (component == s_trip5 || component == s_trip6)
+				Link(component, WithHook<PrisonTripControl>);
 			else if (component == a_center_post)
-				component->Control = &CenterPostLink;
+				Link(component, WithHook<CenterPostControl>);
 			else if (component == a_bloce)
-				component->Control = &BloceLink;
+				Link(component, WithHook<BloceControl>);
 			else if (component == a_blocf)
-				component->Control = &BlocfLink;
+				Link(component, WithHook<BlocfControl>);
 			else if (dynamic_cast<TKickout*>(component) || dynamic_cast<TSink*>(component))
-				component->Control = &StandInLink;
+				Link(component, WithHook<StandInControl>);
 			else
-				component->Control = &HookOnlyLink;
+				Link(component, WithHook<NoControl>);
 		}
 	}
 
