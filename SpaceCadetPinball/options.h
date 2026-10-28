@@ -142,7 +142,8 @@ public:
 	static constexpr const char* FullTiltKeyPrefix = "FullTilt.";
 	static constexpr const char* FullTiltDemoKeyPrefix = "FullTiltDemo.";
 	static constexpr const char* DragonsKeepKeyPrefix = "DragonsKeep.";
-	static constexpr std::array TableKeyPrefixes{SpaceCadetKeyPrefix, FullTiltKeyPrefix, FullTiltDemoKeyPrefix};
+	static constexpr std::array TableKeyPrefixes{SpaceCadetKeyPrefix, FullTiltKeyPrefix, FullTiltDemoKeyPrefix,
+												 DragonsKeepKeyPrefix};
 	// TableKeyPrefix, or none while the table hasn't saved its own value for key yet
 	static std::string TableKeyPrefixToRead(const std::string& key);
 	static int get_int(LPCSTR lpValueName, int defaultValue);

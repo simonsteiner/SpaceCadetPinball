@@ -10,6 +10,7 @@ class TPlunger;
 class TDrain;
 class TDemo;
 class TLightGroup;
+class TTableLayer;
 
 struct score_struct_super
 {
@@ -73,6 +74,7 @@ public:
 	std::vector<TBall*> BallList;
 	std::vector<TFlipper*> FlipperList;
 	TLightGroup* LightGroup;
+	TTableLayer* TableLayer;
 	float GravityDirVectMult{};
 	float GravityAngleX{};
 	float GravityAnglY{};

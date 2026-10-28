@@ -27,21 +27,18 @@ TDiverter::TDiverter(TPinballTable* table, int groupIndex) : TCollisionComponent
 
 void TDiverter::AddLine(const float* points, int collisionGroup)
 {
-	// Each line is two, one for each side; CADET.EXE keeps the collision group in their wall value
+	// Each line is two, one for each side
 	vector2 start{points[0], points[1]}, end{points[2], points[3]};
-	auto wallValue = reinterpret_cast<void*>(static_cast<uintptr_t>(collisionGroup));
 
 	auto line = new TLine(this, &ActiveFlag, collisionGroup, start, end);
 	line->Offset(PinballTable->CollisionCompOffset);
 	line->place_in_grid(&AABB);
 	EdgeList.push_back(line);
-	line->WallValue = wallValue;
 
 	line = new TLine(this, &ActiveFlag, collisionGroup, end, start);
 	line->Offset(-(PinballTable->CollisionCompOffset * 0.8f));
 	line->place_in_grid(&AABB);
 	EdgeList.push_back(line);
-	line->WallValue = wallValue;
 }
 
 int TDiverter::Message(MessageCode code, float value)

@@ -14,8 +14,8 @@ TRampExit::TRampExit(TPinballTable* table, int groupIndex) : TCollisionComponent
 	if (!wall || wall[2] != 2.0f)
 		return;
 
-	Layer1CollisionGroup = 1 << static_cast<int>(floor(wall[0]));
-	Layer2CollisionGroup = 1 << static_cast<int>(floor(wall[1]));
+	Layer1CollisionGroup = static_cast<int>(1u << static_cast<unsigned>(floor(wall[0])));
+	Layer2CollisionGroup = static_cast<int>(1u << static_cast<unsigned>(floor(wall[1])));
 	vector2 start{wall[3], wall[4]}, end{wall[5], wall[6]};
 
 	auto line1 = new TLine(this, &ActiveFlag, Layer1CollisionGroup, start, end);
