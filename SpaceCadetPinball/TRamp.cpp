@@ -28,14 +28,8 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	RampPlaneCount = static_cast<int>(floor(*floatArr3Plane));
 	RampPlane = reinterpret_cast<ramp_plane_type*>(floatArr3Plane + 1);
 
-	// Full Tilt's bonus tables leave out some of the three walls, which CADET.EXE then doesn't build
-	Line1 = nullptr;
-	Line2 = nullptr;
-	Line3 = nullptr;
-	Wall1CollisionGroup = 0;
-	Wall2CollisionGroup = 0;
-	Wall1BallOffset = 0;
-	Wall2BallOffset = 0;
+	// Full Tilt's bonus tables leave out some of the three walls, which CADET.EXE then doesn't build; their members
+	// keep the defaults from TRamp.h
 	int wall1Enabled = 0;
 	int wall2Enabled = 0;
 
