@@ -61,6 +61,13 @@ void TPlunger::Collision(TBall* ball, vector2* nextPosition, vector2* direction,
 			Message(MessageCode::PlungerLaunchBall, 0.0f);
 		auto boost = RandFloat() * Boost * 0.1f + Boost;
 		maths::basic_collision(ball, nextPosition, direction, Elasticity, Smoothness, Threshold, boost);
+		ReleaseTouched = true;
+		if (ReleaseWaitsForTouch)
+		{
+			// The push kept past PullbackDelay ends with the touch it waited for
+			timer::kill(ReleasedTimer);
+			ReleasedTimer(0, this);
+		}
 	}
 }
 
@@ -80,6 +87,7 @@ int TPlunger::Message(MessageCode code, float value)
 	case MessageCode::PlungerInputPressed:
 		if (CanStartPull())
 		{
+			CancelReleaseWait();
 			PullbackStartedFlag = true;
 			Boost = 0.0;
 			Threshold = 1000000000.0;
@@ -114,6 +122,7 @@ int TPlunger::Message(MessageCode code, float value)
 			// 3D Pinball's Launch Ball command keeps the full push for 0.2 s, not the 25 ms of a released pull
 			Threshold = 0.0f;
 			Boost = MaxPullback;
+			CancelReleaseWait();
 			timer::set(0.2f, this, ReleasedTimer);
 			break;
 		}
@@ -137,6 +146,7 @@ int TPlunger::Message(MessageCode code, float value)
 		timer::kill(PullbackTimer);
 		PullbackTimer_ = 0;
 		timer::kill(ReleasedTimer);
+		CancelReleaseWait();
 		break;
 	case MessageCode::SetTiltLock:
 		SomeCounter = 0;
@@ -154,6 +164,7 @@ int TPlunger::Message(MessageCode code, float value)
 			timer::kill(PullbackTimer);
 			PullbackTimer_ = 0;
 			timer::kill(ReleasedTimer);
+			CancelReleaseWait();
 
 			SpriteSet(0);
 			break;
@@ -176,6 +187,11 @@ int TPlunger::Message(MessageCode code, float value)
 			if (pb::FullTiltMode || code == MessageCode::PlungerInputReleased)
 				loader::play_sound(SoundIndexP2, this, "TPlunger3");
 			SpriteSet(0);
+			// The originals' short physics steps let a ball resting on the plunger touch it within PullbackDelay;
+			// with ours it can bounce for longer, so ReleasedTimer keeps the push until it touches
+			CancelReleaseWait();
+			ReleasePushPending = true;
+			ReleaseTouched = false;
 			timer::set(PullbackDelay, this, ReleasedTimer);
 		}
 		break;
@@ -185,6 +201,15 @@ int TPlunger::Message(MessageCode code, float value)
 
 	control::handler(code, this);
 	return 0;
+}
+
+void TPlunger::CancelReleaseWait()
+{
+	// Only a push kept past PullbackDelay has a timer of its own to stop; the originals' timers stay as they were
+	if (ReleaseWaitsForTouch)
+		timer::kill(ReleasedTimer);
+	ReleasePushPending = false;
+	ReleaseWaitsForTouch = false;
 }
 
 void TPlunger::BallFeedTimer(int timerId, void* caller)
@@ -223,6 +248,15 @@ void TPlunger::PullbackTimer(int timerId, void* caller)
 void TPlunger::ReleasedTimer(int timerId, void* caller)
 {
 	auto plunger = static_cast<TPlunger*>(caller);
+	if (plunger->ReleasePushPending && !plunger->ReleaseTouched)
+	{
+		plunger->ReleasePushPending = false;
+		plunger->ReleaseWaitsForTouch = true;
+		timer::set(ReleasePushLimit - plunger->PullbackDelay, plunger, ReleasedTimer);
+		return;
+	}
+	plunger->ReleasePushPending = false;
+	plunger->ReleaseWaitsForTouch = false;
 	plunger->Threshold = 1000000000.0;
 	plunger->Boost = 0.0;
 }
