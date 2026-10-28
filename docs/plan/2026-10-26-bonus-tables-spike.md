@@ -142,6 +142,57 @@ Of `DRAGON.EXE`'s 925 functions, 801 (140 KB) match a function of `CADET.EXE` in
 
 The rules stay the bulk of the work, because without symbols every function and flag of Dragon's Keep's block needs a name. What shrinks is the engine: no class has to be recovered from a table's EXE alone.
 
+## Plunger launch window (2026-10-28)
+
+A released pull launches the ball only if the ball touches the plunger within `PullbackDelay`, 25 ms, after the release: the release sets the plunger's threshold to 0, so a touch gets the push, and `ReleasedTimer` takes the push back 25 ms later. `Pinball.exe` does the same: its `TPlunger::Message` and `TPlunger::Collision` match ours, and its constructor sets `PullbackDelay` to 0.025 (0x3ccccccd).
+
+### Measured
+
+Each run pressed the plunger 40 times, holding it 0.3 to 1.3 s, each time after the ball had rested on it for at least 1.5 s. A press counted as missed when the ball was still on the plunger at each of four screenshots 0.15 to 0.7 s after the release. On our port, a temporary log of every touch and release agreed with the screenshots on all 40 presses.
+
+| Run | Presses | Missed |
+| --- | --- | --- |
+| `Pinball.exe` under Wine, `PINBALL.DAT` | 40 | 0 |
+| Our port, Classic, `PINBALL.DAT`, 120 updates per second (the default) | 40 | 9 |
+| `CADET.EXE` under Wine, `CADET.DAT` | 40 | 0 |
+| Our port, Classic, `CADET.DAT`, 120 updates per second | 40 | 11 |
+
+### Why
+
+A ball resting on the plunger doesn't stay in contact. It bounces off and gravity brings it back, so it touches at intervals, and how long they are depends on the length of the physics step. A release launches only if a touch falls inside the 25 ms after it. With the temporary log, the ball reset onto the plunger before each press and about 40 presses per run on `PINBALL.DAT`:
+
+| Updates per second | Step | Touch interval (median) | Missed |
+| --- | --- | --- | --- |
+| 60 | 17 ms, of which a slow ball moves only 10 ms | 68 ms | 72% |
+| 120 | 8.3 ms | 33 ms | 26% |
+| 240 | 4.2 ms | 34 ms | 34% |
+| 360 | 2.8 ms | 28 ms | 58% |
+| uncapped, about 800 | 1.25 ms | 20 ms | 1 of 39 |
+
+The originals run their loop as fast as the machine allows, so their steps are short and the ball touches more often than every 25 ms. Our port updates 120 times per second by default, where the touches come every 33 ms and about a quarter of the presses fall between two of them. At 60 updates per second it's worse: `pb::timed_frame` moves a slow ball by at most 10 ms per update, so the touches stretch to 68 ms of real time while the timer still counts real time. The rates in between scatter (240 and 360 missed more than 120) because the touch interval and the 25 ms window beat against each other; only steps short enough to touch every 20 ms or so make the window reliable. Under Xvfb the 360 run also shared the machine with two others.
+
+So our port misses launches that the originals don't, on 3D Pinball's data and Full Tilt's alike. This is the "launch can miss" of #85 and the missed 1.5 s press in [the Wine reference](../wine-reference.md).
+
+### Proposed fixes (not made; gameplay, so the owner decides)
+
+Any fix changes when the ball launches, so the reference replays that contain a missed launch would have to be recorded again.
+
+1. **Keep the push until the ball touches** (recommended). After a release, `ReleasedTimer` takes the push back only once the ball has touched the plunger, or after a limit such as 100 ms if it doesn't (the plunger released with no ball on it). A ball resting on the plunger then always launches, as in the originals; a ball arriving later than that still doesn't. It changes only `TPlunger`.
+2. **Shorter physics steps.** `pb::frame` runs `timed_frame` in sub-steps of about 1 ms, which is closer to how the originals ran. It changes every collision's timing, not just the plunger's, so every replay would differ, and it costs CPU.
+3. **A longer window**, for example 40 ms. It covers the 33 ms interval at 120 updates per second, but not 60.
+
+## Known differences between Pinball.exe and CADET.EXE (2026-10-28)
+
+Our port follows `Pinball.exe` for Space Cadet, in both its 3D Pinball and its Full Tilt data. `CADET.EXE`'s engine is a later revision, so Full Tilt's own Space Cadet plays differently in a few places. None of these is changed; each would change Space Cadet, so it's the owner's call.
+
+| Where | `Pinball.exe` and our port | `CADET.EXE` | Effect on Space Cadet |
+| --- | --- | --- | --- |
+| Kicker attribute 404 (throw direction) | Kept as given | Normalised in x and y, like 410 (`loader.cpp`) | **Yes.** Five of Space Cadet's eight throws are diagonal, with length √2: `v_sink1`, `v_sink2`, `a_kout1`, `a_kout2` and one more group. `TBall::throw_ball` takes the direction as given, and the next frame folds its length into the speed, so these sinks and kickouts throw the ball about 1.41 times as fast as `CADET.EXE` does, up to the ball's speed limit. |
+| `TRamp` events | Only `ControlCollision` on wall 1303 | Also 0x55 and 0x56 when the ball crosses walls 1301 and 1302, and 0x54 when a ramp plane changes its layer (`TRamp::Collision`, 0x4177d0) | **No.** The events go to the ramp's rules handler and then to the table-wide one (0x42a260), which takes only 0x33, 0x46 and 0x3f1. Space Cadet's ramp handler, `LaunchRampControl` (0x423560 in `CADET.EXE`), acts only on `ControlCollision`, and `s_ramp9` has none. They matter for the bonus tables' rules. |
+| `TRamp` layer change | The ball keeps moving | The same crossings set the ball's field 0x9b (`CollisionDisabledFlag`), which stops it for the rest of the frame | **Yes, slightly.** Every crossing of `ramp`'s or `s_ramp9`'s walls costs the ball the rest of that frame's movement, so ramp shots run a little differently. |
+| `TSoloTarget` (1019) | Disable and Enable leave a running re-enable timer alone; only Reset stops it | Disable and Enable both stop it (`TSoloTarget::Message`, 0x414be0); with no bitmap for a state it clears the sprite | **No.** Space Cadet's rules never send Disable or Enable to a target. Dragon's Keep's rules might, and then a target its rules turn off within 0.1 s of a hit would come back on in our port. Its targets have two bitmaps or none, which both versions draw alike. |
+| `TLightRollover` (1020) | | Same logic step for step (`TLightRollover::Collision`, 0x415840; `Message`, 0x4159b0) | **No.** Dragon's Keep's `v_wlite96` to `v_wlite99` have one bitmap each and no sound 304; both versions show that bitmap on a hit and play no sound. |
+
 ## Spike code
 
 On `spike/skulduggery`, marked `SPIKE (F2)`:
