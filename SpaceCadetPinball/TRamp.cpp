@@ -4,6 +4,7 @@
 
 #include "control.h"
 #include "loader.h"
+#include "pb.h"
 #include "TBall.h"
 #include "TEdgeSegment.h"
 #include "TLine.h"
@@ -148,6 +149,15 @@ void TRamp::Collision(TBall* ball, vector2* nextPosition, vector2* direction, fl
 		ball->RampFieldForce.Y = plane->FieldForce.Y;
 		ball->Position.Z = ball->Position.X * ball->CollisionOffset.X + ball->Position.Y * ball->CollisionOffset.Y +
 			ball->Radius + ball->CollisionOffset.Z;
+		// CADET.EXE (0x4177d0), the bonus tables only: a change of layer stops the ball for the rest of the frame and
+		// tells the rules
+		if (pb::BonusTable() && ball->CollisionMask != CollisionGroup)
+		{
+			ball->CollisionDisabledFlag = true;
+			ball->CollisionMask = CollisionGroup;
+			control::handler(MessageCode::ControlRampLayerChanged, this);
+			return;
+		}
 		ball->CollisionMask = CollisionGroup;
 		return;
 	}
@@ -174,6 +184,14 @@ void TRamp::Collision(TBall* ball, vector2* nextPosition, vector2* direction, fl
 			ball->CollisionMask = Wall2CollisionGroup;
 			if (BallZOffsetFlag)
 				ball->Position.Z = ball->Radius + Wall2BallOffset;
+		}
+		// CADET.EXE, the bonus tables only: crossing either wall stops the ball for the rest of the frame and tells
+		// the rules (0x55 for wall 1301, 0x56 for 1302)
+		if (pb::BonusTable())
+		{
+			ball->CollisionDisabledFlag = true;
+			control::handler(
+				edge == Line2 ? MessageCode::ControlRampExitToLayer1 : MessageCode::ControlRampExitToLayer2, this);
 		}
 	}
 }

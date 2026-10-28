@@ -129,12 +129,14 @@ enum class MessageCode
 	ControlMissionComplete = 66,
 	ControlMissionStarted = 67,
 	// Full Tilt only (Phase F): the ball crossed a ramp exit (TRampExit) into its second or its first layer.
-	// CADET.EXE numbers them 0x56 and 0x55 and its TRamp sends them too, for walls 1302 and 1301; this TRamp,
-	// like Pinball.exe's, doesn't.
+	// CADET.EXE numbers them 0x56 and 0x55 and its TRamp sends them too, for walls 1302 and 1301; this TRamp does
+	// on the bonus tables only, as Pinball.exe's doesn't.
 	ControlRampExitToLayer2 = 68,
 	ControlRampExitToLayer1 = 69,
 	// Full Tilt only: a TAnimatedBlocker reached the state it was animating to (CADET.EXE's 0x3d)
 	ControlAnimationDone = 70,
+	// The bonus tables only: a TRamp's plane moved the ball to another layer (CADET.EXE's 0x54)
+	ControlRampLayerChanged = 71,
 
 	// Dragon's Keep's rules only, DRAGON.EXE's numbers, which its rules send only among themselves
 	DragonSkipBonusText = 1,
