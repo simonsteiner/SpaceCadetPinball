@@ -45,14 +45,12 @@ namespace
 	constexpr auto BallDrained = MessageCode::DragonBallDrained;
 	constexpr auto SkipBonusText = MessageCode::DragonSkipBonusText;
 
-	enum State
-	{
-		GameOverState = 0,
-		NewGameState = 1,
-		PlayState = 2,
-		LaunchState = 10,
-		EndOfBallState = 11,
-	};
+	// The game's states, as DRAGON.EXE numbers them
+	constexpr int GameOverState = 0;
+	constexpr int NewGameState = 1;
+	constexpr int PlayState = 2;
+	constexpr int LaunchState = 10;
+	constexpr int EndOfBallState = 11;
 
 	TPinballTable* Table = nullptr;
 
@@ -60,12 +58,31 @@ namespace
 	TPlunger* plunger;
 	TTextBox* info_text_box;
 	TTimer* mode_timer;
-	TLight *v_lite28, *v_lite31, *v_lite37, *v_lite38, *v_lite39, *v_lite40, *v_lite48, *v_lite49, *v_lite50;
-	TLight *v_lite113, *v_lite114, *v_lite115;
+	TLight* v_lite28;
+	TLight* v_lite31;
+	TLight* v_lite37;
+	TLight* v_lite38;
+	TLight* v_lite39;
+	TLight* v_lite40;
+	TLight* v_lite48;
+	TLight* v_lite49;
+	TLight* v_lite50;
+	TLight* v_lite113;
+	TLight* v_lite114;
+	TLight* v_lite115;
 	TLightGroup* dragon_egg_light_group;
-	TFlipper *a_flip1, *a_flip2, *a_flip3;
-	TSink *a_sink1, *a_sink4, *a_sink16, *a_sink17, *a_sink18;
-	TSound *tabc06wave, *tabc13wave, *tabc44wave, *tabc56wave;
+	TFlipper* a_flip1;
+	TFlipper* a_flip2;
+	TFlipper* a_flip3;
+	TSink* a_sink1;
+	TSink* a_sink4;
+	TSink* a_sink16;
+	TSink* a_sink17;
+	TSink* a_sink18;
+	TSound* tabc06wave;
+	TSound* tabc13wave;
+	TSound* tabc44wave;
+	TSound* tabc56wave;
 	TPinballComponent* s_oneway2;
 
 	template <typename T> void Find(T*& component, const char* name)
@@ -141,9 +158,9 @@ namespace
 
 	void ShowBonus(Msg text, int score)
 	{
-		char buffer[64];
-		snprintf(buffer, sizeof buffer, pb::get_rc_string(text), static_cast<long>(score));
-		info_text_box->Display(buffer, 2.0f);
+		std::array<char, 64> buffer{};
+		snprintf(buffer.data(), buffer.size(), pb::get_rc_string(text), static_cast<long>(score));
+		info_text_box->Display(buffer.data(), 2.0f);
 	}
 
 	// State 0, 0x42bf60
@@ -228,13 +245,14 @@ namespace
 	// State 11, 0x42b7c0: count the bonus, one text at a time, then serve the next ball or end the game
 	void EndOfBallStateControl(MessageCode code, TPinballComponent* caller)
 	{
+		using enum MessageCode;
 		switch (code)
 		{
 		case SkipBonusText: // count the rest without showing it
 			TallyQuiet = true;
 			info_text_box->Clear();
 			break;
-		case MessageCode::ControlTimerExpired:
+		case ControlTimerExpired:
 			// mode_timer: the bonus took too long; count the rest at once
 			if (!caller || caller != mode_timer)
 				return;
@@ -246,10 +264,10 @@ namespace
 			TallyQuiet = false;
 			TallyStep = 0;
 			TallyTotal = 0;
-			mode_timer->Message(MessageCode::TTimerResetTimer, 30.0f);
+			mode_timer->Message(TTimerResetTimer, 30.0f);
 			if (Table->TiltLockFlag && LastBallRelease != 1)
 				TallyStep = 8;
-			Table->LightGroup->Message(MessageCode::TLightFtTmpOverrideOff, 0.0f);
+			Table->LightGroup->Message(TLightFtTmpOverrideOff, 0.0f);
 			info_text_box->Clear();
 			tabc44wave->Play(nullptr, "EndOfBallStateControl");
 			break;
@@ -296,7 +314,8 @@ namespace
 				}
 				break;
 			case 2:
-				count = v_lite37->light_on() + v_lite38->light_on() + v_lite39->light_on();
+				count = static_cast<int>(v_lite37->light_on()) + static_cast<int>(v_lite38->light_on()) +
+						static_cast<int>(v_lite39->light_on());
 				if (count)
 				{
 					TallyTotal += count * 50000;
@@ -321,7 +340,7 @@ namespace
 				}
 				break;
 			case 4:
-				count = dragon_egg_light_group->Message(MessageCode::TLightGroupGetOnCount, 0.0f);
+				count = dragon_egg_light_group->Message(TLightGroupGetOnCount, 0.0f);
 				if (count)
 				{
 					TallyTotal += count * 150000;
@@ -362,7 +381,7 @@ namespace
 			case 7:
 				if (v_lite31->light_on())
 				{
-					v_lite31->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+					v_lite31->Message(TLightResetAndTurnOff, 0.0f);
 					PlayerBonusHold[Table->CurrentPlayer] = TallyTotal;
 				}
 				else
@@ -385,32 +404,33 @@ namespace
 				if (LastBallRelease && Table->MultiballCount)
 					return;
 				LastBallRelease = 0;
-				mode_timer->Message(MessageCode::TTimerResetTimer, -1.0f);
+				mode_timer->Message(TTimerResetTimer, -1.0f);
 				if (Table->ExtraBalls)
 				{
 					Table->ExtraBalls--;
-					static constexpr Msg shootAgain[]{Msg::STRING198, Msg::STRING199, Msg::STRING200, Msg::STRING201};
+					using enum Msg;
+					static constexpr std::array shootAgain{STRING198, STRING199, STRING200, STRING201};
 					info_text_box->Display(pb::get_rc_string(shootAgain[std::min(Table->CurrentPlayer, 3)]), -1.0f);
-					Table->Message(MessageCode::ClearTiltLock, 0.0f);
-					plunger->Message(MessageCode::PlungerStartFeedTimer, 0.96f);
+					Table->Message(ClearTiltLock, 0.0f);
+					plunger->Message(PlungerStartFeedTimer, 0.96f);
 				}
 				else
 				{
 					Table->ChangeBallCount(Table->BallCount - 1);
 					if (Table->CurrentPlayer + 1 == Table->PlayerCount && !Table->BallCount)
 					{
-						Table->LightGroup->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+						Table->LightGroup->Message(TLightResetAndTurnOff, 0.0f);
 						SetState(GameOverState);
 					}
 					else
 					{
-						Table->Message(MessageCode::ClearTiltLock, 0.0f);
-						drain->Message(MessageCode::SetTiltLock, 0.0f);
-						Table->Message(MessageCode::SwitchToNextPlayer, 0.0f);
-						plunger->Message(MessageCode::PlungerStartFeedTimer, 0.96f);
+						Table->Message(ClearTiltLock, 0.0f);
+						drain->Message(SetTiltLock, 0.0f);
+						Table->Message(SwitchToNextPlayer, 0.0f);
+						plunger->Message(PlungerStartFeedTimer, 0.96f);
 					}
 				}
-				Table->LightGroup->Message(MessageCode::TLightFtResetOverride, 0.0f);
+				Table->LightGroup->Message(TLightFtResetOverride, 0.0f);
 				return;
 			}
 		}
@@ -473,25 +493,26 @@ namespace
 	// drain, 0x424900
 	void DrainControl(MessageCode code, TPinballComponent*)
 	{
+		using enum MessageCode;
 		while (true)
 		{
-			if (code == MessageCode::ControlTimerExpired)
+			if (code == ControlTimerExpired)
 			{
 				if (LastBallRelease)
 					return;
 				if (DrainStep == 2)
-					plunger->Message(MessageCode::PlungerStartFeedTimer, 0.96f);
+					plunger->Message(PlungerStartFeedTimer, 0.96f);
 				else if (DrainStep == 3)
-					plunger->Message(MessageCode::PlungerRelaunchBall, 0.96f);
+					plunger->Message(PlungerRelaunchBall, 0.96f);
 				return;
 			}
-			if (code != MessageCode::ControlCollision)
+			if (code != ControlCollision)
 				return;
 
 			DrainStep = 1;
 			if (Table->TiltLockFlag)
 			{
-				v_lite40->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+				v_lite40->Message(TLightResetAndTurnOff, 0.0f);
 				BallSaveStep = 0;
 			}
 			if (!v_lite40->light_on())
@@ -499,8 +520,8 @@ namespace
 
 			// Ball save: the drain's own timer serves the same ball again
 			DrainStep = 3;
-			drain->Message(MessageCode::SetTiltLock, 0.0f);
-			code = MessageCode::ControlTimerExpired;
+			drain->Message(SetTiltLock, 0.0f);
+			code = ControlTimerExpired;
 			Table->BallInDrainFlag = 1; // DRAGON.EXE's table field 0x6a, taken to be this flag
 		}
 
@@ -512,7 +533,7 @@ namespace
 			LastBallRelease = Table->TiltLockFlag ? 2 : 1;
 			Table->TiltLockFlag = 1;
 			for (auto flipper : {a_flip1, a_flip3, a_flip2})
-				flipper->Message(MessageCode::SetTiltLock, 0.0f);
+				flipper->Message(SetTiltLock, 0.0f);
 			// DRAGON.EXE reads only the first of the three flags light_on reads, taken here to be LightOnFlag
 			for (auto [light, sink] : {std::pair{v_lite50, a_sink16}, {v_lite49, a_sink17}, {v_lite48, a_sink18}})
 			{
@@ -520,8 +541,8 @@ namespace
 				{
 					GameState() = NewGameState;
 					Table->MultiballCount++;
-					sink->Message(MessageCode::TSinkResetTimer, 0.0f);
-					light->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+					sink->Message(TSinkResetTimer, 0.0f);
+					light->Message(TLightResetAndTurnOff, 0.0f);
 				}
 			}
 		}
@@ -561,21 +582,22 @@ namespace
 	// v_lite40, the ball save's light, 0x424870
 	void BallSaveControl(MessageCode code, TPinballComponent*)
 	{
-		if (code != MessageCode::ControlTimerExpired)
+		using enum MessageCode;
+		if (code != ControlTimerExpired)
 			return;
 		switch (BallSaveStep)
 		{
 		case 3:
 			BallSaveStep = 2;
-			v_lite40->Message(MessageCode::TLightTurnOnTimed, 10.0f);
+			v_lite40->Message(TLightTurnOnTimed, 10.0f);
 			break;
 		case 2:
 			BallSaveStep = 1;
-			v_lite40->Message(MessageCode::TLightFlasherStartTimed, 5.0f);
+			v_lite40->Message(TLightFlasherStartTimed, 5.0f);
 			break;
 		case 1:
 			BallSaveStep = 0;
-			v_lite40->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+			v_lite40->Message(TLightResetAndTurnOff, 0.0f);
 			break;
 		default:
 			break;
@@ -607,6 +629,7 @@ namespace
 
 	void NoControl(MessageCode, TPinballComponent*)
 	{
+		// Components whose own handler isn't ported yet; WithHook still passes their events to the table
 	}
 
 	// DRAGON.EXE's control::handler calls the component's handler, then the table-wide one
@@ -627,32 +650,33 @@ namespace
 	// The table's own events (DRAGON.EXE 0x424260)
 	void TableControl(MessageCode code)
 	{
+		using enum MessageCode;
 		if (!Table || !info_text_box)
 			return;
 		switch (code)
 		{
-		case MessageCode::SetTiltLock:
+		case SetTiltLock:
 			// DRAGON.EXE also turns off the quest lights and the bonus hold and resets a_kout3 and a_blocf (0x423780),
 			// ported with those features
 			break;
-		case MessageCode::NewGame:
+		case NewGame:
 			LastBallRelease = 0;
 			for (auto light : {v_lite113, v_lite114, v_lite115})
 				light->ActiveFlag = 0;
 			PlayTrack(MidiTracks::Track7);
 			BallSaveStep = 3;
-			v_lite40->Message(MessageCode::TLightResetAndTurnOn, 0.0f);
+			v_lite40->Message(TLightResetAndTurnOn, 0.0f);
 			Table->JackpotScore = 1000000;
 			// DRAGON.EXE also sets its engine's second jackpot to 2,500,000; this engine has none yet
 			GameState() = NewGameState;
 			break;
-		case MessageCode::GameOver:
+		case GameOver:
 			BallSaveStep = 0;
-			v_lite40->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+			v_lite40->Message(TLightResetAndTurnOff, 0.0f);
 			for (auto light : {v_lite113, v_lite114, v_lite115})
 				light->ActiveFlag = 0;
 			break;
-		case MessageCode::Reset:
+		case Reset:
 			// DRAGON.EXE's components clear their message fields for every player on Reset
 			PlayerState.fill(0);
 			PlayerBonusHold.fill(0);
@@ -726,7 +750,7 @@ namespace
 											   tabc44wave,
 											   tabc56wave,
 											   s_oneway2};
-		if (std::find(all.begin(), all.end(), nullptr) != all.end())
+		if (std::ranges::find(all, nullptr) != all.end())
 		{
 			// Not Dragon's Keep's DAT as DRAGON.EXE knows it; leave the table without rules
 			info_text_box = nullptr;

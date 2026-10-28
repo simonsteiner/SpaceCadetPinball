@@ -119,7 +119,13 @@ public:
 	static MidiTracks get_active_track();
 private:
 	static std::vector<MidiSong*> LoadedTracks;
-	static MidiSong *track1, *track2, *track3, *track4, *track5, *track6, *track7;
+	static MidiSong* track1;
+	static MidiSong* track2;
+	static MidiSong* track3;
+	static MidiSong* track4;
+	static MidiSong* track5;
+	static MidiSong* track6;
+	static MidiSong* track7;
 	static MidiTracks active_track, NextTrack;
 	static int Volume;
 	static bool IsPlaying;

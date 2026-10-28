@@ -272,7 +272,13 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 	active_track = MidiTracks::None;
 	NextTrack = MidiTracks::None;
 	IsPlaying = false;
-	track1 = track2 = track3 = track4 = track5 = track6 = track7 = nullptr;
+	track1 = nullptr;
+	track2 = nullptr;
+	track3 = nullptr;
+	track4 = nullptr;
+	track5 = nullptr;
+	track6 = nullptr;
+	track7 = nullptr;
 
 	// Music needs an audio device, even with native MIDI, which plays outside of it.
 	// Native MIDI first: on Windows and macOS it is the original's synth.

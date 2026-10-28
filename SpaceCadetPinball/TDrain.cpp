@@ -26,15 +26,13 @@ int TDrain::Message(MessageCode code, float value)
 		}
 		PinballTable->BallInDrainFlag = 0;
 	}
-	else if (code == MessageCode::SetTiltLock && (pb::Table == Tables::DragonsKeep || pb::Table == Tables::Skulduggery))
+	else if (code == MessageCode::SetTiltLock &&
+			 (pb::Table == Tables::DragonsKeep || pb::Table == Tables::Skulduggery) && Timer)
 	{
 		// Full Tilt's TDrain (CADET.EXE) also stops its timer here, which the bonus tables' rules use to serve a
 		// saved ball themselves; Space Cadet keeps Pinball.exe's
-		if (Timer)
-		{
-			timer::kill(Timer);
-			Timer = 0;
-		}
+		timer::kill(Timer);
+		Timer = 0;
 	}
 	return 0;
 }
