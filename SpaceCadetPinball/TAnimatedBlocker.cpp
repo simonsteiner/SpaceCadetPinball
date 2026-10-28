@@ -37,14 +37,15 @@ int TAnimatedBlocker::StateCount() const
 
 int TAnimatedBlocker::Message(MessageCode code, float value)
 {
+	using enum MessageCode;
 	switch (code)
 	{
-	case MessageCode::TAnimatedBlockerRestartTimeout:
+	case TAnimatedBlockerRestartTimeout:
 		if (TimeoutTimer)
 			timer::kill(TimeoutTimer);
 		TimeoutTimer = timer::set(std::max(value, 0.0f), this, TimeoutExpired);
 		break;
-	case MessageCode::TAnimatedBlockerAnimateOff:
+	case TAnimatedBlockerAnimateOff:
 		if (value > 0.0f)
 		{
 			TargetState = -1;
@@ -53,10 +54,10 @@ int TAnimatedBlocker::Message(MessageCode code, float value)
 			AnimationTimer = timer::set(value, this, AnimationStep);
 		}
 		else
-			Message(MessageCode::TAnimatedBlockerAnimateTo, -1.0f);
+			Message(TAnimatedBlockerAnimateTo, -1.0f);
 		loader::play_sound(OffSoundIndex, this, "TAnimatedBlocker1");
 		break;
-	case MessageCode::TAnimatedBlockerAnimateOn:
+	case TAnimatedBlockerAnimateOn:
 		if (value > 0.0f)
 		{
 			TargetState = StateCount() - 1;
@@ -65,10 +66,10 @@ int TAnimatedBlocker::Message(MessageCode code, float value)
 			AnimationTimer = timer::set(value, this, AnimationStep);
 		}
 		else
-			Message(MessageCode::TAnimatedBlockerAnimateTo, static_cast<float>(StateCount() - 1));
+			Message(TAnimatedBlockerAnimateTo, static_cast<float>(StateCount() - 1));
 		loader::play_sound(OnSoundIndex, this, "TAnimatedBlocker2");
 		break;
-	case MessageCode::TAnimatedBlockerSetState:
+	case TAnimatedBlockerSetState:
 		{
 			// A state that blocks waits while a ball is in the way, and is asked again every half second
 			if (DeferredTimer)
@@ -88,34 +89,34 @@ int TAnimatedBlocker::Message(MessageCode code, float value)
 			SetState(state);
 			break;
 		}
-	case MessageCode::TAnimatedBlockerAnimateTo:
+	case TAnimatedBlockerAnimateTo:
 		TargetState = static_cast<int>(value);
 		if (AnimationTimer)
 			timer::kill(AnimationTimer);
 		AnimationTimer = timer::set(FrameTime, this, AnimationStep);
 		break;
-	case MessageCode::TAnimatedBlockerSetOn:
-		Message(MessageCode::TAnimatedBlockerSetState, static_cast<float>(StateCount() - 1));
+	case TAnimatedBlockerSetOn:
+		Message(TAnimatedBlockerSetState, static_cast<float>(StateCount() - 1));
 		loader::play_sound(OnSoundIndex, this, "TAnimatedBlocker3");
 		break;
-	case MessageCode::TAnimatedBlockerSetOff:
-		Message(MessageCode::TAnimatedBlockerSetState, -1.0f);
+	case TAnimatedBlockerSetOff:
+		Message(TAnimatedBlockerSetState, -1.0f);
 		loader::play_sound(OffSoundIndex, this, "TAnimatedBlocker4");
 		break;
-	case MessageCode::PlayerChanged:
+	case PlayerChanged:
 		// CADET.EXE's components keep their message field for each player
 		PlayerMessageFields[PinballTable->CurrentPlayer] = MessageField;
 		MessageField = PlayerMessageFields[static_cast<int>(value)];
 		KillTimers();
-		Message(MessageCode::TAnimatedBlockerSetState, static_cast<float>(InitialState));
+		Message(TAnimatedBlockerSetState, static_cast<float>(InitialState));
 		break;
-	case MessageCode::Reset:
+	case Reset:
 		MessageField = 0;
-		std::fill(std::begin(PlayerMessageFields), std::end(PlayerMessageFields), 0);
+		std::ranges::fill(PlayerMessageFields, 0);
 		[[fallthrough]];
-	case MessageCode::SetTiltLock:
+	case SetTiltLock:
 		KillTimers();
-		Message(MessageCode::TAnimatedBlockerSetState, static_cast<float>(InitialState));
+		Message(TAnimatedBlockerSetState, static_cast<float>(InitialState));
 		break;
 	default:
 		break;
@@ -146,14 +147,14 @@ void TAnimatedBlocker::KillTimers()
 	AnimationTimer = 0;
 }
 
-void TAnimatedBlocker::TimeoutExpired(int timerId, void* caller)
+void TAnimatedBlocker::TimeoutExpired(int, void* caller)
 {
 	auto blocker = static_cast<TAnimatedBlocker*>(caller);
 	blocker->TimeoutTimer = 0;
 	control::handler(MessageCode::ControlTimerExpired, blocker);
 }
 
-void TAnimatedBlocker::AnimationStep(int timerId, void* caller)
+void TAnimatedBlocker::AnimationStep(int, void* caller)
 {
 	auto blocker = static_cast<TAnimatedBlocker*>(caller);
 	blocker->AnimationTimer = 0;
@@ -172,7 +173,7 @@ void TAnimatedBlocker::AnimationStep(int timerId, void* caller)
 	blocker->AnimationTimer = timer::set(blocker->FrameTime, blocker, AnimationStep);
 }
 
-void TAnimatedBlocker::DeferredMessage(int timerId, void* caller)
+void TAnimatedBlocker::DeferredMessage(int, void* caller)
 {
 	auto blocker = static_cast<TAnimatedBlocker*>(caller);
 	blocker->DeferredTimer = 0;

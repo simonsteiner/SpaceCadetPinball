@@ -29,13 +29,17 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	RampPlane = reinterpret_cast<ramp_plane_type*>(floatArr3Plane + 1);
 
 	// Full Tilt's bonus tables leave out some of the three walls, which CADET.EXE then doesn't build
-	Line1 = Line2 = Line3 = nullptr;
-	Wall1CollisionGroup = Wall2CollisionGroup = 0;
-	Wall1BallOffset = Wall2BallOffset = 0;
-	int wall1Enabled = 0, wall2Enabled = 0;
+	Line1 = nullptr;
+	Line2 = nullptr;
+	Line3 = nullptr;
+	Wall1CollisionGroup = 0;
+	Wall2CollisionGroup = 0;
+	Wall1BallOffset = 0;
+	Wall2BallOffset = 0;
+	int wall1Enabled = 0;
+	int wall2Enabled = 0;
 
-	auto wall0Arr = loader::query_float_attribute(groupIndex, 0, 1303);
-	if (wall0Arr)
+	if (auto wall0Arr = loader::query_float_attribute(groupIndex, 0, 1303))
 	{
 		auto wall0CollisionGroup = static_cast<int>(1u << static_cast<unsigned>(floor(wall0Arr[0])));
 		auto wall0Pts = reinterpret_cast<wall_point_type*>(wall0Arr + 2);
@@ -45,8 +49,7 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 		EdgeList.push_back(Line1);
 	}
 
-	auto wall1Arr = loader::query_float_attribute(groupIndex, 0, 1301);
-	if (wall1Arr)
+	if (auto wall1Arr = loader::query_float_attribute(groupIndex, 0, 1301))
 	{
 		Wall1CollisionGroup = static_cast<int>(1u << static_cast<unsigned>(floor(wall1Arr[0])));
 		wall1Enabled = static_cast<int>(floor(wall1Arr[1]));
@@ -60,8 +63,7 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 		EdgeList.push_back(Line2);
 	}
 
-	auto wall2Arr = loader::query_float_attribute(groupIndex, 0, 1302);
-	if (wall2Arr)
+	if (auto wall2Arr = loader::query_float_attribute(groupIndex, 0, 1302))
 	{
 		Wall2CollisionGroup = static_cast<int>(1u << static_cast<unsigned>(floor(wall2Arr[0])));
 		wall2Enabled = static_cast<int>(floor(wall2Arr[1]));

@@ -16,8 +16,8 @@ public:
 	void SetEnabled(bool enabled);
 
 	float FlashTime;
-	char PlayerActiveFlags[4]{};
-	int PlayerMessageFields[4]{};
+	std::array<char, 4> PlayerActiveFlags{};
+	std::array<int, 4> PlayerMessageFields{};
 
 	static void FlashEnd(int timerId, void* caller);
 };
