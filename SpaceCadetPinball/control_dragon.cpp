@@ -31,18 +31,17 @@
 #include "TWall.h"
 #include "translations.h"
 
-// Dragon's Keep's rules, recovered from DRAGON.EXE one feature at a time (Phase F). Ported so far: the serve, drain
-// and game-over flow, with the ball save, the end-of-ball bonus and the music; the quest framework and the five
-// quests (Dragon Hoard, Fire Lizards, Rescue Maiden, Dragon Pass, Wizard's Fury). Everything else is still a stand-in
-// that keeps the table playable: kickouts and sinks give back the balls they catch, which only the rules would do
-// otherwise, Slay Dragon doesn't start, and a stuck ball is freed as Space Cadet's rules free
-// one.
+// Dragon's Keep's rules, recovered from DRAGON.EXE (Phase F): the serve, drain and game-over flow, with the ball
+// save, the end-of-ball bonus and the music; the quest framework and the five quests (Dragon Hoard, Fire Lizards,
+// Rescue Maiden, Dragon Pass, Wizard's Fury); the shop; the three multiball modes and Slay Dragon; and the
+// components' own scoring. A stuck ball is freed as Space Cadet's rules free one, and DRAGON.EXE's cheats (0x4282c0)
+// aren't ported.
 //
 // DRAGON.EXE's rules run a state machine whose state each player keeps in info_text_box's message field: the
 // component handlers and the engine report to one table-wide function (0x42c020), which hands every event to the
 // current state's function (0x42c120). States 0 (game over), 1 (new game), 2 (play), 3 (restart quest), 4 to 8 (the
-// quests), 10 (launch), 11 (end of ball), 12 (the shop) and 13 to 15 (the modes) are ported; Slay Dragon (9) comes
-// with its feature. Addresses below are DRAGON.EXE's. Its message numbers differ from
+// quests), 10 (launch), 11 (end of ball), 12 (the shop), 13 to 15 (the modes) and 9 (Slay Dragon) are ported, so all
+// of them. Addresses below are DRAGON.EXE's. Its message numbers differ from
 // this port's above the light codes, so each call uses the port's MessageCode: CADET.EXE's light groups number theirs 4
 // above this port's, its targets 4 above, its kickouts, sinks and timers 9 or 10 above; its animated blockers and
 // diverters keep CADET.EXE's.
@@ -289,6 +288,15 @@ namespace
 	TLight* v_lite77;
 	TLight* v_lite79;
 	TSound* tabc61wave;
+	// Slay Dragon's
+	TSink* a_sink19;
+	std::array<TLight*, 8> fire_lights; // v_lite113 to v_lite115 and v_lite58 to v_lite62 (0x43bb78)
+	TSound* tabc57wave;
+	TSound* tabc58wave;
+	bool SlayLaunchPending; // 0x434d04: Slay Dragon's light show runs, so the lane exit doesn't start its time
+	bool RampCrossed;       // 0x434d18: the ball is on a_ramp107, the dragon's ramp, so the time waits for it
+	int SlaySeconds;        // 0x434cf8: Slay Dragon's time
+	int FireDirection;      // 0x439b0c: which way the fire lights run, 1 up, -1 down
 	int ShopItem;        // 0x434d1c: what the shop offers, its price in dragon eggs; 0 for nothing
 	int ShopSpell;       // 0x434d28: the spell it offers
 	int MaidenLockLight; // 0x434d14: how v_lite48 was when Rescue Maiden started, 0 off, 1 on, 2 flashing
@@ -355,7 +363,7 @@ namespace
 
 	// 0x423130: the score without multiplier, bonus or first jackpot, as Space Cadet's SpecialAddScore; the second
 	// jackpot still counts it
-	void AddScoreUnmultiplied(TPinballComponent* scorer, int score)
+	int AddScoreUnmultiplied(TPinballComponent* scorer, int score)
 	{
 		LastScorer = scorer;
 		auto bonus = Table->BonusScoreFlag;
@@ -364,10 +372,11 @@ namespace
 		Table->BonusScoreFlag = false;
 		Table->JackpotScoreFlag = false;
 		Table->ScoreMultiplier = 1;
-		Table->AddScore(score);
+		auto added = Table->AddScore(score);
 		Table->BonusScoreFlag = bonus;
 		Table->JackpotScoreFlag = jackpot;
 		Table->ScoreMultiplier = multiplier;
+		return added;
 	}
 
 	void SetState(int state)
@@ -1565,6 +1574,356 @@ namespace
 		}
 	}
 
+	void AddSecondJackpot(int score) // 0x423870
+	{
+		Table->SecondJackpotScore = std::min(Table->SecondJackpotScore + score, 20000000);
+	}
+
+	// 0x424130: the dragon's mouth opens: its lights come on and its jaw opens, which then lets the ball onto its
+	// ramp (ControlAnimationDone in Slay Dragon)
+	void OpenDragonMouth()
+	{
+		SlayDragonFlag = true;
+		for (auto light : {v_lite113, v_lite114, v_lite115})
+			light->ActiveFlag = 1;
+		v_lite119->Message(MessageCode::TLightFtTmpOverrideOn, 0.0f);
+		dragon_mouth_light_group->Message(OverrideReset, 0.0f);
+		dragon_fire_light_group->Message(OverrideReset, 0.0f);
+		FireDirection = 1;
+		v_lite113->MessageField = -1;
+		a_jaw->Message(MessageCode::TAnimatedBlockerAnimateTo, 7.0f);
+	}
+
+	// State 9, 0x42a150: Slay Dragon, once all five quests are done or from the sword (a_spot28). Its time is 30 s
+	// and 5 more for each armor piece and spell lit; the hits it needs, in v_lite114's message field, are 8 less
+	// the weapons and two spells lit. Each ball in the dragon's mouth (a_sink19) is a hit; the last one counts down
+	// to the Super Jackpot. Bumpers, kickouts, fire lizard sinks and targets add to the second jackpot meanwhile
+	void SlayDragonStateControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case EnterState:
+			{
+				SlayLaunchPending = true;
+				light_sweeps->Message(TLightSweepsStart, 5.0f);
+				a_sink18->ActiveFlag = 0;
+				a_sink17->ActiveFlag = 0;
+				RampCrossed = false;
+				SlaySeconds = 30;
+				if (v_lite37->light_on())
+				{
+					SlaySeconds = 35;
+					AwardMaxArmor(false);
+					tabc24wave->Play(nullptr, "SlayDragonStateControl");
+				}
+				if (v_lite38->light_on())
+				{
+					SlaySeconds += 5;
+					CenterPostControl(TAnimatedBlockerAnimateOn, a_center_post);
+				}
+				if (v_lite39->light_on())
+				{
+					SlaySeconds += 5;
+					BloceControl(TAnimatedBlockerAnimateOn, a_bloce);
+				}
+				for (auto light : {v_lite31, v_lite32})
+				{
+					if (light->light_on())
+						SlaySeconds += 5;
+				}
+				v_lite114->MessageField = 8;
+				for (auto light : {v_lite33, v_lite34, v_lite35, v_lite36, v_lite28, v_lite29})
+				{
+					if (light->light_on())
+						v_lite114->MessageField--;
+				}
+				auto keep = GameState() == RescueMaidenState || GameState() == TowerBarrageState;
+				if (!keep)
+				{
+					v_lite47->Message(TLightResetAndTurnOff, 0.0f);
+					diverters[0]->Message(TDiverterEnable, 0.0f);
+					diverters[1]->Message(TDiverterDisable, 0.0f);
+				}
+				diverters[2]->Message(TDiverterDisable, 0.0f);
+				diverters[3]->Message(TDiverterEnable, 0.0f);
+				diverters[4]->Message(TDiverterDisable, 0.0f);
+				diverters[5]->Message(TDiverterEnable, 0.0f);
+				if (!keep)
+				{
+					v_lite125->Message(TLightResetAndTurnOff, 0.0f);
+					v_lite126->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+					diverters[6]->Message(TDiverterEnable, 0.0f);
+					diverters[7]->Message(TDiverterDisable, 0.0f);
+				}
+				AddScore(nullptr, 500000);
+				info_text_box->Display(pb::get_rc_string(Msg::Dragon_PutBallInDragonsMouth), -1.0f);
+				v_lite29->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+				v_lite30->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+				a_kout3->ActiveFlag = 1;
+				tabc57wave->Play(nullptr, "SlayDragonStateControl");
+				return;
+			}
+		case QuestResume:
+			tabc57wave->Play(nullptr, "SlayDragonStateControl");
+			mode_timer->Message(TTimerResetTimer, static_cast<float>(SlaySeconds) / 2.0f);
+			v_lite29->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			v_lite30->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			a_kout3->ActiveFlag = 1;
+			OpenDragonMouth();
+			if (info_text_box->CurrentMessage)
+				return;
+			[[fallthrough]];
+		case ShowStateText:
+			ShowTimeLeft(Msg::Dragon_SlayDragon);
+			return;
+		case SetTiltLock:
+			TiltResets();
+			[[fallthrough]];
+		case BallDrained:
+			GameState() = PlayState;
+			mode_timer->Message(TTimerResetTimer, -1.0f);
+			[[fallthrough]];
+		case QuestEnd:
+			SetLevelLights(3);
+			for (auto light : quest_lights)
+				light->Message(TLightResetAndTurnOff, 0.0f);
+			QuestLeave();
+			SlayDragonReset(true);
+			for (auto light : {v_lite77, v_lite78, v_lite79})
+				light->Message(TLightResetAndTurnOff, 0.0f);
+			v_lite76->Message(TLightResetAndTurnOn, 0.0f);
+			QuestDone();
+			return;
+		case ControlRampLayerChanged:
+			if (caller == a_ramp107)
+				RampCrossed = true;
+			return;
+		case ControlRampExitToLayer1:
+			if (caller == a_ramp107)
+				RampCrossed = false;
+			return;
+		case ControlNotifyTimerExpired:
+			if (caller == dragon_fire_light_group)
+			{
+				// The fire runs up the eight lights and back down
+				auto& index = v_lite113->MessageField;
+				if (FireDirection < 1)
+				{
+					if (--index == -1)
+						FireDirection = 1;
+					else
+						fire_lights[index]->Message(TLightResetAndTurnOff, 0.0f);
+				}
+				else
+				{
+					++index;
+					if (index == 0)
+						tabc58wave->Play(nullptr, "SlayDragonStateControl");
+					if (index >= 0 && index <= 7)
+						fire_lights[index]->Message(TLightResetAndTurnOn, 0.0f);
+					else if (index == 8)
+						FireDirection = -1;
+				}
+				dragon_fire_light_group->Message(TLightGroupRestartNotifyTimer,
+												 index > 5 && index < 9 ? 0.012f : 0.123f);
+			}
+			else if (caller == dragon_mouth_light_group)
+			{
+				// The last hit's count down to the Super Jackpot
+				auto step = dragon_mouth_light_group->MessageField++;
+				if (step < 0)
+					return;
+				if (step < 9)
+				{
+					ShowPicture(std::string(1, static_cast<char>(',' + step)), -1.0f);
+					dragon_mouth_light_group->Message(TLightGroupRestartNotifyTimer, 0.4f);
+					return;
+				}
+				if (step != 9)
+					return;
+				Table->LightGroup->Message(OverrideReset, 0.0f);
+				auto added = AddScoreUnmultiplied(caller, Table->SecondJackpotScore);
+				std::array<char, 64> buffer{};
+				snprintf(buffer.data(), buffer.size(), pb::get_rc_string(Msg::Dragon_SuperJackpot),
+						 static_cast<long>(added));
+				info_text_box->Display(buffer.data(), -1.0f);
+				AddScore(caller, 1500000);
+				AwardJackpot(false);
+				for (auto light : {v_lite33, v_lite34, v_lite35, v_lite36})
+					light->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+				Table->ScoreMultiplier = 5;
+				AwardMaxArmor(false);
+				CenterPostControl(TAnimatedBlockerAnimateOn, a_center_post);
+				BloceControl(TAnimatedBlockerAnimateOn, a_bloce);
+				v_lite28->Message(TLightTurnOnTimed, 30.0f);
+				v_lite29->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+				v_lite30->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+				a_kout3->ActiveFlag = 1;
+				v_lite31->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+				BlocfControl(TAnimatedBlockerAnimateOff, a_blocf);
+				SlayDragonStateControl(QuestEnd, nullptr);
+				a_sink16->Message(TSinkResetTimer, -1.0f);
+				dragon_letter_light_group->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+				DragonFlurryReady();
+			}
+			return;
+		case ControlCollision:
+			if (dynamic_cast<TBumper*>(caller))
+				AddSecondJackpot(50000);
+			else if (dynamic_cast<TKickout*>(caller))
+				AddSecondJackpot(750000);
+			else if (caller == s_oneway2)
+			{
+				// The ball left the lane after the light show: the time starts
+				if (!SlayLaunchPending && BallSaveStep == 3)
+				{
+					mode_timer->Message(TTimerResetTimer, static_cast<float>(SlaySeconds));
+					ShowTimeLeft(Msg::Dragon_SlayDragon);
+				}
+			}
+			else if (caller == a_sink19)
+			{
+				if (v_lite114->MessageField == 1)
+				{
+					Table->LightGroup->Message(MessageCode::TLightFtTmpOverrideOn, 0.0f);
+					SlayDragonReset(false);
+					mode_timer->Message(TTimerResetTimer, -1.0f);
+					dragon_mouth_light_group->MessageField = 0;
+					dragon_mouth_light_group->Message(TLightGroupRestartNotifyTimer, 0.0001f);
+					info_text_box->Clear();
+				}
+				RampCrossed = false;
+			}
+			else if (caller == a_sink1 || caller == a_sink2)
+				AddSecondJackpot(500000);
+			else if (dynamic_cast<TSoloTarget*>(caller))
+				AddSecondJackpot(100000);
+			return;
+		case ControlTimerExpired:
+			if (caller == mode_timer)
+			{
+				// Time's up, unless the ball is on the dragon's ramp
+				if (!RampCrossed)
+				{
+					mode_timer->MessageField = GameState();
+					SlayDragonReset(false);
+					SetState(RestartQuestState);
+				}
+				else
+					mode_timer->Message(TTimerResetTimer, 0.05f);
+			}
+			else if (caller == light_sweeps)
+			{
+				SlayLaunchPending = false;
+				QuestEndReset();
+				OpenDragonMouth();
+				if (BallSaveStep != 3)
+				{
+					mode_timer->Message(TTimerResetTimer, static_cast<float>(SlaySeconds));
+					TableHook(ShowStateText, nullptr);
+				}
+			}
+			return;
+		case ControlAnimationDone:
+			// The jaw is open: its ramp and the wall behind it come in, and the fire runs
+			if (SlayDragonFlag && caller == a_jaw)
+			{
+				a_ramp107->ActiveFlag = 1;
+				s_bwal170->ActiveFlag = 1;
+				dragon_fire_light_group->Message(TLightGroupRestartNotifyTimer, 0.123f);
+			}
+			return;
+		default:
+			return;
+		}
+	}
+
+	// a_sink19, the dragon's mouth, 0x427f10: in Slay Dragon each ball is a hit and 15 s more; it comes out of a
+	// random sink and scores by the fire lights lit. Elsewhere the ball goes to a_sink1
+	void DragonMouthControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		if (GameState() != SlayDragonState)
+		{
+			a_sink1->Message(TSinkResetTimer, 0.0f);
+			return;
+		}
+		if (--v_lite114->MessageField == 0)
+		{
+			tabc56wave->Play(nullptr, "DragonMouthControl");
+			return;
+		}
+		auto msLeft = mode_timer->Message(TTimerGetTimeLeft, 0.0f);
+		auto secondsLeft = static_cast<float>(static_cast<float>(msLeft) / 1000.0);
+		mode_timer->Message(TTimerResetTimer, secondsLeft + 15.0f);
+		auto roll = [](int count) { return std::min(static_cast<int>(RandFloat() * count), count - 1); };
+		TSink* sinks[] = {a_sink4, a_sink1, a_sink2, a_sink18, a_sink17, a_sink16};
+		sinks[roll(6)]->Message(TSinkResetTimer, 3.0f);
+
+		int score = 100000;
+		bool scored = true;
+		switch (dragon_fire_light_group->Message(TLightGroupGetOnCount, 0.0f))
+		{
+		case 0:
+		case 1:
+			break;
+		case 2:
+			score = 1000000;
+			break;
+		case 3:
+			if (!roll(5))
+			{
+				AwardJackpot();
+				scored = false;
+			}
+			break;
+		case 4:
+			if (!roll(10))
+			{
+				tabc35wave->Play(nullptr, "DragonMouthControl");
+				info_text_box->Display(pb::get_rc_string(Msg::Dragon_ExtraBallLight), 2.0f);
+				v_lite57->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+				scored = false;
+			}
+			break;
+		default:
+			if (!roll(10))
+			{
+				AwardExtraBall(0.0f);
+				scored = false;
+			}
+			break;
+		}
+		if (scored)
+		{
+			tabc13wave->Play(nullptr, "DragonMouthControl");
+			std::array<char, 64> buffer{};
+			snprintf(buffer.data(), buffer.size(), pb::get_rc_string(Msg::Dragon_Score),
+					 static_cast<long>(AddScore(caller, score)));
+			info_text_box->Display(buffer.data(), 2.0f);
+		}
+		ShowPicture("!", 3.5f);
+		std::array<char, 64> buffer{};
+		snprintf(buffer.data(), buffer.size(), pb::get_rc_string(Msg::Dragon_SlayDragonHitsLeft),
+				 static_cast<long>(v_lite114->MessageField));
+		info_text_box->Display(buffer.data(), 5.0f);
+	}
+
+	// a_spot28, 0x425830: while its light flashes in play, the sword's last target starts Slay Dragon
+	void SlayTargetControl(MessageCode code, TPinballComponent*)
+	{
+		if (code != MessageCode::ControlCollision || GameState() != PlayState || !v_lite18->FlasherOnFlag)
+			return;
+		ShowPicture("!", 2.0f);
+		SetLevelLights(-1);
+		ClearPickedQuest();
+		v_lite76->Message(MessageCode::TLightFlasherStartTimed, -1.0f);
+		SetState(SlayDragonState);
+	}
+
 	// State 7, 0x429b10: Dragon Pass. The gargoyle kickout (a_kout2) lays a dragon egg, the armor kickout (a_kout1)
 	// awards the jackpot, and a_spot8 and a_spot12 grow it, until the time runs out
 	void DragonPassStateControl(MessageCode code, TPinballComponent* caller)
@@ -1987,6 +2346,9 @@ namespace
 		case GaggleBallState:
 			GaggleBallStateControl(code, caller);
 			break;
+		case SlayDragonState:
+			SlayDragonStateControl(code, caller);
+			break;
 		case DragonFlurryState:
 			DragonFlurryStateControl(code, caller);
 			break;
@@ -2001,10 +2363,6 @@ namespace
 			// from any state it doesn't know (0x42c000)
 			if (state > 15)
 				SetState(PlayState);
-			// A stand-in: once all five quests are done, Slay Dragon starts at each serve; until it is ported, it
-			// plays as play does
-			else if (state == SlayDragonState)
-				PlayStateControl(code, caller);
 			break;
 		}
 	}
@@ -2646,8 +3004,7 @@ namespace
 	}
 
 	// a_spot19 (0x425750) and a_spot26 (0x4257c0), the sword's targets: while their light flashes in play, the sword
-	// goes down a level, with the dragon's picture. a_spot28 (0x425830) would start Slay Dragon, not ported yet, so
-	// it is a stand-in that does nothing
+	// goes down a level, with the dragon's picture; the last one, a_spot28, starts Slay Dragon (SlayTargetControl)
 	void SwordTargetControl(MessageCode code, TPinballComponent* caller)
 	{
 		if (code != MessageCode::ControlCollision || GameState() != PlayState)
@@ -3441,6 +3798,13 @@ namespace
 		Find(v_lite77, "v_lite77");
 		Find(v_lite79, "v_lite79");
 		Find(tabc61wave, "tabc61wave");
+		Find(a_sink19, "a_sink19");
+		Find(tabc57wave, "tabc57wave");
+		Find(tabc58wave, "tabc58wave");
+		constexpr std::array fireLightNames{"v_lite113", "v_lite114", "v_lite115", "v_lite58",
+											"v_lite59",  "v_lite60",  "v_lite61",  "v_lite62"};
+		for (size_t index = 0; index < fire_lights.size(); index++)
+			Find(fire_lights[index], fireLightNames[index]);
 		Find(s_trip1, "s_trip1");
 		Find(s_trip2, "s_trip2");
 		Find(s_trip3, "s_trip3");
@@ -3644,6 +4008,9 @@ namespace
 											   v_lite77,
 											   v_lite79,
 											   tabc61wave,
+											   a_sink19,
+											   tabc57wave,
+											   tabc58wave,
 											   s_trip1,
 											   s_trip2,
 											   s_trip3,
@@ -3657,7 +4024,8 @@ namespace
 								std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
 								std::ranges::none_of(lizard_lights, [](auto c) { return !c; }) &&
 								std::ranges::none_of(diamond_targets, [](auto c) { return !c; }) &&
-								std::ranges::none_of(pearl_targets, [](auto c) { return !c; });
+								std::ranges::none_of(pearl_targets, [](auto c) { return !c; }) &&
+								std::ranges::none_of(fire_lights, [](auto c) { return !c; });
 		if (std::ranges::find(all, nullptr) != all.end() || !listsFound)
 		{
 			// Not Dragon's Keep's DAT as DRAGON.EXE knows it; leave the table without rules
@@ -3684,6 +4052,10 @@ namespace
 				Link(component, WithHook<HoleControl>);
 			else if (component == a_sink4)
 				Link(component, WithHook<WellControl>);
+			else if (component == a_sink19)
+				Link(component, WithHook<DragonMouthControl>);
+			else if (component == a_spot28)
+				Link(component, WithHook<SlayTargetControl>);
 			else if (component == a_spot10 || component == a_spot14)
 				Link(component, WithHook<GargoyleTargetControl>);
 			else if (component == a_spot8 || component == a_spot12)
