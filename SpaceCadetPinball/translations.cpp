@@ -7741,5 +7741,23 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "Wizard's Fury\nQuest Selected" },
 		}
+	},
+	{
+		Msg::Dragon_JackpotGrows,
+		{
+			{ Lang::English, "Jackpot Grows" },
+		}
+	},
+	{
+		Msg::Dragon_FireRidge,
+		{
+			{ Lang::English, "Fire Ridge\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_SuperJackpotIncreased,
+		{
+			{ Lang::English, "Super Jackpot Increased\n%ld" },
+		}
 	}
 };

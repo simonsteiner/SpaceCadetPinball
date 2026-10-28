@@ -480,6 +480,9 @@ enum class Msg : int
 	Dragon_RescueMaidenSelected,
 	Dragon_DragonPassSelected,
 	Dragon_WizardsFurySelected,
+	Dragon_JackpotGrows,
+	Dragon_FireRidge,
+	Dragon_SuperJackpotIncreased,
 
 	Max,
 };

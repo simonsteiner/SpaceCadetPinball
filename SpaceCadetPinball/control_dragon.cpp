@@ -266,6 +266,16 @@ namespace
 	TSound* tabc22wave;
 	TSound* tabc39wave;
 	TSound* tabc96wave;
+	// The tower's other tripwires, Fire Ridge's and the ramps' sounds
+	TPinballComponent* s_trip1;
+	TPinballComponent* s_trip2;
+	TPinballComponent* s_trip3;
+	TPinballComponent* s_trip4;
+	TPinballComponent* s_trip8;
+	TPinballComponent* s_trip9;
+	TSound* tabc09wave;
+	TSound* tabc18wave;
+	TSound* tabc20wave;
 	int MaidenLockLight; // 0x434d14: how v_lite48 was when Rescue Maiden started, 0 off, 1 on, 2 flashing
 
 	template <typename T> void Find(T*& component, const char* name)
@@ -1930,14 +1940,18 @@ namespace
 		a_kout2->Message(TKickoutRestartTimer, -1.0f);
 	}
 
-	// s_trip5 and s_trip6, the prison tripwires, 0x427880: they light the prison windows one by one and score by the
-	// windows lit; in Rescue Maiden each window gives 250,000, 500,000, the jackpot, then the extra ball light
-	void PrisonTripControl(MessageCode code, TPinballComponent* caller)
+	// The tower's tripwires: s_trip5 and s_trip6 (0x427880) light the prison windows, s_trip3 and s_trip4
+	// (0x427b30) the watch windows and s_trip8 and s_trip9 (0x427d10) the gate windows, one by one, and score by the
+	// windows lit. In Rescue Maiden the prison windows give 250,000, 500,000, the jackpot, then the extra ball light
+	void TowerTripControl(MessageCode code, TPinballComponent* caller)
 	{
 		using enum MessageCode;
 		if (code != ControlCollision)
 			return;
-		auto windows = prison_window_light_group;
+		bool prison = caller == s_trip5 || caller == s_trip6;
+		bool watch = caller == s_trip3 || caller == s_trip4;
+		auto windows = prison ? prison_window_light_group : watch ? watch_window_light_group : gate_window_light_group;
+		auto lockLight = prison ? v_lite48 : watch ? v_lite49 : v_lite50;
 		auto showScore = [](int score)
 		{
 			std::array<char, 64> buffer{};
@@ -1947,9 +1961,10 @@ namespace
 		switch (GameState())
 		{
 		case PlayState:
-			if (v_lite48->MessageField)
+			if (lockLight->MessageField)
 				return;
-			tabc04wave->Play(nullptr, "PrisonTripControl");
+			if (prison)
+				tabc04wave->Play(nullptr, "TowerTripControl");
 			break;
 		case RestartQuestState:
 			if (mode_timer->MessageField == RescueMaidenState)
@@ -1959,7 +1974,12 @@ namespace
 			}
 			break;
 		case RescueMaidenState:
-			tabc51wave->Play(nullptr, "PrisonTripControl");
+			tabc51wave->Play(nullptr, "TowerTripControl");
+			if (!prison)
+			{
+				showScore(ScoreBy(caller, 0));
+				return;
+			}
 			switch (windows->Message(TLightGroupGetOnCount, 0.0f))
 			{
 			case 0:
@@ -1985,6 +2005,8 @@ namespace
 			break;
 		}
 
+		if (watch)
+			tabc04wave->Play(nullptr, "TowerTripControl");
 		auto lit = windows->Message(TLightGroupGetOnCount, 0.0f);
 		showScore(ScoreBy(caller, lit));
 		if (windows->Message(TLightGroupGetLightCount, 0.0f) - lit == 1)
@@ -1994,6 +2016,122 @@ namespace
 			return;
 		}
 		windows->Message(TLightGroupResetAndTurnOn, 1.0f);
+	}
+
+	// a_ramp103, 0x4265e0: each shot within 20 s of the last scores 50,000 more, up to 500,000, and adds it to the
+	// jackpot; a_ramp103's message field counts the shots. In play v_lite24 counts toward Dragon Flurry
+	void JackpotRampControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlRampExitToLayer2)
+			return;
+		if (GameState() != DragonHoardState)
+			tabc18wave->Play(nullptr, "JackpotRampControl");
+		if (!v_lite67->light_on())
+			caller->MessageField = 0;
+		else if (caller->MessageField < 9)
+			caller->MessageField++;
+		v_lite67->Message(TLightTurnOn, 0.0f);
+		v_lite67->Message(TLightFlasherStartTimedThenStayOff, 20.0f);
+		if (GameState() != RescueMaidenState && GameState() != TowerBarrageState)
+		{
+			v_lite125->Message(TLightResetAndTurnOff, 0.0f);
+			v_lite126->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			diverters[6]->Message(TDiverterEnable, 0.0f);
+			diverters[7]->Message(TDiverterDisable, 0.0f);
+		}
+		v_lite119->Message(TLightFlasherStartTimed, 2.0f);
+		if (GameState() != DragonHoardState)
+		{
+			auto score = (caller->MessageField + 1) * 50000;
+			AddScore(caller, score);
+			AddJackpot(score);
+		}
+		if (GameState() == PlayState)
+		{
+			lizard_lights[2]->Message(TLightFlasherStartTimedThenStayOn, 1.0f); // v_lite24
+			if (!DragonFlurryReady())
+				info_text_box->Display(pb::get_rc_string(Msg::Dragon_JackpotGrows), 2.0f);
+		}
+	}
+
+	// a_ramp6, 0x426740: a spell while v_lite70 is on from the last shot, 10 s; in play v_lite26 counts toward Dragon
+	// Flurry
+	void SpellRampControl(MessageCode code, TPinballComponent*)
+	{
+		using enum MessageCode;
+		if (code != ControlRampExitToLayer2)
+			return;
+		bool flurry = false;
+		if (GameState() == PlayState)
+		{
+			lizard_lights[4]->Message(TLightFlasherStartTimedThenStayOn, 1.0f); // v_lite26
+			flurry = DragonFlurryReady();
+		}
+		if (!flurry)
+		{
+			if (v_lite70->light_on())
+				CastRandomSpell();
+			else
+				tabc09wave->Play(nullptr, "SpellRampControl");
+		}
+		v_lite70->Message(TLightTurnOn, 0.0f);
+		v_lite70->Message(TLightFlasherStartTimedThenStayOff, 10.0f);
+	}
+
+	// s_oneway5, 0x4267f0: 200,000 more second jackpot, the Super Jackpot, and its own score by v_lite68's message
+	// field, which counts the shots within 10 s of the last, up to 4. In play it opens the tower lane
+	void SuperJackpotLaneControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code == ControlTimerExpired)
+		{
+			v_lite68->MessageField = 0;
+			return;
+		}
+		if (code != ControlCollision)
+			return;
+		if (GameState() == PlayState)
+		{
+			v_lite125->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			v_lite126->Message(TLightResetAndTurnOff, 0.0f);
+			diverters[6]->Message(TDiverterDisable, 0.0f);
+			diverters[7]->Message(TDiverterEnable, 0.0f);
+		}
+		else if (GameState() == DragonHoardState)
+			return;
+		tabc20wave->Play(nullptr, "SuperJackpotLaneControl");
+		ScoreBy(caller, v_lite68->MessageField);
+		if (v_lite68->MessageField < 4)
+			v_lite68->MessageField++;
+		Table->SecondJackpotScore = std::min(Table->SecondJackpotScore + 200000, 20000000);
+		std::array<char, 64> buffer{};
+		snprintf(buffer.data(), buffer.size(), pb::get_rc_string(Msg::Dragon_SuperJackpotIncreased), 200000L);
+		info_text_box->Display(buffer.data(), 2.0f);
+		v_lite68->Message(TLightTurnOn, 0.0f);
+		v_lite68->Message(TLightFlasherStartTimedThenStayOff, 10.0f);
+	}
+
+	// s_trip1 and s_trip2, Fire Ridge, 0x4269a0: their score by v_lite69's message field, which counts the shots
+	// within 20 s of the last, up to 3; v_lite69's timer starts it over
+	void FireRidgeControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code == ControlTimerExpired)
+		{
+			v_lite69->MessageField = 0;
+			return;
+		}
+		if (code != ControlCollision)
+			return;
+		auto score = ScoreBy(caller, v_lite69->MessageField);
+		std::array<char, 64> buffer{};
+		snprintf(buffer.data(), buffer.size(), pb::get_rc_string(Msg::Dragon_FireRidge), static_cast<long>(score));
+		if (v_lite69->MessageField < 3)
+			v_lite69->MessageField++;
+		v_lite69->Message(TLightTurnOn, 0.0f);
+		v_lite69->Message(TLightFlasherStartTimedThenStayOff, 20.0f);
+		info_text_box->Display(buffer.data(), 2.0f);
 	}
 
 	// 0x423330: the next weapon light (v_lite33 to v_lite36) and its multiplier, 2 to 5. Its picture needs the text
@@ -2844,6 +2982,15 @@ namespace
 		Find(tabc22wave, "tabc22wave");
 		Find(tabc39wave, "tabc39wave");
 		Find(tabc96wave, "tabc96wave");
+		Find(s_trip1, "s_trip1");
+		Find(s_trip2, "s_trip2");
+		Find(s_trip3, "s_trip3");
+		Find(s_trip4, "s_trip4");
+		Find(s_trip8, "s_trip8");
+		Find(s_trip9, "s_trip9");
+		Find(tabc09wave, "tabc09wave");
+		Find(tabc18wave, "tabc18wave");
+		Find(tabc20wave, "tabc20wave");
 		constexpr std::array diamondNames{"a_spot4", "a_spot5", "a_spot6", "a_spot7", "a_spot22"};
 		for (size_t index = 0; index < diamond_targets.size(); index++)
 			Find(diamond_targets[index], diamondNames[index]);
@@ -3028,7 +3175,16 @@ namespace
 											   tabc07wave,
 											   tabc22wave,
 											   tabc39wave,
-											   tabc96wave};
+											   tabc96wave,
+											   s_trip1,
+											   s_trip2,
+											   s_trip3,
+											   s_trip4,
+											   s_trip8,
+											   s_trip9,
+											   tabc09wave,
+											   tabc18wave,
+											   tabc20wave};
 		const bool listsFound = std::ranges::none_of(diverters, [](auto c) { return !c; }) &&
 								std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
 								std::ranges::none_of(lizard_lights, [](auto c) { return !c; }) &&
@@ -3068,8 +3224,17 @@ namespace
 				Link(component, WithHook<ArmorKickoutControl>);
 			else if (component == a_kout2)
 				Link(component, WithHook<GargoyleKickoutControl>);
-			else if (component == s_trip5 || component == s_trip6)
-				Link(component, WithHook<PrisonTripControl>);
+			else if (component == s_trip5 || component == s_trip6 || component == s_trip3 || component == s_trip4 ||
+					 component == s_trip8 || component == s_trip9)
+				Link(component, WithHook<TowerTripControl>);
+			else if (component == a_ramp103)
+				Link(component, WithHook<JackpotRampControl>);
+			else if (component == a_ramp6)
+				Link(component, WithHook<SpellRampControl>);
+			else if (component == s_oneway5)
+				Link(component, WithHook<SuperJackpotLaneControl>);
+			else if (component == s_trip1 || component == s_trip2 || component == v_lite69)
+				Link(component, WithHook<FireRidgeControl>);
 			else if (component == a_bump1 || component == a_bump3 || component == a_bump4 ||
 					 (component->GroupName && component->GroupName == std::string_view("a_bump2")))
 				Link(component, WithHook<BumperControl>);
