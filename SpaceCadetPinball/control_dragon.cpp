@@ -592,15 +592,16 @@ namespace
 	// Stand-ins until the features that own them are ported
 	void StandInControl(MessageCode code, TPinballComponent* caller)
 	{
+		using enum MessageCode;
 		if (auto kickout = dynamic_cast<TKickout*>(caller))
 		{
-			if (code == MessageCode::ControlCollision)
-				kickout->Message(MessageCode::TKickoutRestartTimer, kickout->TimerTime1);
+			if (code == ControlCollision)
+				kickout->Message(TKickoutRestartTimer, kickout->TimerTime1);
 		}
 		else if (auto sink = dynamic_cast<TSink*>(caller))
 		{
-			if (code == MessageCode::ControlCollision)
-				sink->Message(MessageCode::TSinkResetTimer, sink->TimerTime);
+			if (code == ControlCollision)
+				sink->Message(TSinkResetTimer, sink->TimerTime);
 		}
 	}
 
@@ -791,5 +792,10 @@ namespace
 } // namespace
 
 const TableRules control_dragon::Rules{
-	MakeLinks, ClearLinks, TableControl, UnstuckBall, [](char) {}, [] {},
+	MakeLinks,
+	ClearLinks,
+	TableControl,
+	UnstuckBall,
+	[](char) { /* DRAGON.EXE's cheats aren't ported yet */ },
+	[] { /* nor its rank bump */ },
 };
