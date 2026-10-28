@@ -4,6 +4,7 @@
 
 #include "control.h"
 #include "loader.h"
+#include "pb.h"
 #include "timer.h"
 #include "TLight.h"
 #include "TPinballTable.h"
@@ -321,6 +322,13 @@ int TLightGroup::Message(MessageCode code, float value)
 	case MessageCode::TLightGroupResetAndTurnOff:
 		{
 			auto index = next_light_down();
+			// CADET.EXE (0x40af80), the bonus tables only: a light already set to go off after flashing is passed
+			// over, so that several in a row turn several lights off
+			if (pb::BonusTable())
+			{
+				while (index >= 0 && (!List.at(index)->LightOnFlag || List.at(index)->TurnOffAfterFlashingFg))
+					--index;
+			}
 			if (index < 0)
 				break;
 			if (MessageField2 != MessageCode::TLightGroupNull || AnimationFlag)
