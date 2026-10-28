@@ -435,7 +435,10 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		if (!replay::StartPlayback(replayPath))
 			return 1;
 		// A recording of a bonus table plays it back without -table
-		if (replay::RecordedDatFile().starts_with("DRAGON.DAT "))
+		auto recordedDat = replay::RecordedDatFile();
+		std::transform(recordedDat.begin(), recordedDat.end(), recordedDat.begin(),
+					   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+		if (recordedDat.starts_with("DRAGON.DAT "))
 			pb::RequestedTable = Tables::DragonsKeep;
 		// Playback is headless; the SDL_VIDEODRIVER environment variable still takes precedence
 		SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
