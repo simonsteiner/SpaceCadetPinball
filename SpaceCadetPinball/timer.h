@@ -17,6 +17,8 @@ public:
 	static int kill(int timerId);
 	static int kill(void (*callback)(int, void*));
 	static int set(float time, void* caller, void (* callback)(int, void*));
+	// Milliseconds until the timer expires, or -1 if it isn't set
+	static int time_left(int timerId);
 	static int check();
 
 private:

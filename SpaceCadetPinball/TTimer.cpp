@@ -24,6 +24,15 @@ int TTimer::Message(MessageCode code, float value)
 		if (value >= 0.0f)
 			Timer = timer::set(value, this, TimerExpired);
 		break;
+	case MessageCode::TTimerGetTimeLeft:
+		{
+			// As CADET.EXE: seconds as a float, then back to milliseconds
+			auto msLeft = Timer ? timer::time_left(Timer) : -1;
+			if (msLeft < 0)
+				return 0;
+			auto seconds = static_cast<float>(static_cast<float>(msLeft) / 1000.0);
+			return static_cast<int>(std::floor(static_cast<double>(seconds) * 1000.0));
+		}
 	case MessageCode::SetTiltLock:
 	case MessageCode::GameOver:
 	case MessageCode::Reset:

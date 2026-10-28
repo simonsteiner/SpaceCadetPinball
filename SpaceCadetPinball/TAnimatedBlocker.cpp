@@ -26,6 +26,11 @@ TAnimatedBlocker::TAnimatedBlocker(TPinballTable* table, int groupIndex) : TColl
 
 	FrameTime = loader::query_float_attribute(groupIndex, 0, 903, 0.1f);
 	InitialState = static_cast<int>(loader::query_float_attribute(groupIndex, 0, 409, -1.0f));
+	if (auto durations = loader::query_float_attribute(groupIndex, 0, 407))
+	{
+		InitialDuration = static_cast<int>(durations[0]);
+		ExtendedDuration = static_cast<int>(durations[1]);
+	}
 	Threshold = 1000000000.0f;
 	Message(MessageCode::Reset, 0.0f);
 }

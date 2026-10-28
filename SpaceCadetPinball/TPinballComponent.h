@@ -111,6 +111,12 @@ enum class MessageCode
 	TSoloTargetEnable = 50,
 
 	TTimerResetTimer = 59,
+	// CADET.EXE's number, the bonus tables only: the time left in milliseconds, 0 when the timer isn't running
+	TTimerGetTimeLeft = 72,
+
+	// THole, CADET.EXE's number, the bonus tables only: let the ball go after <value> seconds, at once if it is 0 or
+	// less
+	THoleRelease = 67,
 
 	ControlBallCaptured = 57,
 	ControlBallReleased = 58,
@@ -134,6 +140,8 @@ enum class MessageCode
 	DragonSkipBonusText = 1,
 	DragonEnterState = 79,
 	DragonShowStateText = 80,
+	DragonQuestResume = 81,
+	DragonQuestEnd = 82,
 	DragonBallDrained = 83,
 
 	// Public codes 1000+, apply to all components
