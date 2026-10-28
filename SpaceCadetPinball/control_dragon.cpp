@@ -573,12 +573,19 @@ namespace
 		return true;
 	}
 
-	// 0x424490: the jackpot is scored; DRAGON.EXE also shows a picture in the text box's second font (glyph "\""),
-	// which this engine's text box doesn't have yet
-	void AwardJackpot()
+	// A picture in the text box's second font, whose characters DRAGON.EXE's texts name (0x439a58 on)
+	void ShowPicture(const std::string& glyphs, float time)
+	{
+		info_text_box->Display(glyphs.c_str(), time, false, 1);
+	}
+
+	// 0x424490: the jackpot, and its picture with <show>
+	void AwardJackpot(bool show = true)
 	{
 		tabc43wave->Play(nullptr, "AwardJackpot");
 		AddScore(nullptr, Table->JackpotScore);
+		if (show)
+			ShowPicture("\"", 2.0f);
 	}
 
 	// 0x4231e0: an extra ball, with its text for <textTime> seconds
@@ -590,8 +597,7 @@ namespace
 			info_text_box->Display(pb::get_rc_string(Msg::Dragon_ExtraBall), textTime);
 	}
 
-	// 0x423240: full armor, the kickback and the outlane kickers lit. With <show>, DRAGON.EXE also shows a picture
-	// in the text box's second font, which this engine doesn't have yet, and plays tabc41wave
+	// 0x423240: full armor, the kickback and the outlane kickers lit; with <show>, its picture and sound
 	void AwardMaxArmor(bool show)
 	{
 		a_kick1->ActiveFlag = 1;
@@ -599,14 +605,17 @@ namespace
 		v_lite37->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 2.0f);
 		outlane_kicker_light_group->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
 		if (show)
+		{
+			ShowPicture("+", 2.0f);
 			tabc41wave->Play(nullptr, "AwardMaxArmor");
+		}
 	}
 
 	void CenterPostControl(MessageCode code, TPinballComponent*);
 	void BloceControl(MessageCode code, TPinballComponent*);
 
 	// 0x4234b0: one armor piece whose light (v_lite37 to v_lite39) is off, at random: the kickback (25,000), the
-	// center post (50,000) or a_bloce (100,000). The pieces' pictures need the text box's second font
+	// center post (50,000) or a_bloce (100,000), each with its picture
 	void AwardArmor()
 	{
 		std::array<int, 3> open{};
@@ -627,26 +636,28 @@ namespace
 		case 1:
 			tabc40wave->Play(nullptr, "AwardArmor");
 			CenterPostControl(MessageCode::TAnimatedBlockerAnimateOn, a_center_post);
+			ShowPicture("*", 2.0f);
 			tabc40wave->Play(nullptr, "AwardArmor");
 			AddScore(nullptr, 50000);
 			break;
 		default:
 			tabc42wave->Play(nullptr, "AwardArmor");
 			BloceControl(MessageCode::TAnimatedBlockerAnimateOn, a_bloce);
+			ShowPicture(")", 2.0f);
 			tabc42wave->Play(nullptr, "AwardArmor");
 			AddScore(nullptr, 100000);
 			break;
 		}
 	}
 
-	// 0x4232b0: <count> more dragon eggs, then 100,000 for each egg lit. The eggs' picture needs the text box's
-	// second font
+	// 0x4232b0: <count> more dragon eggs, a picture of the eggs lit, then 100,000 for each
 	void AwardDragonEggs(int count)
 	{
 		for (; count > 0; count--)
 			dragon_egg_light_group->Message(MessageCode::TLightGroupResetAndTurnOn, 1.0f);
 		tabc27wave->Play(nullptr, "AwardDragonEggs");
 		auto eggs = dragon_egg_light_group->Message(MessageCode::TLightGroupGetOnCount, 0.0f);
+		ShowPicture(std::string(std::clamp(eggs, 0, 8), '#'), 2.0f);
 		AddScore(nullptr, eggs * 100000);
 	}
 
@@ -667,8 +678,7 @@ namespace
 
 	void BlocfControl(MessageCode code, TPinballComponent*);
 
-	// 0x4236b0: a spell, counted for the Spell Bonus. DRAGON.EXE also shows its picture in the text box's second
-	// font, which this engine doesn't have yet
+	// 0x4236b0: a spell, counted for the Spell Bonus, with its picture
 	void CastSpell(int spell)
 	{
 		using enum MessageCode;
@@ -692,6 +702,7 @@ namespace
 		}
 		AddScore(nullptr, 120000);
 		tabc35wave->Play(nullptr, "CastSpell");
+		ShowPicture("$", 2.0f);
 	}
 
 	void CastRandomSpell() // 0x4237f0
@@ -2450,8 +2461,7 @@ namespace
 		info_text_box->Display(buffer.data(), 2.0f);
 	}
 
-	// 0x423330: the next weapon light (v_lite33 to v_lite36) and its multiplier, 2 to 5. Its picture needs the text
-	// box's second font
+	// 0x423330: the next weapon light (v_lite33 to v_lite36), its multiplier, 2 to 5, and its picture
 	void RaiseWeapon()
 	{
 		int multiplier = 2;
@@ -2462,6 +2472,7 @@ namespace
 				light->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
 				Table->ScoreMultiplier = multiplier;
 				AddScoreUnmultiplied(nullptr, 25000 + (multiplier - 2) * 10000);
+				ShowPicture(std::string(1, static_cast<char>('%' + multiplier - 2)), 2.0f);
 				break;
 			}
 			multiplier++;
@@ -2635,8 +2646,8 @@ namespace
 	}
 
 	// a_spot19 (0x425750) and a_spot26 (0x4257c0), the sword's targets: while their light flashes in play, the sword
-	// goes down a level. a_spot28 (0x425830) would start Slay Dragon, not ported yet, so it is a stand-in that does
-	// nothing. Their picture needs the text box's second font
+	// goes down a level, with the dragon's picture. a_spot28 (0x425830) would start Slay Dragon, not ported yet, so
+	// it is a stand-in that does nothing
 	void SwordTargetControl(MessageCode code, TPinballComponent* caller)
 	{
 		if (code != MessageCode::ControlCollision || GameState() != PlayState)
@@ -2644,6 +2655,7 @@ namespace
 		auto light = caller == a_spot19 ? v_lite16 : v_lite17;
 		if (!light->FlasherOnFlag)
 			return;
+		ShowPicture("!", 2.0f);
 		SetLevelLights(caller == a_spot19 ? 2 : 1);
 		dragon_fire_light_group->Message(MessageCode::TLightFlasherStartTimed, 2.0f);
 		ScoreBy(caller, 0);
