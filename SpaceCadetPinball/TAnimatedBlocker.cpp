@@ -104,15 +104,12 @@ int TAnimatedBlocker::Message(MessageCode code, float value)
 		loader::play_sound(OffSoundIndex, this, "TAnimatedBlocker4");
 		break;
 	case PlayerChanged:
-		// CADET.EXE's components keep their message field for each player
-		PlayerMessageFields[PinballTable->CurrentPlayer] = MessageField;
-		MessageField = PlayerMessageFields[static_cast<int>(value)];
+		KeepMessageFieldPerPlayer(code, value);
 		KillTimers();
 		Message(TAnimatedBlockerSetState, static_cast<float>(InitialState));
 		break;
 	case Reset:
-		MessageField = 0;
-		std::ranges::fill(PlayerMessageFields, 0);
+		KeepMessageFieldPerPlayer(code, value);
 		[[fallthrough]];
 	case SetTiltLock:
 		KillTimers();

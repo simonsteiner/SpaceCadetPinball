@@ -29,7 +29,6 @@ public:
 	float DeferredValue = 0;
 	int OnSoundIndex;
 	int OffSoundIndex;
-	std::array<int, 4> PlayerMessageFields{};
 
 	static void TimeoutExpired(int timerId, void* caller);
 	static void AnimationStep(int timerId, void* caller);

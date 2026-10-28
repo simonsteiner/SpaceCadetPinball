@@ -35,8 +35,8 @@ TLightBargraph::~TLightBargraph()
 
 int TLightBargraph::Message(MessageCode code, float value)
 {
-	// Reset reaches TLightGroup::Message, which clears the field
-	if (pb::BonusTable() && code == MessageCode::PlayerChanged)
+	// TLightGroup keeps its message field per player itself, but this class handles the player change on its own
+	if (pb::BonusTable())
 		KeepMessageFieldPerPlayer(code, value);
 	switch (code)
 	{

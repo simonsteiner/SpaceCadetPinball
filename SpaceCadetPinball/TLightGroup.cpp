@@ -4,7 +4,6 @@
 
 #include "control.h"
 #include "loader.h"
-#include "pb.h"
 #include "timer.h"
 #include "TLight.h"
 #include "TPinballTable.h"
@@ -31,8 +30,6 @@ TLightGroup::TLightGroup(TPinballTable* table, int groupIndex) : TPinballCompone
 
 int TLightGroup::Message(MessageCode code, float value)
 {
-	if (pb::BonusTable())
-		KeepMessageFieldPerPlayer(code, value);
 	auto const count = static_cast<int>(List.size());
 	switch (code)
 	{

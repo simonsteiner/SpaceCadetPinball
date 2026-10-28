@@ -60,15 +60,13 @@ int TDiverter::Message(MessageCode code, float value)
 		break;
 	case std::to_underlying(MessageCode::PlayerChanged):
 		{
-			PlayerMessageFields[PinballTable->CurrentPlayer] = MessageField;
-			MessageField = PlayerMessageFields[static_cast<int>(value)];
+			KeepMessageFieldPerPlayer(MessageCode::PlayerChanged, value);
 			PlayerActiveFlags[PinballTable->CurrentPlayer] = ActiveFlag;
 			SetEnabled(PlayerActiveFlags[static_cast<int>(value)] != 0);
 			break;
 		}
 	case std::to_underlying(MessageCode::Reset):
-		MessageField = 0;
-		std::ranges::fill(PlayerMessageFields, 0);
+		KeepMessageFieldPerPlayer(MessageCode::Reset, value);
 		std::ranges::fill(PlayerActiveFlags, 0);
 		SetEnabled(false);
 		break;

@@ -68,12 +68,10 @@ int TLightSweeps::Message(MessageCode code, float value)
 		}
 	case MessageCode::PlayerChanged:
 		KillTimer();
-		PlayerMessageFields[PinballTable->CurrentPlayer] = MessageField;
-		MessageField = PlayerMessageFields[static_cast<int>(value)];
+		KeepMessageFieldPerPlayer(code, value);
 		break;
 	case MessageCode::Reset:
-		MessageField = 0;
-		std::ranges::fill(PlayerMessageFields, 0);
+		KeepMessageFieldPerPlayer(code, value);
 		KillTimer();
 		break;
 	case MessageCode::SetTiltLock:

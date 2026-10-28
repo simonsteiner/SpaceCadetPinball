@@ -172,7 +172,8 @@ public:
 	void SpriteSet(int index) const;
 	void SpriteSetBall(int index, vector2i pos, float depth) const;
 	// CADET.EXE, the bonus tables' engine, keeps every component's message field per player: a player change swaps it
-	// (0x413570) and Reset clears it for all players (0x413550). Its components but the flippers do this in Message.
+	// (0x413570) and Reset clears it for all players (0x413550). Its components but the flippers do this in Message;
+	// TLight, TLightGroup, TBumper, TPopupTarget and TSink already keep theirs per player, as 3D Pinball's do.
 	void KeepMessageFieldPerPlayer(MessageCode code, float value);
 
 	char UnusedBaseFlag;
