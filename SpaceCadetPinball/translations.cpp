@@ -7759,5 +7759,11 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "Super Jackpot Increased\n%ld" },
 		}
+	},
+	{
+		Msg::Dragon_BallTrapped,
+		{
+			{ Lang::English, "Ball Trapped\n%ld" },
+		}
 	}
 };

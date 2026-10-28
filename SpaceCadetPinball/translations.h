@@ -483,6 +483,7 @@ enum class Msg : int
 	Dragon_JackpotGrows,
 	Dragon_FireRidge,
 	Dragon_SuperJackpotIncreased,
+	Dragon_BallTrapped,
 
 	Max,
 };

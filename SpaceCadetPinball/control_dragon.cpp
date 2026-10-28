@@ -276,6 +276,11 @@ namespace
 	TSound* tabc09wave;
 	TSound* tabc18wave;
 	TSound* tabc20wave;
+	// The tower lock's other sinks
+	TSink* a_sink10;
+	TSink* a_sink13;
+	TSink* a_sink15;
+	TSound* tabc10wave;
 	int MaidenLockLight; // 0x434d14: how v_lite48 was when Rescue Maiden started, 0 off, 1 on, 2 flashing
 
 	template <typename T> void Find(T*& component, const char* name)
@@ -2463,6 +2468,118 @@ namespace
 		ScoreBy(caller, v_lite32->light_on() ? 1 : 0);
 	}
 
+	// The tower lock. a_sink15 (0x426f90), a_sink13 (0x427290) and a_sink9 or a_sink10 (0x4274d0, 0x427680) lead
+	// into its three locks, a_sink18 (0x427100), a_sink17 (0x4273d0) and a_sink16. While a lock's light (v_lite48 to
+	// v_lite50) is armed, the ball stays there: "Ball Trapped", and a new ball is served for the first two. With all
+	// three lit, Tower Barrage (state 13) starts, which isn't ported yet, so until then the third lock lets the ball
+	// go. In Rescue Maiden a_sink15 and a_sink18 send the ball out of a fire lizard sink
+	void TrapBall(TPinballComponent* sink, TLight* lockLight, bool serve)
+	{
+		tabc10wave->Play(nullptr, "TrapBall");
+		Table->MultiballCount--;
+		lockLight->Message(MessageCode::TLightResetAndTurnOn, 0.0f);
+		if (serve)
+			plunger->Message(MessageCode::PlungerStartFeedTimer, 0.96f);
+		std::array<char, 64> buffer{};
+		snprintf(buffer.data(), buffer.size(), pb::get_rc_string(Msg::Dragon_BallTrapped),
+				 static_cast<long>(ScoreBy(sink, 0)));
+		info_text_box->Display(buffer.data(), 2.0f);
+		LockLights();
+	}
+
+	void TowerSinkControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		auto state = GameState();
+		auto toLizard = []
+		{
+			tabc51wave->Play(nullptr, "TowerSinkControl");
+			if (std::min(static_cast<int>(RandFloat() * 2), 1))
+			{
+				a_sink1->Message(TSinkResetTimer, -1.0f);
+				v_lite66->Message(TLightFlasherStartTimed, 1.0f);
+			}
+			else
+			{
+				a_sink2->Message(TSinkResetTimer, -1.0f);
+				v_lite65->Message(TLightFlasherStartTimed, 1.0f);
+			}
+		};
+		if (caller == a_sink15)
+		{
+			if (state == RescueMaidenState)
+				toLizard();
+			else if (v_lite48->MessageField)
+				TrapBall(caller, v_lite48, true);
+			else
+			{
+				a_sink18->Message(TSinkResetTimer, -1.0f);
+				tabc04wave->Play(nullptr, "TowerSinkControl");
+			}
+		}
+		else if (caller == a_sink18 || caller == a_sink17)
+		{
+			auto lockLight = caller == a_sink18 ? v_lite48 : v_lite49;
+			if (state == PlayState)
+			{
+				if (lockLight->MessageField)
+					TrapBall(caller, lockLight, true);
+				else
+				{
+					caller->Message(TSinkResetTimer, 0.0f);
+					LockLights();
+				}
+			}
+			else if (state == RescueMaidenState && caller == a_sink18)
+				toLizard();
+			else
+			{
+				caller->Message(TSinkResetTimer, caller == a_sink18 ? -1.0f : 0.0f);
+				LockReset();
+			}
+		}
+		else if (caller == a_sink13)
+		{
+			if (state == PlayState && v_lite49->MessageField)
+				TrapBall(caller, v_lite49, true);
+			else
+			{
+				if (state != RescueMaidenState)
+					tabc04wave->Play(nullptr, "TowerSinkControl");
+				a_sink17->Message(TSinkResetTimer, -1.0f);
+			}
+		}
+		else
+		{
+			// a_sink9 and a_sink10; the third lock is a stand-in until Tower Barrage is ported
+			if (state == RescueMaidenState)
+			{
+				a_sink16->Message(TSinkResetTimer, -1.0f);
+				return;
+			}
+			tabc04wave->Play(nullptr, "TowerSinkControl");
+			if (state != TowerBarrageState)
+			{
+				if (caller == a_sink9)
+				{
+					v_lite47->Message(TLightResetAndTurnOff, 0.0f);
+					diverters[0]->Message(TDiverterEnable, 0.0f);
+					diverters[1]->Message(TDiverterDisable, 0.0f);
+				}
+				else
+				{
+					v_lite125->Message(TLightResetAndTurnOff, 0.0f);
+					v_lite126->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+					diverters[6]->Message(TDiverterEnable, 0.0f);
+					diverters[7]->Message(TDiverterDisable, 0.0f);
+				}
+			}
+			a_sink16->Message(TSinkResetTimer, -1.0f);
+		}
+	}
+
 	// a_sink4, the well, 0x426140. In play it starts the picked quest one time in four and casts a spell otherwise;
 	// in Wizard's Fury it gives the mystery award its message field holds (0 extra ball, 1 max weapons, 2 max armor,
 	// 3 jackpot, 4 one million) and sets the next, one of the other four, at random
@@ -2982,6 +3099,10 @@ namespace
 		Find(tabc22wave, "tabc22wave");
 		Find(tabc39wave, "tabc39wave");
 		Find(tabc96wave, "tabc96wave");
+		Find(a_sink10, "a_sink10");
+		Find(a_sink13, "a_sink13");
+		Find(a_sink15, "a_sink15");
+		Find(tabc10wave, "tabc10wave");
 		Find(s_trip1, "s_trip1");
 		Find(s_trip2, "s_trip2");
 		Find(s_trip3, "s_trip3");
@@ -3176,6 +3297,10 @@ namespace
 											   tabc22wave,
 											   tabc39wave,
 											   tabc96wave,
+											   a_sink10,
+											   a_sink13,
+											   a_sink15,
+											   tabc10wave,
 											   s_trip1,
 											   s_trip2,
 											   s_trip3,
@@ -3229,6 +3354,9 @@ namespace
 				Link(component, WithHook<TowerTripControl>);
 			else if (component == a_ramp103)
 				Link(component, WithHook<JackpotRampControl>);
+			else if (component == a_sink9 || component == a_sink10 || component == a_sink13 || component == a_sink15 ||
+					 component == a_sink17 || component == a_sink18)
+				Link(component, WithHook<TowerSinkControl>);
 			else if (component == a_ramp6)
 				Link(component, WithHook<SpellRampControl>);
 			else if (component == s_oneway5)
