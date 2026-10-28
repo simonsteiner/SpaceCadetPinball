@@ -36,7 +36,10 @@ namespace
 
 	std::string Text(const TTextBox* box)
 	{
-		return box && box->CurrentMessage && box->CurrentMessage->Text ? box->CurrentMessage->Text : "";
+		// A picture in the second font (Dragon's Keep's jackpot, spells, eggs) isn't text to show
+		return box && box->CurrentMessage && box->CurrentMessage->Text && box->CurrentMessage->FontIndex == 0
+				   ? box->CurrentMessage->Text
+				   : "";
 	}
 
 	// Looks a component up by group name without find_component's warning box for a missing one

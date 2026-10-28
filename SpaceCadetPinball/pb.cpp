@@ -60,6 +60,9 @@ int pb::init()
 	get_rc_int(Msg::TextBoxUseBitmapFont, &useBmpFont);
 	if (useBmpFont)
 		score::load_msg_font("pbmsg_ft");
+	// The bonus tables' pictures, which aren't text, so in every language
+	if (BonusTable())
+		score::msg_font2p = score::load_msg_font_group("font2");
 
 	if (!record_table)
 		return 1;
