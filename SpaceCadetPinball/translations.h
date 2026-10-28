@@ -463,6 +463,16 @@ enum class Msg : int
 	Dragon_PutBallInPrisonTower,
 	Dragon_MaidenRescued,
 	Dragon_Score,
+	Dragon_DragonHoard,
+	Dragon_StealGems,
+	Dragon_Gold,
+	Dragon_Diamond,
+	Dragon_Pearl,
+	Dragon_Ruby,
+	Dragon_Emerald,
+	Dragon_Sapphire,
+	Dragon_Amethyst,
+	Dragon_Opal,
 
 	Max,
 };

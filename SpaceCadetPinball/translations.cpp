@@ -7639,5 +7639,65 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "%ld" },
 		}
+	},
+	{
+		Msg::Dragon_DragonHoard,
+		{
+			{ Lang::English, "Dragon Hoard\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_StealGems,
+		{
+			{ Lang::English, "Steal Gems From Dragon" },
+		}
+	},
+	{
+		Msg::Dragon_Gold,
+		{
+			{ Lang::English, "Gold\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_Diamond,
+		{
+			{ Lang::English, "Diamond\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_Pearl,
+		{
+			{ Lang::English, "Pearl\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_Ruby,
+		{
+			{ Lang::English, "Ruby\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_Emerald,
+		{
+			{ Lang::English, "Emerald\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_Sapphire,
+		{
+			{ Lang::English, "Sapphire\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_Amethyst,
+		{
+			{ Lang::English, "Amethyst\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_Opal,
+		{
+			{ Lang::English, "Opal\n%ld" },
+		}
 	}
 };

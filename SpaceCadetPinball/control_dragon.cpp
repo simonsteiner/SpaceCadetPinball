@@ -32,19 +32,19 @@
 #include "translations.h"
 
 // Dragon's Keep's rules, recovered from DRAGON.EXE one feature at a time (Phase F). Ported so far: the serve, drain
-// and game-over flow, with the ball save, the end-of-ball bonus and the music; the quest framework and the Fire
-// Lizards, Rescue Maiden, Dragon Pass and Wizard's Fury quests. Everything else is still a stand-in that keeps the
-// table playable: kickouts and sinks give back the balls they catch, which only the rules would do otherwise, a quest
-// whose state isn't ported doesn't start, and a stuck ball is freed as Space Cadet's rules free one.
+// and game-over flow, with the ball save, the end-of-ball bonus and the music; the quest framework and the five
+// quests (Dragon Hoard, Fire Lizards, Rescue Maiden, Dragon Pass, Wizard's Fury). Everything else is still a stand-in
+// that keeps the table playable: kickouts and sinks give back the balls they catch, which only the rules would do
+// otherwise, Slay Dragon, the shop and the modes don't start, and a stuck ball is freed as Space Cadet's rules free
+// one.
 //
 // DRAGON.EXE's rules run a state machine whose state each player keeps in info_text_box's message field: the
 // component handlers and the engine report to one table-wide function (0x42c020), which hands every event to the
-// current state's function (0x42c120). States 0 (game over), 1 (new game), 2 (play), 3 (restart quest), 5 (Fire
-// Lizards), 6 (Rescue Maiden), 7 (Dragon Pass), 8 (Wizard's Fury), 10 (launch) and 11 (end of ball) are ported;
-// the other quest and the modes (4, 9, 12 to 15) come with their features. Addresses below are DRAGON.EXE's. Its
-// message numbers differ from this port's above the light codes, so each call uses the port's MessageCode: CADET.EXE's
-// light groups number theirs 4 above this port's, its targets 4 above, its kickouts, sinks and timers 9 or 10 above;
-// its animated blockers and diverters keep CADET.EXE's.
+// current state's function (0x42c120). States 0 (game over), 1 (new game), 2 (play), 3 (restart quest), 4 to 8 (the
+// quests), 10 (launch) and 11 (end of ball) are ported; Slay Dragon and the modes (9, 12 to 15) come with their
+// features. Addresses below are DRAGON.EXE's. Its message numbers differ from this port's above the light codes, so
+// each call uses the port's MessageCode: CADET.EXE's light groups number theirs 4 above this port's, its targets 4
+// above, its kickouts, sinks and timers 9 or 10 above; its animated blockers and diverters keep CADET.EXE's.
 namespace
 {
 	// Codes DRAGON.EXE's rules functions send only among themselves; SkipBonusText comes from a rule not ported yet
@@ -64,6 +64,7 @@ namespace
 	constexpr int PlayState = 2;
 	constexpr int RestartQuestState = 3;
 	constexpr int FireLizardsState = 5;
+	constexpr int DragonHoardState = 4;
 	constexpr int RescueMaidenState = 6;
 	constexpr int DragonPassState = 7;
 	constexpr int WizardsFuryState = 8;
@@ -200,6 +201,24 @@ namespace
 	TSound* tabc04wave;
 	TSound* tabc50wave;
 	TSound* tabc51wave;
+	// Dragon Hoard's: the gems' lights, which the gems light up, and what gives each gem
+	TLightGroup* gem_light_group;
+	TLight* v_lite88; // its message field keeps the gems stolen, one bit each
+	TLight* v_lite89;
+	TLight* v_lite90;
+	TLight* v_lite92;
+	TLight* v_lite93;
+	TLight* v_lite94;
+	TLight* v_lite95;
+	TLight* v_lite117;
+	TPinballComponent* s_oneway5;
+	TPinballComponent* a_accl1;
+	TPinballComponent* a_ramp6;
+	TPinballComponent* a_ramp103;
+	std::array<TSoloTarget*, 5> diamond_targets; // a_spot4 to a_spot7 and a_spot22
+	std::array<TSoloTarget*, 3> pearl_targets;   // a_spot1 to a_spot3
+	TSound* tabc46wave;
+	TSound* tabc47wave;
 	int MaidenLockLight; // 0x434d14: how v_lite48 was when Rescue Maiden started, 0 off, 1 on, 2 flashing
 
 	template <typename T> void Find(T*& component, const char* name)
@@ -466,8 +485,7 @@ namespace
 
 	bool QuestPorted(int state)
 	{
-		return state == FireLizardsState || state == RescueMaidenState || state == DragonPassState ||
-			   state == WizardsFuryState;
+		return state >= DragonHoardState && state <= WizardsFuryState;
 	}
 
 	// 0x424210: the picked quest starts. A quest whose state isn't ported yet doesn't, and its light keeps flashing
@@ -930,6 +948,115 @@ namespace
 				light->Message(TLightResetAndTurnOff, 0.0f);
 				light->Message(OverrideReset, 0.0f);
 			}
+			QuestDone();
+			break;
+		default:
+			break;
+		}
+	}
+
+	// 0x428a20: one more gem; with all nine, an extra ball
+	void StealGem(int gem)
+	{
+		v_lite88->MessageField |= gem;
+		if (v_lite88->MessageField == 0x1ff)
+		{
+			gem_light_group->Message(MessageCode::TLightFlasherStartTimed, -1.0f);
+			AwardExtraBall(2.0f);
+			return;
+		}
+		tabc47wave->Play(nullptr, "StealGem");
+	}
+
+	// State 4, 0x428a80: Dragon Hoard. Nine shots each steal a gem, with its light and its text
+	void DragonHoardStateControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		auto steal = [caller](TLight* light, int score, Msg text, int gem)
+		{
+			if (light)
+				light->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			auto added = AddScore(caller, score);
+			std::array<char, 64> buffer{};
+			snprintf(buffer.data(), buffer.size(), pb::get_rc_string(text), static_cast<long>(added));
+			info_text_box->Display(buffer.data(), 2.0f);
+			StealGem(gem);
+		};
+		switch (code)
+		{
+		case ControlTimerExpired:
+			if (caller == mode_timer)
+			{
+				mode_timer->MessageField = GameState();
+				gem_light_group->Message(OverrideOff, 0.0f);
+				SetState(RestartQuestState);
+			}
+			else if (caller == light_sweeps)
+			{
+				QuestEndReset();
+				KickOrShop(a_sink1, 0.0f);
+				mode_timer->Message(TTimerResetTimer, 27.73f);
+				TableHook(ShowStateText, nullptr);
+			}
+			break;
+		case ControlCollision:
+			if (dynamic_cast<TBumper*>(caller))
+				steal(v_lite88, 10000, Msg::Dragon_Gold, 1);
+			else if (caller == s_oneway5)
+			{
+				v_lite95->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+				AwardJackpot();
+				StealGem(0x40);
+			}
+			else if (caller == a_sink1 || caller == a_sink2)
+				steal(v_lite91, 100000, Msg::Dragon_Ruby, 0x20);
+			else if (std::ranges::find(diamond_targets, caller) != diamond_targets.end())
+				steal(v_lite89, 50000, Msg::Dragon_Diamond, 2);
+			else if (std::ranges::find(pearl_targets, caller) != pearl_targets.end())
+				steal(v_lite90, 60000, Msg::Dragon_Pearl, 4);
+			else if (caller == a_spot10 || caller == a_spot8 || caller == a_spot14 || caller == a_spot12)
+				steal(v_lite93, 70000, Msg::Dragon_Sapphire, 0x10);
+			else if (caller == a_accl1)
+				steal(v_lite117, 100000, Msg::Dragon_Opal, 0x100);
+			break;
+		case ControlRampExitToLayer2: // CADET.EXE's 0x56, the ramps' second wall
+			if (caller == a_ramp103)
+				steal(v_lite94, 250000, Msg::Dragon_Amethyst, 0x80);
+			else if (caller == a_ramp6)
+				steal(v_lite92, 200000, Msg::Dragon_Emerald, 8);
+			break;
+		case EnterState:
+			light_sweeps->Message(TLightSweepsStart, 0.0f);
+			gem_light_group->Message(TLightFlasherStartTimed, -1.0f);
+			diverters[2]->Message(TDiverterEnable, 0.0f);
+			diverters[3]->Message(TDiverterDisable, 0.0f);
+			diverters[4]->Message(TDiverterEnable, 0.0f);
+			diverters[5]->Message(TDiverterDisable, 0.0f);
+			AddScore(nullptr, 100000);
+			info_text_box->Clear();
+			info_text_box->Display(pb::get_rc_string(Msg::Dragon_StealGems), -1.0f);
+			v_lite88->MessageField = 0;
+			PlayTrack(MidiTracks::Track2);
+			tabc46wave->Play(nullptr, "DragonHoardStateControl");
+			break;
+		case QuestResume:
+			tabc46wave->Play(nullptr, "DragonHoardStateControl");
+			gem_light_group->Message(OverrideReset, 0.0f);
+			mode_timer->Message(TTimerResetTimer, 15.0f);
+			if (info_text_box->CurrentMessage)
+				break;
+			[[fallthrough]];
+		case ShowStateText:
+			ShowTimeLeft(Msg::Dragon_DragonHoard);
+			break;
+		case BallDrained:
+			GameState() = PlayState;
+			mode_timer->Message(TTimerResetTimer, -1.0f);
+			[[fallthrough]];
+		case QuestEnd:
+			QuestLeave();
+			gem_light_group->Message(TLightResetAndTurnOff, 0.0f);
+			gem_light_group->Message(OverrideReset, 0.0f);
 			QuestDone();
 			break;
 		default:
@@ -1472,6 +1599,9 @@ namespace
 		case FireLizardsState:
 			FireLizardsStateControl(code, caller);
 			break;
+		case DragonHoardState:
+			DragonHoardStateControl(code, caller);
+			break;
 		case RescueMaidenState:
 			RescueMaidenStateControl(code, caller);
 			break;
@@ -1488,10 +1618,14 @@ namespace
 			EndOfBallStateControl(code, caller);
 			break;
 		default:
-			// The other quests' and modes' states (4, 6 to 9, 12 to 15) aren't ported; DRAGON.EXE goes back to play
+			// Slay Dragon's and the modes' states (9, 12 to 15) aren't ported; DRAGON.EXE goes back to play
 			// from any state it doesn't know (0x42c000)
 			if (state > 15)
 				SetState(PlayState);
+			// A stand-in: once all five quests are done, Slay Dragon starts at each serve; until it is ported, it
+			// plays as play does
+			else if (state == SlayDragonState)
+				PlayStateControl(code, caller);
 			break;
 		}
 	}
@@ -2274,6 +2408,27 @@ namespace
 		Find(tabc04wave, "tabc04wave");
 		Find(tabc50wave, "tabc50wave");
 		Find(tabc51wave, "tabc51wave");
+		Find(gem_light_group, "gem_light_group");
+		Find(v_lite88, "v_lite88");
+		Find(v_lite89, "v_lite89");
+		Find(v_lite90, "v_lite90");
+		Find(v_lite92, "v_lite92");
+		Find(v_lite93, "v_lite93");
+		Find(v_lite94, "v_lite94");
+		Find(v_lite95, "v_lite95");
+		Find(v_lite117, "v_lite117");
+		Find(s_oneway5, "s_oneway5");
+		Find(a_accl1, "a_accl1");
+		Find(a_ramp6, "a_ramp6");
+		Find(a_ramp103, "a_ramp103");
+		Find(tabc46wave, "tabc46wave");
+		Find(tabc47wave, "tabc47wave");
+		constexpr std::array diamondNames{"a_spot4", "a_spot5", "a_spot6", "a_spot7", "a_spot22"};
+		for (size_t index = 0; index < diamond_targets.size(); index++)
+			Find(diamond_targets[index], diamondNames[index]);
+		constexpr std::array pearlNames{"a_spot1", "a_spot2", "a_spot3"};
+		for (size_t index = 0; index < pearl_targets.size(); index++)
+			Find(pearl_targets[index], pearlNames[index]);
 
 		const std::initializer_list<void*> all{drain,
 											   plunger,
@@ -2392,10 +2547,27 @@ namespace
 											   s_trip6,
 											   tabc04wave,
 											   tabc50wave,
-											   tabc51wave};
+											   tabc51wave,
+											   gem_light_group,
+											   v_lite88,
+											   v_lite89,
+											   v_lite90,
+											   v_lite92,
+											   v_lite93,
+											   v_lite94,
+											   v_lite95,
+											   v_lite117,
+											   s_oneway5,
+											   a_accl1,
+											   a_ramp6,
+											   a_ramp103,
+											   tabc46wave,
+											   tabc47wave};
 		const bool listsFound = std::ranges::none_of(diverters, [](auto c) { return !c; }) &&
 								std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
-								std::ranges::none_of(lizard_lights, [](auto c) { return !c; });
+								std::ranges::none_of(lizard_lights, [](auto c) { return !c; }) &&
+								std::ranges::none_of(diamond_targets, [](auto c) { return !c; }) &&
+								std::ranges::none_of(pearl_targets, [](auto c) { return !c; });
 		if (std::ranges::find(all, nullptr) != all.end() || !listsFound)
 		{
 			// Not Dragon's Keep's DAT as DRAGON.EXE knows it; leave the table without rules
