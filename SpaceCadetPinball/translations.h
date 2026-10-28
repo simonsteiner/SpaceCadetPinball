@@ -441,6 +441,10 @@ enum class Msg : int
 	Dragon_LaunchBall,
 	Dragon_DragonEggBonus,
 	Dragon_WeaponBonus,
+	Dragon_RestartQuest,
+	Dragon_FireLizards,
+	Dragon_PutBallInFireLizardSinks,
+	Dragon_FireLizardSlain,
 
 	Max,
 };

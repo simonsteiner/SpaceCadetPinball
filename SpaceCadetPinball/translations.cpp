@@ -7507,5 +7507,29 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "Weapon Bonus\n%ld" },
 		}
+	},
+	{
+		Msg::Dragon_RestartQuest,
+		{
+			{ Lang::English, "Restart Quest\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_FireLizards,
+		{
+			{ Lang::English, "Fire Lizards\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_PutBallInFireLizardSinks,
+		{
+			{ Lang::English, "Put ball in Fire Lizard Sinks" },
+		}
+	},
+	{
+		Msg::Dragon_FireLizardSlain,
+		{
+			{ Lang::English, "Fire Lizard Slain\n%ld" },
+		}
 	}
 };
