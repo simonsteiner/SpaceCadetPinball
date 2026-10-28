@@ -20,20 +20,21 @@ namespace
 
 	void StandInControl(MessageCode code, TPinballComponent* caller)
 	{
+		using enum MessageCode;
 		if (dynamic_cast<TDrain*>(caller))
 		{
-			if (code == MessageCode::ControlTimerExpired && Table->Plunger)
-				Table->Plunger->Message(MessageCode::PlungerStartFeedTimer, 0.0f);
+			if (code == ControlTimerExpired && Table->Plunger)
+				Table->Plunger->Message(PlungerStartFeedTimer, 0.0f);
 		}
 		else if (auto kickout = dynamic_cast<TKickout*>(caller))
 		{
-			if (code == MessageCode::ControlCollision)
-				kickout->Message(MessageCode::TKickoutRestartTimer, kickout->TimerTime1);
+			if (code == ControlCollision)
+				kickout->Message(TKickoutRestartTimer, kickout->TimerTime1);
 		}
 		else if (auto sink = dynamic_cast<TSink*>(caller))
 		{
-			if (code == MessageCode::ControlCollision)
-				sink->Message(MessageCode::TSinkResetTimer, sink->TimerTime);
+			if (code == ControlCollision)
+				sink->Message(TSinkResetTimer, sink->TimerTime);
 		}
 	}
 
@@ -87,5 +88,10 @@ namespace
 } // namespace
 
 const TableRules control_dragon::Rules{
-	MakeLinks, ClearLinks, [](MessageCode) {}, UnstuckBall, [](char) {}, [] {},
+	MakeLinks,
+	ClearLinks,
+	[](MessageCode) { /* no table messages without the rules */ },
+	UnstuckBall,
+	[](char) { /* no cheats without the rules */ },
+	[] { /* no rank to bump without the rules */ },
 };
