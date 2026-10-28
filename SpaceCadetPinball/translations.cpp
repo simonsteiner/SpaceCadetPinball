@@ -7699,5 +7699,47 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "Opal\n%ld" },
 		}
+	},
+	{
+		Msg::Dragon_TowerLockEnabled,
+		{
+			{ Lang::English, "Tower Lock Enabled" },
+		}
+	},
+	{
+		Msg::Dragon_BallSaved,
+		{
+			{ Lang::English, "Ball Saved" },
+		}
+	},
+	{
+		Msg::Dragon_DragonHoardSelected,
+		{
+			{ Lang::English, "Dragon Hoard\nQuest Selected" },
+		}
+	},
+	{
+		Msg::Dragon_FireLizardsSelected,
+		{
+			{ Lang::English, "Fire Lizards\nQuest Selected" },
+		}
+	},
+	{
+		Msg::Dragon_RescueMaidenSelected,
+		{
+			{ Lang::English, "Rescue Maiden\nQuest Selected" },
+		}
+	},
+	{
+		Msg::Dragon_DragonPassSelected,
+		{
+			{ Lang::English, "Dragon Pass\nQuest Selected" },
+		}
+	},
+	{
+		Msg::Dragon_WizardsFurySelected,
+		{
+			{ Lang::English, "Wizard's Fury\nQuest Selected" },
+		}
 	}
 };

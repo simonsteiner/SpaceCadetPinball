@@ -219,6 +219,53 @@ namespace
 	std::array<TSoloTarget*, 3> pearl_targets;   // a_spot1 to a_spot3
 	TSound* tabc46wave;
 	TSound* tabc47wave;
+	// The scoring that belongs to no quest: bumpers, rebounds, rollovers, the mystery, tower lock, sword, quest and
+	// lane targets, the ramp exits, the kickback and the armor and spell lights' timers
+	TPinballComponent* a_bump3;
+	TPinballComponent* a_bump4;
+	TPinballComponent* a_spot27;
+	TPinballComponent* a_spot30;
+	TPinballComponent* a_spot31;
+	TPinballComponent* a_roll1;
+	TPinballComponent* a_roll2;
+	TPinballComponent* a_roll5;
+	TPinballComponent* a_roll6;
+	TPinballComponent* a_roll7;
+	TPinballComponent* s_rexit18;
+	TPinballComponent* s_rexit19;
+	TPinballComponent* v_wlite96;
+	TPinballComponent* v_wlite97;
+	TPinballComponent* v_wlite98;
+	TPinballComponent* v_wlite99;
+	TPinballComponent* a_rebo1;
+	TPinballComponent* a_rebo2;
+	TPinballComponent* a_spot1;
+	TPinballComponent* a_spot2;
+	TPinballComponent* a_spot3;
+	TPinballComponent* a_spot4;
+	TPinballComponent* a_spot5;
+	TPinballComponent* a_spot6;
+	TPinballComponent* a_spot7;
+	TPinballComponent* a_spot22;
+	TLight* v_lite3;
+	TLight* v_lite4;
+	TLight* v_lite5;
+	TLight* v_lite6;
+	TLight* v_lite7;
+	TLight* v_lite8;
+	TLight* v_lite9;
+	TLight* v_lite10;
+	TLight* v_lite19;
+	TLight* v_lite20;
+	TLight* v_lite21;
+	TLight* v_lite120;
+	TLight* v_lite121;
+	TSound* tabc03wave;
+	TSound* tabc05wave;
+	TSound* tabc07wave;
+	TSound* tabc22wave;
+	TSound* tabc39wave;
+	TSound* tabc96wave;
 	int MaidenLockLight; // 0x434d14: how v_lite48 was when Rescue Maiden started, 0 off, 1 on, 2 flashing
 
 	template <typename T> void Find(T*& component, const char* name)
@@ -1949,6 +1996,335 @@ namespace
 		windows->Message(TLightGroupResetAndTurnOn, 1.0f);
 	}
 
+	// 0x423330: the next weapon light (v_lite33 to v_lite36) and its multiplier, 2 to 5. Its picture needs the text
+	// box's second font
+	void RaiseWeapon()
+	{
+		int multiplier = 2;
+		for (auto light : {v_lite33, v_lite34, v_lite35, v_lite36})
+		{
+			if (!light->light_on())
+			{
+				light->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
+				Table->ScoreMultiplier = multiplier;
+				AddScoreUnmultiplied(nullptr, 25000 + (multiplier - 2) * 10000);
+				break;
+			}
+			multiplier++;
+		}
+		tabc39wave->Play(nullptr, "RaiseWeapon");
+	}
+
+	// a_bump1 to a_bump4, 0x424bc0: every tenth bumper raises a weapon; a_bump1's message field counts them
+	void BumperControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code != MessageCode::ControlCollision)
+			return;
+		if (GameState() != DragonHoardState)
+			tabc03wave->Play(nullptr, "BumperControl");
+		if (caller == a_bump3)
+			v_lite65->Message(MessageCode::TLightFlasherStartTimed, 0.5f);
+		else if (caller == a_bump4)
+			v_lite66->Message(MessageCode::TLightFlasherStartTimed, 0.5f);
+		if (GameState() != DragonHoardState)
+			ScoreBy(caller, 0);
+		if (++a_bump1->MessageField == 10)
+		{
+			a_bump1->MessageField = 0;
+			RaiseWeapon();
+		}
+	}
+
+	// a_rebo1 (0x424cc0) and a_rebo2 (0x424cf0)
+	void ReboundControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code != MessageCode::ControlCollision)
+			return;
+		(caller == a_rebo1 ? v_lite120 : v_lite121)->Message(MessageCode::TLightTurnOnTimed, 0.1f);
+		ScoreBy(caller, 0);
+	}
+
+	// 0x424d20: with all five mystery lights (v_lite3 to v_lite7) on, a spell, and in play v_lite23 toward Dragon
+	// Flurry
+	void MysteryLights(TPinballComponent* target)
+	{
+		auto lights = {v_lite3, v_lite4, v_lite5, v_lite6, v_lite7};
+		if (!std::ranges::all_of(lights, [](TLight* light) { return light->light_on(); }))
+		{
+			if (GameState() != DragonHoardState)
+			{
+				ScoreBy(target, 0);
+				tabc05wave->Play(nullptr, "MysteryLights");
+			}
+			return;
+		}
+		for (auto light : lights)
+			light->Message(MessageCode::TLightFlasherStartTimedThenStayOff, 1.0f);
+		if (GameState() == PlayState)
+		{
+			lizard_lights[1]->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f); // v_lite23
+			if (DragonFlurryReady())
+				return;
+		}
+		CastRandomSpell();
+	}
+
+	// a_spot4 to a_spot7 and a_spot22 (0x424e60 to 0x425060): their mystery lights, or in Wizard's Fury the
+	// mystery award they name
+	void MysteryTargetControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code != MessageCode::ControlCollision)
+			return;
+		auto index = static_cast<int>(std::ranges::find(diamond_targets, caller) - diamond_targets.begin());
+		if (index >= static_cast<int>(diamond_targets.size()))
+			return;
+		if (GameState() != WizardsFuryState)
+		{
+			std::array{v_lite3, v_lite4, v_lite5, v_lite6, v_lite7}[index]->Message(
+				MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
+			MysteryLights(caller);
+			return;
+		}
+		a_sink4->MessageField = index;
+		tabc05wave->Play(nullptr, "MysteryTargetControl");
+		using enum Msg;
+		static constexpr std::array mysteryTexts{Dragon_MysteryExtraBall, Dragon_MysteryMaxWeapons,
+												 Dragon_MysteryMaxArmor, Dragon_MysteryJackpot,
+												 Dragon_MysteryOneMillion};
+		info_text_box->Display(pb::get_rc_string(mysteryTexts[index]), 2.0f);
+	}
+
+	// 0x423d50: the tower lock opens: its lights and diverters, and the first lock light not lit flashes
+	void EnableTowerLock()
+	{
+		using enum MessageCode;
+		v_lite47->Message(TLightResetAndTurnOn, 0.0f);
+		diverters[0]->Message(TDiverterDisable, 0.0f);
+		diverters[1]->Message(TDiverterEnable, 0.0f);
+		v_lite125->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+		v_lite126->Message(TLightResetAndTurnOff, 0.0f);
+		diverters[6]->Message(TDiverterDisable, 0.0f);
+		diverters[7]->Message(TDiverterEnable, 0.0f);
+		for (auto light : {v_lite48, v_lite49, v_lite50})
+		{
+			if (!light->light_on())
+			{
+				light->Message(TLightFlasherStartTimed, -1.0f);
+				break;
+			}
+		}
+		LockLights();
+	}
+
+	// a_spot3 (0x425220), a_spot2 (0x425250) and a_spot1 (0x425280), then 0x4250e0: with all three lights (v_lite8 to
+	// v_lite10) on, the tower lock opens, and in play v_lite27 counts toward Dragon Flurry
+	void TowerLockTargetControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		(caller == a_spot3   ? v_lite8
+		 : caller == a_spot2 ? v_lite9
+							 : v_lite10)
+			->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+		auto lights = {v_lite8, v_lite9, v_lite10};
+		if (!std::ranges::all_of(lights, [](TLight* light) { return light->light_on(); }))
+		{
+			if (GameState() != DragonHoardState)
+			{
+				ScoreBy(caller, 0);
+				tabc06wave->Play(nullptr, "TowerLockTargetControl");
+			}
+			return;
+		}
+		for (auto light : lights)
+			light->Message(TLightFlasherStartTimedThenStayOff, 1.0f);
+		ScoreBy(caller, 1);
+		if (GameState() == PlayState)
+		{
+			lizard_lights[5]->Message(TLightFlasherStartTimedThenStayOn, 1.0f); // v_lite27
+			if (!DragonFlurryReady())
+			{
+				EnableTowerLock();
+				tabc07wave->Play(nullptr, "TowerLockTargetControl");
+				info_text_box->Display(pb::get_rc_string(Msg::Dragon_TowerLockEnabled), 2.0f);
+			}
+		}
+		if (GameState() != DragonHoardState)
+			tabc06wave->Play(nullptr, "TowerLockTargetControl");
+	}
+
+	// a_spot27, 0x425650: in play it picks another quest; with the extra ball light (v_lite57) on, the extra ball
+	void QuestTargetControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code != MessageCode::ControlCollision)
+			return;
+		if (v_lite57->light_on())
+		{
+			v_lite57->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+			AwardExtraBall(5.0f);
+			return;
+		}
+		tabc96wave->Play(nullptr, "QuestTargetControl");
+		v_lite21->Message(MessageCode::TLightFlasherStartTimed, 1.0f);
+		if (GameState() == PlayState)
+		{
+			using enum Msg;
+			static constexpr std::array selected{Dragon_DragonHoardSelected, Dragon_FireLizardsSelected,
+												 Dragon_RescueMaidenSelected, Dragon_DragonPassSelected,
+												 Dragon_WizardsFurySelected};
+			auto state = PickQuest();
+			if (state >= DragonHoardState && state <= WizardsFuryState)
+				info_text_box->Display(pb::get_rc_string(selected[state - DragonHoardState]), 2.0f);
+		}
+		ScoreBy(caller, 0);
+	}
+
+	// a_spot19 (0x425750) and a_spot26 (0x4257c0), the sword's targets: while their light flashes in play, the sword
+	// goes down a level. a_spot28 (0x425830) would start Slay Dragon, not ported yet, so it is a stand-in that does
+	// nothing. Their picture needs the text box's second font
+	void SwordTargetControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code != MessageCode::ControlCollision || GameState() != PlayState)
+			return;
+		auto light = caller == a_spot19 ? v_lite16 : v_lite17;
+		if (!light->FlasherOnFlag)
+			return;
+		SetLevelLights(caller == a_spot19 ? 2 : 1);
+		dragon_fire_light_group->Message(MessageCode::TLightFlasherStartTimed, 2.0f);
+		ScoreBy(caller, 0);
+	}
+
+	// a_spot30 (0x4258b0) and a_spot31 (0x4258e0)
+	void LaneTargetControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code != MessageCode::ControlCollision)
+			return;
+		(caller == a_spot30 ? v_lite20 : v_lite19)->Message(MessageCode::TLightFlasherStartTimed, 2.0f);
+		ScoreBy(caller, 0);
+	}
+
+	// a_roll7 (0x426a50) lights an outlane kicker and opens the tower lane; a_roll6 (0x426b00) and a_roll1
+	// (0x426b70) light one while their light (v_lite56, v_lite55) is on; the others (a_roll2, a_roll5, and
+	// v_wlite96 to v_wlite99, 0x427860) only score
+	void RolloverControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		auto lightKicker = []
+		{
+			tabc24wave->Play(nullptr, "RolloverControl");
+			outlane_kicker_light_group->Message(TLightGroupOffsetAnimationForward, 0.0f);
+			a_kick1->ActiveFlag = 1;
+		};
+		if (caller == a_roll7)
+		{
+			ScoreBy(caller, 0);
+			lightKicker();
+			v_lite47->Message(TLightResetAndTurnOn, 0.0f);
+			diverters[0]->Message(TDiverterDisable, 0.0f);
+			diverters[1]->Message(TDiverterEnable, 0.0f);
+			return;
+		}
+		if (caller == a_roll6 || caller == a_roll1)
+		{
+			auto light = caller == a_roll6 ? v_lite56 : v_lite55;
+			if (light->light_on())
+			{
+				lightKicker();
+				light->Message(TLightFlasherStartTimedThenStayOff, 1.0f);
+			}
+		}
+		ScoreBy(caller, 0);
+	}
+
+	// s_rexit19 (0x426be0) and s_rexit18 (0x426c20): out of the ramp, dragon eggs, and in play the diverters swing
+	void RampExitControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code != MessageCode::ControlRampExitToLayer1)
+			return;
+		bool first = caller == s_rexit19;
+		AwardDragonEggs(first ? 2 : 1);
+		if (GameState() == PlayState)
+		{
+			diverters[first ? 4 : 2]->Message(MessageCode::TDiverterEnable, 0.0f);
+			diverters[first ? 5 : 3]->Message(MessageCode::TDiverterDisable, 0.0f);
+		}
+	}
+
+	// a_flip2, 0x426c60: the upper flipper lets a_kout3's ball go once v_lite29's spell armed it
+	void UpperFlipperControl(MessageCode code, TPinballComponent*)
+	{
+		using enum MessageCode;
+		if (code != TFlipperExtend || a_kout3->MessageField != 1)
+			return;
+		a_kout3->MessageField = 0;
+		auto lightCode = GameState() == SlayDragonState ? TLightFlasherStartTimed : TLightFlasherStartTimedThenStayOff;
+		v_lite29->Message(lightCode, 1.0f);
+		v_lite30->Message(lightCode, 1.0f);
+		a_kout3->Message(TKickoutRestartTimer, 0.0f);
+	}
+
+	// a_kick1, the kickback, 0x426d00: "Ball Saved"; without full armor it uses up an outlane kicker light, and the
+	// last one turns it off
+	void KickbackControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlTimerExpired)
+			return;
+		if (!v_lite37->light_on())
+		{
+			outlane_kicker_light_group->Message(TLightGroupOffsetAnimationBackward, 0.0f);
+			if (!outlane_kicker_light_group->Message(TLightGroupGetOnCount, 0.0f))
+				caller->ActiveFlag = 0;
+		}
+		info_text_box->Display(pb::get_rc_string(Msg::Dragon_BallSaved), 2.0f);
+	}
+
+	// a_rocka (0x423810) and a_rockb (0x423840): a gargoyle back up enables its target again
+	void GargoyleControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code != MessageCode::ControlAnimationDone || static_cast<TAnimatedBlocker*>(caller)->State == -1)
+			return;
+		(caller == a_rocka ? a_spot10 : a_spot14)->Message(MessageCode::TSoloTargetEnable, 0.0f);
+	}
+
+	// v_lite37, full armor, 0x428240: on for 53 s, then flashing 5 s, then off
+	void ArmorLightControl(MessageCode code, TPinballComponent*)
+	{
+		if (code != MessageCode::ControlTimerExpired)
+			return;
+		switch (v_lite37->MessageField++)
+		{
+		case 0:
+			v_lite37->Message(MessageCode::TLightTurnOnTimed, 53.0f);
+			break;
+		case 1:
+			v_lite37->Message(MessageCode::TLightFlasherStartTimedThenStayOff, 5.0f);
+			break;
+		default:
+			v_lite37->MessageField = 0;
+			break;
+		}
+	}
+
+	// v_lite29, 0x428290: once its spell's light is lit, a_kout3 takes balls
+	void KickoutSpellControl(MessageCode code, TPinballComponent*)
+	{
+		if (code == MessageCode::ControlTimerExpired && v_lite29->light_on())
+			a_kout3->ActiveFlag = 1;
+	}
+
+	// a_accl1, 0x426940: its second score while v_lite32's spell is lit
+	void AcceleratorControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code != MessageCode::ControlCollision || GameState() == DragonHoardState)
+			return;
+		tabc22wave->Play(nullptr, "AcceleratorControl");
+		ScoreBy(caller, v_lite32->light_on() ? 1 : 0);
+	}
+
 	// a_sink4, the well, 0x426140. In play it starts the picked quest one time in four and casts a spell otherwise;
 	// in Wizard's Fury it gives the mystery award its message field holds (0 extra ball, 1 max weapons, 2 max armor,
 	// 3 jackpot, 4 one million) and sets the next, one of the other four, at random
@@ -2423,6 +2799,51 @@ namespace
 		Find(a_ramp103, "a_ramp103");
 		Find(tabc46wave, "tabc46wave");
 		Find(tabc47wave, "tabc47wave");
+		Find(a_bump3, "a_bump3");
+		Find(a_bump4, "a_bump4");
+		Find(a_spot27, "a_spot27");
+		Find(a_spot30, "a_spot30");
+		Find(a_spot31, "a_spot31");
+		Find(a_roll1, "a_roll1");
+		Find(a_roll2, "a_roll2");
+		Find(a_roll5, "a_roll5");
+		Find(a_roll6, "a_roll6");
+		Find(a_roll7, "a_roll7");
+		Find(s_rexit18, "s_rexit18");
+		Find(s_rexit19, "s_rexit19");
+		Find(v_wlite96, "v_wlite96");
+		Find(v_wlite97, "v_wlite97");
+		Find(v_wlite98, "v_wlite98");
+		Find(v_wlite99, "v_wlite99");
+		Find(a_rebo1, "a_rebo1");
+		Find(a_rebo2, "a_rebo2");
+		Find(a_spot1, "a_spot1");
+		Find(a_spot2, "a_spot2");
+		Find(a_spot3, "a_spot3");
+		Find(a_spot4, "a_spot4");
+		Find(a_spot5, "a_spot5");
+		Find(a_spot6, "a_spot6");
+		Find(a_spot7, "a_spot7");
+		Find(a_spot22, "a_spot22");
+		Find(v_lite3, "v_lite3");
+		Find(v_lite4, "v_lite4");
+		Find(v_lite5, "v_lite5");
+		Find(v_lite6, "v_lite6");
+		Find(v_lite7, "v_lite7");
+		Find(v_lite8, "v_lite8");
+		Find(v_lite9, "v_lite9");
+		Find(v_lite10, "v_lite10");
+		Find(v_lite19, "v_lite19");
+		Find(v_lite20, "v_lite20");
+		Find(v_lite21, "v_lite21");
+		Find(v_lite120, "v_lite120");
+		Find(v_lite121, "v_lite121");
+		Find(tabc03wave, "tabc03wave");
+		Find(tabc05wave, "tabc05wave");
+		Find(tabc07wave, "tabc07wave");
+		Find(tabc22wave, "tabc22wave");
+		Find(tabc39wave, "tabc39wave");
+		Find(tabc96wave, "tabc96wave");
 		constexpr std::array diamondNames{"a_spot4", "a_spot5", "a_spot6", "a_spot7", "a_spot22"};
 		for (size_t index = 0; index < diamond_targets.size(); index++)
 			Find(diamond_targets[index], diamondNames[index]);
@@ -2562,7 +2983,52 @@ namespace
 											   a_ramp6,
 											   a_ramp103,
 											   tabc46wave,
-											   tabc47wave};
+											   tabc47wave,
+											   a_bump3,
+											   a_bump4,
+											   a_spot27,
+											   a_spot30,
+											   a_spot31,
+											   a_roll1,
+											   a_roll2,
+											   a_roll5,
+											   a_roll6,
+											   a_roll7,
+											   s_rexit18,
+											   s_rexit19,
+											   v_wlite96,
+											   v_wlite97,
+											   v_wlite98,
+											   v_wlite99,
+											   a_rebo1,
+											   a_rebo2,
+											   a_spot1,
+											   a_spot2,
+											   a_spot3,
+											   a_spot4,
+											   a_spot5,
+											   a_spot6,
+											   a_spot7,
+											   a_spot22,
+											   v_lite3,
+											   v_lite4,
+											   v_lite5,
+											   v_lite6,
+											   v_lite7,
+											   v_lite8,
+											   v_lite9,
+											   v_lite10,
+											   v_lite19,
+											   v_lite20,
+											   v_lite21,
+											   v_lite120,
+											   v_lite121,
+											   tabc03wave,
+											   tabc05wave,
+											   tabc07wave,
+											   tabc22wave,
+											   tabc39wave,
+											   tabc96wave};
 		const bool listsFound = std::ranges::none_of(diverters, [](auto c) { return !c; }) &&
 								std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
 								std::ranges::none_of(lizard_lights, [](auto c) { return !c; }) &&
@@ -2604,6 +3070,39 @@ namespace
 				Link(component, WithHook<GargoyleKickoutControl>);
 			else if (component == s_trip5 || component == s_trip6)
 				Link(component, WithHook<PrisonTripControl>);
+			else if (component == a_bump1 || component == a_bump3 || component == a_bump4 ||
+					 (component->GroupName && component->GroupName == std::string_view("a_bump2")))
+				Link(component, WithHook<BumperControl>);
+			else if (component == a_rebo1 || component == a_rebo2)
+				Link(component, WithHook<ReboundControl>);
+			else if (std::ranges::find(diamond_targets, component) != diamond_targets.end())
+				Link(component, WithHook<MysteryTargetControl>);
+			else if (component == a_spot1 || component == a_spot2 || component == a_spot3)
+				Link(component, WithHook<TowerLockTargetControl>);
+			else if (component == a_spot27)
+				Link(component, WithHook<QuestTargetControl>);
+			else if (component == a_spot19 || component == a_spot26)
+				Link(component, WithHook<SwordTargetControl>);
+			else if (component == a_spot30 || component == a_spot31)
+				Link(component, WithHook<LaneTargetControl>);
+			else if (component == a_roll1 || component == a_roll2 || component == a_roll5 || component == a_roll6 ||
+					 component == a_roll7 || component == v_wlite96 || component == v_wlite97 ||
+					 component == v_wlite98 || component == v_wlite99)
+				Link(component, WithHook<RolloverControl>);
+			else if (component == s_rexit18 || component == s_rexit19)
+				Link(component, WithHook<RampExitControl>);
+			else if (component == a_flip2)
+				Link(component, WithHook<UpperFlipperControl>);
+			else if (component == a_kick1)
+				Link(component, WithHook<KickbackControl>);
+			else if (component == a_rocka || component == a_rockb)
+				Link(component, WithHook<GargoyleControl>);
+			else if (component == v_lite37)
+				Link(component, WithHook<ArmorLightControl>);
+			else if (component == v_lite29)
+				Link(component, WithHook<KickoutSpellControl>);
+			else if (component == a_accl1)
+				Link(component, WithHook<AcceleratorControl>);
 			else if (component == a_center_post)
 				Link(component, WithHook<CenterPostControl>);
 			else if (component == a_bloce)

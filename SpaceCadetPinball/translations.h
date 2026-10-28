@@ -473,6 +473,13 @@ enum class Msg : int
 	Dragon_Sapphire,
 	Dragon_Amethyst,
 	Dragon_Opal,
+	Dragon_TowerLockEnabled,
+	Dragon_BallSaved,
+	Dragon_DragonHoardSelected,
+	Dragon_FireLizardsSelected,
+	Dragon_RescueMaidenSelected,
+	Dragon_DragonPassSelected,
+	Dragon_WizardsFurySelected,
 
 	Max,
 };
