@@ -119,13 +119,7 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 				Drain = new TDrain(this, groupIndex);
 				break;
 			case 1011:
-				// Dragon's Keep's blockers are animated props that Pinball.exe's TBlocker can't build (F4)
-				if (pb::Table == Tables::DragonsKeep)
-				{
-					LogNotBuilt(objectType, groupIndex);
-					continue;
-				}
-				new TBlocker(this, groupIndex);
+				AddBlocker(groupIndex);
 				break;
 			case 1012:
 				new TKickout(this, groupIndex, true);
@@ -208,6 +202,15 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 	TableRules::Current().MakeLinks(this);
 }
 
+
+void TPinballTable::AddBlocker(int groupIndex)
+{
+	// Dragon's Keep's blockers are animated props that Pinball.exe's TBlocker can't build (F4)
+	if (pb::Table == Tables::DragonsKeep)
+		LogNotBuilt(1011, groupIndex);
+	else
+		new TBlocker(this, groupIndex);
+}
 
 void TPinballTable::LogNotBuilt(int objectType, int groupIndex)
 {
