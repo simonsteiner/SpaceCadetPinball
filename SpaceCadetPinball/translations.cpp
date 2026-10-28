@@ -7831,5 +7831,11 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "No Dragon Eggs" },
 		}
+	},
+	{
+		Msg::Dragon_TowerBarrage,
+		{
+			{ Lang::English, "Tower Barrage" },
+		}
 	}
 };

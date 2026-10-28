@@ -41,11 +41,11 @@
 // DRAGON.EXE's rules run a state machine whose state each player keeps in info_text_box's message field: the
 // component handlers and the engine report to one table-wide function (0x42c020), which hands every event to the
 // current state's function (0x42c120). States 0 (game over), 1 (new game), 2 (play), 3 (restart quest), 4 to 8 (the
-// quests), 10 (launch), 11 (end of ball) and 12 (the shop) are ported; Slay Dragon and the modes (9, 13 to 15)
-// come with their features. Addresses below are DRAGON.EXE's. Its message numbers differ from this port's above the
-// light codes, so each call uses the port's MessageCode: CADET.EXE's light groups number theirs 4 above this port's,
-// its targets 4 above, its kickouts, sinks and timers 9 or 10 above; its animated blockers and diverters keep
-// CADET.EXE's.
+// quests), 10 (launch), 11 (end of ball), 12 (the shop) and 13 (Tower Barrage) are ported; Slay Dragon and the
+// other modes (9, 14, 15) come with their features. Addresses below are DRAGON.EXE's. Its message numbers differ from
+// this port's above the light codes, so each call uses the port's MessageCode: CADET.EXE's light groups number theirs 4
+// above this port's, its targets 4 above, its kickouts, sinks and timers 9 or 10 above; its animated blockers and
+// diverters keep CADET.EXE's.
 namespace
 {
 	// Codes DRAGON.EXE's rules functions send only among themselves; SkipBonusText comes from a rule not ported yet
@@ -284,6 +284,7 @@ namespace
 	TSink* a_sink15;
 	TSound* tabc10wave;
 	TSound* tabc33wave;
+	TLight* v_lite78;
 	int ShopItem;        // 0x434d1c: what the shop offers, its price in dragon eggs; 0 for nothing
 	int ShopSpell;       // 0x434d28: the spell it offers
 	int MaidenLockLight; // 0x434d14: how v_lite48 was when Rescue Maiden started, 0 off, 1 on, 2 flashing
@@ -1401,6 +1402,66 @@ namespace
 		}
 	}
 
+	// State 13, 0x42b0e0: Tower Barrage, a multiball. With all three locks lit, their three balls come out one second
+	// apart, and the tower's windows flash; it ends when a drain leaves one ball
+	void TowerBarrageStateControl(MessageCode code, TPinballComponent*)
+	{
+		using enum MessageCode;
+		auto windows = {prison_window_light_group, watch_window_light_group, gate_window_light_group};
+		switch (code)
+		{
+		case EnterState:
+			QuestEndReset();
+			v_lite47->Message(TLightResetAndTurnOn, 0.0f);
+			diverters[0]->Message(TDiverterDisable, 0.0f);
+			diverters[1]->Message(TDiverterEnable, 0.0f);
+			diverters[2]->Message(TDiverterEnable, 0.0f);
+			diverters[3]->Message(TDiverterDisable, 0.0f);
+			diverters[4]->Message(TDiverterEnable, 0.0f);
+			diverters[5]->Message(TDiverterDisable, 0.0f);
+			v_lite125->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			v_lite126->Message(TLightResetAndTurnOff, 0.0f);
+			diverters[6]->Message(TDiverterDisable, 0.0f);
+			diverters[7]->Message(TDiverterEnable, 0.0f);
+			for (auto group : windows)
+				group->Message(TLightFlasherStartTimed, -1.0f);
+			Table->MultiballCount += 3;
+			for (auto [sink, light, time] :
+				 {std::tuple{a_sink18, v_lite48, 1.0f}, {a_sink17, v_lite49, 2.0f}, {a_sink16, v_lite50, 3.0f}})
+			{
+				sink->Message(TSinkResetTimer, time);
+				light->Message(TLightFlasherStartTimedThenStayOff, time);
+			}
+			v_lite78->Message(TLightFlasherStartTimed, -1.0f);
+			info_text_box->Clear();
+			[[fallthrough]];
+		case ShowStateText:
+			info_text_box->Display(pb::get_rc_string(Msg::Dragon_TowerBarrage), -1.0f);
+			break;
+		case BallDrained:
+			if (Table->MultiballCount != 1)
+				break;
+			QuestLeave();
+			for (auto group : windows)
+				group->Message(TLightResetAndTurnOff, 0.0f);
+			v_lite78->Message(TLightResetAndTurnOn, 0.0f);
+			SetState(PlayState);
+			if (GameState() != RescueMaidenState && GameState() != TowerBarrageState)
+			{
+				v_lite47->Message(TLightResetAndTurnOff, 0.0f);
+				diverters[0]->Message(TDiverterEnable, 0.0f);
+				diverters[1]->Message(TDiverterDisable, 0.0f);
+				v_lite125->Message(TLightResetAndTurnOff, 0.0f);
+				v_lite126->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+				diverters[6]->Message(TDiverterEnable, 0.0f);
+				diverters[7]->Message(TDiverterDisable, 0.0f);
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
 	// State 7, 0x429b10: Dragon Pass. The gargoyle kickout (a_kout2) lays a dragon egg, the armor kickout (a_kout1)
 	// awards the jackpot, and a_spot8 and a_spot12 grow it, until the time runs out
 	void DragonPassStateControl(MessageCode code, TPinballComponent* caller)
@@ -1816,6 +1877,9 @@ namespace
 			break;
 		case ShopState:
 			ShopStateControl(code, caller);
+			break;
+		case TowerBarrageState:
+			TowerBarrageStateControl(code, caller);
 			break;
 		case LaunchState:
 			LaunchStateControl(code, caller);
@@ -2615,8 +2679,8 @@ namespace
 	// The tower lock. a_sink15 (0x426f90), a_sink13 (0x427290) and a_sink9 or a_sink10 (0x4274d0, 0x427680) lead
 	// into its three locks, a_sink18 (0x427100), a_sink17 (0x4273d0) and a_sink16. While a lock's light (v_lite48 to
 	// v_lite50) is armed, the ball stays there: "Ball Trapped", and a new ball is served for the first two. With all
-	// three lit, Tower Barrage (state 13) starts, which isn't ported yet, so until then the third lock lets the ball
-	// go. In Rescue Maiden a_sink15 and a_sink18 send the ball out of a fire lizard sink
+	// three lit, Tower Barrage (state 13) starts. In Rescue Maiden a_sink15 and a_sink18 send the ball out of a fire
+	// lizard sink
 	void TrapBall(TPinballComponent* sink, TLight* lockLight, bool serve)
 	{
 		tabc10wave->Play(nullptr, "TrapBall");
@@ -2697,10 +2761,15 @@ namespace
 		}
 		else
 		{
-			// a_sink9 and a_sink10; the third lock is a stand-in until Tower Barrage is ported
+			// a_sink9 and a_sink10: the third lock serves no ball, as its balls come out in Tower Barrage
 			if (state == RescueMaidenState)
 			{
 				a_sink16->Message(TSinkResetTimer, -1.0f);
+				return;
+			}
+			if (state == PlayState && v_lite50->MessageField)
+			{
+				TrapBall(caller, v_lite50, false);
 				return;
 			}
 			tabc04wave->Play(nullptr, "TowerSinkControl");
@@ -3253,6 +3322,7 @@ namespace
 		Find(a_sink15, "a_sink15");
 		Find(tabc10wave, "tabc10wave");
 		Find(tabc33wave, "tabc33wave");
+		Find(v_lite78, "v_lite78");
 		Find(s_trip1, "s_trip1");
 		Find(s_trip2, "s_trip2");
 		Find(s_trip3, "s_trip3");
@@ -3452,6 +3522,7 @@ namespace
 											   a_sink15,
 											   tabc10wave,
 											   tabc33wave,
+											   v_lite78,
 											   s_trip1,
 											   s_trip2,
 											   s_trip3,
