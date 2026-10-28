@@ -105,5 +105,6 @@ public:
 private:
 	static int score_multipliers[5];
 
+	void AddBlocker(int groupIndex);
 	static void LogNotBuilt(int objectType, int groupIndex);
 };
