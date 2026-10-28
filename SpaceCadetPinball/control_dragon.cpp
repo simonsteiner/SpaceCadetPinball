@@ -33,18 +33,18 @@
 
 // Dragon's Keep's rules, recovered from DRAGON.EXE one feature at a time (Phase F). Ported so far: the serve, drain
 // and game-over flow, with the ball save, the end-of-ball bonus and the music; the quest framework and the Fire
-// Lizards and Wizard's Fury quests. Everything else is still a stand-in that keeps the table playable: kickouts and
-// sinks give back the balls they catch, which only the rules would do otherwise, a quest whose state isn't ported
-// doesn't start, and a stuck ball is freed as Space Cadet's rules free one.
+// Lizards, Dragon Pass and Wizard's Fury quests. Everything else is still a stand-in that keeps the table playable:
+// kickouts and sinks give back the balls they catch, which only the rules would do otherwise, a quest whose state isn't
+// ported doesn't start, and a stuck ball is freed as Space Cadet's rules free one.
 //
 // DRAGON.EXE's rules run a state machine whose state each player keeps in info_text_box's message field: the
 // component handlers and the engine report to one table-wide function (0x42c020), which hands every event to the
 // current state's function (0x42c120). States 0 (game over), 1 (new game), 2 (play), 3 (restart quest), 5 (Fire
-// Lizards), 8 (Wizard's Fury), 10 (launch) and 11 (end of ball) are ported; the other quests and modes (4, 6, 7, 9,
-// 12 to 15) come with their features. Addresses below are DRAGON.EXE's. Its message numbers differ from this port's
-// above the light codes, so each call uses the port's MessageCode: CADET.EXE's light groups number theirs 4 above this
-// port's, its targets 4 above, its kickouts, sinks and timers 9 or 10 above; its animated blockers and diverters keep
-// CADET.EXE's.
+// Lizards), 7 (Dragon Pass), 8 (Wizard's Fury), 10 (launch) and 11 (end of ball) are ported; the other quests and
+// modes (4, 6, 9, 12 to 15) come with their features. Addresses below are DRAGON.EXE's. Its message numbers differ from
+// this port's above the light codes, so each call uses the port's MessageCode: CADET.EXE's light groups number theirs 4
+// above this port's, its targets 4 above, its kickouts, sinks and timers 9 or 10 above; its animated blockers and
+// diverters keep CADET.EXE's.
 namespace
 {
 	// Codes DRAGON.EXE's rules functions send only among themselves; SkipBonusText comes from a rule not ported yet
@@ -64,6 +64,7 @@ namespace
 	constexpr int PlayState = 2;
 	constexpr int RestartQuestState = 3;
 	constexpr int FireLizardsState = 5;
+	constexpr int DragonPassState = 7;
 	constexpr int WizardsFuryState = 8;
 	constexpr int SlayDragonState = 9;
 	constexpr int LaunchState = 10;
@@ -171,6 +172,23 @@ namespace
 	TSound* tabc35wave;
 	TSound* tabc41wave;
 	TSound* tabc55wave;
+	// Dragon Pass's: the gargoyle targets and their lights, the armor kickout and the dragon eggs
+	TKickout* a_kout1;
+	TSoloTarget* a_spot8;
+	TSoloTarget* a_spot10;
+	TSoloTarget* a_spot12;
+	TSoloTarget* a_spot14;
+	TLight* v_lite11;
+	TLight* v_lite12;
+	TLight* v_lite13;
+	TLight* v_lite14;
+	TLight* v_lite55;
+	TLight* v_lite56;
+	TSound* tabc08wave;
+	TSound* tabc27wave;
+	TSound* tabc40wave;
+	TSound* tabc42wave;
+	TSound* tabc53wave;
 
 	template <typename T> void Find(T*& component, const char* name)
 	{
@@ -436,7 +454,7 @@ namespace
 
 	bool QuestPorted(int state)
 	{
-		return state == FireLizardsState || state == WizardsFuryState;
+		return state == FireLizardsState || state == DragonPassState || state == WizardsFuryState;
 	}
 
 	// 0x424210: the picked quest starts. A quest whose state isn't ported yet doesn't, and its light keeps flashing
@@ -479,6 +497,54 @@ namespace
 		outlane_kicker_light_group->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
 		if (show)
 			tabc41wave->Play(nullptr, "AwardMaxArmor");
+	}
+
+	void CenterPostControl(MessageCode code, TPinballComponent*);
+	void BloceControl(MessageCode code, TPinballComponent*);
+
+	// 0x4234b0: one armor piece whose light (v_lite37 to v_lite39) is off, at random: the kickback (25,000), the
+	// center post (50,000) or a_bloce (100,000). The pieces' pictures need the text box's second font
+	void AwardArmor()
+	{
+		std::array<int, 3> open{};
+		int count = 0;
+		for (auto [piece, light] : {std::pair{0, v_lite37}, {1, v_lite38}, {2, v_lite39}})
+		{
+			if (!light->light_on())
+				open[count++] = piece;
+		}
+		if (!count)
+			return;
+		switch (open[std::min(static_cast<int>(RandFloat() * count), count - 1)])
+		{
+		case 0:
+			AwardMaxArmor(true);
+			AddScore(nullptr, 25000);
+			break;
+		case 1:
+			tabc40wave->Play(nullptr, "AwardArmor");
+			CenterPostControl(MessageCode::TAnimatedBlockerAnimateOn, a_center_post);
+			tabc40wave->Play(nullptr, "AwardArmor");
+			AddScore(nullptr, 50000);
+			break;
+		default:
+			tabc42wave->Play(nullptr, "AwardArmor");
+			BloceControl(MessageCode::TAnimatedBlockerAnimateOn, a_bloce);
+			tabc42wave->Play(nullptr, "AwardArmor");
+			AddScore(nullptr, 100000);
+			break;
+		}
+	}
+
+	// 0x4232b0: <count> more dragon eggs, then 100,000 for each egg lit. The eggs' picture needs the text box's
+	// second font
+	void AwardDragonEggs(int count)
+	{
+		for (; count > 0; count--)
+			dragon_egg_light_group->Message(MessageCode::TLightGroupResetAndTurnOn, 1.0f);
+		tabc27wave->Play(nullptr, "AwardDragonEggs");
+		auto eggs = dragon_egg_light_group->Message(MessageCode::TLightGroupGetOnCount, 0.0f);
+		AddScore(nullptr, eggs * 100000);
 	}
 
 	// 0x423600: a random spell whose light is off (v_lite28, v_lite29, v_lite31, v_lite32), or -1
@@ -858,6 +924,82 @@ namespace
 		}
 	}
 
+	// State 7, 0x429b10: Dragon Pass. The gargoyle kickout (a_kout2) lays a dragon egg, the armor kickout (a_kout1)
+	// awards the jackpot, and a_spot8 and a_spot12 grow it, until the time runs out
+	void DragonPassStateControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case ControlTimerExpired:
+			if (caller == mode_timer)
+			{
+				v_lite46->Message(TLightResetAndTurnOff, 0.0f);
+				v_lite45->Message(TLightResetAndTurnOff, 0.0f);
+				gargoyle_spot_light_group->Message(OverrideOff, 0.0f);
+				mode_timer->MessageField = GameState();
+				SetState(RestartQuestState);
+			}
+			else if (caller == light_sweeps)
+			{
+				QuestEndReset();
+				v_lite14->Message(TLightResetAndTurnOn, 0.0f);
+				gargoyle_spot_light_group->Message(TLightGroupAnimationBackward, 0.1f);
+				KickOrShop(a_sink18, 0.0f);
+				mode_timer->Message(TTimerResetTimer, 30.65f);
+				TableHook(ShowStateText, nullptr);
+			}
+			break;
+		case EnterState:
+			light_sweeps->Message(TLightSweepsStart, 3.0f);
+			gargoyle_spot_light_group->Message(TLightResetAndTurnOff, 0.0f);
+			if (GameState() == PlayState)
+				v_lite46->Message(TLightFlasherStartTimed, -1.0f);
+			a_rockb->Message(TAnimatedBlockerAnimateOff, 0.0f);
+			a_spot14->Message(TSoloTargetDisable, 0.0f);
+			v_lite45->Message(TLightFlasherStartTimed, -1.0f);
+			a_rocka->Message(TAnimatedBlockerAnimateOff, 0.0f);
+			a_spot10->Message(TSoloTargetDisable, 0.0f);
+			AddScore(nullptr, 100000);
+			info_text_box->Clear();
+			info_text_box->Display(pb::get_rc_string(Msg::Dragon_PutBallInKickouts), -1.0f);
+			v_lite46->Message(TLightFlasherStartTimed, -1.0f);
+			v_lite45->Message(TLightFlasherStartTimed, -1.0f);
+			tabc53wave->Play(nullptr, "DragonPassStateControl");
+			PlayTrack(MidiTracks::Track5);
+			break;
+		case QuestResume:
+			v_lite46->Message(TLightFlasherStartTimed, -1.0f);
+			v_lite45->Message(TLightFlasherStartTimed, -1.0f);
+			tabc53wave->Play(nullptr, "DragonPassStateControl");
+			gargoyle_spot_light_group->Message(OverrideReset, 0.0f);
+			mode_timer->Message(TTimerResetTimer, 15.0f);
+			if (info_text_box->CurrentMessage)
+				break;
+			[[fallthrough]];
+		case ShowStateText:
+			ShowTimeLeft(Msg::Dragon_DragonPass);
+			break;
+		case BallDrained:
+			GameState() = PlayState;
+			mode_timer->Message(TTimerResetTimer, -1.0f);
+			[[fallthrough]];
+		case QuestEnd:
+			QuestLeave();
+			gargoyle_spot_light_group->Message(TLightResetAndTurnOff, 0.0f);
+			gargoyle_spot_light_group->Message(TLightGroupReset, 0.0f);
+			gargoyle_spot_light_group->Message(OverrideReset, 0.0f);
+			v_lite46->Message(TLightResetAndTurnOff, 0.0f);
+			a_rockb->Message(TAnimatedBlockerAnimateOn, 0.0f);
+			v_lite45->Message(TLightResetAndTurnOff, 0.0f);
+			a_rocka->Message(TAnimatedBlockerAnimateOn, 0.0f);
+			QuestDone();
+			break;
+		default:
+			break;
+		}
+	}
+
 	// State 8, 0x429ec0: Wizard's Fury. The well (a_sink4) gives the mystery award each time until the time runs out
 	void WizardsFuryStateControl(MessageCode code, TPinballComponent* caller)
 	{
@@ -1183,6 +1325,9 @@ namespace
 		case FireLizardsState:
 			FireLizardsStateControl(code, caller);
 			break;
+		case DragonPassState:
+			DragonPassStateControl(code, caller);
+			break;
 		case WizardsFuryState:
 			WizardsFuryStateControl(code, caller);
 			break;
@@ -1327,6 +1472,131 @@ namespace
 		(first ? v_lite66 : v_lite65)->Message(TLightFlasherStartTimed, time);
 		ScoreBy(sink, 0);
 		FireLizardSlain(sink);
+	}
+
+	// 0x4252b0: with all four gargoyle target lights (v_lite11 to v_lite14) on, the pass is clear: the diverters
+	// open, the gargoyles rise, and in play v_lite25 counts toward Dragon Flurry
+	void PassClear(TPinballComponent* target)
+	{
+		using enum MessageCode;
+		auto lights = {v_lite14, v_lite13, v_lite12, v_lite11};
+		if (!std::ranges::all_of(lights, [](TLight* light) { return light->light_on(); }))
+		{
+			if (GameState() != 4)
+			{
+				tabc08wave->Play(nullptr, "PassClear");
+				ScoreBy(target, 0);
+			}
+			return;
+		}
+		for (auto light : lights)
+			light->Message(TLightFlasherStartTimedThenStayOff, 1.0f);
+		diverters[2]->Message(TDiverterDisable, 0.0f);
+		diverters[3]->Message(TDiverterEnable, 0.0f);
+		diverters[4]->Message(TDiverterDisable, 0.0f);
+		diverters[5]->Message(TDiverterEnable, 0.0f);
+		v_lite56->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+		v_lite55->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+		v_lite46->Message(TLightResetAndTurnOff, 0.0f);
+		a_rockb->Message(TAnimatedBlockerAnimateOn, 0.0f);
+		v_lite45->Message(TLightResetAndTurnOff, 0.0f);
+		a_rocka->Message(TAnimatedBlockerAnimateOn, 0.0f);
+		bool flurry = false;
+		if (GameState() == PlayState)
+		{
+			lizard_lights[3]->Message(TLightFlasherStartTimedThenStayOn, 1.0f); // v_lite25
+			flurry = DragonFlurryReady();
+		}
+		if (!flurry)
+			info_text_box->Display(pb::get_rc_string(Msg::Dragon_PassClear), 2.0f);
+		if (GameState() != 4)
+		{
+			tabc08wave->Play(nullptr, "PassClear");
+			ScoreBy(target, 1);
+		}
+	}
+
+	// a_spot10 (0x4254a0) and a_spot14 (0x425570), under the gargoyles: each drops its gargoyle and lights its pass
+	// light
+	void GargoyleTargetControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		if (caller == a_spot10)
+		{
+			v_lite45->Message(TLightFlasherStartTimed, -1.0f);
+			a_rocka->Message(TAnimatedBlockerAnimateOff, 0.0f);
+			a_spot10->Message(TSoloTargetDisable, 0.0f);
+			v_lite14->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+		}
+		else
+		{
+			if (GameState() == PlayState)
+				v_lite46->Message(TLightFlasherStartTimed, -1.0f);
+			a_rockb->Message(TAnimatedBlockerAnimateOff, 0.0f);
+			a_spot14->Message(TSoloTargetDisable, 0.0f);
+			v_lite12->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+		}
+		PassClear(caller);
+	}
+
+	// a_spot8 (0x425500) and a_spot12 (0x4255e0): their pass lights, or in Dragon Pass 250,000 more jackpot
+	void PassTargetControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		auto light = caller == a_spot8 ? v_lite13 : v_lite11;
+		if (GameState() != DragonPassState)
+		{
+			light->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			PassClear(caller);
+			return;
+		}
+		light->Message(TLightFlasherStartTimed, 0.5f);
+		AddJackpot(250000);
+		AddScore(caller, 100000);
+	}
+
+	// a_kout1, the armor kickout, 0x426d80: an armor piece and the pass reset, or in Dragon Pass the jackpot
+	void ArmorKickoutControl(MessageCode code, TPinballComponent*)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		if (GameState() == DragonPassState)
+		{
+			AwardJackpot();
+			a_kout1->Message(TKickoutRestartTimer, -1.0f);
+			return;
+		}
+		AwardArmor();
+		for (auto light : {v_lite14, v_lite13, v_lite12, v_lite11})
+			light->Message(TLightFlasherStartTimedThenStayOff, 1.0f);
+		v_lite45->Message(TLightResetAndTurnOff, 0.0f);
+		a_rocka->Message(TAnimatedBlockerAnimateOn, 2.0f);
+		a_kout1->Message(TKickoutRestartTimer, -1.0f);
+	}
+
+	// a_kout2, the gargoyle kickout, 0x426e40. In play it starts Gargoyle Gaggle-Ball (state 14), which isn't ported
+	// yet, so it scores as in the other states. Its message field is also the picked quest's state, so it counts
+	// up to 3 only while none is picked, and scores the score at that index
+	void GargoyleKickoutControl(MessageCode code, TPinballComponent*)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		tabc32wave->Play(nullptr, "GargoyleKickoutControl");
+		if (GameState() == DragonPassState)
+			AwardDragonEggs(1);
+		else
+		{
+			if (a_kout2->MessageField < 3)
+				a_kout2->MessageField++;
+			ScoreBy(a_kout2, a_kout2->MessageField);
+		}
+		a_kout2->Message(TKickoutRestartTimer, -1.0f);
 	}
 
 	// a_sink4, the well, 0x426140. In play it starts the picked quest one time in four and casts a spell otherwise;
@@ -1564,6 +1834,10 @@ namespace
 	component_control FireLizardSinkLink{WithHook<FireLizardSinkControl>, 0, nullptr};
 	component_control HoleLink{WithHook<HoleControl>, 0, nullptr};
 	component_control WellLink{WithHook<WellControl>, 0, nullptr};
+	component_control GargoyleTargetLink{WithHook<GargoyleTargetControl>, 0, nullptr};
+	component_control PassTargetLink{WithHook<PassTargetControl>, 0, nullptr};
+	component_control ArmorKickoutLink{WithHook<ArmorKickoutControl>, 0, nullptr};
+	component_control GargoyleKickoutLink{WithHook<GargoyleKickoutControl>, 0, nullptr};
 	component_control CenterPostLink{WithHook<CenterPostControl>, 0, nullptr};
 	component_control BloceLink{WithHook<BloceControl>, 0, nullptr};
 	component_control BlocfLink{WithHook<BlocfControl>, 0, nullptr};
@@ -1710,6 +1984,22 @@ namespace
 		Find(tabc35wave, "tabc35wave");
 		Find(tabc41wave, "tabc41wave");
 		Find(tabc55wave, "tabc55wave");
+		Find(a_kout1, "a_kout1");
+		Find(a_spot8, "a_spot8");
+		Find(a_spot10, "a_spot10");
+		Find(a_spot12, "a_spot12");
+		Find(a_spot14, "a_spot14");
+		Find(v_lite11, "v_lite11");
+		Find(v_lite12, "v_lite12");
+		Find(v_lite13, "v_lite13");
+		Find(v_lite14, "v_lite14");
+		Find(v_lite55, "v_lite55");
+		Find(v_lite56, "v_lite56");
+		Find(tabc08wave, "tabc08wave");
+		Find(tabc27wave, "tabc27wave");
+		Find(tabc40wave, "tabc40wave");
+		Find(tabc42wave, "tabc42wave");
+		Find(tabc53wave, "tabc53wave");
 
 		const std::initializer_list<void*> all{drain,
 											   plunger,
@@ -1803,7 +2093,23 @@ namespace
 											   tabc24wave,
 											   tabc35wave,
 											   tabc41wave,
-											   tabc55wave};
+											   tabc55wave,
+											   a_kout1,
+											   a_spot8,
+											   a_spot10,
+											   a_spot12,
+											   a_spot14,
+											   v_lite11,
+											   v_lite12,
+											   v_lite13,
+											   v_lite14,
+											   v_lite55,
+											   v_lite56,
+											   tabc08wave,
+											   tabc27wave,
+											   tabc40wave,
+											   tabc42wave,
+											   tabc53wave};
 		const bool listsFound = std::ranges::none_of(diverters, [](auto c) { return !c; }) &&
 								std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
 								std::ranges::none_of(lizard_lights, [](auto c) { return !c; });
@@ -1832,6 +2138,14 @@ namespace
 				component->Control = &HoleLink;
 			else if (component == a_sink4)
 				component->Control = &WellLink;
+			else if (component == a_spot10 || component == a_spot14)
+				component->Control = &GargoyleTargetLink;
+			else if (component == a_spot8 || component == a_spot12)
+				component->Control = &PassTargetLink;
+			else if (component == a_kout1)
+				component->Control = &ArmorKickoutLink;
+			else if (component == a_kout2)
+				component->Control = &GargoyleKickoutLink;
 			else if (component == a_center_post)
 				component->Control = &CenterPostLink;
 			else if (component == a_bloce)

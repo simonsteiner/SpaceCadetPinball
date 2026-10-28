@@ -7597,5 +7597,23 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "One Million" },
 		}
+	},
+	{
+		Msg::Dragon_DragonPass,
+		{
+			{ Lang::English, "Dragon Pass\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_PutBallInKickouts,
+		{
+			{ Lang::English, "Put ball in Armor and Gargoyle Kickouts" },
+		}
+	},
+	{
+		Msg::Dragon_PassClear,
+		{
+			{ Lang::English, "Pass Clear" },
+		}
 	}
 };

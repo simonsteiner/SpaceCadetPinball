@@ -456,6 +456,9 @@ enum class Msg : int
 	Dragon_MaxArmor,
 	Dragon_MaxWeapons,
 	Dragon_OneMillion,
+	Dragon_DragonPass,
+	Dragon_PutBallInKickouts,
+	Dragon_PassClear,
 
 	Max,
 };
