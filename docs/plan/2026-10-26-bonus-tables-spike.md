@@ -171,15 +171,23 @@ A ball resting on the plunger doesn't stay in contact. It bounces off and gravit
 
 The originals run their loop as fast as the machine allows, so their steps are short and the ball touches more often than every 25 ms. Our port updates 120 times per second by default, where the touches come every 33 ms and about a quarter of the presses fall between two of them. At 60 updates per second it's worse: `pb::timed_frame` moves a slow ball by at most 10 ms per update, so the touches stretch to 68 ms of real time while the timer still counts real time. The rates in between scatter (240 and 360 missed more than 120) because the touch interval and the 25 ms window beat against each other; only steps short enough to touch every 20 ms or so make the window reliable. Under Xvfb the 360 run also shared the machine with two others.
 
-So our port misses launches that the originals don't, on 3D Pinball's data and Full Tilt's alike. This is the "launch can miss" of #85 and the missed 1.5 s press in [the Wine reference](../wine-reference.md).
+So our port missed launches that the originals don't, on 3D Pinball's data and Full Tilt's alike, until the fix below. This is the "launch can miss" of #85 and the missed 1.5 s press in [the Wine reference](../wine-reference.md).
 
-### Proposed fixes (not made; gameplay, so the owner decides)
+### Fix (decided 2026-10-28)
 
-Any fix changes when the ball launches, so the reference replays that contain a missed launch would have to be recorded again.
+Three fixes were proposed: keep the push until the ball touches, shorter physics steps (`timed_frame` in sub-steps of about 1 ms, which would change every collision's timing and every replay), or a longer window (40 ms, which covers 120 updates per second but not 60). The owner chose the first.
 
-1. **Keep the push until the ball touches** (recommended). After a release, `ReleasedTimer` takes the push back only once the ball has touched the plunger, or after a limit such as 100 ms if it doesn't (the plunger released with no ball on it). A ball resting on the plunger then always launches, as in the originals; a ball arriving later than that still doesn't. It changes only `TPlunger`.
-2. **Shorter physics steps.** `pb::frame` runs `timed_frame` in sub-steps of about 1 ms, which is closer to how the originals ran. It changes every collision's timing, not just the plunger's, so every replay would differ, and it costs CPU.
-3. **A longer window**, for example 40 ms. It covers the 33 ms interval at 120 updates per second, but not 60.
+A release still takes the push back after `PullbackDelay` if the ball touched the plunger in that time, as in the originals. If it didn't, `ReleasedTimer` keeps the push until the ball's next touch, which ends it, or until 0.1 s after the release (`ReleasePushLimit`) if no ball touches, as when the plunger is released with no ball on it. A new pull or release, a reset, a player change and 3D Pinball's Launch Ball command each end a push that is still waiting. Only `TPlunger` changed; the timers the originals set run as before.
+
+| Run, our port in Classic, 40 presses each | Missed before | Missed after |
+| --- | --- | --- |
+| `PINBALL.DAT`, 120 updates per second (the default) | 9 | 0 |
+| `PINBALL.DAT`, 60 updates per second | 72% (with the temporary log) | 1 |
+| `CADET.DAT`, 120 updates per second | 11, and 7 in a second run | 0, and 0 in a second run |
+
+The one press missed at 60 updates per second came during a Re-Deploy, the ball save's own launch, and its screenshot doesn't show whether the ball was resting on the plunger; at that rate a slow ball's touches can still be more than 0.1 s apart. The test now also tells a miss from a game that has ended, where the high-score dialog dims the table but the ball box still reads as a ball: it presses once more, and only a ball that launches then counts the first press as a miss.
+
+The reference replays that held a release whose ball touched only after 25 ms play differently from that frame on and were recorded again: in `../replays`, `definitive-title-demo`, `game-flippers`, `launch-then-focus-loss` and `pull-focus-loss-release`; in `../replays/fulltilt`, `ft-launch-then-focus-loss`, `ft-pull-focus-loss-release`, `ft-pull-repress-after-full` and `ft-pull-repress-mid`; and in `../replays/dragon`, `dragon-flipping`. Each of them first differs 33 to 40 ms after a release of the plunger key or a focus loss, where the ball used to stay on the plunger and now launches. The other eleven replays play as before.
 
 ## Known differences between Pinball.exe and CADET.EXE (2026-10-28)
 
