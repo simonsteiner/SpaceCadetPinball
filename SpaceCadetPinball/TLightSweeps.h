@@ -12,7 +12,8 @@ class TTableLayer;
 class TLightSweeps : public TPinballComponent
 {
 public:
-	static constexpr int Columns = 15, Rows = 25;
+	static constexpr int Columns = 15;
+	static constexpr int Rows = 25;
 
 	TLightSweeps(TPinballTable* table, const TTableLayer& tableLayer, TLightGroup& lights, int groupIndex);
 	int Message(MessageCode code, float value) override;
@@ -24,14 +25,21 @@ public:
 	void LightCell(int column, int row);
 	void KillTimer();
 
-	float XMin, YMin, ColumnsPerUnit, RowsPerUnit;
-	std::vector<TLight*> Cells[Columns * Rows];
-	float FrameTime = 0, LightTime = 0;
-	int CenterColumn = 0, CenterRow = 0;
+	float XMin;
+	float YMin;
+	float ColumnsPerUnit;
+	float RowsPerUnit;
+	std::array<std::vector<TLight*>, Columns * Rows> Cells;
+	float FrameTime = 0;
+	float LightTime = 0;
+	int CenterColumn = 0;
+	int CenterRow = 0;
 	bool Outward = false;
-	int RepeatCount = 0, Radius = 0, MaxRadius = 0;
+	int RepeatCount = 0;
+	int Radius = 0;
+	int MaxRadius = 0;
 	int Timer = 0;
-	int PlayerMessageFields[4]{};
+	std::array<int, 4> PlayerMessageFields{};
 
 	static void StepTimer(int timerId, void* caller);
 };

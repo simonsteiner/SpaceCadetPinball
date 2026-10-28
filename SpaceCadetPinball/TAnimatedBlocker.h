@@ -17,7 +17,7 @@ public:
 	void SetState(int state);
 	void KillTimers();
 
-	char StateActive[MaxStates]{};
+	std::array<char, MaxStates> StateActive{};
 	int State = -1;
 	int InitialState;
 	int TimeoutTimer = 0;
@@ -27,8 +27,9 @@ public:
 	int DeferredTimer = 0;
 	MessageCode DeferredCode{};
 	float DeferredValue = 0;
-	int OnSoundIndex, OffSoundIndex;
-	int PlayerMessageFields[4]{};
+	int OnSoundIndex;
+	int OffSoundIndex;
+	std::array<int, 4> PlayerMessageFields{};
 
 	static void TimeoutExpired(int timerId, void* caller);
 	static void AnimationStep(int timerId, void* caller);

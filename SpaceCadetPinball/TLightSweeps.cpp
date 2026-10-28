@@ -10,12 +10,10 @@
 #include "TTableLayer.h"
 
 TLightSweeps::TLightSweeps(TPinballTable* table, const TTableLayer& tableLayer, TLightGroup& lights, int groupIndex) :
-	TPinballComponent(table, groupIndex, false)
+	TPinballComponent(table, groupIndex, false), XMin(tableLayer.XMin), YMin(tableLayer.YMin),
+	ColumnsPerUnit(static_cast<float>(1.0 / ((tableLayer.XMax - tableLayer.XMin) / Columns))),
+	RowsPerUnit(static_cast<float>(1.0 / ((tableLayer.YMax - tableLayer.YMin) / Rows)))
 {
-	XMin = tableLayer.XMin;
-	YMin = tableLayer.YMin;
-	ColumnsPerUnit = static_cast<float>(1.0 / ((tableLayer.XMax - tableLayer.XMin) / Columns));
-	RowsPerUnit = static_cast<float>(1.0 / ((tableLayer.YMax - tableLayer.YMin) / Rows));
 
 	for (auto index = static_cast<int>(lights.List.size()) - 1; index >= 0; index--)
 	{
@@ -54,8 +52,10 @@ int TLightSweeps::Message(MessageCode code, float value)
 			RepeatCount = static_cast<int>(loader::query_float_attribute(GroupIndex, sweep, 1603, 1.0f));
 
 			// The ring has to reach the grid's farthest corner from the center
-			auto left = CenterColumn, top = CenterRow;
-			auto right = Columns - CenterColumn - 1, bottom = Rows - CenterRow - 1;
+			auto left = CenterColumn;
+			auto top = CenterRow;
+			auto right = Columns - CenterColumn - 1;
+			auto bottom = Rows - CenterRow - 1;
 			auto farthest = std::max({left * left + top * top, right * right + bottom * bottom,
 									  right * right + top * top, left * left + bottom * bottom});
 			MaxRadius = static_cast<int>(sqrt(static_cast<double>(farthest)));
@@ -70,7 +70,7 @@ int TLightSweeps::Message(MessageCode code, float value)
 		break;
 	case MessageCode::Reset:
 		MessageField = 0;
-		std::fill(std::begin(PlayerMessageFields), std::end(PlayerMessageFields), 0);
+		std::ranges::fill(PlayerMessageFields, 0);
 		KillTimer();
 		break;
 	case MessageCode::SetTiltLock:
@@ -101,7 +101,9 @@ void TLightSweeps::Step()
 void TLightSweeps::LightRing(int column, int row, int radius)
 {
 	// The midpoint circle algorithm, eight cells at a time
-	int x = 0, error = radius * radius, limit = (radius - 1) * radius;
+	int x = 0;
+	int error = radius * radius;
+	int limit = (radius - 1) * radius;
 	do
 	{
 		LightCell(column + x, row - radius);
@@ -139,7 +141,7 @@ void TLightSweeps::KillTimer()
 	Timer = 0;
 }
 
-void TLightSweeps::StepTimer(int timerId, void* caller)
+void TLightSweeps::StepTimer(int, void* caller)
 {
 	auto sweeps = static_cast<TLightSweeps*>(caller);
 	sweeps->Timer = 0;

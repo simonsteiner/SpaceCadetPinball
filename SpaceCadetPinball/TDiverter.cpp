@@ -8,6 +8,8 @@
 #include "TLine.h"
 #include "TPinballTable.h"
 
+#include <utility>
+
 TDiverter::TDiverter(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, false)
 {
 	visualStruct visual{};
@@ -28,7 +30,8 @@ TDiverter::TDiverter(TPinballTable* table, int groupIndex) : TCollisionComponent
 void TDiverter::AddLine(const float* points, int collisionGroup)
 {
 	// Each line is two, one for each side
-	vector2 start{points[0], points[1]}, end{points[2], points[3]};
+	vector2 start{points[0], points[1]};
+	vector2 end{points[2], points[3]};
 
 	auto line = new TLine(this, &ActiveFlag, collisionGroup, start, end);
 	line->Offset(PinballTable->CollisionCompOffset);
@@ -43,19 +46,19 @@ void TDiverter::AddLine(const float* points, int collisionGroup)
 
 int TDiverter::Message(MessageCode code, float value)
 {
-	switch (static_cast<int>(code))
+	switch (std::to_underlying(code))
 	{
-	case static_cast<int>(MessageCode::TDiverterEnable):
+	case std::to_underlying(MessageCode::TDiverterEnable):
 	case 63:
 	case 75:
 		SetEnabled(true);
 		break;
-	case static_cast<int>(MessageCode::TDiverterDisable):
+	case std::to_underlying(MessageCode::TDiverterDisable):
 	case 62:
 	case 76:
 		SetEnabled(false);
 		break;
-	case static_cast<int>(MessageCode::PlayerChanged):
+	case std::to_underlying(MessageCode::PlayerChanged):
 		{
 			PlayerMessageFields[PinballTable->CurrentPlayer] = MessageField;
 			MessageField = PlayerMessageFields[static_cast<int>(value)];
@@ -63,10 +66,10 @@ int TDiverter::Message(MessageCode code, float value)
 			SetEnabled(PlayerActiveFlags[static_cast<int>(value)] != 0);
 			break;
 		}
-	case static_cast<int>(MessageCode::Reset):
+	case std::to_underlying(MessageCode::Reset):
 		MessageField = 0;
-		std::fill(std::begin(PlayerMessageFields), std::end(PlayerMessageFields), 0);
-		std::fill(std::begin(PlayerActiveFlags), std::end(PlayerActiveFlags), 0);
+		std::ranges::fill(PlayerMessageFields, 0);
+		std::ranges::fill(PlayerActiveFlags, 0);
 		SetEnabled(false);
 		break;
 	default:
@@ -100,7 +103,7 @@ void TDiverter::Collision(TBall* ball, vector2* nextPosition, vector2* direction
 	}
 }
 
-void TDiverter::FlashEnd(int timerId, void* caller)
+void TDiverter::FlashEnd(int, void* caller)
 {
 	auto diverter = static_cast<TDiverter*>(caller);
 	diverter->SpriteSet(diverter->ActiveFlag ? 0 : -1);
