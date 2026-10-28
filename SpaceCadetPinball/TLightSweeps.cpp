@@ -40,6 +40,9 @@ int TLightSweeps::Message(MessageCode code, float value)
 	{
 	case MessageCode::TLightSweepsStart:
 		{
+			// TODO: a start during a running sweep leaves its timer running, so the sweep steps
+			// twice as fast. When a rule first sends this, check the exe's type 1038 start case
+			// and add KillTimer() here, or note that the double speed is faithful.
 			if (GroupIndex <= 0)
 				break;
 			auto sweep = static_cast<int>(value);
