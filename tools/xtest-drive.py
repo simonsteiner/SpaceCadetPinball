@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Sends keys to a window through XTest and takes screenshots of it, for comparing runs step by step.
 # Usage: uv run --with python-xlib --with pillow python3 -I tools/xtest-drive.py DISPLAY TITLE OUTDIR [--move] STEP...
 # TITLE is part of the window's title or class. --move puts the window at 0,0 first (Xvfb has no window manager).
