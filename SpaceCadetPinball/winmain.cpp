@@ -225,6 +225,12 @@ struct TableChoice
 static std::vector<TableChoice> TableChoices;
 // Classic's Select Table dialog opens on the next frame
 static bool OpenTableDialog = false;
+#ifdef __EMSCRIPTEN__
+// A browser opens a tab for Ctrl+T, so the game never sees it there
+constexpr const char* SelectTableShortcut = nullptr;
+#else
+constexpr const char* SelectTableShortcut = "Ctrl+T";
+#endif
 
 static void LoadTableChoices()
 {
@@ -1190,14 +1196,8 @@ void winmain::RenderUi()
 			ImGuiMenuItemWShortcut(GameBindings::ToggleMenuDisplay, Options.ShowMenu);
 			ImGuiMenuItemWShortcut(GameBindings::ToggleFullScreen, Options.FullScreen);
 			// Where Full Tilt! has it, with its shortcut, once there is a choice
-#ifdef __EMSCRIPTEN__
-			// A browser opens a tab for Ctrl+T, so the game never sees it there
-			constexpr const char* selectTableShortcut = nullptr;
-#else
-			constexpr const char* selectTableShortcut = "Ctrl+T";
-#endif
 			if (TableChoices.size() > 1 &&
-				ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_Select_Table), selectTableShortcut))
+				ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_Select_Table), SelectTableShortcut))
 				ShowTableDialog();
 			if (ImGui::BeginMenu(pb::get_rc_string(Msg::Menu1_Select_Players)))
 			{
