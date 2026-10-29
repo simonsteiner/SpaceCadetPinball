@@ -79,17 +79,18 @@ int THole::Message(MessageCode code, float value)
 
 void THole::BonusTableMessage(MessageCode code, float value)
 {
+	using enum MessageCode;
 	KeepMessageFieldPerPlayer(code, value);
 	switch (code)
 	{
-	case MessageCode::THoleRelease:
+	case THoleRelease:
 		ReleaseAfter(value);
 		break;
-	case MessageCode::SetTiltLock:
+	case SetTiltLock:
 		ReleaseAfter(-1.0f);
 		break;
-	case MessageCode::PlayerChanged:
-	case MessageCode::Reset:
+	case PlayerChanged:
+	case Reset:
 		if (RetryTimer)
 			timer::kill(RetryTimer);
 		RetryTimer = 0;
