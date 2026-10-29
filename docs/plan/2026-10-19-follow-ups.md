@@ -1,6 +1,6 @@
 # Follow-ups after the modernization stack
 
-Date: 2026-10-19. Status: open; items 1, 5 to 8 and 10 to 15 are done (#34 to #46), and item 16 and the checks on the player's machine are left. The modernization stack (#8, #10 to #22) and its review fixes are merged into `main`; [the modernization plan](2026-10-18-modernization.md) records what was done. This plan collects what the reviews left open: items that need hardware, a decision or an outside party, and small gaps found while fixing.
+Date: 2026-10-19. Status: open; items 1, 5 to 8 and 10 to 15 are done (#34 to #46), item 16 moved to the [Space Cadet 2026 plan](2026-10-20-space-cadet-2026.md#side-work) (2026-10-29), and the checks on the player's machine are left. The modernization stack (#8, #10 to #22) and its review fixes are merged into `main`; [the modernization plan](2026-10-18-modernization.md) records what was done. This plan collects what the reviews left open: items that need hardware, a decision or an outside party, and small gaps found while fixing.
 
 Each item keeps the replays matching. One that would change gameplay stops and asks first (`AGENTS.md`).
 
@@ -42,7 +42,7 @@ Running `CADET.EXE`'s table (`gamedata-fulltilt/`) to check #27 and #33 showed t
 
 ## Found while doing the follow-ups
 
-16. **More `TPlunger` differences found while doing item 11.** Not changed yet; each changes gameplay:
+16. **More `TPlunger` differences found while doing item 11.** Not changed yet; each changes gameplay. Moved to the side work of the [Space Cadet 2026 plan](2026-10-20-space-cadet-2026.md#side-work) (2026-10-29):
     - `CADET.EXE`'s release timer is 0.2 s (`0x418aa6`); the port uses the 25 ms `PullbackDelay` in both modes.
     - `Pinball.exe` ignores PlayerChanged and SetTiltLock; the port handles both in 3D Pinball mode too, and SetTiltLock kills the ball feed timer.
     - `Pinball.exe` calls `control::handler` only for ball feed and its timer; the port calls it for every message, which looks harmless.
