@@ -13,8 +13,9 @@ namespace
 {
 	using Stat = DefinitiveStats::Stat;
 
-	constexpr const char* StatKeys[] = {"Games",      "Missions",   "Best Rank", "Balls Saved",  "Extra Balls",
-										"Multiballs", "Best Score", "Quests",    "Dragons Slain"};
+	constexpr auto StatKeys =
+		std::to_array<const char*>({"Games", "Missions", "Best Rank", "Balls Saved", "Extra Balls", "Multiballs",
+									"Best Score", "Quests", "Dragons Slain"});
 	static_assert(std::size(StatKeys) == static_cast<size_t>(Stat::Count));
 
 	// The order is the list's on screen; keys are saved, so they stay as they are
@@ -254,16 +255,16 @@ void DefinitiveStats::UpdateDragon(const TableView& view, int player, bool sameP
 	if (dragon.QuestsDone > before.QuestsDone && samePlayer)
 	{
 		Add(Key("Quests"), 1);
-		auto quest = before.State == TableView::DragonsKeep::RestartQuestState ? before.RestartQuest : before.State;
-		if (quest >= TableView::DragonsKeep::FirstQuestState && quest <= TableView::DragonsKeep::LastQuestState)
+		using Dragon = TableView::DragonsKeep;
+		if (auto quest = before.State == Dragon::RestartQuestState ? before.RestartQuest : before.State;
+			quest >= Dragon::FirstQuestState && quest <= Dragon::LastQuestState)
 			Add(QuestKey(quest), 1);
 		Current.Quests[player]++;
 		Unlock("First Quest");
 		if (Current.Quests[player] >= 5)
 			Unlock("Five Quests");
 		auto every = true;
-		for (auto each = TableView::DragonsKeep::FirstQuestState; each <= TableView::DragonsKeep::LastQuestState;
-			 each++)
+		for (auto each = Dragon::FirstQuestState; each <= Dragon::LastQuestState; each++)
 			every &= QuestsDone(each) > 0;
 		if (every)
 			Unlock("Every Quest");
