@@ -171,6 +171,8 @@ SonarCloud analyses the fork's pull requests automatically, with `.sonarcloud.pr
 | `cpp:S5025`, `new` without a smart pointer | `**/*` | Components register themselves in the table's `ComponentList`, which owns them |
 | `cpp:S5008`, `void*` parameters | `**/*` | The timer callbacks take the caller as `void*`, as the timer API requires |
 
+`.sonarcloud.properties` also sets `sonar.python.version` to the Python of CI's Debian image (3.14 in `debian:forky-slim`), and leaves the tracked binary files out by suffix (`*.png`, `*.ico`, `*.icns`, `*.jpg`, `*.bmp`, `*.ttf`, `*.xlsx`). A pull request's analysis reads every tracked file as UTF-8 text, binaries too, and then warns "There are problems with file encoding in the source code"; branch analyses don't. Automatic analysis keeps no scanner log, so this was found by excluding parts of the tree in a draft pull request (#115, closed): leaving out all of these suffixes clears the warning, leaving out any one of them, even all but `*.png`, doesn't. `loader.cpp`'s UTF-8 byte order mark from upstream isn't the cause and stays. A new binary file type needs its suffix added there, or the warning comes back. The analysis's warnings are in `api/ce/task?id=<task>&additionalFields=warnings`, with the task ids from `api/ce/activity`.
+
 ## Editions
 
 The game has two editions: **Space Cadet 2026**, the definitive edition, and **Classic**, the game as it was. Both play the same table with the same physics and rules. Space Cadet 2026 is the default, also for settings saved by an earlier version, and the first start shows a hint that names the key for switching. Tab switches at any time, also during a game, and so does **Options → Space Cadet 2026**; the key can be changed in Player Controls. The choice is saved.
