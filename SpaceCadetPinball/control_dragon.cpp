@@ -395,7 +395,13 @@ namespace
 		for (auto light : {v_lite48, v_lite49, v_lite50})
 			light->Message(OverrideReset, 0.0f);
 		// DRAGON.EXE reads the lights' flashing flag (field 0x46)
-		int open = v_lite48->FlasherOnFlag ? 0 : v_lite49->FlasherOnFlag ? 1 : v_lite50->FlasherOnFlag ? 2 : -1;
+		int open = -1;
+		if (v_lite48->FlasherOnFlag)
+			open = 0;
+		else if (v_lite49->FlasherOnFlag)
+			open = 1;
+		else if (v_lite50->FlasherOnFlag)
+			open = 2;
 		a_sink18->ActiveFlag = open == 0;
 		a_sink17->ActiveFlag = open == 1;
 		v_lite48->MessageField = open == 0;
@@ -724,18 +730,19 @@ namespace
 	// 0x424050: the dragon's mouth closes; with <keepOverride>, its lights' override ends
 	void SlayDragonReset(bool keepOverride)
 	{
+		using enum MessageCode;
 		SlayDragonFlag = false;
 		auto code = keepOverride ? OverrideReset : OverrideOff;
 		v_lite119->Message(code, 0.0f);
 		dragon_mouth_light_group->Message(code, 0.0f);
 		dragon_fire_light_group->Message(code, 0.0f);
-		dragon_mouth_light_group->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
-		dragon_fire_light_group->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
-		dragon_fire_light_group->Message(MessageCode::TLightGroupRestartNotifyTimer, -1.0f);
+		dragon_mouth_light_group->Message(TLightResetAndTurnOff, 0.0f);
+		dragon_fire_light_group->Message(TLightResetAndTurnOff, 0.0f);
+		dragon_fire_light_group->Message(TLightGroupRestartNotifyTimer, -1.0f);
 		for (auto component :
 			 std::initializer_list<TPinballComponent*>{v_lite113, v_lite114, v_lite115, s_bwal170, a_ramp107})
 			component->ActiveFlag = 0;
-		a_jaw->Message(MessageCode::TAnimatedBlockerAnimateTo, 0.0f);
+		a_jaw->Message(TAnimatedBlockerAnimateTo, 0.0f);
 	}
 
 	// a_center_post (0x425910) and a_bloce (0x425a10): up for InitialDuration with <light> on, then
@@ -821,11 +828,12 @@ namespace
 	// 0x423780: the serve's and the tilt's resets
 	void TiltResets()
 	{
+		using enum MessageCode;
 		for (auto light : {v_lite28, v_lite29, v_lite30})
-			light->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
-		a_kout3->Message(MessageCode::Reset, 0.0f);
-		v_lite31->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
-		BlocfControl(MessageCode::TAnimatedBlockerAnimateOn, a_blocf);
+			light->Message(TLightResetAndTurnOff, 0.0f);
+		a_kout3->Message(Reset, 0.0f);
+		v_lite31->Message(TLightResetAndTurnOff, 0.0f);
+		BlocfControl(TAnimatedBlockerAnimateOn, a_blocf);
 	}
 
 	void ShowBonus(Msg text, int score)
@@ -933,7 +941,7 @@ namespace
 
 	// State 3, 0x428870: the quest's time ran out; a fire lizard sink within 10 s takes it up again (QuestResume),
 	// else it ends. mode_timer's message field keeps the quest's state
-	void RestartQuestStateControl(MessageCode code, TPinballComponent* caller)
+	void RestartQuestStateControl(MessageCode code, const TPinballComponent* caller)
 	{
 		using enum MessageCode;
 		switch (code)
@@ -968,7 +976,7 @@ namespace
 	}
 
 	// State 5, 0x4291c0: Fire Lizards. Each fire lizard sink slays a lizard (FireLizardSlain) until the time runs out
-	void FireLizardsStateControl(MessageCode code, TPinballComponent* caller)
+	void FireLizardsStateControl(MessageCode code, const TPinballComponent* caller)
 	{
 		using enum MessageCode;
 		switch (code)
@@ -1152,7 +1160,7 @@ namespace
 
 	// State 6, 0x429510: Rescue Maiden. The prison tripwires light the tower's windows; with all four lit, the ball
 	// in the prison tower (a_sink18) rescues the maiden. A highlight runs round the windows every 0.2 s
-	void RescueMaidenStateControl(MessageCode code, TPinballComponent* caller)
+	void RescueMaidenStateControl(MessageCode code, const TPinballComponent* caller)
 	{
 		using enum MessageCode;
 		auto windows = prison_window_light_group;
@@ -1201,7 +1209,12 @@ namespace
 			windows->Message(TLightGroupRestartNotifyTimer, -1.0f);
 			break;
 		case EnterState:
-			MaidenLockLight = v_lite48->FlasherOnFlag ? 2 : v_lite48->LightOnFlag || v_lite48->ToggledOnFlag ? 1 : 0;
+			if (v_lite48->FlasherOnFlag)
+				MaidenLockLight = 2;
+			else if (v_lite48->LightOnFlag || v_lite48->ToggledOnFlag)
+				MaidenLockLight = 1;
+			else
+				MaidenLockLight = 0;
 			light_sweeps->Message(TLightSweepsStart, 2.0f);
 			v_lite47->Message(TLightResetAndTurnOn, 0.0f);
 			diverters[0]->Message(TDiverterDisable, 0.0f);
@@ -1283,7 +1296,7 @@ namespace
 	// State 12, 0x42ac80: the shop. The ball waits in s_hole118 while the dragon eggs buy what their number offers,
 	// or the best that is still of use: 1 to 3 the picked quest, 4 a spell, 5 a weapon, 6 armor, 7 the extra ball
 	// light, 8 an extra ball. The left flipper (a_flip1) buys it and spends that many eggs; any other declines
-	void ShopStateControl(MessageCode code, TPinballComponent* caller)
+	void ShopStateControl(MessageCode code, const TPinballComponent* caller)
 	{
 		using enum MessageCode;
 		auto eggs = dragon_egg_light_group;
@@ -1344,7 +1357,7 @@ namespace
 			info_text_box->Clear();
 			ShopItem = eggs->Message(TLightGroupGetOnCount, 0.0f);
 			auto allLit = [](std::initializer_list<TLight*> lights)
-			{ return std::ranges::all_of(lights, [](TLight* light) { return light->light_on(); }); };
+			{ return std::ranges::all_of(lights, [](const TLight* light) { return light->light_on(); }); };
 			// Each item that is of no use any more gives way to the one below it
 			if (ShopItem == 8 && Table->ExtraBalls)
 				ShopItem = 7;
@@ -1385,8 +1398,7 @@ namespace
 			{
 				static constexpr std::array quests{Dragon_BuyDragonHoard, Dragon_BuyFireLizards, Dragon_BuyRescueMaiden,
 												   Dragon_BuyDragonPass, Dragon_BuyWizardsFury};
-				auto state = a_kout2->MessageField;
-				if (state >= DragonHoardState && state <= WizardsFuryState)
+				if (auto state = a_kout2->MessageField; state >= DragonHoardState && state <= WizardsFuryState)
 					text = quests[state - DragonHoardState];
 				break;
 			}
@@ -1437,7 +1449,7 @@ namespace
 			for (auto group : windows)
 				group->Message(TLightFlasherStartTimed, -1.0f);
 			Table->MultiballCount += 3;
-			for (auto [sink, light, time] :
+			for (const auto& [sink, light, time] :
 				 {std::tuple{a_sink18, v_lite48, 1.0f}, {a_sink17, v_lite49, 2.0f}, {a_sink16, v_lite50, 3.0f}})
 			{
 				sink->Message(TSinkResetTimer, time);
@@ -1563,7 +1575,7 @@ namespace
 
 	// State 7, 0x429b10: Dragon Pass. The gargoyle kickout (a_kout2) lays a dragon egg, the armor kickout (a_kout1)
 	// awards the jackpot, and a_spot8 and a_spot12 grow it, until the time runs out
-	void DragonPassStateControl(MessageCode code, TPinballComponent* caller)
+	void DragonPassStateControl(MessageCode code, const TPinballComponent* caller)
 	{
 		using enum MessageCode;
 		switch (code)
@@ -1638,7 +1650,7 @@ namespace
 	}
 
 	// State 8, 0x429ec0: Wizard's Fury. The well (a_sink4) gives the mystery award each time until the time runs out
-	void WizardsFuryStateControl(MessageCode code, TPinballComponent* caller)
+	void WizardsFuryStateControl(MessageCode code, const TPinballComponent* caller)
 	{
 		using enum MessageCode;
 		switch (code)
@@ -1698,6 +1710,7 @@ namespace
 	// starts the picked quest; in Fire Lizards each slays a lizard for 100,000 per lizard, and every third the jackpot
 	void FireLizardSlain(TSink* sink)
 	{
+		using enum MessageCode;
 		auto other = sink == a_sink1 ? a_sink2 : a_sink1;
 		auto otherLight = sink == a_sink1 ? v_lite65 : v_lite66;
 		auto state = GameState();
@@ -1706,24 +1719,24 @@ namespace
 			if (++v_lite63->MessageField < 2)
 			{
 				tabc16wave->Play(nullptr, "FireLizardSlain");
-				other->Message(MessageCode::TSinkResetTimer, -1.0f);
+				other->Message(TSinkResetTimer, -1.0f);
 				return;
 			}
 			v_lite63->MessageField = 0;
-			lizard_lights[0]->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f); // v_lite22
+			lizard_lights[0]->Message(TLightFlasherStartTimedThenStayOn, 1.0f); // v_lite22
 			BallHeld = true;
 			if (DragonFlurryReady())
 				return;
 			BallHeld = false;
 			if (StartQuest())
 				return;
-			a_sink1->Message(MessageCode::TSinkResetTimer, -1.0f);
+			a_sink1->Message(TSinkResetTimer, -1.0f);
 			return;
 		}
 
 		tabc16wave->Play(nullptr, "FireLizardSlain");
-		other->Message(MessageCode::TSinkResetTimer, -1.0f);
-		otherLight->Message(MessageCode::TLightFlasherStartTimed, 1.0f);
+		other->Message(TSinkResetTimer, -1.0f);
+		otherLight->Message(TLightFlasherStartTimed, 1.0f);
 		if (state != FireLizardsState)
 			return;
 
@@ -1733,13 +1746,13 @@ namespace
 		if (slain < 0 || slain > 2)
 		{
 			AwardJackpot();
-			v_lite91->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
+			v_lite91->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
 			slain = 0;
 		}
 		else
 		{
 			if (slain == 2)
-				v_lite91->Message(MessageCode::TLightFlasherStartTimed, -1.0f);
+				v_lite91->Message(TLightFlasherStartTimed, -1.0f);
 			slain++;
 			auto score = AddScore(sink, v_lite91->MessageField * 100000);
 			std::array<char, 64> buffer{};
@@ -2012,18 +2025,15 @@ namespace
 			return;
 		if (caller == drain && code == MessageCode::ControlCollision && !Table->MultiballCount)
 			BallDrainedFlag = true;
-		if (caller)
+		// The spot targets' second jackpot while a quest is lit (v_lite28) comes with the quests
+		if (dynamic_cast<TSoloTarget*>(caller))
 		{
-			// The spot targets' second jackpot while a quest is lit (v_lite28) comes with the quests
-			if (dynamic_cast<TSoloTarget*>(caller))
-			{
-				TargetHits++;
-				AddJackpot(50000);
-			}
-			else if (caller == a_sink4 || caller == a_sink1)
-			{
-				AddJackpot(75000);
-			}
+			TargetHits++;
+			AddJackpot(50000);
+		}
+		else if (caller == a_sink4 || caller == a_sink1)
+		{
+			AddJackpot(75000);
 		}
 		if (code == MessageCode::Resume ||
 			(code == MessageCode::ControlTimerExpired && caller == info_text_box && !info_text_box->CurrentMessage))
@@ -2139,7 +2149,7 @@ namespace
 	{
 		using enum MessageCode;
 		auto lights = {v_lite14, v_lite13, v_lite12, v_lite11};
-		if (!std::ranges::all_of(lights, [](TLight* light) { return light->light_on(); }))
+		if (!std::ranges::all_of(lights, [](const TLight* light) { return light->light_on(); }))
 		{
 			if (GameState() != 4)
 			{
@@ -2273,8 +2283,18 @@ namespace
 			return;
 		bool prison = caller == s_trip5 || caller == s_trip6;
 		bool watch = caller == s_trip3 || caller == s_trip4;
-		auto windows = prison ? prison_window_light_group : watch ? watch_window_light_group : gate_window_light_group;
-		auto lockLight = prison ? v_lite48 : watch ? v_lite49 : v_lite50;
+		auto windows = gate_window_light_group;
+		auto lockLight = v_lite50;
+		if (prison)
+		{
+			windows = prison_window_light_group;
+			lockLight = v_lite48;
+		}
+		else if (watch)
+		{
+			windows = watch_window_light_group;
+			lockLight = v_lite49;
+		}
 		auto showScore = [](int score)
 		{
 			std::array<char, 64> buffer{};
@@ -2479,14 +2499,15 @@ namespace
 	// a_bump1 to a_bump4, 0x424bc0: every tenth bumper raises a weapon; a_bump1's message field counts them
 	void BumperControl(MessageCode code, TPinballComponent* caller)
 	{
-		if (code != MessageCode::ControlCollision)
+		using enum MessageCode;
+		if (code != ControlCollision)
 			return;
 		if (GameState() != DragonHoardState)
 			tabc03wave->Play(nullptr, "BumperControl");
 		if (caller == a_bump3)
-			v_lite65->Message(MessageCode::TLightFlasherStartTimed, 0.5f);
+			v_lite65->Message(TLightFlasherStartTimed, 0.5f);
 		else if (caller == a_bump4)
-			v_lite66->Message(MessageCode::TLightFlasherStartTimed, 0.5f);
+			v_lite66->Message(TLightFlasherStartTimed, 0.5f);
 		if (GameState() != DragonHoardState)
 			ScoreBy(caller, 0);
 		if (++a_bump1->MessageField == 10)
@@ -2510,7 +2531,7 @@ namespace
 	void MysteryLights(TPinballComponent* target)
 	{
 		auto lights = {v_lite3, v_lite4, v_lite5, v_lite6, v_lite7};
-		if (!std::ranges::all_of(lights, [](TLight* light) { return light->light_on(); }))
+		if (!std::ranges::all_of(lights, [](const TLight* light) { return light->light_on(); }))
 		{
 			if (GameState() != DragonHoardState)
 			{
@@ -2584,12 +2605,14 @@ namespace
 		using enum MessageCode;
 		if (code != ControlCollision)
 			return;
-		(caller == a_spot3   ? v_lite8
-		 : caller == a_spot2 ? v_lite9
-							 : v_lite10)
-			->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+		TLight* hit = v_lite10;
+		if (caller == a_spot3)
+			hit = v_lite8;
+		else if (caller == a_spot2)
+			hit = v_lite9;
+		hit->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
 		auto lights = {v_lite8, v_lite9, v_lite10};
-		if (!std::ranges::all_of(lights, [](TLight* light) { return light->light_on(); }))
+		if (!std::ranges::all_of(lights, [](const TLight* light) { return light->light_on(); }))
 		{
 			if (GameState() != DragonHoardState)
 			{
@@ -2648,8 +2671,7 @@ namespace
 	{
 		if (code != MessageCode::ControlCollision || GameState() != PlayState)
 			return;
-		auto light = caller == a_spot19 ? v_lite16 : v_lite17;
-		if (!light->FlasherOnFlag)
+		if (auto light = caller == a_spot19 ? v_lite16 : v_lite17; !light->FlasherOnFlag)
 			return;
 		ShowPicture("!", 2.0f);
 		SetLevelLights(caller == a_spot19 ? 2 : 1);
@@ -2702,16 +2724,17 @@ namespace
 	}
 
 	// s_rexit19 (0x426be0) and s_rexit18 (0x426c20): out of the ramp, dragon eggs, and in play the diverters swing
-	void RampExitControl(MessageCode code, TPinballComponent* caller)
+	void RampExitControl(MessageCode code, const TPinballComponent* caller)
 	{
-		if (code != MessageCode::ControlRampExitToLayer1)
+		using enum MessageCode;
+		if (code != ControlRampExitToLayer1)
 			return;
 		bool first = caller == s_rexit19;
 		AwardDragonEggs(first ? 2 : 1);
 		if (GameState() == PlayState)
 		{
-			diverters[first ? 4 : 2]->Message(MessageCode::TDiverterEnable, 0.0f);
-			diverters[first ? 5 : 3]->Message(MessageCode::TDiverterDisable, 0.0f);
+			diverters[first ? 4 : 2]->Message(TDiverterEnable, 0.0f);
+			diverters[first ? 5 : 3]->Message(TDiverterDisable, 0.0f);
 		}
 	}
 
@@ -2762,15 +2785,16 @@ namespace
 	// v_lite37, full armor, 0x428240: on for 53 s, then flashing 5 s, then off
 	void ArmorLightControl(MessageCode code, TPinballComponent*)
 	{
-		if (code != MessageCode::ControlTimerExpired)
+		using enum MessageCode;
+		if (code != ControlTimerExpired)
 			return;
 		switch (v_lite37->MessageField++)
 		{
 		case 0:
-			v_lite37->Message(MessageCode::TLightTurnOnTimed, 53.0f);
+			v_lite37->Message(TLightTurnOnTimed, 53.0f);
 			break;
 		case 1:
-			v_lite37->Message(MessageCode::TLightFlasherStartTimedThenStayOff, 5.0f);
+			v_lite37->Message(TLightFlasherStartTimedThenStayOff, 5.0f);
 			break;
 		default:
 			v_lite37->MessageField = 0;
@@ -2920,8 +2944,7 @@ namespace
 		if (code != ControlCollision)
 			return;
 		auto roll = [] { return std::min(static_cast<int>(RandFloat() * 4), 3); };
-		auto state = GameState();
-		if (state == PlayState || state != WizardsFuryState)
+		if (auto state = GameState(); state == PlayState || state != WizardsFuryState)
 		{
 			if (state != PlayState)
 				CastRandomSpell();
@@ -3006,10 +3029,9 @@ namespace
 			s_hole118->MessageField = 1;
 			s_hole118->Message(THoleRelease, 1.0f);
 		}
-		else if (code == ControlBallReleased)
+		else if (code == ControlBallReleased && GameState() == PlayState && !s_hole118->MessageField)
 		{
-			if (GameState() == PlayState && !s_hole118->MessageField)
-				tabc34wave->Play(nullptr, "HoleControl");
+			tabc34wave->Play(nullptr, "HoleControl");
 		}
 	}
 
@@ -3136,8 +3158,7 @@ namespace
 	}
 
 	// DRAGON.EXE's control::handler calls the component's handler, then the table-wide one
-	template <void (&Handler)(MessageCode, TPinballComponent*)>
-	void WithHook(MessageCode code, TPinballComponent* caller)
+	template <auto& Handler> void WithHook(MessageCode code, TPinballComponent* caller)
 	{
 		Handler(code, caller);
 		TableHook(code, caller);
@@ -3242,6 +3263,11 @@ namespace
 		auto scores = component->GroupName ? ComponentScores.find(component->GroupName) : ComponentScores.end();
 		auto& list = scores != ComponentScores.end() ? scores->second : none;
 		component->Control = &Links.emplace_back(handler, static_cast<unsigned>(list.size()), list.data());
+	}
+
+	bool IsKickoutOrSink(const TPinballComponent& component)
+	{
+		return dynamic_cast<const TKickout*>(&component) || dynamic_cast<const TSink*>(&component);
 	}
 
 	void MakeLinks(TPinballTable* table)
@@ -3656,12 +3682,12 @@ namespace
 											   tabc09wave,
 											   tabc18wave,
 											   tabc20wave};
-		const bool listsFound = std::ranges::none_of(diverters, [](auto c) { return !c; }) &&
-								std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
-								std::ranges::none_of(lizard_lights, [](auto c) { return !c; }) &&
-								std::ranges::none_of(diamond_targets, [](auto c) { return !c; }) &&
-								std::ranges::none_of(pearl_targets, [](auto c) { return !c; });
-		if (std::ranges::find(all, nullptr) != all.end() || !listsFound)
+		if (const bool listsFound = std::ranges::none_of(diverters, [](auto c) { return !c; }) &&
+									std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
+									std::ranges::none_of(lizard_lights, [](auto c) { return !c; }) &&
+									std::ranges::none_of(diamond_targets, [](auto c) { return !c; }) &&
+									std::ranges::none_of(pearl_targets, [](auto c) { return !c; });
+			std::ranges::find(all, nullptr) != all.end() || !listsFound)
 		{
 			// Not Dragon's Keep's DAT as DRAGON.EXE knows it; leave the table without rules
 			info_text_box = nullptr;
@@ -3750,7 +3776,7 @@ namespace
 				Link(component, WithHook<BloceControl>);
 			else if (component == a_blocf)
 				Link(component, WithHook<BlocfControl>);
-			else if (dynamic_cast<TKickout*>(component) || dynamic_cast<TSink*>(component))
+			else if (IsKickoutOrSink(*component))
 				Link(component, WithHook<StandInControl>);
 			else
 				Link(component, WithHook<NoControl>);
