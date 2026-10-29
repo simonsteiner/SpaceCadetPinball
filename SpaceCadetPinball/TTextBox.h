@@ -36,4 +36,6 @@ private:
 	void Draw();
 	LayoutResult LayoutTextLine(char* textStart, const score_msg_font_type* font) const;
 	const score_msg_font_type* MessageFont(const TTextBoxMessage* message) const;
+	// The text is the last queued message's, in the same font, while a message shows
+	bool IsRepeat(const char* text, int fontIndex) const;
 };
