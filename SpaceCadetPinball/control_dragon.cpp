@@ -934,7 +934,7 @@ namespace
 
 	// State 7, 0x429b10: Dragon Pass. The gargoyle kickout (a_kout2) lays a dragon egg, the armor kickout (a_kout1)
 	// awards the jackpot, and a_spot8 and a_spot12 grow it, until the time runs out
-	void DragonPassStateControl(MessageCode code, TPinballComponent* caller)
+	void DragonPassStateControl(MessageCode code, const TPinballComponent* caller)
 	{
 		using enum MessageCode;
 		switch (code)
@@ -1486,7 +1486,7 @@ namespace
 	{
 		using enum MessageCode;
 		auto lights = {v_lite14, v_lite13, v_lite12, v_lite11};
-		if (!std::ranges::all_of(lights, [](TLight* light) { return light->light_on(); }))
+		if (!std::ranges::all_of(lights, [](const TLight* light) { return light->light_on(); }))
 		{
 			if (GameState() != 4)
 			{
@@ -2115,8 +2115,8 @@ namespace
 											   tabc42wave,
 											   tabc53wave};
 		if (const bool listsFound = std::ranges::none_of(diverters, [](auto c) { return !c; }) &&
-								std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
-								std::ranges::none_of(lizard_lights, [](auto c) { return !c; });
+									std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
+									std::ranges::none_of(lizard_lights, [](auto c) { return !c; });
 			std::ranges::find(all, nullptr) != all.end() || !listsFound)
 		{
 			// Not Dragon's Keep's DAT as DRAGON.EXE knows it; leave the table without rules
