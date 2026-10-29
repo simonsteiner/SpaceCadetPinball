@@ -106,17 +106,20 @@ namespace
 	// Dragon's Keep's quests by their state, 4 to 8, and Slay Dragon, 9; null for another state
 	const char* QuestName(int state)
 	{
-		if (state < 4 || state > 9)
+		using Dragon = TableView::DragonsKeep;
+		if (state < Dragon::FirstQuestState || state > Dragon::SlayDragonState)
 			return nullptr;
-		return Text(static_cast<Msg>(std::to_underlying(Msg::Definitive_DragonHoard) + state - 4));
+		return Text(
+			static_cast<Msg>(std::to_underlying(Msg::Definitive_DragonHoard) + state - Dragon::FirstQuestState));
 	}
 
 	// Dragon's Keep's multiball modes by their state, 13 to 15; null for another state
 	const char* ModeName(int state)
 	{
-		if (state < 13 || state > 15)
+		using Dragon = TableView::DragonsKeep;
+		if (state < Dragon::FirstModeState || state > Dragon::LastModeState)
 			return nullptr;
-		return Text(static_cast<Msg>(std::to_underlying(Msg::Dragon_TowerBarrage) + state - 13));
+		return Text(static_cast<Msg>(std::to_underlying(Msg::Dragon_TowerBarrage) + state - Dragon::FirstModeState));
 	}
 
 	// A label on the left of a row and what <draw> puts at its right end, <width> wide and <height> high; returns the
@@ -149,7 +152,7 @@ namespace
 		std::string name;
 		if (mode)
 			name = mode;
-		else if (dragon.State == 3 && QuestName(dragon.RestartQuest))
+		else if (dragon.State == dragon.RestartQuestState && QuestName(dragon.RestartQuest))
 			name = Ui::Fill(Text(Msg::Definitive_RestartQuest), QuestName(dragon.RestartQuest));
 		else if (auto quest = QuestName(dragon.State))
 			name = quest;
@@ -167,9 +170,11 @@ namespace
 
 		std::string note;
 		// A ball in the mouth after the last hit takes the hits left below 0, as in DRAGON.EXE
-		if (dragon.State == 9)
+		if (dragon.State == dragon.SlayDragonState)
 			note = Ui::Fill(Text(Msg::Definitive_HitsLeft), std::to_string(std::max(dragon.HitsLeft, 0)));
-		else if (auto picked = QuestName(dragon.PickedQuest); picked && dragon.State != dragon.PickedQuest)
+		// A quest running or waiting to restart is still the picked one; it isn't next
+		else if (auto picked = QuestName(dragon.PickedQuest);
+				 picked && dragon.State != dragon.PickedQuest && dragon.RestartQuest != dragon.PickedQuest)
 			note = Ui::Fill(Text(Msg::Definitive_NextQuest), picked);
 		if (!note.empty())
 			y += Ui::DrawWrapped(drawList, Theme::TextFont(), NoteSize, ImVec2{at.x, y}, NoteColor(), note.c_str(),

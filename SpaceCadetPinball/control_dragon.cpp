@@ -77,6 +77,14 @@ namespace
 	constexpr int TowerBarrageState = 13;
 	constexpr int GaggleBallState = 14;
 	constexpr int DragonFlurryState = 15;
+	// Space Cadet 2026's HUD and guide tell the states apart by TableView's names for them
+	static_assert(TableView::DragonsKeep::RestartQuestState == RestartQuestState &&
+				  TableView::DragonsKeep::FirstQuestState == DragonHoardState &&
+				  TableView::DragonsKeep::LastQuestState == WizardsFuryState &&
+				  TableView::DragonsKeep::SlayDragonState == SlayDragonState &&
+				  TableView::DragonsKeep::ShopState == ShopState &&
+				  TableView::DragonsKeep::FirstModeState == TowerBarrageState &&
+				  TableView::DragonsKeep::LastModeState == DragonFlurryState);
 
 	TPinballTable* Table = nullptr;
 
@@ -2090,7 +2098,8 @@ namespace
 	}
 
 	// 0x425c30: a ball in a fire lizard sink (a_sink1 or a_sink2) comes out of the other one. In play, the second
-	// starts the picked quest; in Fire Lizards each slays a lizard for 100,000 per lizard, and every third the jackpot
+	// starts the picked quest; in Fire Lizards each slays a lizard for 100,000 per lizard, and every fourth the jackpot
+	// in its place
 	void FireLizardSlain(TSink* sink)
 	{
 		using enum MessageCode;
@@ -4457,7 +4466,9 @@ namespace
 			return;
 		dragon.State = GameState();
 		dragon.RestartQuest = dragon.State == RestartQuestState ? mode_timer->MessageField : 0;
-		dragon.PickedQuest = a_kout2->MessageField;
+		// Without a quest picked, the gargoyle kickout counts its score (1 to 3) in the same field
+		auto picked = a_kout2->MessageField;
+		dragon.PickedQuest = picked >= DragonHoardState && picked <= WizardsFuryState ? picked : 0;
 		if ((dragon.State >= RestartQuestState && dragon.State <= SlayDragonState) && mode_timer->Timer)
 			dragon.TimeLeft = std::max(timer::time_left(mode_timer->Timer), 0);
 		for (size_t index = 0; index < quest_lights.size(); index++)

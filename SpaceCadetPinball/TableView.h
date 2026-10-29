@@ -36,6 +36,15 @@ struct TableView
 	// Dragon's Keep's own state, which its rules fill (control_dragon.cpp); all zero on the other tables
 	struct DragonsKeep
 	{
+		// The rules' states the HUD and the guide tell apart; control_dragon.cpp checks they match its own
+		static constexpr int RestartQuestState = 3;
+		static constexpr int FirstQuestState = 4;
+		static constexpr int LastQuestState = 8;
+		static constexpr int SlayDragonState = 9;
+		static constexpr int ShopState = 12;
+		static constexpr int FirstModeState = 13;
+		static constexpr int LastModeState = 15;
+
 		// The rules' state, as DRAGON.EXE numbers it: 2 play, 3 a quest's restart, 4 to 8 the quests (Dragon Hoard,
 		// Fire Lizards, Rescue Maiden, Dragon Pass, Wizard's Fury), 9 Slay Dragon, 12 the dragon egg shop, 13 Tower
 		// Barrage, 14 Gargoyle Gaggle-Ball, 15 Dragon Flurry; the others are the serve, the end of a ball and the
@@ -43,7 +52,7 @@ struct TableView
 		int State;
 		// In a restart (state 3), the quest it takes up again, by its state; else 0
 		int RestartQuest;
-		// The quest picked to start next, whose light flashes, by its state; 0 for none
+		// The quest picked to start next, whose light flashes, by its state (4 to 8); 0 for none
 		int PickedQuest;
 		// Milliseconds left of the time of a quest, its restart or Slay Dragon; 0 while none runs
 		int TimeLeft;
