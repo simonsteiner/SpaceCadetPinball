@@ -12,6 +12,9 @@ public:
 	int Message(MessageCode code, float value) override;
 	bool CanStartPull() const;
 	void CancelReleaseWait();
+	// PlayerChanged and SetTiltLock, which only Full Tilt's plunger takes
+	void TakePlayerChange();
+	void TakeTiltLock();
 	// Full Tilt's PlayerChanged and Reset: the pull, the ball feed and the push stop (CADET.EXE's 0x3fe and 0x402)
 	void Stop();
 
