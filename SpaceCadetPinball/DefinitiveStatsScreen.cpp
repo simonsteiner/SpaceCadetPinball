@@ -5,7 +5,10 @@
 #include "DefinitiveStats.h"
 #include "DefinitiveTheme.h"
 #include "DefinitiveUi.h"
+#include "TableView.h"
 #include "translations.h"
+
+#include <utility>
 
 int DefinitiveStatsScreen::Current = 0;
 bool DefinitiveStatsScreen::Opened = false;
@@ -38,6 +41,19 @@ namespace
 		snprintf(text, sizeof text, "%04d-%02d-%02d", date.year, date.month, date.day);
 		return text;
 	}
+
+	// Dragon's Keep's quests by name, with how often each was done
+	void RenderQuests()
+	{
+		using Dragon = TableView::DragonsKeep;
+		for (auto quest = Dragon::FirstQuestState; quest <= Dragon::LastQuestState; quest++)
+		{
+			ImGui::PushID(quest);
+			auto count = DefinitiveStats::QuestsDone(quest);
+			Ui::MenuRow("quest", DefinitiveHud::QuestName(quest), false, count ? Number(count).c_str() : "-");
+			ImGui::PopID();
+		}
+	}
 } // namespace
 
 void DefinitiveStatsScreen::Open()
@@ -47,7 +63,7 @@ void DefinitiveStatsScreen::Open()
 	ConfirmClear = false;
 }
 
-bool DefinitiveStatsScreen::Render()
+bool DefinitiveStatsScreen::Render(const TableView& view)
 {
 	auto scale = Ui::Scale();
 	auto panel = Ui::BeginPanel("##DefinitiveStats", Text(Msg::Definitive_Stats), Opened);
@@ -68,9 +84,9 @@ bool DefinitiveStatsScreen::Render()
 		ConfirmClear = false;
 	}
 	if (Current == 0)
-		RenderStats();
+		RenderStats(view);
 	else
-		RenderAchievements();
+		RenderAchievements(view);
 	if (Ui::MenuRow("back", Text(Msg::Definitive_Back)))
 		BackChosen = true;
 	Ui::EndPanelRows();
@@ -83,7 +99,7 @@ bool DefinitiveStatsScreen::Render()
 	return !back;
 }
 
-void DefinitiveStatsScreen::RenderStats()
+void DefinitiveStatsScreen::RenderStats(const TableView& view)
 {
 	auto scale = Ui::Scale();
 	auto at = ImGui::GetCursorScreenPos();
@@ -95,15 +111,25 @@ void DefinitiveStatsScreen::RenderStats()
 	// Each stat is a row with its value at the end, so the keyboard and gamepad scroll through them
 	auto bestRank = DefinitiveStats::Get(Stat::BestRank);
 	auto rankName = DefinitiveHud::RankName(bestRank);
-	const std::pair<Msg, std::string> rows[] = {
+	auto dragon = view.Kind == TableView::TableKind::DragonsKeep;
+	std::vector<std::pair<Msg, std::string>> rows = {
 		{Msg::Definitive_StatGames, Number(DefinitiveStats::Get(Stat::Games))},
 		{Msg::Definitive_StatBestScore, Number(DefinitiveStats::Get(Stat::BestScore))},
-		{Msg::Definitive_StatMissions, Number(DefinitiveStats::Get(Stat::Missions))},
-		{Msg::Definitive_StatBestRank, rankName ? rankName : "-"},
-		{Msg::Definitive_StatBallsSaved, Number(DefinitiveStats::Get(Stat::BallsSaved))},
-		{Msg::Definitive_StatExtraBalls, Number(DefinitiveStats::Get(Stat::ExtraBalls))},
-		{Msg::Definitive_StatMultiballs, Number(DefinitiveStats::Get(Stat::Multiballs))},
 	};
+	// Dragon's Keep counts quests and dragons slain, and has no rank
+	if (dragon)
+	{
+		rows.emplace_back(Msg::Definitive_StatQuests, Number(DefinitiveStats::Get(Stat::Quests)));
+		rows.emplace_back(Msg::Definitive_StatDragonsSlain, Number(DefinitiveStats::Get(Stat::DragonsSlain)));
+	}
+	else
+	{
+		rows.emplace_back(Msg::Definitive_StatMissions, Number(DefinitiveStats::Get(Stat::Missions)));
+		rows.emplace_back(Msg::Definitive_StatBestRank, rankName ? rankName : "-");
+	}
+	rows.emplace_back(Msg::Definitive_StatBallsSaved, Number(DefinitiveStats::Get(Stat::BallsSaved)));
+	rows.emplace_back(Msg::Definitive_StatExtraBalls, Number(DefinitiveStats::Get(Stat::ExtraBalls)));
+	rows.emplace_back(Msg::Definitive_StatMultiballs, Number(DefinitiveStats::Get(Stat::Multiballs)));
 	auto index = 0;
 	for (const auto& [label, value] : rows)
 	{
@@ -112,19 +138,25 @@ void DefinitiveStatsScreen::RenderStats()
 		ImGui::PopID();
 	}
 
-	// Every mission by name, with how often it was finished
+	// Every mission by name, with how often it was finished; on Dragon's Keep every quest
 	ImGui::Dummy(ImVec2{0, 12 * scale});
 	at = ImGui::GetCursorScreenPos();
 	Ui::DrawText(ImGui::GetWindowDrawList(), Theme::TextFont(), Theme::LabelSize,
-				 ImVec2{at.x + 16 * scale, at.y + 4 * scale}, Theme::Chrome400, Text(Msg::Definitive_StatEachMission),
+				 ImVec2{at.x + 16 * scale, at.y + 4 * scale}, Theme::Chrome400,
+				 Text(dragon ? Msg::Definitive_StatEachQuest : Msg::Definitive_StatEachMission),
 				 ImGui::CalcItemWidth() - 32 * scale);
 	ImGui::Dummy(ImVec2{0, Theme::LabelSize * Ui::TextScale() + 12 * scale});
-	for (auto mission = 2; mission <= 18; mission++)
+	if (dragon)
+		RenderQuests();
+	else
 	{
-		ImGui::PushID(mission);
-		auto count = DefinitiveStats::MissionsFinished(mission);
-		Ui::MenuRow("mission", DefinitiveHud::MissionName(mission), false, count ? Number(count).c_str() : "-");
-		ImGui::PopID();
+		for (auto mission = 2; mission <= 18; mission++)
+		{
+			ImGui::PushID(mission);
+			auto count = DefinitiveStats::MissionsFinished(mission);
+			Ui::MenuRow("mission", DefinitiveHud::MissionName(mission), false, count ? Number(count).c_str() : "-");
+			ImGui::PopID();
+		}
 	}
 
 	// Clearing asks once, as High Scores' does
@@ -153,12 +185,14 @@ void DefinitiveStatsScreen::RenderStats()
 	}
 }
 
-void DefinitiveStatsScreen::RenderAchievements()
+void DefinitiveStatsScreen::RenderAchievements(const TableView& view)
 {
 	auto achievements = DefinitiveStats::Achievements();
 	for (size_t index = 0; index < achievements.size(); index++)
 	{
 		const auto& achievement = achievements[index];
+		if (!DefinitiveStats::Offered(achievement, view))
+			continue;
 		auto unlocked = DefinitiveStats::UnlockedAt(index);
 		// An unlocked one says when in the LED orange of a tag, a locked one says so in chrome
 		auto day = unlocked ? Ui::Fill(Text(Msg::Definitive_Unlocked), Day(unlocked)) : std::string{};

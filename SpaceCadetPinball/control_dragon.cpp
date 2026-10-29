@@ -19,6 +19,7 @@
 #include "TLight.h"
 #include "TLightGroup.h"
 #include "TLightSweeps.h"
+#include "TableView.h"
 #include "TPinballTable.h"
 #include "TPlunger.h"
 #include "TPopupTarget.h"
@@ -76,6 +77,14 @@ namespace
 	constexpr int TowerBarrageState = 13;
 	constexpr int GaggleBallState = 14;
 	constexpr int DragonFlurryState = 15;
+	// Space Cadet 2026's HUD and guide tell the states apart by TableView's names for them
+	static_assert(TableView::DragonsKeep::RestartQuestState == RestartQuestState &&
+				  TableView::DragonsKeep::FirstQuestState == DragonHoardState &&
+				  TableView::DragonsKeep::LastQuestState == WizardsFuryState &&
+				  TableView::DragonsKeep::SlayDragonState == SlayDragonState &&
+				  TableView::DragonsKeep::ShopState == ShopState &&
+				  TableView::DragonsKeep::FirstModeState == TowerBarrageState &&
+				  TableView::DragonsKeep::LastModeState == DragonFlurryState);
 
 	TPinballTable* Table = nullptr;
 
@@ -332,6 +341,8 @@ namespace
 	int TallyTotal;                // 0x434d00
 	int TargetHits;                // 0x434d08, Target Bonus
 	int SpellCount;                // 0x434d24, Spell Bonus: the spells cast this ball
+	// Not DRAGON.EXE's: the balls the ball save served again, for Space Cadet 2026's stats; play never reads it
+	int BallSaves;
 
 	void TableHook(MessageCode code, TPinballComponent* caller);
 
@@ -586,10 +597,16 @@ namespace
 		return true;
 	}
 
-	// A picture in the text box's second font, whose characters DRAGON.EXE's texts name (0x439a58 on)
-	void ShowPicture(const std::string& glyphs, float time)
+	// A picture in the text box's second font, whose characters DRAGON.EXE's texts name (0x439a58 on), and what it
+	// shows in words for Space Cadet 2026's HUD
+	void ShowPicture(const std::string& glyphs, float time, const std::string& words)
 	{
-		info_text_box->Display(glyphs.c_str(), time, false, 1);
+		info_text_box->Display(glyphs.c_str(), time, false, 1, words.c_str());
+	}
+
+	void ShowPicture(const std::string& glyphs, float time, Msg words)
+	{
+		ShowPicture(glyphs, time, pb::get_rc_string(words));
 	}
 
 	// 0x424490: the jackpot, and its picture with <show>
@@ -598,7 +615,7 @@ namespace
 		tabc43wave->Play(nullptr, "AwardJackpot");
 		AddScore(nullptr, Table->JackpotScore);
 		if (show)
-			ShowPicture("\"", 2.0f);
+			ShowPicture("\"", 2.0f, Msg::Definitive_PictureJackpot);
 	}
 
 	// 0x4231e0: an extra ball, with its text for <textTime> seconds
@@ -617,7 +634,7 @@ namespace
 		v_lite37->MessageField = 0;
 		v_lite37->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 2.0f);
 		outlane_kicker_light_group->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
-		ShowPicture("+", 2.0f);
+		ShowPicture("+", 2.0f, Msg::Definitive_PictureChainmail);
 		tabc41wave->Play(nullptr, "AwardMaxArmor");
 	}
 
@@ -646,14 +663,14 @@ namespace
 		case 1:
 			tabc40wave->Play(nullptr, "AwardArmor");
 			CenterPostControl(MessageCode::TAnimatedBlockerAnimateOn, a_center_post);
-			ShowPicture("*", 2.0f);
+			ShowPicture("*", 2.0f, Msg::Definitive_PictureShield);
 			tabc40wave->Play(nullptr, "AwardArmor");
 			AddScore(nullptr, 50000);
 			break;
 		default:
 			tabc42wave->Play(nullptr, "AwardArmor");
 			BloceControl(MessageCode::TAnimatedBlockerAnimateOn, a_bloce);
-			ShowPicture(")", 2.0f);
+			ShowPicture(")", 2.0f, Msg::Definitive_PictureHelmet);
 			tabc42wave->Play(nullptr, "AwardArmor");
 			AddScore(nullptr, 100000);
 			break;
@@ -667,7 +684,11 @@ namespace
 			dragon_egg_light_group->Message(MessageCode::TLightGroupResetAndTurnOn, 1.0f);
 		tabc27wave->Play(nullptr, "AwardDragonEggs");
 		auto eggs = dragon_egg_light_group->Message(MessageCode::TLightGroupGetOnCount, 0.0f);
-		ShowPicture(std::string(std::clamp(eggs, 0, 8), '#'), 2.0f);
+		std::array<char, 64> words{};
+		snprintf(words.data(), words.size(), pb::get_rc_string(Msg::Definitive_PictureDragonEggs),
+				 static_cast<long>(eggs));
+		ShowPicture(std::string(std::clamp(eggs, 0, 8), '#'), 2.0f,
+					eggs == 1 ? pb::get_rc_string(Msg::Definitive_PictureDragonEgg) : words.data());
 		AddScore(nullptr, eggs * 100000);
 	}
 
@@ -712,7 +733,7 @@ namespace
 		}
 		AddScore(nullptr, 120000);
 		tabc35wave->Play(nullptr, "CastSpell");
-		ShowPicture("$", 2.0f);
+		ShowPicture("$", 2.0f, Msg::Definitive_PictureSpell);
 	}
 
 	void CastRandomSpell() // 0x4237f0
@@ -1752,7 +1773,10 @@ namespace
 				{
 					// 0x439ac8: eight pictures, then a blank one
 					constexpr std::string_view countdown = ",-./0123";
-					ShowPicture(step < 8 ? std::string(1, countdown[step]) : std::string(), -1.0f);
+					if (step < 8)
+						ShowPicture(std::string(1, countdown[step]), -1.0f, Msg::Definitive_PictureDragonSlain);
+					else
+						ShowPicture(std::string(), -1.0f, std::string());
 					dragon_mouth_light_group->Message(TLightGroupRestartNotifyTimer, 0.4f);
 					return;
 				}
@@ -1921,7 +1945,7 @@ namespace
 					 static_cast<long>(AddScore(caller, score)));
 			info_text_box->Display(buffer.data(), 2.0f);
 		}
-		ShowPicture("!", 3.5f);
+		ShowPicture("!", 3.5f, Msg::Definitive_PictureDragon);
 		std::array<char, 64> buffer{};
 		snprintf(buffer.data(), buffer.size(), pb::get_rc_string(Msg::Dragon_SlayDragonHitsLeft),
 				 static_cast<long>(v_lite114->MessageField));
@@ -1933,7 +1957,7 @@ namespace
 	{
 		if (code != MessageCode::ControlCollision || GameState() != PlayState || !v_lite18->FlasherOnFlag)
 			return;
-		ShowPicture("!", 2.0f);
+		ShowPicture("!", 2.0f, Msg::Definitive_PictureDragon);
 		SetLevelLights(-1);
 		ClearPickedQuest();
 		v_lite76->Message(MessageCode::TLightFlasherStartTimed, -1.0f);
@@ -2074,7 +2098,8 @@ namespace
 	}
 
 	// 0x425c30: a ball in a fire lizard sink (a_sink1 or a_sink2) comes out of the other one. In play, the second
-	// starts the picked quest; in Fire Lizards each slays a lizard for 100,000 per lizard, and every third the jackpot
+	// starts the picked quest; in Fire Lizards each slays a lizard for 100,000 per lizard, and every fourth the jackpot
+	// in its place
 	void FireLizardSlain(TSink* sink)
 	{
 		using enum MessageCode;
@@ -2439,6 +2464,7 @@ namespace
 
 			// Ball save: the drain's own timer serves the same ball again
 			DrainStep = 3;
+			BallSaves++;
 			drain->Message(SetTiltLock, 0.0f);
 			code = ControlTimerExpired;
 			Table->BallInDrainFlag = 1; // DRAGON.EXE's table field 0x6a, taken to be this flag
@@ -2856,7 +2882,11 @@ namespace
 				light->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
 				Table->ScoreMultiplier = multiplier;
 				AddScoreUnmultiplied(nullptr, 25000 + (multiplier - 2) * 10000);
-				ShowPicture(std::string(1, static_cast<char>('%' + multiplier - 2)), 2.0f);
+				// The pictures show an ax, a bow, a lance and a sword
+				using enum Msg;
+				constexpr std::array weapons{Definitive_PictureFrantzsAx, Definitive_PictureFirebow,
+											 Definitive_PictureDragonLance, Definitive_PictureSwordOfVirtue};
+				ShowPicture(std::string(1, static_cast<char>('%' + multiplier - 2)), 2.0f, weapons[multiplier - 2]);
 				break;
 			}
 			multiplier++;
@@ -3040,7 +3070,7 @@ namespace
 			return;
 		if (auto light = caller == a_spot19 ? v_lite16 : v_lite17; !light->FlasherOnFlag)
 			return;
-		ShowPicture("!", 2.0f);
+		ShowPicture("!", 2.0f, Msg::Definitive_PictureDragon);
 		SetLevelLights(caller == a_spot19 ? 2 : 1);
 		dragon_fire_light_group->Message(MessageCode::TLightFlasherStartTimed, 2.0f);
 		ScoreBy(caller, 0);
@@ -4415,6 +4445,7 @@ namespace
 	{
 		Table = nullptr;
 		info_text_box = nullptr;
+		BallSaves = 0;
 		// DRAGON.EXE keeps the cheats' state for its session, which a restart into a recording begins anew
 		CheatKey = 0;
 		CheatTyped = 0;
@@ -4425,8 +4456,43 @@ namespace
 		ScrollNext = nullptr;
 		Typed.clear();
 	}
+
+	// What Space Cadet 2026's HUD shows of the rules' state; it only reads
+	void FillView(TableView& view)
+	{
+		auto& dragon = view.Dragon;
+		dragon = {};
+		if (!info_text_box)
+			return;
+		dragon.State = GameState();
+		dragon.RestartQuest = dragon.State == RestartQuestState ? mode_timer->MessageField : 0;
+		// Without a quest picked, the gargoyle kickout counts its score (1 to 3) in the same field
+		auto picked = a_kout2->MessageField;
+		dragon.PickedQuest = picked >= DragonHoardState && picked <= WizardsFuryState ? picked : 0;
+		if ((dragon.State >= RestartQuestState && dragon.State <= SlayDragonState) && mode_timer->Timer)
+			dragon.TimeLeft = std::max(timer::time_left(mode_timer->Timer), 0);
+		for (size_t index = 0; index < quest_lights.size(); index++)
+		{
+			if (quest_lights[index]->light_on() && !quest_lights[index]->FlasherOnFlag)
+				dragon.QuestLights |= 1u << index;
+		}
+		dragon.QuestsDone = v_lite28->MessageField;
+		dragon.Jackpot = Table->JackpotScore;
+		dragon.SuperJackpot = Table->SecondJackpotScore;
+		dragon.Eggs = dragon_egg_light_group->Message(MessageCode::TLightGroupGetOnCount, 0.0f);
+		for (auto light : {v_lite33, v_lite34, v_lite35, v_lite36})
+			dragon.Weapons += static_cast<int>(light->light_on());
+		for (auto [bit, light] : {std::pair{1u, v_lite37}, {2u, v_lite38}, {4u, v_lite39}})
+		{
+			if (light->light_on())
+				dragon.Armor |= bit;
+		}
+		dragon.HitsLeft = dragon.State == SlayDragonState ? v_lite114->MessageField : 0;
+		dragon.BallSaves = BallSaves;
+	}
 } // namespace
 
 const TableRules control_dragon::Rules{
-	MakeLinks, ClearLinks, TableControl, UnstuckBall, Cheat, [] { /* DRAGON.EXE has no rank to bump */ }, EndScroll,
+	MakeLinks, ClearLinks, TableControl, UnstuckBall, Cheat, [] { /* DRAGON.EXE has no rank to bump */ },
+	EndScroll, FillView,
 };

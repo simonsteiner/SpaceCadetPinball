@@ -125,7 +125,7 @@ void TTextBox::Repaint()
 		Draw();
 }
 
-void TTextBox::Display(const char* text, float time, bool lowPriority, int fontIndex)
+void TTextBox::Display(const char* text, float time, bool lowPriority, int fontIndex, const char* words)
 {
 	if (!text)
 		return;
@@ -148,7 +148,7 @@ void TTextBox::Display(const char* text, float time, bool lowPriority, int fontI
 		if (Timer == -1)
 			Clear();
 
-		auto message = new TTextBoxMessage(text, time, lowPriority, fontIndex);
+		auto message = new TTextBoxMessage(text, time, lowPriority, fontIndex, words);
 		if (message->Text)
 		{
 			if (CurrentMessage)

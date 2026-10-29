@@ -188,7 +188,7 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 		RenderCredits();
 		break;
 	case Screen::Stats:
-		if (!DefinitiveStatsScreen::Render())
+		if (!DefinitiveStatsScreen::Render(view))
 			Open(Screen::Title);
 		break;
 	case Screen::Recordings:

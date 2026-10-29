@@ -26,7 +26,9 @@ public:
 	~TTextBox() override;
 	int Message(MessageCode code, float value) override;
 	void Clear(bool lowPriorityOnly = false);
-	void Display(const char* text, float time, bool lowPriority = false, int fontIndex = 0);
+	// A picture message in the second font (<fontIndex> 1) can carry <words> to show where the picture can't be
+	void Display(const char* text, float time, bool lowPriority = false, int fontIndex = 0,
+				 const char* words = nullptr);
 	void DisplayOverlay(const char* text);
 	void EndOverlay();
 	void DrawImGui();

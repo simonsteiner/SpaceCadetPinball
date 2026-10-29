@@ -48,7 +48,7 @@ The state line doesn't show everything: a write to a light or a text box shows o
 view 390 3a7f0c2e9b14d856
 ```
 
-The view holds the balls, flippers, lights, text box messages, scores, ball count, players, mission and rank, so the two editions' hashes are equal on every frame unless presentation code changed the table.
+The view holds the balls, flippers, lights, text box messages, scores, ball count, players, mission and rank, and the table's own state that its rules fill in (Dragon's Keep's quests, jackpots and items), so the two editions' hashes are equal on every frame unless presentation code changed the table.
 
 Playback also prints the edition it starts in (`Edition: classic` or `Edition: definitive`).
 

@@ -61,8 +61,12 @@ _Avoid_: Bump, shake
 ## Play
 
 **Mission**:
-A goal the table assigns, completed by making a series of shots, that awards points and progress toward the next rank.
-_Avoid_: Quest, objective
+A goal Space Cadet assigns, completed by making a series of shots, that awards points and progress toward the next rank.
+_Avoid_: Quest (that's Dragon's Keep's), objective
+
+**Quest**:
+Dragon's Keep's timed goal, one of five (Dragon Hoard, Fire Lizards, Rescue Maiden, Dragon Pass, Wizard's Fury); the table picks one, a shot starts it, and once all five are done Slay Dragon follows. A quest whose time runs out can be restarted for a few seconds. It has no rank.
+_Avoid_: Mission (that's Space Cadet's)
 
 **Rank**:
 The player's standing, from Cadet up to Fleet Admiral (nine steps), raised by completing missions.

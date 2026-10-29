@@ -6,34 +6,41 @@
 #include "TableView.h"
 #include "translations.h"
 
+#include <format>
 #include <utility>
 
 namespace
 {
 	using Stat = DefinitiveStats::Stat;
 
-	constexpr const char* StatKeys[] = {"Games",       "Missions",   "Best Rank", "Balls Saved",
-										"Extra Balls", "Multiballs", "Best Score"};
+	constexpr auto StatKeys =
+		std::to_array<const char*>({"Games", "Missions", "Best Rank", "Balls Saved", "Extra Balls", "Multiballs",
+									"Best Score", "Quests", "Dragons Slain"});
 	static_assert(std::size(StatKeys) == static_cast<size_t>(Stat::Count));
 
 	// The order is the list's on screen; keys are saved, so they stay as they are
+	using enum DefinitiveStats::Offer;
 	constexpr DefinitiveStats::Achievement AchievementList[] = {
-		{"First Game", Msg::Definitive_AchFirstGame, Msg::Definitive_AchFirstGameText},
-		{"First Mission", Msg::Definitive_AchFirstMission, Msg::Definitive_AchFirstMissionText},
-		{"Five Missions", Msg::Definitive_AchFiveMissions, Msg::Definitive_AchFiveMissionsText},
-		{"Every Mission", Msg::Definitive_AchEveryMission, Msg::Definitive_AchEveryMissionText},
-		{"Ensign", Msg::Definitive_AchEnsign, Msg::Definitive_AchEnsignText},
-		{"Captain", Msg::Definitive_AchCaptain, Msg::Definitive_AchCaptainText},
-		{"Commodore", Msg::Definitive_AchCommodore, Msg::Definitive_AchCommodoreText},
-		{"Fleet Admiral", Msg::Definitive_AchFleetAdmiral, Msg::Definitive_AchFleetAdmiralText},
-		{"Ball Saved", Msg::Definitive_AchBallSaved, Msg::Definitive_AchBallSavedText},
-		{"Extra Ball", Msg::Definitive_AchExtraBall, Msg::Definitive_AchExtraBallText},
-		{"Multiball", Msg::Definitive_AchMultiball, Msg::Definitive_AchMultiballText},
-		{"Million", Msg::Definitive_AchMillion, Msg::Definitive_AchMillionText},
-		{"Ten Million", Msg::Definitive_AchTenMillion, Msg::Definitive_AchTenMillionText},
-		{"Hundred Million", Msg::Definitive_AchHundredMillion, Msg::Definitive_AchHundredMillionText},
-		{"Steady Hands", Msg::Definitive_AchSteadyHands, Msg::Definitive_AchSteadyHandsText},
-		{"Regular", Msg::Definitive_AchRegular, Msg::Definitive_AchRegularText},
+		{"First Game", Msg::Definitive_AchFirstGame, Msg::Definitive_AchFirstGameText, Every},
+		{"First Mission", Msg::Definitive_AchFirstMission, Msg::Definitive_AchFirstMissionText, SpaceCadet},
+		{"Five Missions", Msg::Definitive_AchFiveMissions, Msg::Definitive_AchFiveMissionsText, SpaceCadet},
+		{"Every Mission", Msg::Definitive_AchEveryMission, Msg::Definitive_AchEveryMissionText, SpaceCadet},
+		{"First Quest", Msg::Definitive_AchFirstQuest, Msg::Definitive_AchFirstQuestText, DragonsKeep},
+		{"Five Quests", Msg::Definitive_AchFiveQuests, Msg::Definitive_AchFiveQuestsText, DragonsKeep},
+		{"Every Quest", Msg::Definitive_AchEveryQuest, Msg::Definitive_AchEveryQuestText, DragonsKeep},
+		{"Dragon Slayer", Msg::Definitive_AchDragonSlayer, Msg::Definitive_AchDragonSlayerText, DragonsKeep},
+		{"Ensign", Msg::Definitive_AchEnsign, Msg::Definitive_AchEnsignText, SpaceCadet},
+		{"Captain", Msg::Definitive_AchCaptain, Msg::Definitive_AchCaptainText, SpaceCadet},
+		{"Commodore", Msg::Definitive_AchCommodore, Msg::Definitive_AchCommodoreText, SpaceCadet},
+		{"Fleet Admiral", Msg::Definitive_AchFleetAdmiral, Msg::Definitive_AchFleetAdmiralText, SpaceCadet},
+		{"Ball Saved", Msg::Definitive_AchBallSaved, Msg::Definitive_AchBallSavedText, Every},
+		{"Extra Ball", Msg::Definitive_AchExtraBall, Msg::Definitive_AchExtraBallText, Every},
+		{"Multiball", Msg::Definitive_AchMultiball, Msg::Definitive_AchMultiballText, Every},
+		{"Million", Msg::Definitive_AchMillion, Msg::Definitive_AchMillionText, Every},
+		{"Ten Million", Msg::Definitive_AchTenMillion, Msg::Definitive_AchTenMillionText, Every},
+		{"Hundred Million", Msg::Definitive_AchHundredMillion, Msg::Definitive_AchHundredMillionText, Every},
+		{"Steady Hands", Msg::Definitive_AchSteadyHands, Msg::Definitive_AchSteadyHandsText, Every},
+		{"Regular", Msg::Definitive_AchRegular, Msg::Definitive_AchRegularText, Every},
 	};
 
 	// The game being played: whether one is, and what counts per game, by player
@@ -42,6 +49,8 @@ namespace
 		bool Active;
 		bool Tilted;
 		std::array<int, 4> Missions;
+		// Dragon's Keep's quests done, by player
+		std::array<int, 4> Quests;
 		// Each player's billions: the table counts them apart from the score, which drops by a billion as one passes
 		std::array<long long, 4> Billions;
 	};
@@ -73,6 +82,11 @@ std::string DefinitiveStats::Key(const char* name)
 {
 	// Per table, like the high scores
 	return std::string{options::TableKeyPrefix()} + "Stats." + name;
+}
+
+std::string DefinitiveStats::QuestKey(int quest)
+{
+	return Key(std::format("Quest {}", quest).c_str());
 }
 
 int DefinitiveStats::Read(const std::string& key)
@@ -127,7 +141,7 @@ void DefinitiveStats::Update(const TableView& view)
 	auto zeroed = std::ranges::all_of(view.Scores, [](int score) { return score == 0; });
 	auto restarted = zeroed && std::ranges::any_of(Previous.Scores, [](int score) { return score != 0; });
 	if (playing && (!wasPlaying || restarted))
-		Current = Game{true, false, {}, {}};
+		Current = Game{true, false, {}, {}, {}};
 	if (view.CheatsUsed)
 		Current.Active = false;
 
@@ -142,6 +156,9 @@ void DefinitiveStats::Update(const TableView& view)
 
 		auto player = PlayerOf(Previous);
 		auto samePlayer = view.CurrentPlayer == Previous.CurrentPlayer;
+		// Dragon's Keep's view has no mission (-1) or rank (0), so Space Cadet's counting below finds none there
+		if (view.Kind == TableView::TableKind::DragonsKeep)
+			UpdateDragon(view, player, samePlayer);
 		// A mission ends finished when it lit lamps of the progress ring, or a new rank, which clears them; a mission
 		// that runs out of fuel or ends with the ball does neither. Time Warp's way back (state 24) ends through the
 		// kickout instead, which costs a rank. On a drain the next player's lamps come in, so only the same player's
@@ -178,7 +195,7 @@ void DefinitiveStats::Update(const TableView& view)
 		}
 
 		// The drain sends the ball back with Replay Ball or Re-Deploy in the info box
-		if (view.InfoMessages != Previous.InfoMessages &&
+		if (view.Kind != TableView::TableKind::DragonsKeep && view.InfoMessages != Previous.InfoMessages &&
 			(view.InfoText == translations::GetTranslation(Msg::STRING196) ||
 			 view.InfoText == translations::GetTranslation(Msg::STRING197)))
 		{
@@ -229,6 +246,45 @@ void DefinitiveStats::Update(const TableView& view)
 	Previous = view;
 }
 
+void DefinitiveStats::UpdateDragon(const TableView& view, int player, bool samePlayer)
+{
+	// The rules count a quest done as it ends; the one that ended ran, or waited to be taken up again, before. On a
+	// drain the next player's count comes in, so only the same player's counts.
+	const auto& dragon = view.Dragon;
+	const auto& before = Previous.Dragon;
+	if (dragon.QuestsDone > before.QuestsDone && samePlayer)
+	{
+		Add(Key("Quests"), 1);
+		using Dragon = TableView::DragonsKeep;
+		if (auto quest = before.State == Dragon::RestartQuestState ? before.RestartQuest : before.State;
+			quest >= Dragon::FirstQuestState && quest <= Dragon::LastQuestState)
+			Add(QuestKey(quest), 1);
+		Current.Quests[player]++;
+		Unlock("First Quest");
+		if (Current.Quests[player] >= 5)
+			Unlock("Five Quests");
+		auto every = true;
+		for (auto each = Dragon::FirstQuestState; each <= Dragon::LastQuestState; each++)
+			every &= QuestsDone(each) > 0;
+		if (every)
+			Unlock("Every Quest");
+	}
+
+	// Slay Dragon's last hit takes its hits left to 0, and the Super Jackpot follows while it still runs
+	if (before.State == 9 && before.HitsLeft > 0 && dragon.State == 9 && dragon.HitsLeft <= 0)
+	{
+		Add(Key("Dragons Slain"), 1);
+		Unlock("Dragon Slayer");
+	}
+
+	// The ball save shows no text, so the rules count it for the view
+	if (dragon.BallSaves > before.BallSaves)
+	{
+		Add(Key("Balls Saved"), 1);
+		Unlock("Ball Saved");
+	}
+}
+
 void DefinitiveStats::Reset()
 {
 	Previous = TableView{};
@@ -246,9 +302,27 @@ int DefinitiveStats::MissionsFinished(int mission)
 	return Read(Key(("Mission " + std::to_string(mission)).c_str()));
 }
 
+int DefinitiveStats::QuestsDone(int quest)
+{
+	return Read(QuestKey(quest));
+}
+
 std::span<const DefinitiveStats::Achievement> DefinitiveStats::Achievements()
 {
 	return AchievementList;
+}
+
+bool DefinitiveStats::Offered(const Achievement& achievement, const TableView& view)
+{
+	switch (achievement.Tables)
+	{
+	case Offer::SpaceCadet:
+		return view.Kind == TableView::TableKind::SpaceCadet;
+	case Offer::DragonsKeep:
+		return view.Kind == TableView::TableKind::DragonsKeep;
+	default:
+		return true;
+	}
 }
 
 long long DefinitiveStats::UnlockedAt(size_t index)
@@ -276,6 +350,8 @@ void DefinitiveStats::Clear()
 		options::RemoveSetting(Key(key));
 	for (auto mission = 2; mission <= 18; mission++)
 		options::RemoveSetting(Key(("Mission " + std::to_string(mission)).c_str()));
+	for (auto quest = TableView::DragonsKeep::FirstQuestState; quest <= TableView::DragonsKeep::LastQuestState; quest++)
+		options::RemoveSetting(QuestKey(quest));
 	for (const auto& achievement : AchievementList)
 		options::RemoveSetting(Key((std::string{"Achievement."} + achievement.Key).c_str()));
 	Waiting.clear();
