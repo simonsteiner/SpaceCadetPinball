@@ -142,7 +142,8 @@ void Upscale::FindSpriteNames()
 	// A component with several bitmaps keeps them in the groups after its own, which have no name; those take the
 	// component's number and name with the bitmap's index, so the ball's sizes are 0108-ball-r0.png, then
 	// 0108-ball_1-r0.png to 0108-ball_6-r0.png. Their own number with an empty name, such as 0109--r0.png, is
-	// what earlier versions looked for, so it still works.
+	// what earlier versions looked for, so it still works. A second bitmap, such as Dragon's Keep's smiley ball,
+	// takes the same names with _alt after the name, so 0108-ball_alt-r0.png to 0108-ball_6_alt-r0.png.
 	if (!SpriteNames.empty() || !pb::record_table)
 		return;
 	auto resolution = fullscrn::GetResolution();
@@ -164,14 +165,18 @@ void Upscale::FindSpriteNames()
 		else
 			owner = nullptr;
 
-		auto bmp = group->GetBitmap(resolution);
-		if (!bmp)
-			continue;
-		auto& names = SpriteNames[bmp];
-		if (kind == loader::NextStateGroup && owner && group->GroupName.empty())
-			names.push_back(
-				SpriteFileName(owner->GroupId, owner->GroupName + "_" + std::to_string(stateIndex), resolution));
-		names.push_back(SpriteFileName(group->GroupId, group->GroupName, resolution));
+		for (auto alt : {false, true})
+		{
+			auto bmp = alt ? group->GetAltBitmap(resolution) : group->GetBitmap(resolution);
+			if (!bmp)
+				continue;
+			std::string suffix = alt ? "_alt" : "";
+			auto& names = SpriteNames[bmp];
+			if (kind == loader::NextStateGroup && owner && group->GroupName.empty())
+				names.push_back(SpriteFileName(
+					owner->GroupId, owner->GroupName + "_" + std::to_string(stateIndex) + suffix, resolution));
+			names.push_back(SpriteFileName(group->GroupId, group->GroupName + suffix, resolution));
+		}
 	}
 }
 
@@ -260,15 +265,17 @@ int Upscale::ExportOriginals()
 	auto resolution = fullscrn::GetResolution();
 	for (auto group : pb::record_table->Groups)
 	{
-		auto bmp = group->GetBitmap(resolution);
-		auto names = SpriteNames.find(bmp);
-		if (!bmp || names == SpriteNames.end() || bmp->Width <= 0 || bmp->Height <= 0)
-			continue;
-		auto surface = SDL_CreateSurfaceFrom(bmp->Width, bmp->Height, SDL_PIXELFORMAT_BGRA32, bmp->BmpBufPtr1,
-											 bmp->Stride * static_cast<int>(sizeof(ColorRgba)));
-		if (surface && SDL_SavePNG(surface, (folder + names->second.front()).c_str()))
-			count++;
-		SDL_DestroySurface(surface);
+		for (auto bmp : {group->GetBitmap(resolution), group->GetAltBitmap(resolution)})
+		{
+			auto names = SpriteNames.find(bmp);
+			if (!bmp || names == SpriteNames.end() || bmp->Width <= 0 || bmp->Height <= 0)
+				continue;
+			auto surface = SDL_CreateSurfaceFrom(bmp->Width, bmp->Height, SDL_PIXELFORMAT_BGRA32, bmp->BmpBufPtr1,
+												 bmp->Stride * static_cast<int>(sizeof(ColorRgba)));
+			if (surface && SDL_SavePNG(surface, (folder + names->second.front()).c_str()))
+				count++;
+			SDL_DestroySurface(surface);
+		}
 	}
 	SDL_ClearError();
 	printf("Exported %d sprites to %s\n", count, folder.c_str());

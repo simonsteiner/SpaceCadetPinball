@@ -180,10 +180,11 @@ void TableView::Fill()
 	{
 		auto ball = Table->BallList[index];
 		auto sprite = ball->RenderSprite;
-		View.Balls[index] = {
-			ball->ActiveFlag != 0, ball->Position.X,  ball->Position.Y, ball->Position.Z,
-			ball->Direction.X,     ball->Direction.Y, ball->Speed,      sprite && sprite->Bmp ? sprite->Depth : 0,
-			SpriteRect(sprite)};
+		View.Balls[index] = {ball->ActiveFlag != 0, ball->Position.X,
+							 ball->Position.Y,      ball->Position.Z,
+							 ball->Direction.X,     ball->Direction.Y,
+							 ball->Speed,           sprite && sprite->Bmp ? sprite->Depth : 0,
+							 SpriteRect(sprite),    sprite && sprite->AltBall};
 	}
 
 	View.Flippers.resize(Table->FlipperList.size());

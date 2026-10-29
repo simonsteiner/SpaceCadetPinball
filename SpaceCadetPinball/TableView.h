@@ -17,6 +17,8 @@ struct TableView
 		int Depth;
 		// Where the ball's sprite is in the 1x frame, in pixels; empty while it has none
 		SDL_Rect Sprite;
+		// The ball took its frames' second bitmaps, a smiley (Dragon's Keep's PB cheat)
+		bool AltBall;
 	};
 
 	struct Flipper

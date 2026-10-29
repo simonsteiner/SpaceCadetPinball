@@ -433,6 +433,12 @@ int loader::kicker(int groupIndex, visualKickerStruct* kicker)
 }
 
 
+gdrv_bitmap8* loader::query_alt_bitmap(int groupIndex, int groupIndexOffset)
+{
+	auto stateId = groupIndex < 0 ? -1 : state_id(groupIndex, groupIndexOffset);
+	return stateId < 0 ? nullptr : loader_table->GetAltBitmap(stateId);
+}
+
 int loader::query_visual(int groupIndex, int groupIndexOffset, visualStruct* visual)
 {
 	default_vsi(visual);

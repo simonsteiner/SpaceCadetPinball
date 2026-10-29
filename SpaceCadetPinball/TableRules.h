@@ -21,6 +21,9 @@ struct TableRules
 	void (*EndCredits)();
 	// Copies the table's own state into the view after each update, for the fields only these rules know
 	void (*FillView)(TableView& view);
+	// Whether the ball being made takes its next frame's second bitmap, as Dragon's Keep's PB cheat asks;
+	// available is whether the frame has one
+	bool (*AltBallFrame)(bool available);
 
 	// The rules of the table pb::SelectDatFile picked
 	static const TableRules& Current();

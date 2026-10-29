@@ -4265,7 +4265,7 @@ namespace
 	int CheatKey;           // 0x43bb70: the last key of the cheat being typed, 0 for none
 	int CheatTyped;         // 0x43bb74: which one, 1 1MAX, 2 NMAX, 3 FMAX, 4 PB, 5 QUOTE
 	int HiddenTestStep;     // 0x439154: how much of "hidden<Tab>test" is typed, which the engine checks (0x411f50)
-	bool AltBall;           // 0x438140, PB: balls made from now on take their frames' second bitmap; not drawn yet
+	bool AltBall;           // 0x438140, PB: balls made from now on take their frames' second bitmap, a smiley
 	bool QuotesShown;       // 0x43ba9c: QUOTE was typed; until the credits next show, every key ends the scroller
 	int ScrollTimer;        // 0x43ba98
 	const char* ScrollNext; // 0x434cfc: the scroller's next text, nullptr after the last
@@ -4457,6 +4457,15 @@ namespace
 		}
 	}
 
+	// 0x402740, the ball's constructor: with PB on, each frame takes its second bitmap; a frame without one turns PB
+	// off, and it and the frames after it take their first
+	bool AltBallFrame(bool available)
+	{
+		if (!available)
+			AltBall = false;
+		return AltBall;
+	}
+
 	void ClearLinks()
 	{
 		Table = nullptr;
@@ -4510,5 +4519,5 @@ namespace
 
 const TableRules control_dragon::Rules{
 	MakeLinks, ClearLinks, TableControl, UnstuckBall, Cheat, [] { /* DRAGON.EXE has no rank to bump */ },
-	EndScroll, FillView,
+	EndScroll, FillView,   AltBallFrame,
 };

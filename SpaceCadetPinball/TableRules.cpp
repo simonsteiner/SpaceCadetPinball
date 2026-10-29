@@ -22,6 +22,7 @@ namespace
 				pb::MissTextBox->Clear(true);
 		},
 		[](TableView&) { /* TableView reads Space Cadet's mission and rank itself */ },
+		[](bool) { return false; },
 	};
 }
 

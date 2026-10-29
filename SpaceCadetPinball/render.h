@@ -33,6 +33,9 @@ struct render_sprite
 	} Interp{};
 	// Balls only: the part of the upscaled frame the ball covers
 	rectangle_type DirtyRectHi{};
+	// Balls only: the ball took its frames' second bitmaps (Dragon's Keep's PB cheat), a smiley Space Cadet 2026
+	// shows as it is instead of shading it
+	bool AltBall{};
 
 	render_sprite(VisualTypes visualType, gdrv_bitmap8* bmp, zmap_header_type* zMap,
 	              int xPosition, int yPosition, rectangle_type* boundingRect);
@@ -97,7 +100,8 @@ private:
 	static std::vector<ColorRgba> DepthRows;
 
 	static void repaint(const render_sprite& sprite);
-	static void paint_balls();
+	// altOnly paints only the balls with AltBall set, which Space Cadet 2026's compositor leaves in the frame
+	static void paint_balls(bool altOnly = false);
 	static void unpaint_balls();
 	static void paint_balls_hi();
 	static void PaintHi(const render_sprite& sprite, const rectangle_type& clipRect);

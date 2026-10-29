@@ -201,10 +201,10 @@ int gdrv::display_palette(ColorRgba* plt)
 	{
 		for (int i = 0; i <= 2; i++)
 		{
-			auto bmp = group->GetBitmap(i);
-			if (bmp)
+			for (auto bmp : {group->GetBitmap(i), group->GetAltBitmap(i)})
 			{
-				ApplyPalette(*bmp);
+				if (bmp)
+					ApplyPalette(*bmp);
 			}
 		}
 	}

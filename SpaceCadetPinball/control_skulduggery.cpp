@@ -11,4 +11,5 @@ const TableRules control_skulduggery::Rules{
 	[] { /* no rank to bump */ },
 	[] { /* no credits to end */ },
 	[](TableView&) { /* nothing of its own to show */ },
+	[](bool) { return false; },
 };

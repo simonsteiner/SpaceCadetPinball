@@ -104,6 +104,8 @@ public:
 	static int kicker(int groupIndex, visualKickerStruct* kicker);
 	static int state_id(int groupIndex, int groupIndexOffset);
 	static int query_visual(int groupIndex, int groupIndexOffset, visualStruct* visual);
+	// The state's second bitmap (GroupData::GetAltBitmap), or nullptr
+	static gdrv_bitmap8* query_alt_bitmap(int groupIndex, int groupIndexOffset);
 	static char* query_name(int groupIndex);
 	static float* query_float_attribute(int groupIndex, int groupIndexOffset, int firstValue);
 	static float query_float_attribute(int groupIndex, int groupIndexOffset, int firstValue, float defVal);
