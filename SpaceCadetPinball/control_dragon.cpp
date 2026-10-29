@@ -1437,7 +1437,7 @@ namespace
 			for (auto group : windows)
 				group->Message(TLightFlasherStartTimed, -1.0f);
 			Table->MultiballCount += 3;
-			for (auto [sink, light, time] :
+			for (const auto& [sink, light, time] :
 				 {std::tuple{a_sink18, v_lite48, 1.0f}, {a_sink17, v_lite49, 2.0f}, {a_sink16, v_lite50, 3.0f}})
 			{
 				sink->Message(TSinkResetTimer, time);
