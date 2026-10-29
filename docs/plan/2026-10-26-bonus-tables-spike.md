@@ -1,6 +1,6 @@
 # Bonus tables spike (Phase F, F1 and F2)
 
-Date: 2026-10-26. Status: F3 decided; F4's sizing (below) narrows the estimate. The spike code is on `spike/skulduggery` (#67), marked `SPIKE (F2)`, and isn't meant to merge. Phase F is in the [Space Cadet 2026 plan](2026-10-20-space-cadet-2026.md).
+Date: 2026-10-26. Status: F3 decided; F4's sizing (below) narrows the estimate, and F6's sizing does the same for Skulduggery. The spike code is on `spike/skulduggery` (#67), marked `SPIKE (F2)`, and isn't meant to merge. Phase F is in the [Space Cadet 2026 plan](2026-10-20-space-cadet-2026.md).
 
 ## F1: reference files
 
@@ -211,6 +211,49 @@ F4's close-out compared whole games of Dragon's Keep in Classic with `DRAGON.EXE
 - **The same in both, but not seen under Wine:** when the second fire lizard sink lights the last D-R-A-G-O-N letter, the ball stays in the sink and Dragon Flurry asks the plunger for a new ball; that request reaches the rules as a new ball (0x3f9, `DRAGON.EXE`'s 0x4245b0), which starts the ball's features over and goes back to the launch state while Flurry's balls play on. The port does what that code does; automated play didn't reach Flurry under Wine to show it.
 - **Known differences, kept:** the cheat-mode keys `h` (high score) and `s` (random score) work on Dragon's Keep as on Space Cadet, and `r` does nothing there, while `DRAGON.EXE` has none of them (decided in #109); and, as for Space Cadet, ball paths differ because Wine runs the original's own frame timing, so whole games are compared by their texts and lights, not by their scores.
 - **Checked with the test build's shots, not under Wine:** the sword's three targets to Slay Dragon (35 s with a spell lit, 100,000 and the hits left for each ball in the mouth), Gargoyle Gaggle-Ball from the gargoyle kickout, and Dragon Flurry once all six letters are lit, by a temporary hook that sends the ball into a sink or kickout through its own collision, or a hit or ramp event to the rules.
+
+## F6 sizing (2026-10-29)
+
+The same method as F4's sizing: Ghidra 12.1.4, through REA and the headless script that hashes every function with absolute addresses masked, run on `PIRATES.EXE` (SHA-1 `5EB97B0CF190F628C7F1C02A9D148F27A508E580`) and matched against the hashes of `CADET.EXE` and `DRAGON.EXE` from F4. The binding table was read the way F4's rules pilot read `DRAGON.EXE`'s, from the `drain` component's tag. Scripts and output stay in `~/.cache/scp/f6/` and `~/.cache/scp/f4/`, outside the repository.
+
+### How much of `PIRATES.EXE` matches the shared engine?
+
+| | `CADET.EXE` | `DRAGON.EXE` | `PIRATES.EXE` |
+| --- | --- | --- | --- |
+| Functions | 917 | 925 | 979 |
+| Matching `CADET.EXE` instruction for instruction | | 801 | 801 |
+| The table's own code: matching neither other EXE | 115 functions, 31 KB | 106 functions, 35 KB | 163 functions, 41 KB |
+| Components bound to rule handlers | 88, 56 handlers | 75, 64 handlers | 74, 69 handlers |
+
+The engine is the same in all three, at the same addresses: the table constructor (0x41a290) and the constructors of every object type match `CADET.EXE`'s. Skulduggery's own code is one block after the engine, 0x423680 to 0x42da4f, plus the function at 0x422b90 that shows the table's texts for the engine's table messages, as each EXE has. So its rules are about 1.2 times Dragon's Keep's, by code and by handlers: about 5,000 to 5,500 lines, where Dragon's Keep's 35 KB became the 4,523 lines of `control_dragon.cpp`, cheats included.
+
+### Skulduggery's object types
+
+All three of its own types are in the shared engine, so they come from `CADET.EXE` as Dragon's Keep's did, and each is small:
+
+| Type | What it is in `CADET.EXE` | New code |
+| --- | --- | --- |
+| 1034, `s_launcher1` | The plunger (0x418800) with a flag at 0x96. With the flag set, the constructor skips the pull length from the sprites; the launcher has none and, as the manual says, "always launches the ball with the same power" | the flag's branches in `TPlunger` |
+| 1037, one group without a name | A ball: 0x402740 is `CADET.EXE`'s `TBall` constructor, which takes its position from attribute 408 when it is given a DAT group, and the table keeps it in its ball list (0x13a). Most likely the captive ball, which the manual places in the upper left | a `TBall` built at a position from the DAT |
+| 1042, `s_magnet1` to `s_magnet6` | A `TKickout` (0x415e60) with a flag, in a subclass of about 420 bytes (0x416560 to 0x416740): its own `Message` and collision | one small class |
+
+Skulduggery also uses three of the types F4 ported (1035 ramp exits, 1036 accelerators, 1038 the light sweeps), two flippers on each side (the lists F4 added), ramps without wall 1303 (handled since F4) and blockers without walls, `a_cannon` and `a_bloce` (`TAnimatedBlocker`, F4). Left to compare with `CADET.EXE`: its popup targets with a kicker and without the sprite list, `a_drop5` to `a_drop15`. Its music is `TABB1` to `TABB6`. In the spike (F2) the launched ball fell through the raised level for want of the ramp exits and accelerators, which F4 has since ported; the engine milestone checks that.
+
+### Skulduggery's rules
+
+From the manual: seven modes (Attack Ship, Treasure Hunt, Tavern, Bermuda Triangle, Storm, Mutiny, Sword Fight), started by spelling SKULDUGGERY with the targets or from the skill shot, and changed and extended with the captive ball; Peg Leg's Loot, its final mode, counting what the other modes and awards gave; a rolling skill shot with nine awards; GOLD and WINDS letters, reflex shots in the wind lanes, buried treasure, the shipwreck mystery; magnets during Storm, Bermuda Triangle and Tavern; the brig, whose third ball starts Jailbreak, its multiball; a ball save in the first 15 seconds. That is about as many features as Dragon's Keep's five quests, three multiballs, shop and Slay Dragon, which fits the code being only somewhat larger.
+
+### Narrowed estimate
+
+F4 took about two days from its sizing to its close-out, in about 25 pull requests (#83 to #113). Skulduggery's engine needs less than Dragon's Keep's (three small classes against four, no flipper lists, no blocker redesign) and its rules about 1.2 times as much, so at the same pace:
+
+| Step | Pull requests | Before (spike) | Now |
+| --- | --- | --- | --- |
+| Engine milestone | 1 or 2: `-table skulduggery`, its `TableInfo` row and key prefix, the launcher, the captive ball, the magnets, the popup targets, the music | 1 to 2 weeks | **under a day** |
+| Rules | about 15 to 18: the serve, drain and game-over pilot, then the modes, Peg Leg's Loot, the scoring, Jailbreak, then the cheats | 8 to 12 weeks | **one to two days** |
+| Close-out | about 5: HUD, Mission Guide and stats, whole games under Wine, the table list | | **about a day** |
+
+The rules stay the bulk, and checking each feature against `PIRATES.EXE` under Wine, where a mode needs particular shots, takes most of it. `PIRATES.EXE` hasn't been started under Wine yet; the engine milestone does that first, as F4 did with `DRAGON.EXE`.
 
 ## Spike code
 
