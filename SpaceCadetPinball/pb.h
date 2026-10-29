@@ -84,7 +84,7 @@ public:
 	static bool SameTable(Tables a, Tables b);
 	// The saved choice of table: "SpaceCadet" for any of Space Cadet's, "DragonsKeep" or "Skulduggery"
 	static const char* TableKey(Tables table);
-	static Tables TableFromKey(const std::string& key);
+	static Tables TableFromKey(std::string_view key);
 	static void reset_table();
 	static void firsttime_setup();
 	static void mode_change(GameModes mode);

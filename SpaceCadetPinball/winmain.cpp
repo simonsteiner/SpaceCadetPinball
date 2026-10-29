@@ -435,7 +435,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		if (!replay::StartPlayback(replayPath))
 			return 1;
 		// A recording plays back on its own table, whichever the player chose, and a bonus table's without -table
-		auto recordedDat = replay::RecordedDatFile();
+		const auto& recordedDat = replay::RecordedDatFile();
 		pb::RequestedTable = pb::TableOf(recordedDat.substr(0, recordedDat.find(' ')));
 		// Playback is headless; the SDL_VIDEODRIVER environment variable still takes precedence
 		SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
@@ -601,9 +601,11 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			searchPaths.insert(searchPaths.begin(), Options.GameDataFolder.V.c_str());
 		searchPaths.insert(searchPaths.end(), std::begin(PlatformDataPaths), std::end(PlatformDataPaths));
 		pb::SelectDatFile(searchPaths);
-		auto caption = pb::Table == Tables::DragonsKeep ? Msg::Dragon_Caption
-					   : pb::FullTiltMode               ? Msg::FullTilt_Caption
-														: Msg::STRING139;
+		auto caption = Msg::STRING139;
+		if (pb::Table == Tables::DragonsKeep)
+			caption = Msg::Dragon_Caption;
+		else if (pb::FullTiltMode)
+			caption = Msg::FullTilt_Caption;
 		SDL_SetWindowTitle(window, pb::get_rc_string(caption));
 
 		// Second step: run updates that depend on .DAT file selection

@@ -204,7 +204,8 @@ namespace
 			folders.push_back(folder + spelling + PathSeparator);
 
 		// The working directory is the empty folder: its name comes from its path, and its parent is ".."
-		std::string name, parent;
+		std::string name;
+		std::string parent;
 		if (folder.empty())
 		{
 			std::error_code error;
@@ -223,7 +224,7 @@ namespace
 		}
 		// A table's own folder isn't next to itself
 		name = ToUpper(name);
-		if (name == upper || std::find(FullTiltFolders.begin(), FullTiltFolders.end(), name) == FullTiltFolders.end())
+		if (name == upper || std::ranges::find(FullTiltFolders, name) == FullTiltFolders.end())
 			return folders;
 		for (const auto& spelling : spellings)
 			folders.push_back(parent + spelling + PathSeparator);
@@ -244,6 +245,18 @@ namespace
 		return {};
 	}
 
+	// The table's DAT file in the folder: its name as found, or empty
+	std::string FindDatFile(const std::string& folder, Tables table)
+	{
+		for (const auto& datFileName : DatFileNames(table))
+		{
+			auto fileName = FindFile(folder, datFileName);
+			if (!fileName.empty())
+				return fileName;
+		}
+		return {};
+	}
+
 	std::optional<TableData> FindTable(const std::vector<const char*>& dataSearchPaths, Tables table)
 	{
 		for (auto path : dataSearchPaths)
@@ -252,12 +265,8 @@ namespace
 				continue;
 			for (const auto& folder : TableFolders(path, table))
 			{
-				for (const auto& datFileName : DatFileNames(table))
-				{
-					auto fileName = FindFile(folder, datFileName);
-					if (!fileName.empty())
-						return TableData{pb::TableOf(fileName), folder, fileName};
-				}
+				if (auto fileName = FindDatFile(folder, table); !fileName.empty())
+					return TableData{pb::TableOf(fileName), folder, fileName};
 			}
 		}
 		return {};
@@ -334,7 +343,7 @@ const char* pb::TableKey(Tables table)
 	}
 }
 
-Tables pb::TableFromKey(const std::string& key)
+Tables pb::TableFromKey(std::string_view key)
 {
 	if (key == TableKey(Tables::DragonsKeep))
 		return Tables::DragonsKeep;
