@@ -189,12 +189,13 @@ int TPlunger::Message(MessageCode code, float value)
 			if (pb::FullTiltMode || code == MessageCode::PlungerInputReleased)
 				loader::play_sound(SoundIndexP2, this, "TPlunger3");
 			SpriteSet(0);
-			// The originals' short physics steps let a ball resting on the plunger touch it within PullbackDelay;
-			// with ours it can bounce for longer, so ReleasedTimer keeps the push until it touches
+			// The push lasts ReleaseDelay. In 3D Pinball, Pinball.exe's short physics steps let a ball resting on the
+			// plunger touch it within PullbackDelay; with ours it can bounce for longer, so ReleasedTimer keeps the
+			// push until it touches
 			CancelReleaseWait();
 			ReleasePushPending = true;
 			ReleaseTouched = false;
-			ReleaseTimerId = timer::set(PullbackDelay, this, ReleasedTimer);
+			ReleaseTimerId = timer::set(ReleaseDelay(), this, ReleasedTimer);
 		}
 		break;
 	default:
@@ -205,9 +206,14 @@ int TPlunger::Message(MessageCode code, float value)
 	return 0;
 }
 
+float TPlunger::ReleaseDelay() const
+{
+	return pb::FullTiltMode ? FullTiltReleaseDelay : PullbackDelay;
+}
+
 void TPlunger::CancelReleaseWait()
 {
-	// Only a push kept past PullbackDelay has a timer of its own to stop; the originals' timers stay as they were
+	// Only a push kept past ReleaseDelay has a timer of its own to stop; the originals' timers stay as they were
 	if (ReleaseWaitsForTouch)
 		timer::kill(ReleaseTimerId);
 	ReleasePushPending = false;
@@ -253,11 +259,12 @@ void TPlunger::ReleasedTimer(int timerId, void* caller)
 	// A newer release's push is under way: an older release's timer leaves it alone
 	if ((plunger->ReleasePushPending || plunger->ReleaseWaitsForTouch) && timerId != plunger->ReleaseTimerId)
 		return;
-	if (plunger->ReleasePushPending && !plunger->ReleaseTouched)
+	// Full Tilt's 0.2 s already outlasts ReleasePushLimit, so only 3D Pinball's PullbackDelay waits for the touch
+	if (plunger->ReleasePushPending && !plunger->ReleaseTouched && plunger->ReleaseDelay() < ReleasePushLimit)
 	{
 		plunger->ReleasePushPending = false;
 		plunger->ReleaseWaitsForTouch = true;
-		plunger->ReleaseTimerId = timer::set(ReleasePushLimit - plunger->PullbackDelay, plunger, ReleasedTimer);
+		plunger->ReleaseTimerId = timer::set(ReleasePushLimit - plunger->ReleaseDelay(), plunger, ReleasedTimer);
 		return;
 	}
 	plunger->ReleasePushPending = false;
