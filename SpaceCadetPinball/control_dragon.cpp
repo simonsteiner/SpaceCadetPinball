@@ -1283,7 +1283,7 @@ namespace
 	// State 12, 0x42ac80: the shop. The ball waits in s_hole118 while the dragon eggs buy what their number offers,
 	// or the best that is still of use: 1 to 3 the picked quest, 4 a spell, 5 a weapon, 6 armor, 7 the extra ball
 	// light, 8 an extra ball. The left flipper (a_flip1) buys it and spends that many eggs; any other declines
-	void ShopStateControl(MessageCode code, TPinballComponent* caller)
+	void ShopStateControl(MessageCode code, const TPinballComponent* caller)
 	{
 		using enum MessageCode;
 		auto eggs = dragon_egg_light_group;
@@ -1344,7 +1344,7 @@ namespace
 			info_text_box->Clear();
 			ShopItem = eggs->Message(TLightGroupGetOnCount, 0.0f);
 			auto allLit = [](std::initializer_list<TLight*> lights)
-			{ return std::ranges::all_of(lights, [](TLight* light) { return light->light_on(); }); };
+			{ return std::ranges::all_of(lights, [](const TLight* light) { return light->light_on(); }); };
 			// Each item that is of no use any more gives way to the one below it
 			if (ShopItem == 8 && Table->ExtraBalls)
 				ShopItem = 7;
@@ -1385,8 +1385,7 @@ namespace
 			{
 				static constexpr std::array quests{Dragon_BuyDragonHoard, Dragon_BuyFireLizards, Dragon_BuyRescueMaiden,
 												   Dragon_BuyDragonPass, Dragon_BuyWizardsFury};
-				auto state = a_kout2->MessageField;
-				if (state >= DragonHoardState && state <= WizardsFuryState)
+				if (auto state = a_kout2->MessageField; state >= DragonHoardState && state <= WizardsFuryState)
 					text = quests[state - DragonHoardState];
 				break;
 			}
