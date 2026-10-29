@@ -325,7 +325,7 @@ namespace
 	// 0x439b10: set from the launch until play starts, and while a ball waits for a quest to start; play keeps the
 	// launch's text, and KickOrShop lets the ball out of s_hole118 instead of the given sink
 	bool BallHeld;
-	bool SlayDragonFlag;           // 0x439b18, set by Slay Dragon, not ported yet
+	bool SlayDragonFlag;           // 0x439b18, set by Slay Dragon
 	bool TallyQuiet;               // 0x434d0c: count the bonus without showing it
 	int TallyStep;                 // 0x434d10
 	int TallyTotal;                // 0x434d00
@@ -2357,15 +2357,14 @@ namespace
 			EndOfBallStateControl(code, caller);
 			break;
 		default:
-			// Slay Dragon's and the modes' states (9, 12 to 15) aren't ported; DRAGON.EXE goes back to play
-			// from any state it doesn't know (0x42c000)
+			// DRAGON.EXE goes back to play from any state it doesn't know (0x42c000)
 			if (state > 15)
 				SetState(PlayState);
 			break;
 		}
 	}
 
-	// 0x42c020: every component's events reach it after the component's own handler
+	// 0x42c020: every component's events reach it before the component's own handler
 	void TableHook(MessageCode code, TPinballComponent* caller)
 	{
 		if (!info_text_box)
@@ -3494,12 +3493,12 @@ namespace
 		// Components whose own handler isn't ported yet; WithHook still passes their events to the table
 	}
 
-	// DRAGON.EXE's control::handler calls the component's handler, then the table-wide one
+	// DRAGON.EXE's control::handler (0x423060) calls the table-wide one, then the component's handler
 	template <void (&Handler)(MessageCode, TPinballComponent*)>
 	void WithHook(MessageCode code, TPinballComponent* caller)
 	{
-		Handler(code, caller);
 		TableHook(code, caller);
+		Handler(code, caller);
 	}
 
 
