@@ -103,16 +103,6 @@ namespace
 		DrawLamps(drawList, at, 9, FirstLamps(std::min(rank, 9)), scale);
 	}
 
-	// Dragon's Keep's quests by their state, 4 to 8, and Slay Dragon, 9; null for another state
-	const char* QuestName(int state)
-	{
-		using Dragon = TableView::DragonsKeep;
-		if (state < Dragon::FirstQuestState || state > Dragon::SlayDragonState)
-			return nullptr;
-		return Text(
-			static_cast<Msg>(std::to_underlying(Msg::Definitive_DragonHoard) + state - Dragon::FirstQuestState));
-	}
-
 	// Dragon's Keep's multiball modes by their state, 13 to 15; null for another state
 	const char* ModeName(int state)
 	{
@@ -152,9 +142,9 @@ namespace
 		std::string name;
 		if (mode)
 			name = mode;
-		else if (dragon.State == dragon.RestartQuestState && QuestName(dragon.RestartQuest))
-			name = Ui::Fill(Text(Msg::Definitive_RestartQuest), QuestName(dragon.RestartQuest));
-		else if (auto quest = QuestName(dragon.State))
+		else if (dragon.State == dragon.RestartQuestState && DefinitiveHud::QuestName(dragon.RestartQuest))
+			name = Ui::Fill(Text(Msg::Definitive_RestartQuest), DefinitiveHud::QuestName(dragon.RestartQuest));
+		else if (auto quest = DefinitiveHud::QuestName(dragon.State))
 			name = quest;
 		if (!name.empty())
 		{
@@ -173,7 +163,7 @@ namespace
 		if (dragon.State == dragon.SlayDragonState)
 			note = Ui::Fill(Text(Msg::Definitive_HitsLeft), std::to_string(std::max(dragon.HitsLeft, 0)));
 		// A quest running or waiting to restart is still the picked one; it isn't next
-		else if (auto picked = QuestName(dragon.PickedQuest);
+		else if (auto picked = DefinitiveHud::QuestName(dragon.PickedQuest);
 				 picked && dragon.State != dragon.PickedQuest && dragon.RestartQuest != dragon.PickedQuest)
 			note = Ui::Fill(Text(Msg::Definitive_NextQuest), picked);
 		if (!note.empty())
@@ -271,6 +261,14 @@ const char* DefinitiveHud::MissionName(int mission)
 	if (mission < 2 || mission > 18)
 		return nullptr;
 	return Text(static_cast<Msg>(std::to_underlying(Msg::STRING161) + mission - 2));
+}
+
+const char* DefinitiveHud::QuestName(int state)
+{
+	using Dragon = TableView::DragonsKeep;
+	if (state < Dragon::FirstQuestState || state > Dragon::SlayDragonState)
+		return nullptr;
+	return Text(static_cast<Msg>(std::to_underlying(Msg::Definitive_DragonHoard) + state - Dragon::FirstQuestState));
 }
 
 const char* DefinitiveHud::RankName(int rank)

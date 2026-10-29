@@ -45,12 +45,12 @@ namespace
 	// Dragon's Keep's quests by name, with how often each was done
 	void RenderQuests()
 	{
-		for (auto quest = 4; quest <= 8; quest++)
+		using Dragon = TableView::DragonsKeep;
+		for (auto quest = Dragon::FirstQuestState; quest <= Dragon::LastQuestState; quest++)
 		{
 			ImGui::PushID(quest);
 			auto count = DefinitiveStats::QuestsDone(quest);
-			Ui::MenuRow("quest", Text(static_cast<Msg>(std::to_underlying(Msg::Definitive_DragonHoard) + quest - 4)),
-						false, count ? Number(count).c_str() : "-");
+			Ui::MenuRow("quest", DefinitiveHud::QuestName(quest), false, count ? Number(count).c_str() : "-");
 			ImGui::PopID();
 		}
 	}

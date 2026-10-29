@@ -254,14 +254,15 @@ void DefinitiveStats::UpdateDragon(const TableView& view, int player, bool sameP
 	if (dragon.QuestsDone > before.QuestsDone && samePlayer)
 	{
 		Add(Key("Quests"), 1);
-		if (auto quest = before.State == 3 ? before.RestartQuest : before.State; quest >= 4 && quest <= 8)
+		auto quest = before.State == before.RestartQuestState ? before.RestartQuest : before.State;
+		if (quest >= before.FirstQuestState && quest <= before.LastQuestState)
 			Add(QuestKey(quest), 1);
 		Current.Quests[player]++;
 		Unlock("First Quest");
 		if (Current.Quests[player] >= 5)
 			Unlock("Five Quests");
 		auto every = true;
-		for (auto each = 4; each <= 8; each++)
+		for (auto each = dragon.FirstQuestState; each <= dragon.LastQuestState; each++)
 			every &= QuestsDone(each) > 0;
 		if (every)
 			Unlock("Every Quest");
@@ -347,7 +348,7 @@ void DefinitiveStats::Clear()
 		options::RemoveSetting(Key(key));
 	for (auto mission = 2; mission <= 18; mission++)
 		options::RemoveSetting(Key(("Mission " + std::to_string(mission)).c_str()));
-	for (auto quest = 4; quest <= 8; quest++)
+	for (auto quest = TableView::DragonsKeep::FirstQuestState; quest <= TableView::DragonsKeep::LastQuestState; quest++)
 		options::RemoveSetting(QuestKey(quest));
 	for (const auto& achievement : AchievementList)
 		options::RemoveSetting(Key((std::string{"Achievement."} + achievement.Key).c_str()));
