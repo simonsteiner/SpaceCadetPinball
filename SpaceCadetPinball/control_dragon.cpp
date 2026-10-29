@@ -1210,6 +1210,9 @@ namespace
 		}
 	}
 
+	// Every TSoloTarget on the table, which MakeLinks finds once
+	std::vector<TPinballComponent*> SoloTargets;
+
 	// 0x42c020: every component's events reach it after the component's own handler
 	void TableHook(MessageCode code, TPinballComponent* caller)
 	{
@@ -1218,7 +1221,7 @@ namespace
 		if (caller == drain && code == MessageCode::ControlCollision && !Table->MultiballCount)
 			BallDrainedFlag = true;
 		// The spot targets' second jackpot while a quest is lit (v_lite28) comes with the quests
-		if (dynamic_cast<TSoloTarget*>(caller))
+		if (std::ranges::find(SoloTargets, caller) != SoloTargets.end())
 		{
 			TargetHits++;
 			AddJackpot(50000);
@@ -1608,9 +1611,15 @@ namespace
 		}
 	}
 
+	bool IsSoloTarget(const TPinballComponent& component)
+	{
+		return dynamic_cast<const TSoloTarget*>(&component);
+	}
+
 	void MakeLinks(TPinballTable* table)
 	{
 		Table = table;
+		SoloTargets.clear();
 		Find(drain, "drain");
 		Find(plunger, "s_plunger1");
 		Find(info_text_box, "info_text_box");
@@ -1822,6 +1831,8 @@ namespace
 		{
 			if (!component)
 				continue;
+			if (IsSoloTarget(*component))
+				SoloTargets.push_back(component);
 			if (component == drain)
 				component->Control = &DrainLink;
 			else if (component == plunger)
