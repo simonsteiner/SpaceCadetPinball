@@ -90,11 +90,14 @@ public:
 	size_t EntryCount() const { return Entries.size(); }
 	void ReserveEntries(size_t count) { Entries.reserve(count); }
 	gdrv_bitmap8* GetBitmap(int resolution) const;
+	// The group's second bitmap of a resolution, or nullptr: each ball frame of Full Tilt's bonus tables has one
+	gdrv_bitmap8* GetAltBitmap(int resolution) const;
 	zmap_header_type* GetZMap(int resolution) const;
 
 private:
 	std::vector<EntryData*> Entries;
 	gdrv_bitmap8* Bitmaps[3]{};
+	std::array<gdrv_bitmap8*, 3> AltBitmaps{};
 	zmap_header_type* ZMaps[3]{};
 	bool NeedsSort = false;
 
@@ -120,6 +123,7 @@ public:
 	int record_labeled(LPCSTR targetGroupName);
 	char* field_labeled(LPCSTR lpString, FieldTypes fieldType);
 	gdrv_bitmap8* GetBitmap(int groupIndex);
+	gdrv_bitmap8* GetAltBitmap(int groupIndex);
 	zmap_header_type* GetZMap(int groupIndex);
 	void Finalize();
 

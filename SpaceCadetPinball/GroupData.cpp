@@ -94,6 +94,11 @@ gdrv_bitmap8* GroupData::GetBitmap(int resolution) const
 	return Bitmaps[resolution];
 }
 
+gdrv_bitmap8* GroupData::GetAltBitmap(int resolution) const
+{
+	return AltBitmaps[resolution];
+}
+
 zmap_header_type* GroupData::GetZMap(int resolution) const
 {
 	return ZMaps[resolution];
@@ -145,9 +150,14 @@ void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, gdrv_bitmap8& bmp
 void GroupData::SetBitmap(gdrv_bitmap8* bmp)
 {
 	// Full Tilt's bonus tables give each ball frame a second bitmap, an alternative ball their rules can switch to.
-	// The game draws the first unless told otherwise (CADET.EXE's TBall), so a later one doesn't replace it.
+	// The game draws the first unless told otherwise (CADET.EXE's TBall), so a later one doesn't replace it; the
+	// second is kept apart, for a ball made while DRAGON.EXE's PB cheat is on.
 	if (Bitmaps[bmp->Resolution])
+	{
+		if (!AltBitmaps[bmp->Resolution])
+			AltBitmaps[bmp->Resolution] = bmp;
 		return;
+	}
 	Bitmaps[bmp->Resolution] = bmp;
 
 	auto zMap = ZMaps[bmp->Resolution];
@@ -279,6 +289,12 @@ gdrv_bitmap8* DatFile::GetBitmap(int groupIndex)
 {
 	auto group = Groups[groupIndex];
 	return group->GetBitmap(fullscrn::GetResolution());
+}
+
+gdrv_bitmap8* DatFile::GetAltBitmap(int groupIndex)
+{
+	auto group = Groups[groupIndex];
+	return group->GetAltBitmap(fullscrn::GetResolution());
 }
 
 zmap_header_type* DatFile::GetZMap(int groupIndex)

@@ -133,6 +133,7 @@ uint64_t TableView::Hash() const
 			hash.Add(value);
 		hash.Add(ball.Depth);
 		hash.Add(ball.Sprite);
+		hash.Add(ball.AltBall);
 	}
 	hash.Add(static_cast<int>(Flippers.size()));
 	for (const auto& flipper : Flippers)
@@ -180,10 +181,11 @@ void TableView::Fill()
 	{
 		auto ball = Table->BallList[index];
 		auto sprite = ball->RenderSprite;
-		View.Balls[index] = {
-			ball->ActiveFlag != 0, ball->Position.X,  ball->Position.Y, ball->Position.Z,
-			ball->Direction.X,     ball->Direction.Y, ball->Speed,      sprite && sprite->Bmp ? sprite->Depth : 0,
-			SpriteRect(sprite)};
+		View.Balls[index] = {ball->ActiveFlag != 0, ball->Position.X,
+							 ball->Position.Y,      ball->Position.Z,
+							 ball->Direction.X,     ball->Direction.Y,
+							 ball->Speed,           sprite && sprite->Bmp ? sprite->Depth : 0,
+							 SpriteRect(sprite),    sprite && sprite->AltBall};
 	}
 
 	View.Flippers.resize(Table->FlipperList.size());

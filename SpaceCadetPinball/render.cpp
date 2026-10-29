@@ -373,7 +373,7 @@ void render::PaintHi(const render_sprite& sprite, const rectangle_type& clipRect
 }
 
 
-void render::paint_balls()
+void render::paint_balls(bool altOnly)
 {
 	// Sort ball sprites by ascending depth
 	std::sort(ball_list.begin(), ball_list.end(), [](const render_sprite* lhs, const render_sprite* rhs)
@@ -386,7 +386,8 @@ void render::paint_balls()
 	{
 		auto ball = ball_list[index];
 		auto dirty = &ball->DirtyRect;
-		if (ball->Bmp && maths::rectangle_clip(ball->BmpRect, vscreen_rect, &ball->DirtyRect))
+		if (ball->Bmp && (!altOnly || ball->AltBall) &&
+			maths::rectangle_clip(ball->BmpRect, vscreen_rect, &ball->DirtyRect))
 		{
 			int xPos = dirty->XPosition;
 			int yPos = dirty->YPosition;
@@ -623,16 +624,23 @@ void render::PresentVScreen(float ballAlpha)
 	}
 
 	// Space Cadet 2026 composes the table on the GPU when it can, into a texture drawn as the frame would be. It draws
-	// the balls itself, so the texture gets the frame without them; the frame keeps them, for Classic.
+	// the balls itself, so the texture gets the frame without them, but for a smiley ball (AltBall), which it leaves
+	// as the frame paints it; the frame keeps them all, for Classic.
 	const DefinitiveScene* scene = nullptr;
 	if (options::GetEdition() == Editions::Definitive && Compositor::Available())
 		scene = &DefinitiveScene::Build(TableView::Get(), DefinitiveEdition::PreviousView(), ballAlpha);
 	auto hideBalls = scene && scene->ShadedBalls;
 	if (hideBalls)
+	{
 		unpaint_balls();
+		paint_balls(true);
+	}
 	screen->BlitToTexture();
 	if (hideBalls)
+	{
+		unpaint_balls();
 		paint_balls();
+	}
 
 	DrawBackdrop();
 	auto scale = HiScale ? HiScale : 1;

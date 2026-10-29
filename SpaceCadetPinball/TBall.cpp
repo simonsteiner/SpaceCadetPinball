@@ -8,6 +8,7 @@
 #include "pb.h"
 #include "proj.h"
 #include "render.h"
+#include "TableRules.h"
 #include "TPinballTable.h"
 #include "TTableLayer.h"
 
@@ -53,16 +54,25 @@ TBall::TBall(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 
 	Radius = *loader::query_float_attribute(groupIndex, 0, 500);
 
+	// The rules pick each frame's bitmap: the second while Dragon's Keep's PB cheat is on, for a smiley ball
+	auto& rules = TableRules::Current();
+	auto altBall = false;
 	auto visualCount = loader::query_visual_states(groupIndex);
 	for (auto index = 0; index < visualCount; ++index)
 	{
 		loader::query_visual(groupIndex, index, &visual);
+		if (auto altBmp = loader::query_alt_bitmap(groupIndex, index); rules.AltBallFrame(altBmp != nullptr))
+		{
+			visual.Bitmap.Bmp = altBmp;
+			altBall = true;
+		}
 		ListBitmap->push_back(visual.Bitmap);
 		auto visVec = reinterpret_cast<vector3*>(loader::query_float_attribute(groupIndex, index, 501));
 		auto zDepth = proj::z_distance(*visVec);
 		VisualZArray[index] = zDepth;
 	}
 	RenderSprite = new render_sprite(VisualTypes::Ball, nullptr, nullptr, 0, 0, nullptr);
+	RenderSprite->AltBall = altBall;
 	PinballTable->CollisionCompOffset = Radius;
 	Position.Z = Radius;
 	GroupIndex = groupIndex;
