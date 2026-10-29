@@ -42,7 +42,7 @@ Running `CADET.EXE`'s table (`gamedata-fulltilt/`) to check #27 and #33 showed t
 
 ## Found while doing the follow-ups
 
-16. **More `TPlunger` differences found while doing item 11.** Done (2026-10-29): each is settled in the side work of the Space Cadet 2026 plan. Moved to the side work of the [Space Cadet 2026 plan](2026-10-20-space-cadet-2026.md#side-work) (2026-10-29):
+16. **More `TPlunger` differences found while doing item 11.** Moved to the side work of the [Space Cadet 2026 plan](2026-10-20-space-cadet-2026.md#side-work) (2026-10-29), and done there with #121 and #124:
     - `CADET.EXE`'s release timer is 0.2 s (`0x418aa6`); the port uses the 25 ms `PullbackDelay` in both modes.
     - `Pinball.exe` ignores PlayerChanged and SetTiltLock; the port handled both in 3D Pinball mode too, and SetTiltLock killed the ball feed timer. Done: 3D Pinball's plunger ignores both.
     - `Pinball.exe` calls `control::handler` only for ball feed and its timer; the port calls it for every message, which looks harmless. Checked: harmless, and faithful to `CADET.EXE` on Full Tilt's data; unchanged.

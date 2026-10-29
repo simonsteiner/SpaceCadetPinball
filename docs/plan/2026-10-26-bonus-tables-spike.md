@@ -177,7 +177,7 @@ So our port missed launches that the originals don't, on 3D Pinball's data and F
 
 Three fixes were proposed: keep the push until the ball touches, shorter physics steps (`timed_frame` in sub-steps of about 1 ms, which would change every collision's timing and every replay), or a longer window (40 ms, which covers 120 updates per second but not 60). The owner chose the first.
 
-A release still takes the push back after `PullbackDelay` if the ball touched the plunger in that time, as in the originals. If it didn't, `ReleasedTimer` keeps the push until the ball's next touch, which ends it, or until 0.1 s after the release (`ReleasePushLimit`) if no ball touches, as when the plunger is released with no ball on it. A new pull or release, a reset, a player change and 3D Pinball's Launch Ball command each end a push that is still waiting. Only `TPlunger` changed; the timers the originals set run as before.
+A release still takes the push back after `PullbackDelay` if the ball touched the plunger in that time, as in the originals. If it didn't, `ReleasedTimer` keeps the push until the ball's next touch, which ends it, or until 0.1 s after the release (`ReleasePushLimit`) if no ball touches, as when the plunger is released with no ball on it. A new pull or release, a reset, a player change on Full Tilt's data (3D Pinball's plunger ignores PlayerChanged since 2026-10-29, as `Pinball.exe`'s does) and 3D Pinball's Launch Ball command each end a push that is still waiting. Only `TPlunger` changed; the timers the originals set run as before.
 
 | Run, our port in Classic, 40 presses each | Missed before | Missed after |
 | --- | --- | --- |
@@ -195,11 +195,11 @@ The reference replays that held a release whose ball touched only after 25 ms pl
 
 - **A tilt while the first ball is on its way.** A game's first ball feed timer starts 5.03 s after F2 and serves the ball 0.97 s later; until then the nudges can tilt the table. Seven timings of five nudges, 0.2 s apart, looked at 8 s after F2:
 
-| | Tilts inside the feed window | At 8 s |
-| --- | --- | --- |
-| Our port before | 5 of 7 (5.05 to 5.85 s) | Those 5 show TILT and no ball; the feed was killed. 30 s later the tilt timeout drained the unserved ball and the panel moved to ball 2. |
-| `Pinball.exe` | | All 7 have the ball on the plunger and no TILT. A closer look showed TILT, then 0.3 s later the ball and the tilt cleared, so its feed timer had been running when the table tilted. |
-| Our port after | | All 7 as `Pinball.exe`. |
+  | | Tilts inside the feed window | At 8 s |
+  | --- | --- | --- |
+  | Our port before | 5 of 7 (5.05 to 5.85 s) | Those 5 show TILT and no ball; the feed was killed. 30 s later the tilt timeout drained the unserved ball and the panel moved to ball 2. |
+  | `Pinball.exe` | | All 7 have the ball on the plunger and no TILT. A closer look showed TILT, then 0.3 s later the ball and the tilt cleared, so its feed timer had been running when the table tilted. |
+  | Our port after | | All 7 as `Pinball.exe`. |
 
   After a drain the drain flag blocks a tilt until the next ball is served, so only a game's first ball meets this.
 - **A pull held as the player changes.** In a two-player game, a tilt ended player 1's first ball while the plunger was pulled and held through the drain and the change to player 2; the key was let go after player 2's ball rested on the plunger. `Pinball.exe` launched it. Our port's PlayerChanged had dropped the pull (Boost 100 to 0, from a temporary log), so the release left the ball where it was; after the change it launches it, as `Pinball.exe`.
