@@ -332,7 +332,6 @@ namespace
 	int TallyTotal;                // 0x434d00
 	int TargetHits;                // 0x434d08, Target Bonus
 	int SpellCount;                // 0x434d24, Spell Bonus: the spells cast this ball
-	TPinballComponent* LastScorer; // 0x434d20
 
 	void TableHook(MessageCode code, TPinballComponent* caller);
 
@@ -349,10 +348,9 @@ namespace
 	}
 
 	// 0x4230f0; DRAGON.EXE first tells the previous scorer's rules that it no longer is (0x4d), which no ported
-	// handler takes yet
+	// handler takes yet, so the last scorer (0x434d20) isn't kept
 	int AddScore(TPinballComponent* scorer, int score)
 	{
-		LastScorer = scorer;
 		return Table->AddScore(score);
 	}
 
@@ -366,7 +364,6 @@ namespace
 	// jackpot still counts it
 	int AddScoreUnmultiplied(TPinballComponent* scorer, int score)
 	{
-		LastScorer = scorer;
 		auto bonus = Table->BonusScoreFlag;
 		auto jackpot = Table->JackpotScoreFlag;
 		auto multiplier = Table->ScoreMultiplier;
@@ -3449,7 +3446,6 @@ namespace
 		a_bump1->MessageField = 0;
 		TargetHits = 0;
 		SpellCount = 0;
-		LastScorer = nullptr;
 		if (PickQuest() != SlayDragonState)
 			SetState(LaunchState);
 		v_lite40->Message(TLightResetAndTurnOn, 0.0f);
