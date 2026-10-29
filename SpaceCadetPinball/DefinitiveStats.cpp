@@ -6,6 +6,7 @@
 #include "TableView.h"
 #include "translations.h"
 
+#include <format>
 #include <utility>
 
 namespace
@@ -80,6 +81,11 @@ std::string DefinitiveStats::Key(const char* name)
 {
 	// Per table, like the high scores
 	return std::string{options::TableKeyPrefix()} + "Stats." + name;
+}
+
+std::string DefinitiveStats::QuestKey(int quest)
+{
+	return Key(std::format("Quest {}", quest).c_str());
 }
 
 int DefinitiveStats::Read(const std::string& key)
@@ -248,9 +254,8 @@ void DefinitiveStats::UpdateDragon(const TableView& view, int player, bool sameP
 	if (dragon.QuestsDone > before.QuestsDone && samePlayer)
 	{
 		Add(Key("Quests"), 1);
-		auto quest = before.State == 3 ? before.RestartQuest : before.State;
-		if (quest >= 4 && quest <= 8)
-			Add(Key(("Quest " + std::to_string(quest)).c_str()), 1);
+		if (auto quest = before.State == 3 ? before.RestartQuest : before.State; quest >= 4 && quest <= 8)
+			Add(QuestKey(quest), 1);
 		Current.Quests[player]++;
 		Unlock("First Quest");
 		if (Current.Quests[player] >= 5)
@@ -296,7 +301,7 @@ int DefinitiveStats::MissionsFinished(int mission)
 
 int DefinitiveStats::QuestsDone(int quest)
 {
-	return Read(Key(("Quest " + std::to_string(quest)).c_str()));
+	return Read(QuestKey(quest));
 }
 
 std::span<const DefinitiveStats::Achievement> DefinitiveStats::Achievements()
@@ -343,7 +348,7 @@ void DefinitiveStats::Clear()
 	for (auto mission = 2; mission <= 18; mission++)
 		options::RemoveSetting(Key(("Mission " + std::to_string(mission)).c_str()));
 	for (auto quest = 4; quest <= 8; quest++)
-		options::RemoveSetting(Key(("Quest " + std::to_string(quest)).c_str()));
+		options::RemoveSetting(QuestKey(quest));
 	for (const auto& achievement : AchievementList)
 		options::RemoveSetting(Key((std::string{"Achievement."} + achievement.Key).c_str()));
 	Waiting.clear();

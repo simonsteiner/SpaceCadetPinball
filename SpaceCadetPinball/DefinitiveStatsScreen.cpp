@@ -41,6 +41,19 @@ namespace
 		snprintf(text, sizeof text, "%04d-%02d-%02d", date.year, date.month, date.day);
 		return text;
 	}
+
+	// Dragon's Keep's quests by name, with how often each was done
+	void RenderQuests()
+	{
+		for (auto quest = 4; quest <= 8; quest++)
+		{
+			ImGui::PushID(quest);
+			auto count = DefinitiveStats::QuestsDone(quest);
+			Ui::MenuRow("quest", Text(static_cast<Msg>(std::to_underlying(Msg::Definitive_DragonHoard) + quest - 4)),
+						false, count ? Number(count).c_str() : "-");
+			ImGui::PopID();
+		}
+	}
 } // namespace
 
 void DefinitiveStatsScreen::Open()
@@ -134,16 +147,7 @@ void DefinitiveStatsScreen::RenderStats(const TableView& view)
 				 ImGui::CalcItemWidth() - 32 * scale);
 	ImGui::Dummy(ImVec2{0, Theme::LabelSize * Ui::TextScale() + 12 * scale});
 	if (dragon)
-	{
-		for (auto quest = 4; quest <= 8; quest++)
-		{
-			ImGui::PushID(quest);
-			auto count = DefinitiveStats::QuestsDone(quest);
-			Ui::MenuRow("quest", Text(static_cast<Msg>(std::to_underlying(Msg::Definitive_DragonHoard) + quest - 4)),
-						false, count ? Number(count).c_str() : "-");
-			ImGui::PopID();
-		}
-	}
+		RenderQuests();
 	else
 	{
 		for (auto mission = 2; mission <= 18; mission++)

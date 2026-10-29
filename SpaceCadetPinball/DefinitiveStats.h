@@ -67,6 +67,8 @@ public:
 
 private:
 	static std::string Key(const char* name);
+	// The key of a Dragon's Keep quest's count, by its state
+	static std::string QuestKey(int quest);
 	static int Read(const std::string& key);
 	static void Add(const std::string& key, int amount);
 	static void Raise(const std::string& key, int value);
