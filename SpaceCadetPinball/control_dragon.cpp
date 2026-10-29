@@ -2029,14 +2029,15 @@ namespace
 	// a_bump1 to a_bump4, 0x424bc0: every tenth bumper raises a weapon; a_bump1's message field counts them
 	void BumperControl(MessageCode code, TPinballComponent* caller)
 	{
-		if (code != MessageCode::ControlCollision)
+		using enum MessageCode;
+		if (code != ControlCollision)
 			return;
 		if (GameState() != DragonHoardState)
 			tabc03wave->Play(nullptr, "BumperControl");
 		if (caller == a_bump3)
-			v_lite65->Message(MessageCode::TLightFlasherStartTimed, 0.5f);
+			v_lite65->Message(TLightFlasherStartTimed, 0.5f);
 		else if (caller == a_bump4)
-			v_lite66->Message(MessageCode::TLightFlasherStartTimed, 0.5f);
+			v_lite66->Message(TLightFlasherStartTimed, 0.5f);
 		if (GameState() != DragonHoardState)
 			ScoreBy(caller, 0);
 		if (++a_bump1->MessageField == 10)
@@ -2060,7 +2061,7 @@ namespace
 	void MysteryLights(TPinballComponent* target)
 	{
 		auto lights = {v_lite3, v_lite4, v_lite5, v_lite6, v_lite7};
-		if (!std::ranges::all_of(lights, [](TLight* light) { return light->light_on(); }))
+		if (!std::ranges::all_of(lights, [](const TLight* light) { return light->light_on(); }))
 		{
 			if (GameState() != DragonHoardState)
 			{
@@ -2134,12 +2135,14 @@ namespace
 		using enum MessageCode;
 		if (code != ControlCollision)
 			return;
-		(caller == a_spot3   ? v_lite8
-		 : caller == a_spot2 ? v_lite9
-							 : v_lite10)
-			->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+		TLight* hit = v_lite10;
+		if (caller == a_spot3)
+			hit = v_lite8;
+		else if (caller == a_spot2)
+			hit = v_lite9;
+		hit->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
 		auto lights = {v_lite8, v_lite9, v_lite10};
-		if (!std::ranges::all_of(lights, [](TLight* light) { return light->light_on(); }))
+		if (!std::ranges::all_of(lights, [](const TLight* light) { return light->light_on(); }))
 		{
 			if (GameState() != DragonHoardState)
 			{
@@ -2198,8 +2201,7 @@ namespace
 	{
 		if (code != MessageCode::ControlCollision || GameState() != PlayState)
 			return;
-		auto light = caller == a_spot19 ? v_lite16 : v_lite17;
-		if (!light->FlasherOnFlag)
+		if (auto light = caller == a_spot19 ? v_lite16 : v_lite17; !light->FlasherOnFlag)
 			return;
 		SetLevelLights(caller == a_spot19 ? 2 : 1);
 		dragon_fire_light_group->Message(MessageCode::TLightFlasherStartTimed, 2.0f);
@@ -2251,16 +2253,17 @@ namespace
 	}
 
 	// s_rexit19 (0x426be0) and s_rexit18 (0x426c20): out of the ramp, dragon eggs, and in play the diverters swing
-	void RampExitControl(MessageCode code, TPinballComponent* caller)
+	void RampExitControl(MessageCode code, const TPinballComponent* caller)
 	{
-		if (code != MessageCode::ControlRampExitToLayer1)
+		using enum MessageCode;
+		if (code != ControlRampExitToLayer1)
 			return;
 		bool first = caller == s_rexit19;
 		AwardDragonEggs(first ? 2 : 1);
 		if (GameState() == PlayState)
 		{
-			diverters[first ? 4 : 2]->Message(MessageCode::TDiverterEnable, 0.0f);
-			diverters[first ? 5 : 3]->Message(MessageCode::TDiverterDisable, 0.0f);
+			diverters[first ? 4 : 2]->Message(TDiverterEnable, 0.0f);
+			diverters[first ? 5 : 3]->Message(TDiverterDisable, 0.0f);
 		}
 	}
 
@@ -2311,15 +2314,16 @@ namespace
 	// v_lite37, full armor, 0x428240: on for 53 s, then flashing 5 s, then off
 	void ArmorLightControl(MessageCode code, TPinballComponent*)
 	{
-		if (code != MessageCode::ControlTimerExpired)
+		using enum MessageCode;
+		if (code != ControlTimerExpired)
 			return;
 		switch (v_lite37->MessageField++)
 		{
 		case 0:
-			v_lite37->Message(MessageCode::TLightTurnOnTimed, 53.0f);
+			v_lite37->Message(TLightTurnOnTimed, 53.0f);
 			break;
 		case 1:
-			v_lite37->Message(MessageCode::TLightFlasherStartTimedThenStayOff, 5.0f);
+			v_lite37->Message(TLightFlasherStartTimedThenStayOff, 5.0f);
 			break;
 		default:
 			v_lite37->MessageField = 0;
@@ -2561,8 +2565,7 @@ namespace
 	}
 
 	// DRAGON.EXE's control::handler calls the component's handler, then the table-wide one
-	template <void (&Handler)(MessageCode, TPinballComponent*)>
-	void WithHook(MessageCode code, TPinballComponent* caller)
+	template <auto& Handler> void WithHook(MessageCode code, TPinballComponent* caller)
 	{
 		Handler(code, caller);
 		TableHook(code, caller);
@@ -2667,6 +2670,11 @@ namespace
 		auto scores = component->GroupName ? ComponentScores.find(component->GroupName) : ComponentScores.end();
 		auto& list = scores != ComponentScores.end() ? scores->second : none;
 		component->Control = &Links.emplace_back(handler, static_cast<unsigned>(list.size()), list.data());
+	}
+
+	bool IsKickoutOrSink(const TPinballComponent& component)
+	{
+		return dynamic_cast<const TKickout*>(&component) || dynamic_cast<const TSink*>(&component);
 	}
 
 	void MakeLinks(TPinballTable* table)
@@ -3046,10 +3054,10 @@ namespace
 											   tabc39wave,
 											   tabc96wave};
 		if (const bool listsFound = std::ranges::none_of(diverters, [](auto c) { return !c; }) &&
-								std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
-								std::ranges::none_of(lizard_lights, [](auto c) { return !c; }) &&
-								std::ranges::none_of(diamond_targets, [](auto c) { return !c; }) &&
-								std::ranges::none_of(pearl_targets, [](auto c) { return !c; });
+									std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
+									std::ranges::none_of(lizard_lights, [](auto c) { return !c; }) &&
+									std::ranges::none_of(diamond_targets, [](auto c) { return !c; }) &&
+									std::ranges::none_of(pearl_targets, [](auto c) { return !c; });
 			std::ranges::find(all, nullptr) != all.end() || !listsFound)
 		{
 			// Not Dragon's Keep's DAT as DRAGON.EXE knows it; leave the table without rules
@@ -3127,7 +3135,7 @@ namespace
 				Link(component, WithHook<BloceControl>);
 			else if (component == a_blocf)
 				Link(component, WithHook<BlocfControl>);
-			else if (dynamic_cast<TKickout*>(component) || dynamic_cast<TSink*>(component))
+			else if (IsKickoutOrSink(*component))
 				Link(component, WithHook<StandInControl>);
 			else
 				Link(component, WithHook<NoControl>);
