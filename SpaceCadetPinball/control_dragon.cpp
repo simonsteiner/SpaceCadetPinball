@@ -1610,7 +1610,7 @@ namespace
 				if (v_lite37->light_on())
 				{
 					SlaySeconds = 35;
-					AwardMaxArmor(false);
+					AwardMaxArmor();
 					tabc24wave->Play(nullptr, "SlayDragonStateControl");
 				}
 				if (v_lite38->light_on())
@@ -1749,7 +1749,7 @@ namespace
 				for (auto light : {v_lite33, v_lite34, v_lite35, v_lite36})
 					light->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
 				Table->ScoreMultiplier = 5;
-				AwardMaxArmor(false);
+				AwardMaxArmor();
 				CenterPostControl(TAnimatedBlockerAnimateOn, a_center_post);
 				BloceControl(TAnimatedBlockerAnimateOn, a_bloce);
 				v_lite28->Message(TLightTurnOnTimed, 30.0f);
