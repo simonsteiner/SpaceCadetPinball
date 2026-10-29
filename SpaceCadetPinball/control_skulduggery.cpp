@@ -2,5 +2,12 @@
 #include "control_skulduggery.h"
 
 const TableRules control_skulduggery::Rules{
-	[](TPinballTable*) {}, [] {}, [](MessageCode) {}, [](TBall&, int) {}, [](int) {}, [] {}, [] {}, [](TableView&) {},
+	[](TPinballTable*) {},
+	[] {},
+	[](MessageCode) {},
+	[](TBall&, int) {},
+	[](int) {},
+	[] {},
+	[] {},
+	[](TableView&) { /* no rules, so nothing of its own to show */ },
 };

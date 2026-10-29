@@ -199,7 +199,8 @@ namespace
 		{
 			auto text = Ui::FormatScore(value, 0);
 			auto size = Theme::LedSize(OtherScoreSize * scale, text.c_str());
-			y = DrawRow(drawList, Text(label), ImVec2{at.x, y}, width, size.x, size.y, [&](ImVec2 position)
+			y = DrawRow(drawList, Text(label), ImVec2{at.x, y}, width, size.x, size.y,
+						[drawList, scale, &text](ImVec2 position)
 						{ Theme::DrawLed(drawList, position, OtherScoreSize * scale, text.c_str()); }) +
 				OtherGap * scale;
 		}
@@ -209,8 +210,8 @@ namespace
 			  {Msg::Definitive_Armor, 3, dragon.Armor}})
 		{
 			y = DrawRow(drawList, Text(label), ImVec2{at.x, y + OtherGap * scale}, width, LampsWidth(count, scale),
-						LampRadius * 2 * scale,
-						[&](ImVec2 position) { DrawLamps(drawList, position, count, lit, scale); });
+						LampRadius * 2 * scale, [drawList, count, lit, scale](ImVec2 position)
+						{ DrawLamps(drawList, position, count, lit, scale); });
 		}
 		return y;
 	}

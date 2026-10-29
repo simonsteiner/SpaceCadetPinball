@@ -13,6 +13,8 @@
 #include "TPinballTable.h"
 #include "TTextBox.h"
 
+#include <utility>
+
 namespace
 {
 	TableView View{};
@@ -153,7 +155,7 @@ uint64_t TableView::Hash() const
 		hash.Add(value);
 	for (auto value : {GameOver, Demo, Tilted, FullTilt, CheatsUsed})
 		hash.Add(value);
-	hash.Add(static_cast<int>(Kind));
+	hash.Add(std::to_underlying(Kind));
 	for (auto value : {Dragon.State, Dragon.RestartQuest, Dragon.PickedQuest, Dragon.TimeLeft,
 					   static_cast<int>(Dragon.QuestLights), Dragon.QuestsDone, Dragon.Jackpot, Dragon.SuperJackpot,
 					   Dragon.Eggs, Dragon.Weapons, static_cast<int>(Dragon.Armor), Dragon.HitsLeft})

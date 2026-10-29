@@ -2871,8 +2871,9 @@ namespace
 				Table->ScoreMultiplier = multiplier;
 				AddScoreUnmultiplied(nullptr, 25000 + (multiplier - 2) * 10000);
 				// The pictures show an ax, a bow, a lance and a sword
-				constexpr std::array weapons{Msg::Definitive_PictureFrantzsAx, Msg::Definitive_PictureFirebow,
-											 Msg::Definitive_PictureDragonLance, Msg::Definitive_PictureSwordOfVirtue};
+				using enum Msg;
+				constexpr std::array weapons{Definitive_PictureFrantzsAx, Definitive_PictureFirebow,
+											 Definitive_PictureDragonLance, Definitive_PictureSwordOfVirtue};
 				ShowPicture(std::string(1, static_cast<char>('%' + multiplier - 2)), 2.0f, weapons[multiplier - 2]);
 				break;
 			}
