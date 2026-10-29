@@ -7,6 +7,8 @@
 #include "pb.h"
 #include "mmpx.h"
 
+#include <format>
+
 int Upscale::CurrentFactor = 0;
 std::unordered_map<const gdrv_bitmap8*, std::unique_ptr<gdrv_bitmap8>> Upscale::Bitmaps{};
 std::unordered_map<const zmap_header_type*, std::unique_ptr<zmap_header_type>> Upscale::ZMaps{};
@@ -136,6 +138,17 @@ static std::string SpriteFileName(int groupId, std::string name, int resolution)
 	return prefix + name + "-r" + std::to_string(resolution) + ".png";
 }
 
+// The names an override of a group's bitmap may have: with stateOwner, the component's name and the bitmap's index
+// first, then the group's own
+static void AddSpriteNames(std::vector<std::string>& names, const GroupData& group, const GroupData* stateOwner,
+						   int stateIndex, std::string_view suffix, int resolution)
+{
+	if (stateOwner)
+		names.push_back(SpriteFileName(stateOwner->GroupId,
+									   std::format("{}_{}{}", stateOwner->GroupName, stateIndex, suffix), resolution));
+	names.push_back(SpriteFileName(group.GroupId, std::format("{}{}", group.GroupName, suffix), resolution));
+}
+
 void Upscale::FindSpriteNames()
 {
 	// A sprite's file name is its group's number and name and the table resolution, such as 0108-ball-r0.png.
@@ -165,18 +178,11 @@ void Upscale::FindSpriteNames()
 		else
 			owner = nullptr;
 
-		for (auto alt : {false, true})
-		{
-			auto bmp = alt ? group->GetAltBitmap(resolution) : group->GetBitmap(resolution);
-			if (!bmp)
-				continue;
-			std::string suffix = alt ? "_alt" : "";
-			auto& names = SpriteNames[bmp];
-			if (kind == loader::NextStateGroup && owner && group->GroupName.empty())
-				names.push_back(SpriteFileName(
-					owner->GroupId, owner->GroupName + "_" + std::to_string(stateIndex) + suffix, resolution));
-			names.push_back(SpriteFileName(group->GroupId, group->GroupName + suffix, resolution));
-		}
+		auto stateOwner = kind == loader::NextStateGroup && owner && group->GroupName.empty() ? owner : nullptr;
+		if (auto bmp = group->GetBitmap(resolution))
+			AddSpriteNames(SpriteNames[bmp], *group, stateOwner, stateIndex, "", resolution);
+		if (auto bmp = group->GetAltBitmap(resolution))
+			AddSpriteNames(SpriteNames[bmp], *group, stateOwner, stateIndex, "_alt", resolution);
 	}
 }
 

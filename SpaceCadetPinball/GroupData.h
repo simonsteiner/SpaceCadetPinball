@@ -97,7 +97,7 @@ public:
 private:
 	std::vector<EntryData*> Entries;
 	gdrv_bitmap8* Bitmaps[3]{};
-	gdrv_bitmap8* AltBitmaps[3]{};
+	std::array<gdrv_bitmap8*, 3> AltBitmaps{};
 	zmap_header_type* ZMaps[3]{};
 	bool NeedsSort = false;
 

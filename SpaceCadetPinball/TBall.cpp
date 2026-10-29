@@ -61,8 +61,7 @@ TBall::TBall(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	for (auto index = 0; index < visualCount; ++index)
 	{
 		loader::query_visual(groupIndex, index, &visual);
-		auto altBmp = loader::query_alt_bitmap(groupIndex, index);
-		if (rules.AltBallFrame(altBmp != nullptr))
+		if (auto altBmp = loader::query_alt_bitmap(groupIndex, index); rules.AltBallFrame(altBmp != nullptr))
 		{
 			visual.Bitmap.Bmp = altBmp;
 			altBall = true;
