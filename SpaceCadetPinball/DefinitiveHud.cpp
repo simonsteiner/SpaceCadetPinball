@@ -152,7 +152,7 @@ namespace
 		std::string name;
 		if (mode)
 			name = mode;
-		else if (dragon.State == dragon.RestartQuestState && QuestName(dragon.RestartQuest))
+		else if (dragon.State == TableView::DragonsKeep::RestartQuestState && QuestName(dragon.RestartQuest))
 			name = Ui::Fill(Text(Msg::Definitive_RestartQuest), QuestName(dragon.RestartQuest));
 		else if (auto quest = QuestName(dragon.State))
 			name = quest;
@@ -169,7 +169,7 @@ namespace
 		}
 
 		std::string note;
-		if (dragon.State == dragon.SlayDragonState)
+		if (dragon.State == TableView::DragonsKeep::SlayDragonState)
 			note = Ui::Fill(Text(Msg::Definitive_HitsLeft), std::to_string(dragon.HitsLeft));
 		// A quest running or waiting to restart is still the picked one; it isn't next
 		else if (auto picked = QuestName(dragon.PickedQuest);
