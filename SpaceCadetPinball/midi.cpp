@@ -332,17 +332,7 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 	}
 	else if (pb::Table == Tables::Skulduggery)
 	{
-		// PIRATES.EXE loads TABB1 to TABB6, plays TABB1 for any of them that is missing, and has a seventh track that
-		// is TABB5
-		track1 = load_track("TABB1");
-		std::array tracks{&track2, &track3, &track4, &track5, &track6};
-		for (auto index = 0u; index < tracks.size(); index++)
-		{
-			*tracks[index] = load_track("TABB" + std::to_string(index + 2));
-			if (!*tracks[index])
-				*tracks[index] = track1;
-		}
-		track7 = track5;
+		load_skulduggery_tracks();
 	}
 	else if (pb::FullTiltMode)
 	{
@@ -413,6 +403,21 @@ void midi::SetVolume(int volume)
 	if (Backend == MidiBackend::Native)
 		NativeMidi_SetVolume(gain);
 #endif
+}
+
+void midi::load_skulduggery_tracks()
+{
+	// PIRATES.EXE loads TABB1 to TABB6, plays TABB1 for any of them that is missing, and has a seventh track that is
+	// TABB5
+	track1 = load_track("TABB1");
+	std::array tracks{&track2, &track3, &track4, &track5, &track6};
+	for (auto index = 0u; index < tracks.size(); index++)
+	{
+		*tracks[index] = load_track(std::format("TABB{}", index + 2));
+		if (!*tracks[index])
+			*tracks[index] = track1;
+	}
+	track7 = track5;
 }
 
 MidiSong* midi::load_track(std::string fileName)

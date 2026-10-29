@@ -46,8 +46,7 @@ TKickout::TKickout(TPinballTable* table, int groupIndex, bool someFlag): TCollis
 	}
 
 	Circle.RadiusSq = visual.FloatArr[2] * visual.FloatArr[2];
-	auto zAttr = loader::query_float_attribute(groupIndex, 0, 408);
-	if (!zAttr)
+	if (auto zAttr = loader::query_float_attribute(groupIndex, 0, 408); !zAttr)
 		CollisionBallSetZ = table->CollisionCompOffset;
 	else
 		CollisionBallSetZ = pb::FullTiltMode && !pb::FullTiltDemoMode ? zAttr[3] : zAttr[2];

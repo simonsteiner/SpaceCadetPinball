@@ -14,16 +14,17 @@ TMagnet::TMagnet(TPinballTable* table, int groupIndex) : TKickout(table, groupIn
 
 int TMagnet::Message(MessageCode code, float value)
 {
+	using enum MessageCode;
 	KeepMessageFieldPerPlayer(code, value);
 	switch (code)
 	{
-	case MessageCode::TMagnetEnable:
+	case TMagnetEnable:
 		ActiveFlag = 1;
 		break;
-	case MessageCode::TMagnetDisable:
-	case MessageCode::SetTiltLock:
-	case MessageCode::PlayerChanged:
-	case MessageCode::Reset:
+	case TMagnetDisable:
+	case SetTiltLock:
+	case PlayerChanged:
+	case Reset:
 		if (Timer)
 			timer::kill(Timer);
 		Timer = 0;

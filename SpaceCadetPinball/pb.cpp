@@ -296,12 +296,13 @@ namespace
 
 std::vector<TableData> pb::FindTables(const std::vector<const char*>& dataSearchPaths)
 {
+	using enum Tables;
 	std::vector<TableData> found;
-	for (auto table : {Tables::SpaceCadet3DPB, Tables::DragonsKeep, Tables::Skulduggery})
+	for (auto table : {SpaceCadet3DPB, DragonsKeep, Skulduggery})
 	{
 		// Skulduggery is only for test runs until its rules are done (F6): only -table skulduggery or a recording of
 		// it looks for its data
-		if (table == Tables::Skulduggery && RequestedTable != Tables::Skulduggery)
+		if (table == Skulduggery && RequestedTable != Skulduggery)
 			continue;
 		if (auto data = FindTable(dataSearchPaths, table))
 			found.push_back(std::move(*data));

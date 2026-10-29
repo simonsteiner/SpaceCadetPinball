@@ -578,7 +578,7 @@ enum class Msg : int
 	Dragon_SuperJackpot,
 	Dragon_ExtraBallLight,
 
-	// Skulduggery, PIRATES.EXE's strings
+	// Skulduggery's own texts, from PIRATES.EXE
 	Skulduggery_Caption,
 
 	Max,

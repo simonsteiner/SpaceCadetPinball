@@ -2,9 +2,7 @@
 #include "control_skulduggery.h"
 
 #include "control.h"
-#include "TBall.h"
 #include "TDrain.h"
-#include "TFlipper.h"
 #include "TKickout.h"
 #include "TMagnet.h"
 #include "TPinballTable.h"
@@ -58,34 +56,9 @@ namespace
 		Table = nullptr;
 	}
 
-	bool InBounds(const TBall& ball, const TCollisionComponent& component)
-	{
-		auto offset = Table->CollisionCompOffset / 2.0f;
-		return ball.ActiveFlag && ball.Position.X >= component.AABB.XMin - offset &&
-			   ball.Position.X <= component.AABB.XMax + offset && ball.Position.Y >= component.AABB.YMin - offset &&
-			   ball.Position.Y <= component.AABB.YMax + offset;
-	}
-
 	void UnstuckBall(TBall& ball, int)
 	{
-		if (Table->Plunger && InBounds(ball, *Table->Plunger))
-			return;
-		for (auto flippers : {&Table->FlippersL, &Table->FlippersR})
-			for (auto flipper : *flippers)
-				if (InBounds(ball, *flipper))
-					return;
-
-		if (ball.StuckCounter <= 20)
-		{
-			vector3 throwDir{0.0f, -1.0f, 0.0f};
-			ball.throw_ball(&throwDir, 90.0f, 1.0f, 0.0f);
-		}
-		else if (Table->Plunger)
-		{
-			ball.Disable();
-			Table->MultiballCount--;
-			Table->Plunger->Message(MessageCode::PlungerRelaunchBall, 0);
-		}
+		TableRules::UnstuckBonusTableBall(*Table, ball);
 	}
 } // namespace
 

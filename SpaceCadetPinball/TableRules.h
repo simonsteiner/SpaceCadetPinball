@@ -28,4 +28,7 @@ struct TableRules
 
 	// The rules of the table pb::SelectDatFile picked
 	static const TableRules& Current();
+	// A stand-in for the bonus tables: a stuck ball is freed as Space Cadet's rules free one. Away from the flippers
+	// and the plunger it's thrown up, and after 20 tries it's served again.
+	static void UnstuckBonusTableBall(TPinballTable& table, TBall& ball);
 };
