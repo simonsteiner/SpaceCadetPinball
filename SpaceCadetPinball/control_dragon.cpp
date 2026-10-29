@@ -1961,8 +1961,18 @@ namespace
 			return;
 		bool prison = caller == s_trip5 || caller == s_trip6;
 		bool watch = caller == s_trip3 || caller == s_trip4;
-		auto windows = prison ? prison_window_light_group : watch ? watch_window_light_group : gate_window_light_group;
-		auto lockLight = prison ? v_lite48 : watch ? v_lite49 : v_lite50;
+		auto windows = gate_window_light_group;
+		auto lockLight = v_lite50;
+		if (prison)
+		{
+			windows = prison_window_light_group;
+			lockLight = v_lite48;
+		}
+		else if (watch)
+		{
+			windows = watch_window_light_group;
+			lockLight = v_lite49;
+		}
 		auto showScore = [](int score)
 		{
 			std::array<char, 64> buffer{};
@@ -3210,10 +3220,10 @@ namespace
 											   tabc18wave,
 											   tabc20wave};
 		if (const bool listsFound = std::ranges::none_of(diverters, [](auto c) { return !c; }) &&
-								std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
-								std::ranges::none_of(lizard_lights, [](auto c) { return !c; }) &&
-								std::ranges::none_of(diamond_targets, [](auto c) { return !c; }) &&
-								std::ranges::none_of(pearl_targets, [](auto c) { return !c; });
+									std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
+									std::ranges::none_of(lizard_lights, [](auto c) { return !c; }) &&
+									std::ranges::none_of(diamond_targets, [](auto c) { return !c; }) &&
+									std::ranges::none_of(pearl_targets, [](auto c) { return !c; });
 			std::ranges::find(all, nullptr) != all.end() || !listsFound)
 		{
 			// Not Dragon's Keep's DAT as DRAGON.EXE knows it; leave the table without rules
