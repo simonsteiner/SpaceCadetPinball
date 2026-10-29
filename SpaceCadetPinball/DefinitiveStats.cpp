@@ -254,15 +254,16 @@ void DefinitiveStats::UpdateDragon(const TableView& view, int player, bool sameP
 	if (dragon.QuestsDone > before.QuestsDone && samePlayer)
 	{
 		Add(Key("Quests"), 1);
-		auto quest = before.State == before.RestartQuestState ? before.RestartQuest : before.State;
-		if (quest >= before.FirstQuestState && quest <= before.LastQuestState)
+		auto quest = before.State == TableView::DragonsKeep::RestartQuestState ? before.RestartQuest : before.State;
+		if (quest >= TableView::DragonsKeep::FirstQuestState && quest <= TableView::DragonsKeep::LastQuestState)
 			Add(QuestKey(quest), 1);
 		Current.Quests[player]++;
 		Unlock("First Quest");
 		if (Current.Quests[player] >= 5)
 			Unlock("Five Quests");
 		auto every = true;
-		for (auto each = dragon.FirstQuestState; each <= dragon.LastQuestState; each++)
+		for (auto each = TableView::DragonsKeep::FirstQuestState; each <= TableView::DragonsKeep::LastQuestState;
+			 each++)
 			every &= QuestsDone(each) > 0;
 		if (every)
 			Unlock("Every Quest");
