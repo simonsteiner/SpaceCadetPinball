@@ -1214,7 +1214,14 @@ void winmain::RenderUi()
 			ImGuiMenuItemWShortcut(GameBindings::ToggleMenuDisplay, Options.ShowMenu);
 			ImGuiMenuItemWShortcut(GameBindings::ToggleFullScreen, Options.FullScreen);
 			// Where Full Tilt! has it, with its shortcut, once there is a choice
-			if (TableChoices.size() > 1 && ImGui::MenuItem("Select Table...", "Ctrl+T"))
+#ifdef __EMSCRIPTEN__
+			// A browser opens a tab for Ctrl+T, so the game never sees it there
+			constexpr const char* selectTableShortcut = nullptr;
+#else
+			constexpr const char* selectTableShortcut = "Ctrl+T";
+#endif
+			if (TableChoices.size() > 1 &&
+				ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_Select_Table), selectTableShortcut))
 				ShowTableDialog();
 			if (ImGui::BeginMenu(pb::get_rc_string(Msg::Menu1_Select_Players)))
 			{
@@ -2297,7 +2304,7 @@ void winmain::RenderTableDialog()
 {
 	// Laid out as Full Tilt!'s launcher: the tables' pictures side by side, the one picked in a teal frame, its name
 	// under them, Ok and Cancel. The table loaded can't be picked. A table without a picture shows its name instead.
-	constexpr auto title = "Select Table";
+	auto title = pb::get_rc_string(Msg::Menu1_Select_Table);
 	static size_t picked = SIZE_MAX;
 	if (OpenTableDialog)
 	{
