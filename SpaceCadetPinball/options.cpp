@@ -810,14 +810,15 @@ const char* options::TableKeyPrefix()
 
 const char* options::TableKeyPrefix(Tables table)
 {
+	using enum Tables;
 	switch (table)
 	{
-	case Tables::DragonsKeep:
+	case DragonsKeep:
 		return DragonsKeepKeyPrefix;
-	case Tables::FullTiltDemo:
+	case FullTiltDemo:
 		return FullTiltDemoKeyPrefix;
-	case Tables::SpaceCadetFullTilt:
-	case Tables::Skulduggery:
+	case SpaceCadetFullTilt:
+	case Skulduggery:
 		return FullTiltKeyPrefix;
 	default:
 		return SpaceCadetKeyPrefix;

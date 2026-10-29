@@ -222,9 +222,18 @@ struct TableChoice
 	TableData Data;
 	SDL_Texture* Picture;
 };
-static std::vector<TableChoice> TableChoices;
-// Classic's Select Table dialog opens on the next frame
-static bool OpenTableDialog = false;
+// The tables found, and whether Classic's Select Table dialog opens on the next frame
+struct TableMenuState
+{
+	std::vector<TableChoice> Choices;
+	bool OpenDialog = false;
+};
+
+static TableMenuState& TableMenus()
+{
+	static TableMenuState state;
+	return state;
+}
 #ifdef __EMSCRIPTEN__
 // A browser opens a tab for Ctrl+T, so the game never sees it there
 constexpr const char* SelectTableShortcut = nullptr;
@@ -246,29 +255,29 @@ static void LoadTableChoices()
 			picture = SDL_CreateTextureFromSurface(winmain::Renderer, surface);
 			SDL_DestroySurface(surface);
 		}
-		TableChoices.emplace_back(data, picture);
+		TableMenus().Choices.emplace_back(data, picture);
 	}
 }
 
 static void FreeTableChoices()
 {
-	for (const auto& choice : TableChoices)
+	for (const auto& choice : TableMenus().Choices)
 		SDL_DestroyTexture(choice.Picture);
-	TableChoices.clear();
+	TableMenus().Choices.clear();
 }
 
 // Classic's Select Table, as Full Tilt!'s Ctrl+T: it pauses the game, which stays paused if nothing is picked
 static void ShowTableDialog()
 {
 	winmain::pause(false);
-	OpenTableDialog = true;
+	TableMenus().OpenDialog = true;
 }
 
 // The tables for Space Cadet 2026's table list
 static std::vector<DefinitiveHost::TableChoice> TableList()
 {
 	std::vector<DefinitiveHost::TableChoice> list;
-	for (const auto& [data, picture] : TableChoices)
+	for (const auto& [data, picture] : TableMenus().Choices)
 	{
 		// The table loaded may have scores it hasn't saved yet
 		auto loaded = pb::SameTable(data.Table, pb::Table);
@@ -321,8 +330,8 @@ static DefinitiveHost MakeDefinitiveHost()
 	host.TableList = TableList;
 	host.SelectTable = [](size_t index)
 	{
-		if (index < TableChoices.size())
-			pb::SelectTable(TableChoices[index].Data.Table);
+		if (index < TableMenus().Choices.size())
+			pb::SelectTable(TableMenus().Choices[index].Data.Table);
 	};
 	host.Busy = [] { return !pb::GameEnded || ImGui::GetTopMostPopupModal() != nullptr; };
 	host.NextRecord = [](DefinitiveHost::Record& record, int& place)
@@ -1196,7 +1205,7 @@ void winmain::RenderUi()
 			ImGuiMenuItemWShortcut(GameBindings::ToggleMenuDisplay, Options.ShowMenu);
 			ImGuiMenuItemWShortcut(GameBindings::ToggleFullScreen, Options.FullScreen);
 			// Where Full Tilt! has it, with its shortcut, once there is a choice
-			if (TableChoices.size() > 1 &&
+			if (TableMenus().Choices.size() > 1 &&
 				ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_Select_Table), SelectTableShortcut))
 				ShowTableDialog();
 			if (ImGui::BeginMenu(pb::get_rc_string(Msg::Menu1_Select_Players)))
@@ -1791,7 +1800,7 @@ int winmain::event_handler(const SDL_Event* event)
 			break;
 		// Full Tilt!'s Ctrl+T, which doesn't reach the table
 		if (event->key.key == SDLK_T && (event->key.mod & SDL_KMOD_CTRL) &&
-			options::GetEdition() == Editions::Classic && TableChoices.size() > 1)
+			options::GetEdition() == Editions::Classic && TableMenus().Choices.size() > 1)
 		{
 			ShowTableDialog();
 			break;
@@ -2282,9 +2291,11 @@ void winmain::RenderTableDialog()
 	// under them, Ok and Cancel. The table loaded can't be picked. A table without a picture shows its name instead.
 	auto title = pb::get_rc_string(Msg::Menu1_Select_Table);
 	static size_t picked = SIZE_MAX;
-	if (OpenTableDialog)
+	auto& menus = TableMenus();
+	const auto& choices = menus.Choices;
+	if (menus.OpenDialog)
 	{
-		OpenTableDialog = false;
+		menus.OpenDialog = false;
 		picked = SIZE_MAX;
 		ImGui::OpenPopup(title);
 	}
@@ -2296,9 +2307,9 @@ void winmain::RenderTableDialog()
 	auto load = SIZE_MAX;
 	// The first table that can be picked has the focus, shown, so the first Enter loads it
 	auto focusFirst = ImGui::IsWindowAppearing();
-	for (size_t i = 0; i < TableChoices.size(); i++)
+	for (size_t i = 0; i < choices.size(); i++)
 	{
-		const auto& [data, picture] = TableChoices[i];
+		const auto& [data, picture] = choices[i];
 		if (i > 0)
 			ImGui::SameLine(0, 24);
 		ImGui::PushID(static_cast<int>(i));
@@ -2333,13 +2344,13 @@ void winmain::RenderTableDialog()
 	}
 
 	ImGui::Spacing();
-	ImGui::TextUnformatted(picked < TableChoices.size() ? pb::TableName(TableChoices[picked].Data.Table) : "");
+	ImGui::TextUnformatted(picked < choices.size() ? pb::TableName(choices[picked].Data.Table) : "");
 	ImGui::SameLine();
 	auto buttonWidth = 80.0f;
 	// Ok and Cancel at the right
 	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - buttonWidth * 2 -
 						 ImGui::GetStyle().ItemSpacing.x);
-	ImGui::BeginDisabled(picked >= TableChoices.size());
+	ImGui::BeginDisabled(picked >= choices.size());
 	if (ImGui::Button(pb::get_rc_string(Msg::GenericOk), ImVec2{buttonWidth, 0}))
 		load = picked;
 	ImGui::EndDisabled();
@@ -2349,8 +2360,8 @@ void winmain::RenderTableDialog()
 		ImGui::CloseCurrentPopup();
 	ImGui::EndPopup();
 
-	if (load < TableChoices.size())
-		pb::SelectTable(TableChoices[load].Data.Table);
+	if (load < choices.size())
+		pb::SelectTable(choices[load].Data.Table);
 }
 
 void winmain::a_dialog()

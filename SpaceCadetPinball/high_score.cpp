@@ -6,6 +6,8 @@
 #include "score.h"
 #include "translations.h"
 
+#include <span>
+
 bool high_score::dlg_enter_name;
 bool high_score::ShowDialog = false;
 high_score_entry high_score::DlgData;
@@ -14,7 +16,7 @@ high_score_struct high_score::highscore_table[5];
 
 namespace
 {
-	void ClearTable(high_score_struct (&table)[5])
+	void ClearTable(std::span<high_score_struct, 5> table)
 	{
 		for (auto& entry : table)
 		{
@@ -24,7 +26,7 @@ namespace
 	}
 
 	// The scores saved under prefix, or none if their check doesn't match
-	void ReadTable(high_score_struct (&table)[5], const std::string& prefix)
+	void ReadTable(std::span<high_score_struct, 5> table, const std::string& prefix)
 	{
 		int checkSum = 0;
 		ClearTable(table);
@@ -63,7 +65,7 @@ int high_score::BestScore(Tables table)
 	auto prefix = options::TableKeyPrefixToRead("Verification", table);
 	if (!options::HasSetting(prefix + "Verification"))
 		return -999;
-	high_score_struct scores[5];
+	std::array<high_score_struct, 5> scores{};
 	ReadTable(scores, prefix);
 	return scores[0].Score;
 }
