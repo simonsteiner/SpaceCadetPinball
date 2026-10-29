@@ -349,7 +349,7 @@ namespace
 
 	// 0x4230f0; DRAGON.EXE first tells the previous scorer's rules that it no longer is (0x4d), which no ported
 	// handler takes yet, so the last scorer (0x434d20) isn't kept
-	int AddScore(TPinballComponent* scorer, int score)
+	int AddScore(TPinballComponent* /*scorer*/, int score)
 	{
 		return Table->AddScore(score);
 	}
@@ -362,7 +362,7 @@ namespace
 
 	// 0x423130: the score without multiplier, bonus or first jackpot, as Space Cadet's SpecialAddScore; the second
 	// jackpot still counts it
-	int AddScoreUnmultiplied(TPinballComponent* scorer, int score)
+	int AddScoreUnmultiplied(TPinballComponent* /*scorer*/, int score)
 	{
 		auto bonus = Table->BonusScoreFlag;
 		auto jackpot = Table->JackpotScoreFlag;
@@ -4314,7 +4314,8 @@ namespace
 		case 'Q':
 			if (CheatKey)
 				return false;
-			CheatTyped = key == '1' ? 1 : key == 'N' ? 2 : key == 'F' ? 3 : key == 'P' ? 4 : 5;
+			// 1 1MAX, 2 NMAX, 3 FMAX, 4 PB, 5 QUOTE
+			CheatTyped = static_cast<int>(std::string_view{"1NFPQ"}.find(static_cast<char>(key))) + 1;
 			return true;
 		case 'M':
 			return CheatKey == '1' || CheatKey == 'N' || CheatKey == 'F';
