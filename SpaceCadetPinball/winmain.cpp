@@ -244,7 +244,7 @@ static void LoadTableChoices()
 			}
 			break;
 		}
-		TableChoices.push_back({data, picture});
+		TableChoices.emplace_back(data, picture);
 	}
 }
 
@@ -281,6 +281,20 @@ static void ShowTableDialog()
 	OpenTableDialog = true;
 }
 
+// The tables for Space Cadet 2026's table list
+static std::vector<DefinitiveHost::TableChoice> TableList()
+{
+	std::vector<DefinitiveHost::TableChoice> list;
+	for (const auto& [data, picture] : TableChoices)
+	{
+		// The table loaded may have scores it hasn't saved yet
+		auto loaded = pb::SameTable(data.Table, pb::Table);
+		auto best = loaded ? high_score::highscore_table[0].Score : high_score::BestScore(data.Table);
+		list.emplace_back(TableName(data.Table), TableSource(data.Table), best, loaded, picture);
+	}
+	return list;
+}
+
 // What Space Cadet 2026's screens can ask for, through the entry points the Classic menus use
 static DefinitiveHost MakeDefinitiveHost()
 {
@@ -307,18 +321,7 @@ static DefinitiveHost MakeDefinitiveHost()
 		return records;
 	};
 	host.ClearRecords = [] { high_score::clear_table(); };
-	host.TableList = []
-	{
-		std::vector<DefinitiveHost::TableChoice> list;
-		for (const auto& [data, picture] : TableChoices)
-		{
-			// The table loaded may have scores it hasn't saved yet
-			auto loaded = pb::SameTable(data.Table, pb::Table);
-			auto best = loaded ? high_score::highscore_table[0].Score : high_score::BestScore(data.Table);
-			list.push_back({TableName(data.Table), TableSource(data.Table), best, loaded, picture});
-		}
-		return list;
-	};
+	host.TableList = TableList;
 	host.SelectTable = [](size_t index)
 	{
 		if (index < TableChoices.size())
@@ -2329,7 +2332,8 @@ void winmain::RenderTableDialog()
 		}
 		if (picked == i)
 		{
-			auto min = ImGui::GetItemRectMin(), max = ImGui::GetItemRectMax();
+			auto min = ImGui::GetItemRectMin();
+			auto max = ImGui::GetItemRectMax();
 			ImGui::GetWindowDrawList()->AddRect(ImVec2{min.x - 3, min.y - 3}, ImVec2{max.x + 3, max.y + 3}, teal, 0.0f,
 												3.0f);
 		}

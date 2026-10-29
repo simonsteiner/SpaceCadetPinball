@@ -835,8 +835,8 @@ std::string options::TableKeyPrefixToRead(const std::string& key, Tables table)
 	// A table that never saved its own value starts from that one; saving then writes it under its prefix.
 	// The bonus tables had their keys from the start, so the unprefixed ones are only ever 3D Pinball's.
 	std::string prefix = TableKeyPrefix(table);
-	auto bonusTable = table == Tables::DragonsKeep || table == Tables::Skulduggery;
-	if (!prefix.empty() && !bonusTable && !HasSetting(prefix + key) && HasSetting(key))
+	if (auto bonusTable = table == Tables::DragonsKeep || table == Tables::Skulduggery;
+		!prefix.empty() && !bonusTable && !HasSetting(prefix + key) && HasSetting(key))
 		prefix.clear();
 	return prefix;
 }

@@ -13,6 +13,7 @@
 #include "TableView.h"
 #include "translations.h"
 
+#include <format>
 #include <string_view>
 #include <utility>
 
@@ -518,7 +519,8 @@ void DefinitiveFrontEnd::RenderTables()
 		const auto& table = tables[i];
 		auto note = table.Source;
 		if (table.BestScore >= 0)
-			note += " · " + Ui::Fill(Text(Msg::Definitive_TableBest), Ui::FormatScore(table.BestScore, 0));
+			note = std::format("{} · {}", note,
+							   Ui::Fill(Text(Msg::Definitive_TableBest), Ui::FormatScore(table.BestScore, 0)));
 		Ui::NextRowNote(note.c_str());
 		auto id = "table" + std::to_string(i);
 		auto chosen = Ui::MenuRow(id.c_str(), table.Name.c_str(), false,
