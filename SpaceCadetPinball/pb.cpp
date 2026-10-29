@@ -31,6 +31,7 @@
 #include "translations.h"
 
 #include <filesystem>
+#include <print>
 
 TPinballTable* pb::MainTable = nullptr;
 DatFile* pb::record_table = nullptr;
@@ -320,7 +321,7 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 			return;
 		// The player's choice stays saved, for when its data is back
 		chosen = FoundTables.begin();
-		printf("No data for the table %s, loading %s\n", options::Options.Table.V.c_str(), TableKey(chosen->Table));
+		std::print("No data for the table {}, loading {}\n", options::Options.Table.V, TableKey(chosen->Table));
 	}
 
 	BasePath = chosen->Folder;
@@ -328,7 +329,7 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 	Table = chosen->Table;
 	FullTiltMode = Table != Tables::SpaceCadet3DPB;
 	FullTiltDemoMode = Table == Tables::FullTiltDemo;
-	printf("Loading game from: %s\n", make_path_name(DatFileName).c_str());
+	std::print("Loading game from: {}\n", make_path_name(DatFileName));
 }
 
 void pb::SelectTable(Tables table)
