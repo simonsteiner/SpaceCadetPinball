@@ -2573,10 +2573,10 @@ namespace
 											   tabc46wave,
 											   tabc47wave};
 		if (const bool listsFound = std::ranges::none_of(diverters, [](auto c) { return !c; }) &&
-								std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
-								std::ranges::none_of(lizard_lights, [](auto c) { return !c; }) &&
-								std::ranges::none_of(diamond_targets, [](auto c) { return !c; }) &&
-								std::ranges::none_of(pearl_targets, [](auto c) { return !c; });
+									std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
+									std::ranges::none_of(lizard_lights, [](auto c) { return !c; }) &&
+									std::ranges::none_of(diamond_targets, [](auto c) { return !c; }) &&
+									std::ranges::none_of(pearl_targets, [](auto c) { return !c; });
 			std::ranges::find(all, nullptr) != all.end() || !listsFound)
 		{
 			// Not Dragon's Keep's DAT as DRAGON.EXE knows it; leave the table without rules
