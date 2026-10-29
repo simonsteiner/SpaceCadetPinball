@@ -204,6 +204,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/TLightSweeps.h
         SpaceCadetPinball/TLine.cpp
         SpaceCadetPinball/TLine.h
+        SpaceCadetPinball/TMagnet.cpp
+        SpaceCadetPinball/TMagnet.h
         SpaceCadetPinball/TOneway.cpp
         SpaceCadetPinball/TOneway.h
         SpaceCadetPinball/TPinballComponent.cpp

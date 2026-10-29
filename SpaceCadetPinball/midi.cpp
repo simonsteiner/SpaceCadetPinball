@@ -330,6 +330,20 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 		track6 = load_track("TABC6");
 		track7 = load_track("TABC7");
 	}
+	else if (pb::Table == Tables::Skulduggery)
+	{
+		// PIRATES.EXE loads TABB1 to TABB6, plays TABB1 for any of them that is missing, and has a seventh track that
+		// is TABB5
+		track1 = load_track("TABB1");
+		std::array tracks{&track2, &track3, &track4, &track5, &track6};
+		for (auto index = 0u; index < tracks.size(); index++)
+		{
+			*tracks[index] = load_track("TABB" + std::to_string(index + 2));
+			if (!*tracks[index])
+				*tracks[index] = track1;
+		}
+		track7 = track5;
+	}
 	else if (pb::FullTiltMode)
 	{
 		track1 = load_track("TABA1");

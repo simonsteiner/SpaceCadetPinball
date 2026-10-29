@@ -89,7 +89,7 @@ enum class MidiTracks
 	Track1,
 	Track2,
 	Track3,
-	// Dragon's Keep has seven, TABC1 to TABC7
+	// Dragon's Keep has seven, TABC1 to TABC7; Skulduggery's seven play its six, TABB1 to TABB6
 	Track4,
 	Track5,
 	Track6,

@@ -8275,5 +8275,11 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "Extra Ball Light" },
 		}
+	},
+	{
+		Msg::Skulduggery_Caption,
+		{
+			{ Lang::English, "Full Tilt! - Skulduggery" },
+		}
 	}
 };

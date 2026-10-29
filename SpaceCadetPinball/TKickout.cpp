@@ -32,7 +32,9 @@ TKickout::TKickout(TPinballTable* table, int groupIndex, bool someFlag): TCollis
 
 	Circle.Center.X = visual.FloatArr[0];
 	Circle.Center.Y = visual.FloatArr[1];
-	Circle.RadiusSq = *loader::query_float_attribute(groupIndex, 0, 306) * visual.FloatArr[2];
+	// Skulduggery's magnets have neither attribute 306 nor 408; CADET.EXE takes 0.1 and the ball's radius for them
+	auto radiusFactor = loader::query_float_attribute(groupIndex, 0, 306);
+	Circle.RadiusSq = (radiusFactor ? *radiusFactor : 0.1f) * visual.FloatArr[2];
 	if (Circle.RadiusSq == 0.0f)
 		Circle.RadiusSq = 0.001f;
 	auto tCircle = new TCircle(this, &ActiveFlag, visual.CollisionGroup,
@@ -45,7 +47,10 @@ TKickout::TKickout(TPinballTable* table, int groupIndex, bool someFlag): TCollis
 
 	Circle.RadiusSq = visual.FloatArr[2] * visual.FloatArr[2];
 	auto zAttr = loader::query_float_attribute(groupIndex, 0, 408);
-	CollisionBallSetZ = pb::FullTiltMode && !pb::FullTiltDemoMode ? zAttr[3] : zAttr[2];
+	if (!zAttr)
+		CollisionBallSetZ = table->CollisionCompOffset;
+	else
+		CollisionBallSetZ = pb::FullTiltMode && !pb::FullTiltDemoMode ? zAttr[3] : zAttr[2];
 	ThrowSpeedMult2 = visual.Kicker.ThrowBallMult * 0.01f;
 	BallThrowDirection = visual.Kicker.ThrowBallDirection;
 	ThrowAngleMult = visual.Kicker.ThrowBallAngleMult;

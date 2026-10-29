@@ -27,6 +27,7 @@
 #include "TLightGroup.h"
 #include "TLightRollover.h"
 #include "TLightSweeps.h"
+#include "TMagnet.h"
 #include "TOneway.h"
 #include "TPopupTarget.h"
 #include "TRamp.h"
@@ -184,14 +185,24 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 			case 1033:
 				new TTextBox(this, groupIndex);
 				break;
+			case 1034:
+				Plunger = new TPlunger(this, groupIndex, true);
+				break;
 			case 1035:
 				new TRampExit(this, groupIndex);
 				break;
 			case 1036:
 				new TAccelerator(this, groupIndex);
 				break;
+			case 1037:
+				// A ball in play from the start, Skulduggery's captive ball
+				BallList.push_back(new TBall(this, groupIndex));
+				break;
 			case 1038:
 				new TLightSweeps(this, *TableLayer, *LightGroup, groupIndex);
+				break;
+			case 1042:
+				new TMagnet(this, groupIndex);
 				break;
 			case 1043:
 				new TDiverter(this, groupIndex);
@@ -205,9 +216,8 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 
 	render::build_occlude_list();
 	pb::InfoTextBox = dynamic_cast<TTextBox*>(find_component("info_text_box"));
-	// Dragon's Keep has only the info text box
-	pb::MissTextBox =
-		pb::Table == Tables::DragonsKeep ? nullptr : dynamic_cast<TTextBox*>(find_component("mission_text_box"));
+	// The bonus tables have only the info text box
+	pb::MissTextBox = pb::BonusTable() ? nullptr : dynamic_cast<TTextBox*>(find_component("mission_text_box"));
 	TableRules::Current().MakeLinks(this);
 }
 

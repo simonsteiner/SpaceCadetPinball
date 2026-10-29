@@ -165,7 +165,7 @@ namespace
 	// What the game knows of each DAT file it can load: the table it holds, the key the player's choice is saved
 	// as, the folder of a Full Tilt! installation it is in, the window title, and the table's name and game for the
 	// table menus, which stay as they are in every language. Space Cadet's DAT files share a key, and are tried in
-	// this order. Skulduggery gets its row in F6.
+	// this order.
 	struct TableInfo
 	{
 		Tables Table;
@@ -185,6 +185,8 @@ namespace
 		TableInfo{Tables::FullTiltDemo, "DEMO.DAT", "SpaceCadet", "CADET", Msg::FullTilt_Caption, "Space Cadet",
 				  "Full Tilt! Pinball demo"},
 		TableInfo{Tables::DragonsKeep, "DRAGON.DAT", "DragonsKeep", "DRAGON", Msg::Dragon_Caption, "Dragon's Keep",
+				  "Full Tilt! Pinball"},
+		TableInfo{Tables::Skulduggery, "PIRATES.DAT", "Skulduggery", "PIRATE", Msg::Skulduggery_Caption, "Skulduggery",
 				  "Full Tilt! Pinball"},
 	};
 
@@ -295,8 +297,12 @@ namespace
 std::vector<TableData> pb::FindTables(const std::vector<const char*>& dataSearchPaths)
 {
 	std::vector<TableData> found;
-	for (auto table : {Tables::SpaceCadet3DPB, Tables::DragonsKeep})
+	for (auto table : {Tables::SpaceCadet3DPB, Tables::DragonsKeep, Tables::Skulduggery})
 	{
+		// Skulduggery is only for test runs until its rules are done (F6): only -table skulduggery or a recording of
+		// it looks for its data
+		if (table == Tables::Skulduggery && RequestedTable != Tables::Skulduggery)
+			continue;
 		if (auto data = FindTable(dataSearchPaths, table))
 			found.push_back(std::move(*data));
 	}

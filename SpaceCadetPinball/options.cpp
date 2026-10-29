@@ -815,10 +815,11 @@ const char* options::TableKeyPrefix(Tables table)
 	{
 	case DragonsKeep:
 		return DragonsKeepKeyPrefix;
+	case Skulduggery:
+		return SkulduggeryKeyPrefix;
 	case FullTiltDemo:
 		return FullTiltDemoKeyPrefix;
 	case SpaceCadetFullTilt:
-	case Skulduggery:
 		return FullTiltKeyPrefix;
 	default:
 		return SpaceCadetKeyPrefix;

@@ -509,15 +509,18 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			printf("%s\n", message.c_str());
 		return 1;
 	}
-	// A test run of a bonus table, whichever table the player chose; Skulduggery isn't loadable yet (Phase F6)
+	// A test run of a bonus table, whichever table the player chose; Skulduggery loads only this way until its rules
+	// are done (Phase F6)
 	auto tableArg = GetArgValue(args, "-table");
 	if (tableArg == "dragon")
 		pb::RequestedTable = Tables::DragonsKeep;
+	else if (tableArg == "skulduggery")
+		pb::RequestedTable = Tables::Skulduggery;
 	else if (!tableArg.empty() || HasArg(args, "-table"))
 	{
 		auto message = (tableArg.empty() || tableArg[0] == '-' ? std::string{"-table needs a value"}
 															   : "Unknown table: " + tableArg) +
-					   "; use -table dragon";
+					   "; use -table dragon or -table skulduggery";
 		if (replayPath.empty())
 			pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, "Could not start", message.c_str());
 		else
@@ -1533,7 +1536,7 @@ void winmain::RenderUi()
 					pb::PushCheat("quote");
 				ImGui::EndMenu();
 			}
-			else if (pb::Table != Tables::DragonsKeep && ImGui::BeginMenu("Cheats"))
+			else if (!pb::BonusTable() && ImGui::BeginMenu("Cheats"))
 			{
 				if (ImGui::MenuItem("hidden test", nullptr, pb::cheat_mode))
 					pb::PushCheat("hidden test");

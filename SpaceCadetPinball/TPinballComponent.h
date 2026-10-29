@@ -104,6 +104,10 @@ enum class MessageCode
 
 	TKickoutRestartTimer = 55,
 
+	// TMagnet, Skulduggery: CADET.EXE's numbers
+	TMagnetEnable = 75,
+	TMagnetDisable = 76,
+
 	TSinkUnknown7 = 7,
 	TSinkResetTimer = 56,
 

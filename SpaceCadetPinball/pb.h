@@ -13,7 +13,8 @@ class TTextBox;
 enum class Msg : int;
 
 // The table the DAT file holds. Space Cadet comes as 3D Pinball's, Full Tilt's and Full Tilt's demo;
-// Skulduggery and Dragon's Keep are Full Tilt's bonus tables (Phase F); Skulduggery isn't loadable yet.
+// Skulduggery and Dragon's Keep are Full Tilt's bonus tables (Phase F); Skulduggery loads only with -table skulduggery
+// until its rules are done.
 enum class Tables
 {
 	SpaceCadet3DPB,
