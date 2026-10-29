@@ -9,6 +9,7 @@
 
 
 score_msg_font_type* score::msg_fontp;
+score_msg_font_type* score::msg_font2p;
 
 int score::init()
 {
@@ -53,41 +54,46 @@ scoreStruct* score::dup(scoreStruct* score, int scoreIndex)
 
 void score::load_msg_font(LPCSTR lpName)
 {
+	msg_fontp = load_msg_font_group(lpName);
+}
+
+score_msg_font_type* score::load_msg_font_group(LPCSTR lpName)
+{
 	if (!pb::record_table)
-		return;
+		return nullptr;
 
 	int groupIndex = pb::record_table->record_labeled(lpName);
 	if (groupIndex < 0)
-		return;
+		return nullptr;
 
-	msg_fontp = new score_msg_font_type();
+	auto font = new score_msg_font_type();
 
 	// FT font has multiple resolutions
 	auto gapArray = reinterpret_cast<int16_t*>(pb::record_table->field(groupIndex, FieldTypes::ShortArray));
 	if (gapArray)
-		msg_fontp->GapWidth = gapArray[fullscrn::GetResolution()];
+		font->GapWidth = gapArray[fullscrn::GetResolution()];
 	else
-		msg_fontp->GapWidth = 0;
+		font->GapWidth = 0;
 
 	for (auto charIndex = 32; charIndex < 128; charIndex++, ++groupIndex)
 	{
 		auto bmp = pb::record_table->GetBitmap(groupIndex);
 		if (!bmp)
 			break;
-		if (!msg_fontp->Height)
-			msg_fontp->Height = bmp->Height;
-		msg_fontp->Chars[charIndex] = bmp;
+		if (!font->Height)
+			font->Height = bmp->Height;
+		font->Chars[charIndex] = bmp;
 	}
+	return font;
 }
 
 
 void score::unload_msg_font()
 {
-	if (msg_fontp)
-	{
-		delete msg_fontp;
-		msg_fontp = nullptr;
-	}
+	delete msg_fontp;
+	msg_fontp = nullptr;
+	delete msg_font2p;
+	msg_font2p = nullptr;
 }
 
 void score::erase(scoreStruct* score, int blitFlag)

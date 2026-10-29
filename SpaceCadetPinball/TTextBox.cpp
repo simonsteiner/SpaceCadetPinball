@@ -104,12 +104,12 @@ void TTextBox::Clear(bool lowPriorityOnly)
 		Draw();
 }
 
-void TTextBox::Display(const char* text, float time, bool lowPriority)
+void TTextBox::Display(const char* text, float time, bool lowPriority, int fontIndex)
 {
 	if (!text)
 		return;
 
-	if (CurrentMessage && !strcmp(text, PreviousMessage->Text))
+	if (IsRepeat(text, fontIndex))
 	{
 		PreviousMessage->Refresh(time);
 		if (PreviousMessage == CurrentMessage)
@@ -127,7 +127,7 @@ void TTextBox::Display(const char* text, float time, bool lowPriority)
 		if (Timer == -1)
 			Clear();
 
-		auto message = new TTextBoxMessage(text, time, lowPriority);
+		auto message = new TTextBoxMessage(text, time, lowPriority, fontIndex);
 		if (message->Text)
 		{
 			if (CurrentMessage)
@@ -148,7 +148,7 @@ void TTextBox::Display(const char* text, float time, bool lowPriority)
 void TTextBox::DrawImGui()
 {
 	// Do nothing when using a font (the text will be rendered to VScreen in TTextBox::Draw)
-	if (Font || !CurrentMessage)
+	if (!CurrentMessage || CurrentMessage->FontIndex == 1 || MessageFont(CurrentMessage))
 		return;
 
 	char windowName[64];
@@ -229,7 +229,8 @@ void TTextBox::Draw()
 
 	if (display)
 	{
-		if (!Font)
+		auto font = MessageFont(CurrentMessage);
+		if (!font)
 		{
 			// Immediate mode drawing using system font is handled by TTextBox::DrawImGui
 			return;
@@ -237,12 +238,10 @@ void TTextBox::Draw()
 
 		std::vector<LayoutResult> lines{};
 		auto textHeight = 0;
-		for (auto text = CurrentMessage->Text; ; textHeight += Font->Height)
+		for (auto text = CurrentMessage->Text; text[0] && textHeight + font->Height <= Height;
+			 textHeight += font->Height)
 		{
-			if (!text[0] || textHeight + Font->Height > Height)
-				break;
-
-			auto line = LayoutTextLine(text);
+			auto line = LayoutTextLine(text, font);
 			if (line.Start == line.End)
 				break;
 			lines.push_back(line);
@@ -260,7 +259,7 @@ void TTextBox::Draw()
 				offX += (Width - line.Width) / 2;
 			for (auto text = line.Start; text < line.End; text++)
 			{
-				auto charBmp = Font->Chars[*text & 0x7F];
+				auto charBmp = font->Chars[static_cast<unsigned char>(*text) % 128];
 				if (charBmp)
 				{
 					auto height = charBmp->Height;
@@ -270,15 +269,28 @@ void TTextBox::Draw()
 						                                 0);
 					else
 						gdrv::copy_bitmap(render::vscreen, width, height, offX, offY, charBmp, 0, 0);
-					offX += charBmp->Width + Font->GapWidth;
+					offX += charBmp->Width + font->GapWidth;
 				}
 			}
-			offY += Font->Height;
+			offY += font->Height;
 		}
 	}
 }
 
-TTextBox::LayoutResult TTextBox::LayoutTextLine(char* textStart) const
+bool TTextBox::IsRepeat(const char* text, int fontIndex) const
+{
+	return CurrentMessage && !strcmp(text, PreviousMessage->Text) && PreviousMessage->FontIndex == fontIndex;
+}
+
+const score_msg_font_type* TTextBox::MessageFont(const TTextBoxMessage* message) const
+{
+	// A picture message without the second font shows nothing rather than its glyphs as text
+	if (message->FontIndex == 1)
+		return score::msg_font2p;
+	return Font;
+}
+
+TTextBox::LayoutResult TTextBox::LayoutTextLine(char* textStart, const score_msg_font_type* font) const
 {
 	auto lineWidth = 0, wordWidth = 0;
 	char *wordBoundary = nullptr, *textEnd;
@@ -288,11 +300,11 @@ TTextBox::LayoutResult TTextBox::LayoutTextLine(char* textStart) const
 		if (!maskedChar || maskedChar == '\n')
 			break;
 
-		auto charBmp = Font->Chars[maskedChar];
+		auto charBmp = font->Chars[maskedChar];
 		if (!charBmp)
 			continue;
 
-		auto width = lineWidth + charBmp->Width + Font->GapWidth;
+		auto width = lineWidth + charBmp->Width + font->GapWidth;
 		if (width > Width)
 		{
 			if (wordBoundary)

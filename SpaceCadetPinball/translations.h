@@ -495,6 +495,14 @@ enum class Msg : int
 	Dragon_BuyDragonPass,
 	Dragon_BuyWizardsFury,
 	Dragon_NoDragonEggs,
+	Dragon_TowerBarrage,
+	Dragon_GargoyleGaggleBall,
+	Dragon_DragonFlurry,
+	Dragon_SlayDragon,
+	Dragon_PutBallInDragonsMouth,
+	Dragon_SlayDragonHitsLeft,
+	Dragon_SuperJackpot,
+	Dragon_ExtraBallLight,
 
 	Max,
 };

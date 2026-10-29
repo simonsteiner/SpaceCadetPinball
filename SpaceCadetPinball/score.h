@@ -25,10 +25,14 @@ class score
 {
 public:
 	static score_msg_font_type* msg_fontp;
+	// Full Tilt's second message font (CADET.EXE's "font2"), whose characters are pictures; the bonus tables' rules
+	// show some texts in it
+	static score_msg_font_type* msg_font2p;
 	static int init();
 	static scoreStruct* create(LPCSTR fieldName, gdrv_bitmap8* renderBgBmp);
 	static scoreStruct* dup(scoreStruct* score, int scoreIndex);
 	static void load_msg_font(LPCSTR lpName);
+	static score_msg_font_type* load_msg_font_group(LPCSTR lpName);
 	static void unload_msg_font();
 	static void erase(scoreStruct* score, int blitFlag);
 	static void set(scoreStruct* score, int value);

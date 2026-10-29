@@ -7831,5 +7831,53 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "No Dragon Eggs" },
 		}
+	},
+	{
+		Msg::Dragon_TowerBarrage,
+		{
+			{ Lang::English, "Tower Barrage" },
+		}
+	},
+	{
+		Msg::Dragon_GargoyleGaggleBall,
+		{
+			{ Lang::English, "Gargoyle Gaggle-Ball" },
+		}
+	},
+	{
+		Msg::Dragon_DragonFlurry,
+		{
+			{ Lang::English, "Dragon Flurry" },
+		}
+	},
+	{
+		Msg::Dragon_SlayDragon,
+		{
+			{ Lang::English, "Slay Dragon\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_PutBallInDragonsMouth,
+		{
+			{ Lang::English, "Put ball in Dragon's Mouth" },
+		}
+	},
+	{
+		Msg::Dragon_SlayDragonHitsLeft,
+		{
+			{ Lang::English, "Slay Dragon\nHits Left: %ld" },
+		}
+	},
+	{
+		Msg::Dragon_SuperJackpot,
+		{
+			{ Lang::English, "Super Jackpot\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_ExtraBallLight,
+		{
+			{ Lang::English, "Extra Ball Light" },
+		}
 	}
 };

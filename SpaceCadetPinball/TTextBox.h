@@ -21,7 +21,7 @@ public:
 	~TTextBox() override;
 	int Message(MessageCode code, float value) override;
 	void Clear(bool lowPriorityOnly = false);
-	void Display(const char* text, float time, bool lowPriority = false);
+	void Display(const char* text, float time, bool lowPriority = false, int fontIndex = 0);
 	void DrawImGui();
 
 private:
@@ -34,5 +34,8 @@ private:
 	static void TimerExpired(int timerId, void* caller);
 
 	void Draw();
-	LayoutResult LayoutTextLine(char* textStart) const;
+	LayoutResult LayoutTextLine(char* textStart, const score_msg_font_type* font) const;
+	const score_msg_font_type* MessageFont(const TTextBoxMessage* message) const;
+	// The text is the last queued message's, in the same font, while a message shows
+	bool IsRepeat(const char* text, int fontIndex) const;
 };
