@@ -7425,6 +7425,186 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_Quest,
+		{
+			{ Lang::English, "Quest" },
+		}
+	},
+	{
+		Msg::Definitive_Multiball,
+		{
+			{ Lang::English, "Multiball" },
+		}
+	},
+	{
+		Msg::Definitive_NextQuest,
+		{
+			{ Lang::English, "Next quest: %s" },
+		}
+	},
+	{
+		Msg::Definitive_QuestsDone,
+		{
+			{ Lang::English, "Quests done: %s" },
+		}
+	},
+	{
+		Msg::Definitive_HitsLeft,
+		{
+			{ Lang::English, "Hits left: %s" },
+		}
+	},
+	{
+		Msg::Definitive_Jackpot,
+		{
+			{ Lang::English, "Jackpot" },
+		}
+	},
+	{
+		Msg::Definitive_SuperJackpot,
+		{
+			{ Lang::English, "Super Jackpot" },
+		}
+	},
+	{
+		Msg::Definitive_DragonEggs,
+		{
+			{ Lang::English, "Dragon Eggs" },
+		}
+	},
+	{
+		Msg::Definitive_Weapons,
+		{
+			{ Lang::English, "Weapons" },
+		}
+	},
+	{
+		Msg::Definitive_Armor,
+		{
+			{ Lang::English, "Armor" },
+		}
+	},
+	{
+		Msg::Definitive_DragonHoard,
+		{
+			{ Lang::English, "Dragon Hoard" },
+		}
+	},
+	{
+		Msg::Definitive_FireLizards,
+		{
+			{ Lang::English, "Fire Lizards" },
+		}
+	},
+	{
+		Msg::Definitive_RescueMaiden,
+		{
+			{ Lang::English, "Rescue Maiden" },
+		}
+	},
+	{
+		Msg::Definitive_DragonPass,
+		{
+			{ Lang::English, "Dragon Pass" },
+		}
+	},
+	{
+		Msg::Definitive_WizardsFury,
+		{
+			{ Lang::English, "Wizard's Fury" },
+		}
+	},
+	{
+		Msg::Definitive_SlayDragon,
+		{
+			{ Lang::English, "Slay Dragon" },
+		}
+	},
+	{
+		Msg::Definitive_RestartQuest,
+		{
+			{ Lang::English, "Restart %s" },
+		}
+	},
+	{
+		Msg::Definitive_PictureDragon,
+		{
+			{ Lang::English, "Dragon" },
+		}
+	},
+	{
+		Msg::Definitive_PictureJackpot,
+		{
+			{ Lang::English, "Jackpot" },
+		}
+	},
+	{
+		Msg::Definitive_PictureDragonEgg,
+		{
+			{ Lang::English, "Dragon Egg" },
+		}
+	},
+	{
+		Msg::Definitive_PictureDragonEggs,
+		{
+			{ Lang::English, "%ld Dragon Eggs" },
+		}
+	},
+	{
+		Msg::Definitive_PictureSpell,
+		{
+			{ Lang::English, "Spell" },
+		}
+	},
+	{
+		Msg::Definitive_PictureFrantzsAx,
+		{
+			{ Lang::English, "Frantz's Ax" },
+		}
+	},
+	{
+		Msg::Definitive_PictureFirebow,
+		{
+			{ Lang::English, "Firebow" },
+		}
+	},
+	{
+		Msg::Definitive_PictureDragonLance,
+		{
+			{ Lang::English, "Dragon Lance" },
+		}
+	},
+	{
+		Msg::Definitive_PictureSwordOfVirtue,
+		{
+			{ Lang::English, "Sword of Virtue" },
+		}
+	},
+	{
+		Msg::Definitive_PictureHelmet,
+		{
+			{ Lang::English, "Helmet" },
+		}
+	},
+	{
+		Msg::Definitive_PictureShield,
+		{
+			{ Lang::English, "Shield" },
+		}
+	},
+	{
+		Msg::Definitive_PictureChainmail,
+		{
+			{ Lang::English, "Chainmail" },
+		}
+	},
+	{
+		Msg::Definitive_PictureDragonSlain,
+		{
+			{ Lang::English, "Dragon Slain" },
+		}
+	},
+	{
 		Msg::FullTilt_Caption,
 		{
 			{ Lang::English, "Full Tilt! - Space Cadet" },

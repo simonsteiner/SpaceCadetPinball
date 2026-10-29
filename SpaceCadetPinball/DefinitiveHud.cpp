@@ -74,15 +74,145 @@ namespace
 		return needed > width ? size * width / needed : size;
 	}
 
-	// The rank's nine lamps in a row from a point, lit up to the rank as the rank circle on the table is
-	void DrawRankLamps(ImDrawList* drawList, ImVec2 at, int rank, float scale)
+	// <count> lamps in a row from a point, lit where <lit> has the lamp's bit, from bit 0 for the first
+	void DrawLamps(ImDrawList* drawList, ImVec2 at, int count, unsigned lit, float scale)
 	{
-		for (auto lamp = 0; lamp < 9; lamp++)
+		for (auto lamp = 0; lamp < count; lamp++)
 		{
 			ImVec2 centre{at.x + (LampRadius + static_cast<float>(lamp) * (LampRadius * 2 + LampGap)) * scale,
 						  at.y + LampRadius * scale};
-			Theme::DrawLamp(drawList, centre, LampRadius * scale, lamp < rank ? Theme::Lamp::Lit : Theme::Lamp::Dark);
+			Theme::DrawLamp(drawList, centre, LampRadius * scale,
+							lit & (1u << static_cast<unsigned>(lamp)) ? Theme::Lamp::Lit : Theme::Lamp::Dark);
 		}
+	}
+
+	// The first <count> lamps lit, as a mask for DrawLamps
+	unsigned FirstLamps(int count)
+	{
+		return (1u << static_cast<unsigned>(std::clamp(count, 0, 31))) - 1;
+	}
+
+	float LampsWidth(int count, float scale)
+	{
+		return (static_cast<float>(count) * (LampRadius * 2 + LampGap) - LampGap) * scale;
+	}
+
+	// The rank's nine lamps in a row from a point, lit up to the rank as the rank circle on the table is
+	void DrawRankLamps(ImDrawList* drawList, ImVec2 at, int rank, float scale)
+	{
+		DrawLamps(drawList, at, 9, FirstLamps(std::min(rank, 9)), scale);
+	}
+
+	// Dragon's Keep's quests by their state, 4 to 8, and Slay Dragon, 9; null for another state
+	const char* QuestName(int state)
+	{
+		if (state < 4 || state > 9)
+			return nullptr;
+		return Text(static_cast<Msg>(std::to_underlying(Msg::Definitive_DragonHoard) + state - 4));
+	}
+
+	// Dragon's Keep's multiball modes by their state, 13 to 15; null for another state
+	const char* ModeName(int state)
+	{
+		if (state < 13 || state > 15)
+			return nullptr;
+		return Text(static_cast<Msg>(std::to_underlying(Msg::Dragon_TowerBarrage) + state - 13));
+	}
+
+	// A label on the left of a row and what <draw> puts at its right end, <width> wide and <height> high; returns the
+	// row's bottom
+	template <typename Draw>
+	float DrawRow(ImDrawList* drawList, const char* label, ImVec2 at, float width, float contentWidth, float height,
+				  Draw draw)
+	{
+		auto labelHeight = LabelSize * Ui::TextScale();
+		auto rowHeight = std::max(height, labelHeight);
+		Ui::DrawText(drawList, Theme::TextFont(), LabelSize, ImVec2{at.x, at.y + (rowHeight - labelHeight) / 2},
+					 LabelColor(), label, width - contentWidth - LabelGap * Ui::Scale());
+		draw(ImVec2{at.x + width - contentWidth, at.y + (rowHeight - height) / 2});
+		return at.y + rowHeight;
+	}
+
+	// Dragon's Keep in place of the mission: the quest that runs, its restart, Slay Dragon or a multiball mode, with
+	// its time left; what it needs or the quest picked next; and the five quests' lamps with the quests done. Returns
+	// the bottom.
+	float DrawDragonQuest(ImDrawList* drawList, const TableView& view, ImVec2 at, float width)
+	{
+		auto scale = Ui::Scale();
+		const auto& dragon = view.Dragon;
+		auto y = at.y;
+		auto mode = ModeName(dragon.State);
+		Ui::DrawText(drawList, Theme::TextFont(), LabelSize, ImVec2{at.x, y}, LabelColor(),
+					 Text(mode ? Msg::Definitive_Multiball : Msg::Definitive_Quest), width);
+		y += LabelSize * Ui::TextScale() + LabelGap * scale;
+
+		std::string name;
+		if (mode)
+			name = mode;
+		else if (dragon.State == 3 && QuestName(dragon.RestartQuest))
+			name = Ui::Fill(Text(Msg::Definitive_RestartQuest), QuestName(dragon.RestartQuest));
+		else if (auto quest = QuestName(dragon.State))
+			name = quest;
+		if (!name.empty())
+		{
+			// The seconds left at the end of the line, as the quest's own text counts them
+			auto time = dragon.TimeLeft > 0 ? std::to_string(dragon.TimeLeft / 1000) : std::string{};
+			auto timeWidth = time.empty() ? 0.0f : Theme::LedSize(Theme::HeadingSize * scale, time.c_str()).x;
+			Ui::DrawText(drawList, Theme::HeadingFont(), Theme::HeadingSize, ImVec2{at.x, y}, Theme::Chrome50,
+						 name.c_str(), width - timeWidth - (time.empty() ? 0 : LabelGap * scale));
+			if (!time.empty())
+				Theme::DrawLed(drawList, ImVec2{at.x + width - timeWidth, y}, Theme::HeadingSize * scale, time.c_str());
+			y += Theme::HeadingSize * Ui::TextScale() + 6 * scale;
+		}
+
+		std::string note;
+		if (dragon.State == 9)
+			note = Ui::Fill(Text(Msg::Definitive_HitsLeft), std::to_string(dragon.HitsLeft));
+		else if (auto picked = QuestName(dragon.PickedQuest); picked && dragon.State != dragon.PickedQuest)
+			note = Ui::Fill(Text(Msg::Definitive_NextQuest), picked);
+		if (!note.empty())
+			y += Ui::DrawWrapped(drawList, Theme::TextFont(), NoteSize, ImVec2{at.x, y}, NoteColor(), note.c_str(),
+								 width) +
+				 LabelGap * scale;
+
+		// The round's five quests lit as their lights on the table, and the game's count beside them
+		auto lampsWidth = LampsWidth(5, scale);
+		DrawLamps(drawList, ImVec2{at.x, y}, 5, dragon.QuestLights, scale);
+		auto done = Ui::Fill(Text(Msg::Definitive_QuestsDone), std::to_string(dragon.QuestsDone));
+		auto noteHeight = NoteSize * Ui::TextScale();
+		auto lampsHeight = LampRadius * 2 * scale;
+		Ui::DrawText(drawList, Theme::TextFont(), NoteSize,
+					 ImVec2{at.x + lampsWidth + Gap * scale, y + (lampsHeight - noteHeight) / 2}, NoteColor(),
+					 done.c_str(), width - lampsWidth - Gap * scale);
+		return y + std::max(lampsHeight, noteHeight);
+	}
+
+	// Dragon's Keep in place of the rank: the jackpot and the second, and the dragon eggs, weapons and armor lit as
+	// their lights on the table. Returns the bottom.
+	float DrawDragonItems(ImDrawList* drawList, const TableView& view, ImVec2 at, float width)
+	{
+		auto scale = Ui::Scale();
+		const auto& dragon = view.Dragon;
+		auto y = at.y;
+		for (auto [label, value] :
+			 {std::pair{Msg::Definitive_Jackpot, dragon.Jackpot}, {Msg::Definitive_SuperJackpot, dragon.SuperJackpot}})
+		{
+			auto text = Ui::FormatScore(value, 0);
+			auto size = Theme::LedSize(OtherScoreSize * scale, text.c_str());
+			y = DrawRow(drawList, Text(label), ImVec2{at.x, y}, width, size.x, size.y, [&](ImVec2 position)
+						{ Theme::DrawLed(drawList, position, OtherScoreSize * scale, text.c_str()); }) +
+				OtherGap * scale;
+		}
+		for (auto [label, count, lit] :
+			 {std::tuple{Msg::Definitive_DragonEggs, 8, FirstLamps(std::min(dragon.Eggs, 8))},
+			  {Msg::Definitive_Weapons, 4, FirstLamps(std::min(dragon.Weapons, 4))},
+			  {Msg::Definitive_Armor, 3, dragon.Armor}})
+		{
+			y = DrawRow(drawList, Text(label), ImVec2{at.x, y + OtherGap * scale}, width, LampsWidth(count, scale),
+						LampRadius * 2 * scale,
+						[&](ImVec2 position) { DrawLamps(drawList, position, count, lit, scale); });
+		}
+		return y;
 	}
 
 	// The info text box's message in a box, in the LED orange of the table's text: from the top of its place at the
@@ -199,6 +329,13 @@ float DefinitiveHud::DrawContents(ImDrawList* drawList, const TableView& view, I
 					  Theme::HighContrast() ? Theme::Chrome200 : Theme::WithAlpha(Theme::Chrome600, 0.6f));
 	y += 1 + Gap * scale;
 
+	if (view.Kind == TableView::TableKind::DragonsKeep)
+	{
+		y = DrawDragonQuest(drawList, view, ImVec2{left, y}, width) + Gap * scale;
+		y = DrawDragonItems(drawList, view, ImVec2{left, y}, width) + Gap * scale;
+		return DrawMessage(drawList, view, ImVec2{left, y}, width, max.y - Padding * scale) + Padding * scale - min.y;
+	}
+
 	// The mission that runs, and the mission text box, which says what it needs next or how to start one
 	label(Text(Msg::Definitive_Mission));
 	if (auto name = MissionName(MissionOf(view.Mission)))
@@ -279,6 +416,15 @@ float DefinitiveHud::DrawBand(ImDrawList* drawList, const TableView& view, ImVec
 	// The mission and the rank, side by side where the band is wide enough, else one under the other
 	auto columns = width >= BandColumnsWidth * scale;
 	auto columnWidth = columns ? (width - Gap * scale) / 2 : width;
+	if (view.Kind == TableView::TableKind::DragonsKeep)
+	{
+		auto questY = DrawDragonQuest(drawList, view, ImVec2{left, y}, columnWidth);
+		auto itemsLeft = columns ? left + columnWidth + Gap * scale : left;
+		auto itemsY =
+			DrawDragonItems(drawList, view, ImVec2{itemsLeft, columns ? y : questY + Gap * scale}, columnWidth);
+		y = std::max(questY, itemsY) + Gap * scale;
+		return DrawMessage(drawList, view, ImVec2{left, y}, width, max.y - Padding * scale) + Padding * scale - min.y;
+	}
 	auto missionY = label(Text(Msg::Definitive_Mission), left, columnWidth, y);
 	if (auto name = MissionName(MissionOf(view.Mission)))
 	{

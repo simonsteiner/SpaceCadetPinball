@@ -25,6 +25,46 @@ struct TableView
 		float Angle, AngleMax;
 	};
 
+	// The tables, as presentation tells them apart
+	enum class TableKind
+	{
+		SpaceCadet,
+		DragonsKeep,
+		Skulduggery,
+	};
+
+	// Dragon's Keep's own state, which its rules fill (control_dragon.cpp); all zero on the other tables
+	struct DragonsKeep
+	{
+		// The rules' state, as DRAGON.EXE numbers it: 2 play, 3 a quest's restart, 4 to 8 the quests (Dragon Hoard,
+		// Fire Lizards, Rescue Maiden, Dragon Pass, Wizard's Fury), 9 Slay Dragon, 12 the dragon egg shop, 13 Tower
+		// Barrage, 14 Gargoyle Gaggle-Ball, 15 Dragon Flurry; the others are the serve, the end of a ball and the
+		// game's
+		int State;
+		// In a restart (state 3), the quest it takes up again, by its state; else 0
+		int RestartQuest;
+		// The quest picked to start next, whose light flashes, by its state; 0 for none
+		int PickedQuest;
+		// Milliseconds left of the time of a quest, its restart or Slay Dragon; 0 while none runs
+		int TimeLeft;
+		// The quests done since the round of five began, one bit each from bit 0 for state 4, as their lights show
+		unsigned QuestLights;
+		// The quests the current player has done in this game
+		int QuestsDone;
+		int Jackpot;
+		// The second jackpot, which Slay Dragon awards as the Super Jackpot
+		int SuperJackpot;
+		// The dragon eggs lit, 0 to 8
+		int Eggs;
+		// The weapons lit, 0 to 4; the score multiplier is one more
+		int Weapons;
+		// The armor lit, one bit each: 1 the chainmail (the kickback), 2 the shield (the center post), 4 the helmet
+		// (the right outlane's blocker)
+		unsigned Armor;
+		// The hits Slay Dragon still needs
+		int HitsLeft;
+	};
+
 	struct Light
 	{
 		// The light's group name in the DAT file, such as "lite198"
@@ -68,6 +108,9 @@ struct TableView
 	int ExtraBalls;
 	// Whether a cheat was used in this game, which keeps it out of the high scores
 	bool CheatsUsed;
+	// Which table this is
+	TableKind Kind;
+	DragonsKeep Dragon;
 
 	// 64-bit FNV-1a over every field, so two runs can compare their views frame by frame
 	uint64_t Hash() const;

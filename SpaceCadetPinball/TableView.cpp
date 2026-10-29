@@ -9,6 +9,7 @@
 #include "TFlipperEdge.h"
 #include "TLight.h"
 #include "TLightGroup.h"
+#include "TableRules.h"
 #include "TPinballTable.h"
 #include "TTextBox.h"
 
@@ -38,10 +39,10 @@ namespace
 	{
 		if (box && box->Overlay)
 			return *box->Overlay;
-		// A picture in the second font (Dragon's Keep's jackpot, spells, eggs) isn't text to show
-		return box && box->CurrentMessage && box->CurrentMessage->Text && box->CurrentMessage->FontIndex == 0
-				   ? box->CurrentMessage->Text
-				   : "";
+		if (!box || !box->CurrentMessage || !box->CurrentMessage->Text)
+			return "";
+		// A picture in the second font (Dragon's Keep's jackpot, spells, eggs) shows as the words it carries
+		return box->CurrentMessage->FontIndex == 0 ? box->CurrentMessage->Text : box->CurrentMessage->Words;
 	}
 
 	// Looks a component up by group name without find_component's warning box for a missing one
@@ -152,6 +153,11 @@ uint64_t TableView::Hash() const
 		hash.Add(value);
 	for (auto value : {GameOver, Demo, Tilted, FullTilt, CheatsUsed})
 		hash.Add(value);
+	hash.Add(static_cast<int>(Kind));
+	for (auto value : {Dragon.State, Dragon.RestartQuest, Dragon.PickedQuest, Dragon.TimeLeft,
+					   static_cast<int>(Dragon.QuestLights), Dragon.QuestsDone, Dragon.Jackpot, Dragon.SuperJackpot,
+					   Dragon.Eggs, Dragon.Weapons, static_cast<int>(Dragon.Armor), Dragon.HitsLeft})
+		hash.Add(value);
 	return hash.Value;
 }
 
@@ -234,6 +240,19 @@ void TableView::Fill()
 	InfoEnd = info ? info->EndTicks : 0;
 	View.ExtraBalls = Table->ExtraBalls;
 	View.CheatsUsed = Table->CheatsUsed != 0;
+	switch (pb::Table)
+	{
+	case Tables::DragonsKeep:
+		View.Kind = TableView::TableKind::DragonsKeep;
+		break;
+	case Tables::Skulduggery:
+		View.Kind = TableView::TableKind::Skulduggery;
+		break;
+	default:
+		View.Kind = TableView::TableKind::SpaceCadet;
+		break;
+	}
+	TableRules::Current().FillView(View);
 }
 
 void TableView::Clear()

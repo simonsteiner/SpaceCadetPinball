@@ -2,7 +2,8 @@
 #include "TTextBoxMessage.h"
 #include "pb.h"
 
-TTextBoxMessage::TTextBoxMessage(const char* text, float time, bool lowPriority, int fontIndex) : FontIndex(fontIndex)
+TTextBoxMessage::TTextBoxMessage(const char* text, float time, bool lowPriority, int fontIndex, const char* words) :
+	FontIndex(fontIndex), Words(words ? words : "")
 {
 	NextMessage = nullptr;
 	Time = time;
