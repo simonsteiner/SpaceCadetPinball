@@ -867,7 +867,7 @@ namespace
 	}
 
 	// State 8, 0x429ec0: Wizard's Fury. The well (a_sink4) gives the mystery award each time until the time runs out
-	void WizardsFuryStateControl(MessageCode code, TPinballComponent* caller)
+	void WizardsFuryStateControl(MessageCode code, const TPinballComponent* caller)
 	{
 		using enum MessageCode;
 		switch (code)
@@ -1344,8 +1344,7 @@ namespace
 		if (code != ControlCollision)
 			return;
 		auto roll = [] { return std::min(static_cast<int>(RandFloat() * 4), 3); };
-		auto state = GameState();
-		if (state == PlayState || state != WizardsFuryState)
+		if (auto state = GameState(); state == PlayState || state != WizardsFuryState)
 		{
 			if (state != PlayState)
 				CastRandomSpell();
@@ -1810,8 +1809,8 @@ namespace
 											   tabc41wave,
 											   tabc55wave};
 		if (const bool listsFound = std::ranges::none_of(diverters, [](auto c) { return !c; }) &&
-								std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
-								std::ranges::none_of(lizard_lights, [](auto c) { return !c; });
+									std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
+									std::ranges::none_of(lizard_lights, [](auto c) { return !c; });
 			std::ranges::find(all, nullptr) != all.end() || !listsFound)
 		{
 			// Not Dragon's Keep's DAT as DRAGON.EXE knows it; leave the table without rules
