@@ -69,16 +69,18 @@ int timer::kill(void(* callback)(int, void*))
 	{
 		if (current->Callback == callback)
 		{
+			// Go on from the timer after this one, as CADET.EXE does (0x41f960); this one now heads the free list
+			auto next = current->NextTimer;
 			count++;
 			if (prev)
-				prev->NextTimer = current->NextTimer;
+				prev->NextTimer = next;
 			else
-				ActiveList = current->NextTimer;
+				ActiveList = next;
 			current->NextTimer = FreeList;
 			FreeList = current;
 			if (--Count == index)
 				break;
-			current = current->NextTimer;
+			current = next;
 		}
 		else
 		{
