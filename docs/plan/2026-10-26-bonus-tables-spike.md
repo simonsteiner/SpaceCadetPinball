@@ -177,7 +177,7 @@ So our port missed launches that the originals don't, on 3D Pinball's data and F
 
 Three fixes were proposed: keep the push until the ball touches, shorter physics steps (`timed_frame` in sub-steps of about 1 ms, which would change every collision's timing and every replay), or a longer window (40 ms, which covers 120 updates per second but not 60). The owner chose the first.
 
-A release still takes the push back after `PullbackDelay` if the ball touched the plunger in that time, as in the originals. If it didn't, `ReleasedTimer` keeps the push until the ball's next touch, which ends it, or until 0.1 s after the release (`ReleasePushLimit`) if no ball touches, as when the plunger is released with no ball on it. A new pull or release, a reset, a player change and 3D Pinball's Launch Ball command each end a push that is still waiting. Only `TPlunger` changed; the timers the originals set run as before.
+A release still takes the push back after `PullbackDelay` if the ball touched the plunger in that time, as in the originals. If it didn't, `ReleasedTimer` keeps the push until the ball's next touch, which ends it, or until 0.1 s after the release (`ReleasePushLimit`) if no ball touches, as when the plunger is released with no ball on it. A new pull or release, a reset, a player change on Full Tilt's data (3D Pinball's plunger ignores PlayerChanged since 2026-10-29, as `Pinball.exe`'s does) and 3D Pinball's Launch Ball command each end a push that is still waiting. Only `TPlunger` changed; the timers the originals set run as before.
 
 | Run, our port in Classic, 40 presses each | Missed before | Missed after |
 | --- | --- | --- |
@@ -203,6 +203,24 @@ The reference replays that held a release whose ball touched only after 25 ms pl
 | 0.25 s | 0 pushed | 1 pushed | 0 pushed |
 
 So on Full Tilt's data and the bonus tables a release keeps its push for 0.2 s, and #91's wait for a touch, which ends at 0.1 s, no longer applies there; 3D Pinball keeps 25 ms and the wait (decided 2026-10-29). As in `CADET.EXE`, a new pull within 0.2 s of a release starts over when that release's timer ends. Unlike it, an earlier release's timer still leaves a later release's push alone, as #91 has it for both games. Of the reference replays only `dragon-smiley` plays differently, from a release 0.152 s before a ball reached the plunger, which now launches it; it was recorded again.
+
+## 3D Pinball's plunger messages (2026-10-29)
+
+`Pinball.exe`'s `TPlunger::Message` (its switch from 0x10185ad) takes only the plunger key's press and release, Resume, LooseFocus, the ball feed, its timer, Launch Ball and Reset. It has no case for SetTiltLock, PlungerRelaunchBall or PlayerChanged, and it calls `control::handler` only for the ball feed and its timer. Our port handled SetTiltLock and PlayerChanged in 3D Pinball as `CADET.EXE` does for Full Tilt's data, and forwards every message. Our port in Classic on `PINBALL.DAT` and `Pinball.exe` under Wine got the same keys.
+
+- **A tilt while the first ball is on its way.** A game's first ball feed timer starts 5.03 s after F2 and serves the ball 0.97 s later; until then the nudges can tilt the table. Seven timings of five nudges, 0.2 s apart, looked at 8 s after F2:
+
+  | | Tilts inside the feed window | At 8 s |
+  | --- | --- | --- |
+  | Our port before | 5 of 7 (5.05 to 5.85 s) | Those 5 show TILT and no ball; the feed was killed. 30 s later the tilt timeout drained the unserved ball and the panel moved to ball 2. |
+  | `Pinball.exe` | | All 7 have the ball on the plunger and no TILT. A closer look showed TILT, then 0.3 s later the ball and the tilt cleared, so its feed timer had been running when the table tilted. |
+  | Our port after | | All 7 as `Pinball.exe`. |
+
+  After a drain the drain flag blocks a tilt until the next ball is served, so only a game's first ball meets this.
+- **A pull held as the player changes.** In a two-player game, a tilt ended player 1's first ball while the plunger was pulled and held through the drain and the change to player 2; the key was let go after player 2's ball rested on the plunger. `Pinball.exe` launched it. Our port's PlayerChanged had dropped the pull (Boost 100 to 0, from a temporary log), so the release left the ball where it was; after the change it launches it, as `Pinball.exe`.
+- **`control::handler` for every message stays.** On Full Tilt's data it is faithful: `CADET.EXE`'s `TPlunger::Message` ends by calling its handler (0x422bc0) for every message. In 3D Pinball, Space Cadet's rules act on the plunger's messages only for the ball feed and its timer, as `Pinball.exe` sends them, and `MissionControl` only on Resume, which it turns into ControlMissionStarted; that shows the mission text that is already showing, and the gates pass Resume on anyway.
+
+So in 3D Pinball the plunger now ignores SetTiltLock and PlayerChanged, as `Pinball.exe` does; Full Tilt's data keeps `CADET.EXE`'s handling (decided 2026-10-29). No reference replay plays differently.
 
 ## Known differences between Pinball.exe and CADET.EXE (2026-10-28)
 

@@ -38,4 +38,11 @@ public:
 	bool ReleaseWaitsForTouch{};
 	// The latest release's timer: its ReleaseDelay one, then in 3D Pinball its ReleasePushLimit one
 	int ReleaseTimerId{};
+
+private:
+	// PlayerChanged and SetTiltLock, which only Full Tilt's plunger takes
+	void HandlePlayerChanged();
+	void HandleTiltLock();
+	// Full Tilt's PlayerChanged and Reset: the pull, the ball feed and the push stop (CADET.EXE's 0x3fe and 0x402)
+	void Stop();
 };
