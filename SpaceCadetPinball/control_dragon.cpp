@@ -4414,8 +4414,15 @@ namespace
 	{
 		Table = nullptr;
 		info_text_box = nullptr;
+		// DRAGON.EXE keeps the cheats' state for its session, which a restart into a recording begins anew
+		CheatKey = 0;
+		CheatTyped = 0;
+		HiddenTestStep = 0;
+		AltBall = false;
+		QuotesShown = false;
 		ScrollTimer = 0;
 		ScrollNext = nullptr;
+		Typed.clear();
 	}
 } // namespace
 
