@@ -30,6 +30,8 @@
 #include "TableView.h"
 #include "translations.h"
 
+#include <filesystem>
+
 TPinballTable* pb::MainTable = nullptr;
 DatFile* pb::record_table = nullptr;
 int pb::time_ticks = 0;
@@ -41,6 +43,7 @@ bool pb::UiHoldsInput = false;
 bool pb::GameEnded = true;
 Tables pb::Table = Tables::SpaceCadet3DPB;
 std::optional<Tables> pb::RequestedTable;
+std::vector<TableData> pb::FoundTables;
 bool pb::FullTiltMode = false, pb::FullTiltDemoMode = false, pb::cheat_mode = false, pb::demo_mode = false, pb::CreditsActive = false;
 std::string pb::DatFileName, pb::BasePath;
 ImU32 pb::TextBoxColor;
@@ -142,72 +145,202 @@ int pb::uninit()
 	return 0;
 }
 
-std::string pb::FindDatFile(const std::string& folder)
+namespace
 {
-	std::vector<std::string> datFileNames{
-		"CADET.DAT",
-		"PINBALL.DAT",
-		"DEMO.DAT",
-	};
-
-	// Default game data test order: CADET.DAT, PINBALL.DAT, DEMO.DAT
-	if (options::Options.Prefer3DPBGameData)
+	std::string ToUpper(std::string text)
 	{
-		std::swap(datFileNames[0], datFileNames[1]);
+		std::transform(text.begin(), text.end(), text.begin(),
+					   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+		return text;
 	}
-	if (RequestedTable == Tables::DragonsKeep)
-		datFileNames = {"DRAGON.DAT"};
-	for (const auto& datFileName : datFileNames)
-	{
-		auto fileName = datFileName;
-		for (int i = 0; i < 2; i++)
-		{
-			if (i == 1)
-				std::transform(fileName.begin(), fileName.end(), fileName.begin(),
-							   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
-			auto datFile = fopenu((folder + fileName).c_str(), "r");
-			if (datFile)
+	std::string ToLower(std::string text)
+	{
+		std::transform(text.begin(), text.end(), text.begin(),
+					   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+		return text;
+	}
+
+	// A table's DAT files, in the order they are tried
+	std::vector<std::string> DatFileNames(Tables table)
+	{
+		if (table == Tables::DragonsKeep)
+			return {"DRAGON.DAT"};
+		// Default game data test order: CADET.DAT, PINBALL.DAT, DEMO.DAT
+		std::vector<std::string> names{"CADET.DAT", "PINBALL.DAT", "DEMO.DAT"};
+		if (options::Options.Prefer3DPBGameData)
+			std::swap(names[0], names[1]);
+		return names;
+	}
+
+	// The folders Full Tilt! installs its tables in, each with its EXE, DAT and SOUND folder
+	constexpr std::array FullTiltFolders{"CADET", "DRAGON", "PIRATE"};
+
+	const char* FullTiltFolder(Tables table)
+	{
+		return table == Tables::DragonsKeep ? FullTiltFolders[1] : FullTiltFolders[0];
+	}
+
+	bool IsSeparator(char c)
+	{
+#ifdef _WIN32
+		return c == '/' || c == '\\';
+#else
+		return c == '/';
+#endif
+	}
+
+	// The folders to look in for a table, given a folder that ends in a separator or is empty: the folder, the
+	// table's Full Tilt! folder under it, and that folder next to it when the folder is one of Full Tilt!'s.
+	// Full Tilt!'s CD has the folders in upper case, its installer wrote them capitalized ("Dragon").
+	std::vector<std::string> TableFolders(const std::string& folder, Tables table)
+	{
+		std::string upper = FullTiltFolder(table);
+		auto lower = ToLower(upper);
+		std::array spellings{upper, lower, upper.substr(0, 1) + lower.substr(1)};
+
+		std::vector<std::string> folders{folder};
+		for (const auto& spelling : spellings)
+			folders.push_back(folder + spelling + PathSeparator);
+
+		// The working directory is the empty folder: its name comes from its path, and its parent is ".."
+		std::string name, parent;
+		if (folder.empty())
+		{
+			std::error_code error;
+			auto path = std::filesystem::current_path(error).filename().u8string();
+			name = {path.begin(), path.end()};
+			parent = std::string{".."} + PathSeparator;
+		}
+		else
+		{
+			auto end = folder.size() - 1;
+			auto start = end;
+			while (start > 0 && !IsSeparator(folder[start - 1]))
+				start--;
+			name = folder.substr(start, end - start);
+			parent = folder.substr(0, start);
+		}
+		// A table's own folder isn't next to itself
+		name = ToUpper(name);
+		if (name == upper || std::find(FullTiltFolders.begin(), FullTiltFolders.end(), name) == FullTiltFolders.end())
+			return folders;
+		for (const auto& spelling : spellings)
+			folders.push_back(parent + spelling + PathSeparator);
+		return folders;
+	}
+
+	// The file in the folder, in upper case and then lower case: its name as found, or empty
+	std::string FindFile(const std::string& folder, const std::string& upperName)
+	{
+		for (const auto& fileName : {upperName, ToLower(upperName)})
+		{
+			if (auto file = fopenu((folder + fileName).c_str(), "r"))
 			{
-				fclose(datFile);
+				fclose(file);
 				return fileName;
 			}
 		}
+		return {};
 	}
-	return {};
+
+	std::optional<TableData> FindTable(const std::vector<const char*>& dataSearchPaths, Tables table)
+	{
+		for (auto path : dataSearchPaths)
+		{
+			if (!path)
+				continue;
+			for (const auto& folder : TableFolders(path, table))
+			{
+				for (const auto& datFileName : DatFileNames(table))
+				{
+					auto fileName = FindFile(folder, datFileName);
+					if (!fileName.empty())
+						return TableData{pb::TableOf(fileName), folder, fileName};
+				}
+			}
+		}
+		return {};
+	}
+} // namespace
+
+std::vector<TableData> pb::FindTables(const std::vector<const char*>& dataSearchPaths)
+{
+	std::vector<TableData> found;
+	for (auto table : {Tables::SpaceCadet3DPB, Tables::DragonsKeep})
+	{
+		if (auto data = FindTable(dataSearchPaths, table))
+			found.push_back(std::move(*data));
+	}
+	return found;
 }
 
 void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 {
 	DatFileName.clear();
+	BasePath.clear();
 	Table = Tables::SpaceCadet3DPB;
 	FullTiltDemoMode = FullTiltMode = false;
 
-	for (auto path : dataSearchPaths)
+	FoundTables = FindTables(dataSearchPaths);
+	auto wanted = RequestedTable ? *RequestedTable : TableFromKey(options::Options.Table.V);
+	auto chosen = std::find_if(FoundTables.begin(), FoundTables.end(),
+							   [wanted](const TableData& data) { return SameTable(data.Table, wanted); });
+	if (chosen == FoundTables.end())
 	{
-		if (!path)
-			continue;
-
-		BasePath = path;
-		auto fileName = FindDatFile(BasePath);
-		if (fileName.empty())
-			continue;
-
-		DatFileName = fileName;
-		auto upper = fileName;
-		std::transform(upper.begin(), upper.end(), upper.begin(),
-					   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-		if (upper == "CADET.DAT")
-			Table = Tables::SpaceCadetFullTilt;
-		if (upper == "DEMO.DAT")
-			Table = Tables::FullTiltDemo;
-		if (upper == "DRAGON.DAT")
-			Table = Tables::DragonsKeep;
-		FullTiltMode = Table != Tables::SpaceCadet3DPB;
-		FullTiltDemoMode = Table == Tables::FullTiltDemo;
-		printf("Loading game from: %s\n", make_path_name(fileName).c_str());
-		return;
+		// A table asked for without its data is missing data, as is no table at all
+		if (RequestedTable || FoundTables.empty())
+			return;
+		// The player's choice stays saved, for when its data is back
+		chosen = FoundTables.begin();
+		printf("No data for the table %s, loading %s\n", options::Options.Table.V.c_str(), TableKey(chosen->Table));
 	}
+
+	BasePath = chosen->Folder;
+	DatFileName = chosen->DatFileName;
+	Table = chosen->Table;
+	FullTiltMode = Table != Tables::SpaceCadet3DPB;
+	FullTiltDemoMode = Table == Tables::FullTiltDemo;
+	printf("Loading game from: %s\n", make_path_name(DatFileName).c_str());
+}
+
+Tables pb::TableOf(const std::string& datFileName)
+{
+	auto upper = ToUpper(datFileName);
+	if (upper == "CADET.DAT")
+		return Tables::SpaceCadetFullTilt;
+	if (upper == "DEMO.DAT")
+		return Tables::FullTiltDemo;
+	if (upper == "DRAGON.DAT")
+		return Tables::DragonsKeep;
+	return Tables::SpaceCadet3DPB;
+}
+
+bool pb::SameTable(Tables a, Tables b)
+{
+	return TableKey(a) == std::string_view{TableKey(b)};
+}
+
+const char* pb::TableKey(Tables table)
+{
+	switch (table)
+	{
+	case Tables::DragonsKeep:
+		return "DragonsKeep";
+	case Tables::Skulduggery:
+		return "Skulduggery";
+	default:
+		return "SpaceCadet";
+	}
+}
+
+Tables pb::TableFromKey(const std::string& key)
+{
+	if (key == TableKey(Tables::DragonsKeep))
+		return Tables::DragonsKeep;
+	if (key == TableKey(Tables::Skulduggery))
+		return Tables::Skulduggery;
+	return Tables::SpaceCadet3DPB;
 }
 
 void pb::reset_table()

@@ -189,6 +189,7 @@ optionsStruct options::Options
 	{"Edition", static_cast<int>(Editions::Definitive)},
 	{"Edition Hint Shown", false},
 	{"Game Data Folder", ""},
+	{"Table", "SpaceCadet"},
 	{"Lighting", true},
 	{"Lamp Glow", true},
 	{"Shaded Ball", true},
@@ -659,6 +660,7 @@ void options::PostProcessOptions()
 		pack.clear();
 	// Also a folder typed into the settings file by hand
 	Options.GameDataFolder.V = FolderPath(Options.GameDataFolder.V);
+	Options.Table.V = pb::TableKey(pb::TableFromKey(Options.Table.V));
 	// The drawing options of each edition are clamped while that edition's are on show
 	for (auto edition : {Editions::Classic, Editions::Definitive})
 	{

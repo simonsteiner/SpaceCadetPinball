@@ -427,6 +427,8 @@ struct optionsStruct
 	BoolOption EditionHintShown;
 	// The folder the player chose for the game data, searched before the usual places; empty when none was chosen
 	StringOption GameDataFolder;
+	// The table the player chose (pb::TableKey), loaded when its data is found
+	StringOption Table;
 	// Space Cadet 2026's effects on SDL's GPU renderer (Compositor)
 	BoolOption Lighting;
 	BoolOption LampGlow;

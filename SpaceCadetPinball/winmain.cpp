@@ -202,7 +202,7 @@ static bool TakeChosenFolder()
 	if (folder.empty())
 		return false;
 	folder = options::FolderPath(std::move(folder));
-	ChosenFolderEmpty = pb::FindDatFile(folder).empty();
+	ChosenFolderEmpty = pb::FindTables({folder.c_str()}).empty();
 	if (ChosenFolderEmpty)
 	{
 		printf("No game data in the folder chosen: %s\n", folder.c_str());
@@ -415,7 +415,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			printf("%s\n", message.c_str());
 		return 1;
 	}
-	// Bonus tables load only when asked for until their rules are done (Phase F)
+	// A test run of a bonus table, whichever table the player chose; Skulduggery isn't loadable yet (Phase F6)
 	auto tableArg = GetArgValue(args, "-table");
 	if (tableArg == "dragon")
 		pb::RequestedTable = Tables::DragonsKeep;
@@ -434,12 +434,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	{
 		if (!replay::StartPlayback(replayPath))
 			return 1;
-		// A recording of a bonus table plays it back without -table
+		// A recording plays back on its own table, whichever the player chose, and a bonus table's without -table
 		auto recordedDat = replay::RecordedDatFile();
-		std::transform(recordedDat.begin(), recordedDat.end(), recordedDat.begin(),
-					   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-		if (recordedDat.starts_with("DRAGON.DAT "))
-			pb::RequestedTable = Tables::DragonsKeep;
+		pb::RequestedTable = pb::TableOf(recordedDat.substr(0, recordedDat.find(' ')));
 		// Playback is headless; the SDL_VIDEODRIVER environment variable still takes precedence
 		SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
 	}
@@ -604,7 +601,10 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			searchPaths.insert(searchPaths.begin(), Options.GameDataFolder.V.c_str());
 		searchPaths.insert(searchPaths.end(), std::begin(PlatformDataPaths), std::end(PlatformDataPaths));
 		pb::SelectDatFile(searchPaths);
-		SDL_SetWindowTitle(window, pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_Caption : Msg::STRING139));
+		auto caption = pb::Table == Tables::DragonsKeep ? Msg::Dragon_Caption
+					   : pb::FullTiltMode               ? Msg::FullTilt_Caption
+														: Msg::STRING139;
+		SDL_SetWindowTitle(window, pb::get_rc_string(caption));
 
 		// Second step: run updates that depend on .DAT file selection
 		options::InitSecondary();

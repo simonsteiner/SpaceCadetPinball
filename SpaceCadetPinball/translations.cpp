@@ -7815,6 +7815,12 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Dragon_Caption,
+		{
+			{ Lang::English, "Full Tilt! - Dragon's Keep" },
+		}
+	},
+	{
 		Msg::Dragon_HitFireLizards,
 		{
 			{ Lang::English, "Hit Fire Lizards To Begin Quest" },
