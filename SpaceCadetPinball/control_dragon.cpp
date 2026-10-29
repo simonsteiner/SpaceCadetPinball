@@ -3243,10 +3243,13 @@ namespace
 		Links.clear();
 		for (auto component : table->ComponentList)
 		{
+			if (component && IsSoloTarget(*component))
+				SoloTargets.push_back(component);
+		}
+		for (auto component : table->ComponentList)
+		{
 			if (!component)
 				continue;
-			if (IsSoloTarget(*component))
-				SoloTargets.push_back(component);
 			if (component == drain)
 				Link(component, WithHook<DrainControl>);
 			else if (component == plunger)
