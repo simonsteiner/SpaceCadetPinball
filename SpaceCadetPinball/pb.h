@@ -74,7 +74,7 @@ public:
 	static int uninit();
 	// The tables whose data is in the folders, each from the first folder that has it, Space Cadet first. A folder
 	// ends in a separator; besides it, each table is looked for in its folder of a Full Tilt! installation: in
-	// CADET or DRAGON under it, and next to it when the folder is one of those.
+	// CADET or DRAGON under it, and next to it when the folder is one of Full Tilt!'s CADET, DRAGON or PIRATE.
 	static std::vector<TableData> FindTables(const std::vector<const char*>& dataSearchPaths);
 	// Loads the table asked for, else the player's choice (options' Table), else the first table found
 	static void SelectDatFile(const std::vector<const char*>& dataSearchPaths);
@@ -85,9 +85,11 @@ public:
 	static Tables TableOf(const std::string& datFileName);
 	// Whether two tables are the same for the player: Space Cadet's three DAT files are one table
 	static bool SameTable(Tables a, Tables b);
-	// The saved choice of table: "SpaceCadet" for any of Space Cadet's, "DragonsKeep" or "Skulduggery"
+	// The saved choice of table: "SpaceCadet" for any of Space Cadet's, or "DragonsKeep"; an unknown key is Space Cadet
 	static const char* TableKey(Tables table);
 	static Tables TableFromKey(std::string_view key);
+	// The window title and About box name of the table loaded, as each original EXE has it
+	static Msg Caption();
 	static void reset_table();
 	static void firsttime_setup();
 	static void mode_change(GameModes mode);

@@ -161,25 +161,49 @@ namespace
 		return text;
 	}
 
-	// A table's DAT files, in the order they are tried
+	// What the game knows of each DAT file it can load: the table it holds, the key the player's choice is saved
+	// as, the folder of a Full Tilt! installation it is in and the window title. Space Cadet's DAT files share a key,
+	// and are tried in this order. Skulduggery gets its row in F6.
+	struct TableInfo
+	{
+		Tables Table;
+		const char* DatFileName;
+		const char* Key;
+		const char* FullTiltFolder;
+		Msg Caption;
+	};
+
+	constexpr std::array TableInfos{
+		TableInfo{Tables::SpaceCadetFullTilt, "CADET.DAT", "SpaceCadet", "CADET", Msg::FullTilt_Caption},
+		TableInfo{Tables::SpaceCadet3DPB, "PINBALL.DAT", "SpaceCadet", "CADET", Msg::STRING139},
+		TableInfo{Tables::FullTiltDemo, "DEMO.DAT", "SpaceCadet", "CADET", Msg::FullTilt_Caption},
+		TableInfo{Tables::DragonsKeep, "DRAGON.DAT", "DragonsKeep", "DRAGON", Msg::Dragon_Caption},
+	};
+
+	const TableInfo& Info(Tables table)
+	{
+		auto info = std::ranges::find(TableInfos, table, &TableInfo::Table);
+		assertm(info != TableInfos.end(), "pb: a table that can't be loaded yet");
+		return info != TableInfos.end() ? *info : TableInfos[0];
+	}
+
+	// A table's DAT files, in the order they are tried; the "Prefer 3DPB Data" option swaps CADET.DAT and PINBALL.DAT
 	std::vector<std::string> DatFileNames(Tables table)
 	{
-		if (table == Tables::DragonsKeep)
-			return {"DRAGON.DAT"};
-		// Default game data test order: CADET.DAT, PINBALL.DAT, DEMO.DAT
-		std::vector<std::string> names{"CADET.DAT", "PINBALL.DAT", "DEMO.DAT"};
-		if (options::Options.Prefer3DPBGameData)
+		std::vector<std::string> names;
+		for (const auto& info : TableInfos)
+		{
+			if (info.Key == std::string_view{Info(table).Key})
+				names.emplace_back(info.DatFileName);
+		}
+		if (names.size() > 1 && options::Options.Prefer3DPBGameData)
 			std::swap(names[0], names[1]);
 		return names;
 	}
 
-	// The folders Full Tilt! installs its tables in, each with its EXE, DAT and SOUND folder
+	// The folders a Full Tilt! installation keeps its tables in, each with its EXE, DAT and SOUND folder:
+	// Space Cadet, Dragon's Keep and Skulduggery
 	constexpr std::array FullTiltFolders{"CADET", "DRAGON", "PIRATE"};
-
-	const char* FullTiltFolder(Tables table)
-	{
-		return table == Tables::DragonsKeep ? FullTiltFolders[1] : FullTiltFolders[0];
-	}
 
 	bool IsSeparator(char c)
 	{
@@ -195,7 +219,7 @@ namespace
 	// Full Tilt!'s CD has the folders in upper case, its installer wrote them capitalized ("Dragon").
 	std::vector<std::string> TableFolders(const std::string& folder, Tables table)
 	{
-		std::string upper = FullTiltFolder(table);
+		std::string upper = Info(table).FullTiltFolder;
 		auto lower = ToLower(upper);
 		std::array spellings{upper, lower, upper.substr(0, 1) + lower.substr(1)};
 
@@ -325,14 +349,8 @@ void pb::SelectTable(Tables table)
 
 Tables pb::TableOf(const std::string& datFileName)
 {
-	auto upper = ToUpper(datFileName);
-	if (upper == "CADET.DAT")
-		return Tables::SpaceCadetFullTilt;
-	if (upper == "DEMO.DAT")
-		return Tables::FullTiltDemo;
-	if (upper == "DRAGON.DAT")
-		return Tables::DragonsKeep;
-	return Tables::SpaceCadet3DPB;
+	auto info = std::ranges::find(TableInfos, ToUpper(datFileName), &TableInfo::DatFileName);
+	return info != TableInfos.end() ? info->Table : Tables::SpaceCadet3DPB;
 }
 
 bool pb::SameTable(Tables a, Tables b)
@@ -342,24 +360,19 @@ bool pb::SameTable(Tables a, Tables b)
 
 const char* pb::TableKey(Tables table)
 {
-	switch (table)
-	{
-	case Tables::DragonsKeep:
-		return "DragonsKeep";
-	case Tables::Skulduggery:
-		return "Skulduggery";
-	default:
-		return "SpaceCadet";
-	}
+	return Info(table).Key;
 }
 
 Tables pb::TableFromKey(std::string_view key)
 {
-	if (key == TableKey(Tables::DragonsKeep))
-		return Tables::DragonsKeep;
-	if (key == TableKey(Tables::Skulduggery))
-		return Tables::Skulduggery;
-	return Tables::SpaceCadet3DPB;
+	// Space Cadet's first DAT file stands for all of them
+	auto info = std::ranges::find_if(TableInfos, [key](const TableInfo& entry) { return entry.Key == key; });
+	return info != TableInfos.end() ? info->Table : Tables::SpaceCadet3DPB;
+}
+
+Msg pb::Caption()
+{
+	return Info(Table).Caption;
 }
 
 void pb::reset_table()

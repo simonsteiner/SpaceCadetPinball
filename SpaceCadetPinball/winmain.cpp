@@ -46,6 +46,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "font_selection.h"
 #include "high_score.h"
 
+#include <filesystem>
 #include <mutex>
 #include <new>
 #include <optional>
@@ -202,7 +203,10 @@ static bool TakeChosenFolder()
 	if (folder.empty())
 		return false;
 	folder = options::FolderPath(std::move(folder));
-	ChosenFolderEmpty = pb::FindTables({folder.c_str()}).empty();
+	// While -table asks for a table, only a folder with that table's data has it
+	ChosenFolderEmpty =
+		std::ranges::none_of(pb::FindTables({folder.c_str()}), [](const TableData& data)
+							 { return !pb::RequestedTable || pb::SameTable(data.Table, *pb::RequestedTable); });
 	if (ChosenFolderEmpty)
 	{
 		printf("No game data in the folder chosen: %s\n", folder.c_str());
@@ -404,7 +408,17 @@ static DefinitiveHost MakeDefinitiveHost()
 	};
 	host.ChosenFolderEmpty = [] { return ChosenFolderEmpty; };
 	host.DataFolder = []
-	{ return pb::BasePath.empty() ? std::string{pb::get_rc_string(Msg::Definitive_DataStartFolder)} : pb::BasePath; };
+	{
+		if (pb::BasePath.empty())
+			return std::string{pb::get_rc_string(Msg::Definitive_DataStartFolder)};
+		// A table in Full Tilt!'s layout can be found from the start folder, such as ../DRAGON/
+		std::error_code error;
+		auto path = std::filesystem::absolute(std::u8string{pb::BasePath.begin(), pb::BasePath.end()}, error);
+		if (error)
+			return pb::BasePath;
+		auto text = path.lexically_normal().u8string();
+		return std::string{text.begin(), text.end()};
+	};
 	// Taken at the start of the next frame, so ImGui lays out that whole frame for the new turn
 	host.SetRotation = [](int quarterTurns) { PendingRotation = quarterTurns; };
 #ifndef __EMSCRIPTEN__
@@ -690,12 +704,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			searchPaths.insert(searchPaths.begin(), Options.GameDataFolder.V.c_str());
 		searchPaths.insert(searchPaths.end(), std::begin(PlatformDataPaths), std::end(PlatformDataPaths));
 		pb::SelectDatFile(searchPaths);
-		auto caption = Msg::STRING139;
-		if (pb::Table == Tables::DragonsKeep)
-			caption = Msg::Dragon_Caption;
-		else if (pb::FullTiltMode)
-			caption = Msg::FullTilt_Caption;
-		SDL_SetWindowTitle(window, pb::get_rc_string(caption));
+		SDL_SetWindowTitle(window, pb::get_rc_string(pb::Caption()));
 
 		// Second step: run updates that depend on .DAT file selection
 		options::InitSecondary();
@@ -2378,7 +2387,7 @@ void winmain::a_dialog()
 		{
 			if (ImGui::BeginTabItem("3DPB"))
 			{
-				ImGui::TextUnformatted(pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_Caption : Msg::STRING139));
+				ImGui::TextUnformatted(pb::get_rc_string(pb::Caption()));
 				ImGui::TextUnformatted("Original game by Cinematronics, Microsoft");
 				ImGui::Separator();
 
