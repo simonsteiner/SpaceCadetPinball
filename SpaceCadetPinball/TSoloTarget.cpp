@@ -28,6 +28,13 @@ int TSoloTarget::Message(MessageCode code, float value)
 	{
 	case MessageCode::TSoloTargetDisable:
 	case MessageCode::TSoloTargetEnable:
+		// CADET.EXE's engine stops the re-enable timer here too (0x414be0), so a target the rules turn off as it is
+		// hit stays off; Pinball.exe leaves the timer running, which brings it back after 0.1 s
+		if (pb::BonusTable() && Timer)
+		{
+			timer::kill(Timer);
+			Timer = 0;
+		}
 		ActiveFlag = code == MessageCode::TSoloTargetEnable;
 		break;
 	case MessageCode::Reset:
@@ -58,6 +65,7 @@ void TSoloTarget::Collision(TBall* ball, vector2* nextPosition, vector2* directi
 void TSoloTarget::TimerExpired(int timerId, void* caller)
 {
 	auto target = static_cast<TSoloTarget*>(caller);
-	target->Message(MessageCode::TSoloTargetEnable, 0.0);
+	// The timer has run out, so Enable mustn't kill it again
 	target->Timer = 0;
+	target->Message(MessageCode::TSoloTargetEnable, 0.0);
 }
