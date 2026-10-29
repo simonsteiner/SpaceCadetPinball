@@ -522,7 +522,7 @@ void DefinitiveFrontEnd::RenderTables()
 			note = std::format("{} · {}", note,
 							   Ui::Fill(Text(Msg::Definitive_TableBest), Ui::FormatScore(table.BestScore, 0)));
 		Ui::NextRowNote(note.c_str());
-		auto id = "table" + std::to_string(i);
+		auto id = std::format("table{}", i);
 		auto chosen = Ui::MenuRow(id.c_str(), table.Name.c_str(), false,
 								  table.Loaded ? Text(Msg::Definitive_TableCurrent) : nullptr);
 		if (Ui::LastRowFocused())
