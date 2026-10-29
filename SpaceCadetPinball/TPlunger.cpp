@@ -189,8 +189,9 @@ int TPlunger::Message(MessageCode code, float value)
 			if (pb::FullTiltMode || code == MessageCode::PlungerInputReleased)
 				loader::play_sound(SoundIndexP2, this, "TPlunger3");
 			SpriteSet(0);
-			// The originals' short physics steps let a ball resting on the plunger touch it within PullbackDelay;
-			// with ours it can bounce for longer, so ReleasedTimer keeps the push until it touches
+			// The push lasts ReleaseDelay. In 3D Pinball, Pinball.exe's short physics steps let a ball resting on the
+			// plunger touch it within PullbackDelay; with ours it can bounce for longer, so ReleasedTimer keeps the
+			// push until it touches
 			CancelReleaseWait();
 			ReleasePushPending = true;
 			ReleaseTouched = false;
