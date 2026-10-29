@@ -137,7 +137,8 @@ private:
 	static bool StartPlayback(MidiSong* song);
 	static void ShutdownBackend();
 	static MidiSong* load_track(std::string fileName);
-	static void load_skulduggery_tracks();
+	// Dragon's Keep's or Skulduggery's tracks, as their EXEs load them
+	static void load_bonus_table_tracks();
 	static std::vector<uint8_t>* load_track_sub(std::string fileName, bool isMidi);
 	static std::vector<uint8_t>* ReadFile(const std::string& path);
 	static MidiSong* TrackToMidi(MidiTracks track);

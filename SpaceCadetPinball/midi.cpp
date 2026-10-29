@@ -320,19 +320,9 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 	}
 	SetVolume(volume);
 
-	if (pb::Table == Tables::DragonsKeep)
+	if (pb::BonusTable())
 	{
-		// Its rules pick the track. DRAGON.EXE loads all but TABC3, which no rule plays, so track 3 stays empty
-		track1 = load_track("TABC1");
-		track2 = load_track("TABC2");
-		track4 = load_track("TABC4");
-		track5 = load_track("TABC5");
-		track6 = load_track("TABC6");
-		track7 = load_track("TABC7");
-	}
-	else if (pb::Table == Tables::Skulduggery)
-	{
-		load_skulduggery_tracks();
+		load_bonus_table_tracks();
 	}
 	else if (pb::FullTiltMode)
 	{
@@ -405,8 +395,20 @@ void midi::SetVolume(int volume)
 #endif
 }
 
-void midi::load_skulduggery_tracks()
+void midi::load_bonus_table_tracks()
 {
+	if (pb::Table == Tables::DragonsKeep)
+	{
+		// Its rules pick the track. DRAGON.EXE loads all but TABC3, which no rule plays, so track 3 stays empty
+		track1 = load_track("TABC1");
+		track2 = load_track("TABC2");
+		track4 = load_track("TABC4");
+		track5 = load_track("TABC5");
+		track6 = load_track("TABC6");
+		track7 = load_track("TABC7");
+		return;
+	}
+
 	// PIRATES.EXE loads TABB1 to TABB6, plays TABB1 for any of them that is missing, and has a seventh track that is
 	// TABB5
 	track1 = load_track("TABB1");
