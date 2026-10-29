@@ -43,10 +43,10 @@ Running `CADET.EXE`'s table (`gamedata-fulltilt/`) to check #27 and #33 showed t
 ## Found while doing the follow-ups
 
 16. **More `TPlunger` differences found while doing item 11.** Not changed yet; each changes gameplay. Moved to the side work of the [Space Cadet 2026 plan](2026-10-20-space-cadet-2026.md#side-work) (2026-10-29):
-    - `CADET.EXE`'s release timer is 0.2 s (`0x418aa6`); the port uses the 25 ms `PullbackDelay` in both modes.
+    - `CADET.EXE`'s release timer is 0.2 s (`0x418aa6`); the port uses the 25 ms `PullbackDelay` in both modes. Done: Full Tilt's data and the bonus tables take 0.2 s (2026-10-29).
     - `Pinball.exe` ignores PlayerChanged and SetTiltLock; the port handles both in 3D Pinball mode too, and SetTiltLock kills the ball feed timer.
     - `Pinball.exe` calls `control::handler` only for ball feed and its timer; the port calls it for every message, which looks harmless.
-    - PlayerChanged and Full Tilt's Reset leave a stale pullback timer id. After #45 this can refuse a 3D Pinball press until the key is released, so look at it first.
+    - PlayerChanged and Full Tilt's Reset leave a stale pullback timer id. After #45 this can refuse a 3D Pinball press until the key is released, so look at it first. Already fixed: `2739e92`, in #45's stack, clears it in both (checked 2026-10-29).
 
 ## Decided
 

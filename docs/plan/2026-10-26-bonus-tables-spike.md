@@ -189,6 +189,21 @@ The one press missed at 60 updates per second came during a Re-Deploy, the ball 
 
 The reference replays that held a release whose ball touched only after 25 ms play differently from that frame on and were recorded again: in `../replays`, `definitive-title-demo`, `game-flippers`, `launch-then-focus-loss` and `pull-focus-loss-release`; in `../replays/fulltilt`, `ft-launch-then-focus-loss`, `ft-pull-focus-loss-release`, `ft-pull-repress-after-full` and `ft-pull-repress-mid`; and in `../replays/dragon`, `dragon-flipping`. Each of them first differs 33 to 40 ms after a release of the plunger key or a focus loss, where the ball used to stay on the plunger and now launches. The other eleven replays play as before.
 
+## Full Tilt's release timer (2026-10-29)
+
+`CADET.EXE` and `DRAGON.EXE` take a release's push back 0.2 s after it (`TPlunger::Message`, the timer set at 0x418aa6, whose callback 0x418930 clears it whatever happened since), where `Pinball.exe` and our port used `PullbackDelay`, 25 ms, with the launch window above. Our port in Classic on `CADET.DAT` and `CADET.EXE` under Wine got the same keys.
+
+- **A launch from rest doesn't change.** With a temporary log of every touch, all 27 releases of holds from 0.03 to 1.2 s touched the plunger once, with the push, and not again within 0.25 s. Both games agreed which holds sent the ball out of the lane (0.8 s and more) and which fell back (0.3 s and less). After the change, 20 launches from rest on `CADET.DAT` missed none.
+- **A release before a returning ball lands does.** A 0.08 s tap sends the ball a little way up the lane, and it lands back about 0.58 s after that release. The plunger was pulled again 0.05 s after the tap and released Δ before the ball was due; the ball counted as pushed when it was away from the plunger at both looks after it landed. The log put the landings at 0.01 to 0.06 s, 0.13 to 0.18 s and 0.23 to 0.27 s after the release.
+
+| Δ, 8 trials each | Our port before | `CADET.EXE` | Our port after |
+| --- | --- | --- | --- |
+| 0.05 s | 8 pushed | 7 pushed | 8 pushed |
+| 0.15 s | 0 pushed | 8 pushed | 7 pushed |
+| 0.25 s | 0 pushed | 1 pushed | 0 pushed |
+
+So on Full Tilt's data and the bonus tables a release keeps its push for 0.2 s, and #91's wait for a touch, which ends at 0.1 s, no longer applies there; 3D Pinball keeps 25 ms and the wait (decided 2026-10-29). As in `CADET.EXE`, a new pull within 0.2 s of a release starts over when that release's timer ends. Unlike it, an earlier release's timer still leaves a later release's push alone, as #91 has it for both games. Of the reference replays only `dragon-smiley` plays differently, from a release 0.152 s before a ball reached the plunger, which now launches it; it was recorded again.
+
 ## Known differences between Pinball.exe and CADET.EXE (2026-10-28)
 
 Our port follows `Pinball.exe` for Space Cadet, in both its 3D Pinball and its Full Tilt data. `CADET.EXE`'s engine is a later revision, so Full Tilt's own Space Cadet plays differently in a few places. None of these is changed, except `TSoloTarget`'s timer on the bonus tables only (#113); each would change Space Cadet, so it's the owner's call.
