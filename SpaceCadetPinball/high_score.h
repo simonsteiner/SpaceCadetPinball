@@ -13,6 +13,8 @@ struct high_score_entry
 };
 
 
+enum class Tables;
+
 class high_score
 {
 public:
@@ -20,6 +22,8 @@ public:
 
 	static int read();
 	static int write();
+	// The best score a table saved, as read would find it, or -999 when it has none
+	static int BestScore(Tables table);
 	static int get_score_position(int score);	
 
 	static void show_high_score_dialog();

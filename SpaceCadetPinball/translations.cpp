@@ -6717,6 +6717,24 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_Table,
+		{
+			{ Lang::English, "Table" },
+		}
+	},
+	{
+		Msg::Definitive_TableCurrent,
+		{
+			{ Lang::English, "Current" },
+		}
+	},
+	{
+		Msg::Definitive_TableBest,
+		{
+			{ Lang::English, "Best score %s" },
+		}
+	},
+	{
 		Msg::Definitive_RecordSessions,
 		{
 			{ Lang::English, "Record sessions" },
@@ -7812,6 +7830,12 @@ const TextArray translations::Translations =
 		Msg::FullTilt_GameOver,
 		{
 			{ Lang::English, "Full Tilt!\nSpace Cadet Demo" },
+		}
+	},
+	{
+		Msg::Dragon_Caption,
+		{
+			{ Lang::English, "Full Tilt! - Dragon's Keep" },
 		}
 	},
 	{

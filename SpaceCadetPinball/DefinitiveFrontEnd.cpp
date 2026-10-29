@@ -13,6 +13,7 @@
 #include "TableView.h"
 #include "translations.h"
 
+#include <format>
 #include <string_view>
 #include <utility>
 
@@ -138,7 +139,7 @@ void DefinitiveFrontEnd::FollowGame(const TableView& view, bool playing)
 	}
 	// The demo plays behind the title and the screens it leads to, not behind a game that has just ended
 	auto title = Current == Screen::Title || Current == Screen::Records || Current == Screen::Credits ||
-				 Current == Screen::Stats || Current == Screen::Recordings ||
+				 Current == Screen::Stats || Current == Screen::Recordings || Current == Screen::Tables ||
 				 (Current == Screen::Settings && SettingsFrom != Screen::Pause);
 	if (title && view.GameOver && !busy && Host.StartDemo)
 		Host.StartDemo();
@@ -179,6 +180,9 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 		break;
 	case Screen::Records:
 		RenderRecords();
+		break;
+	case Screen::Tables:
+		RenderTables();
 		break;
 	case Screen::Settings:
 		if (!DefinitiveSettings::Render(Host, playing))
@@ -273,7 +277,10 @@ bool DefinitiveFrontEnd::BackPressed()
 void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 {
 	auto viewport = ImGui::GetMainViewport();
-	auto rows = (Host.Quit ? 8 : 7) + (Host.Recordings ? 1 : 0);
+	// A choice of tables only when the data of more than one was found
+	auto tables = Host.TableList ? Host.TableList() : std::vector<DefinitiveHost::TableChoice>{};
+	auto chooseTable = tables.size() > 1;
+	auto rows = (Host.Quit ? 8 : 7) + (Host.Recordings ? 1 : 0) + (chooseTable ? 1 : 0);
 	// Margins, the name, the year, the rows and the hints, shrunk to fit a small window
 	auto needed = 56 + 60 + 14 + 40 + 48 + rows * (Ui::RowHeight() + 2) + 24 + 26 + 24;
 	Ui::SetScale(std::min(Ui::Scale(), viewport->Size.y / needed));
@@ -296,6 +303,14 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 	{
 		Current = Screen::None;
 		Host.Play();
+	}
+	if (chooseTable)
+	{
+		// The row names the table loaded and opens the list
+		auto loaded = std::ranges::find_if(tables, &DefinitiveHost::TableChoice::Loaded);
+		if (Ui::MenuRow("table", Text(Msg::Definitive_Table), false,
+						loaded != tables.end() ? loaded->Name.c_str() : nullptr))
+			Open(Screen::Tables);
 	}
 
 	// The players, from 1 to 4: left and right change them, as does a click on a digit; choosing the row counts up
@@ -468,6 +483,69 @@ void DefinitiveFrontEnd::RenderRecords()
 	}
 	ImGui::PopItemWidth();
 	ImGui::EndGroup();
+	Ui::DrawHints(drawList, ImVec2{origin.x + 16 * scale, viewport->Pos.y + viewport->Size.y - 50 * scale},
+				  {{Ui::Action::Choose, Text(Msg::Definitive_Choose)},
+				   {Ui::Action::Select, Text(Msg::Definitive_Select)},
+				   {Ui::Action::Back, Text(Msg::Definitive_Back)}});
+	EndColumn();
+}
+
+void DefinitiveFrontEnd::RenderTables()
+{
+	auto tables = Host.TableList ? Host.TableList() : std::vector<DefinitiveHost::TableChoice>{};
+	auto viewport = ImGui::GetMainViewport();
+	// Full Tilt!'s pictures are 120 pixels square
+	constexpr auto pictureSize = 160.0f;
+	auto rows = static_cast<float>(tables.size() + 1);
+	auto needed = 56 + 40 + 24 + rows * (Ui::RowHeight() + 2) + 24 + pictureSize + 24 + 26 + 24;
+	Ui::SetScale(std::min(Ui::Scale(), viewport->Size.y / needed));
+	auto scale = Ui::Scale();
+
+	auto width = BeginColumn("##DefinitiveTables", 560);
+	auto drawList = ImGui::GetWindowDrawList();
+	auto margin = 48 * scale;
+	auto innerWidth = width - margin - 32 * scale;
+	ImVec2 origin{viewport->Pos.x + margin, viewport->Pos.y + 56 * scale};
+	Ui::DrawText(drawList, Theme::HeadingFont(), Theme::TitleSize, ImVec2{origin.x + 16 * scale, origin.y},
+				 Theme::Chrome50, Text(Msg::Definitive_Table), innerWidth - 32 * scale);
+
+	ImGui::SetCursorScreenPos(ImVec2{origin.x, origin.y + (40 + 24) * scale});
+	ImGui::BeginGroup();
+	ImGui::PushItemWidth(innerWidth);
+	// Each table with the game its data comes from and its best score; choosing another restarts the game with it
+	SDL_Texture* picture = nullptr;
+	for (size_t i = 0; i < tables.size(); i++)
+	{
+		const auto& table = tables[i];
+		auto note = table.Source;
+		if (table.BestScore >= 0)
+			note = std::format("{} · {}", note,
+							   Ui::Fill(Text(Msg::Definitive_TableBest), Ui::FormatScore(table.BestScore, 0)));
+		Ui::NextRowNote(note.c_str());
+		auto id = std::format("table{}", i);
+		auto chosen = Ui::MenuRow(id.c_str(), table.Name.c_str(), false,
+								  table.Loaded ? Text(Msg::Definitive_TableCurrent) : nullptr);
+		if (Ui::LastRowFocused())
+			picture = table.Picture;
+		if (chosen && table.Loaded)
+			Open(Screen::Title);
+		else if (chosen && Host.SelectTable)
+			Host.SelectTable(i);
+	}
+	if (Ui::MenuRow("back", Text(Msg::Definitive_Back)) || BackPressed())
+		Open(Screen::Title);
+	ImGui::PopItemWidth();
+	ImGui::EndGroup();
+
+	// The focused table's picture, framed as the score panel is
+	if (picture)
+	{
+		ImVec2 min{origin.x + 16 * scale, ImGui::GetItemRectMax().y + 24 * scale};
+		ImVec2 max{min.x + pictureSize * scale, min.y + pictureSize * scale};
+		drawList->AddImage(reinterpret_cast<ImTextureID>(picture), min, max);
+		drawList->AddRect(ImVec2{min.x - 1, min.y - 1}, ImVec2{max.x + 1, max.y + 1}, Theme::Chrome600, 2 * scale);
+	}
+
 	Ui::DrawHints(drawList, ImVec2{origin.x + 16 * scale, viewport->Pos.y + viewport->Size.y - 50 * scale},
 				  {{Ui::Action::Choose, Text(Msg::Definitive_Choose)},
 				   {Ui::Action::Select, Text(Msg::Definitive_Select)},

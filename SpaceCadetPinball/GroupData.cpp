@@ -118,11 +118,21 @@ void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, gdrv_bitmap8& bmp
 	zMap.Resolution = srcBmp.Resolution;
 
 	auto tableWidth = fullscrn::resolution_array[srcBmp.Resolution].TableWidth;
-	auto src = reinterpret_cast<uint16_t*>(srcBmp.IndexedBmpPtr);
-	auto srcChar = reinterpret_cast<char**>(&src);
+	// One sprite of DRAGON.DAT, marked for 640 by 480, skips rows as if laid out for 800 by 600 and runs past its
+	// end; its pixels outside the bitmap are dropped instead of written past it
+	auto end = std::min(bmp.Stride * bmp.Height, zMap.Stride * zMap.Height);
+	// The data packs 16-bit values between single bytes, so the values are read wherever they fall
+	auto src = srcBmp.IndexedBmpPtr;
+	auto read16 = [&src]
+	{
+		uint16_t value;
+		std::memcpy(&value, src, sizeof value);
+		src += sizeof value;
+		return value;
+	};
 	for (int dstInd = 0;;)
 	{
-		auto stride = static_cast<int16_t>(*src++);
+		auto stride = static_cast<int16_t>(read16());
 		if (stride < 0)
 			break;
 
@@ -134,14 +144,17 @@ void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, gdrv_bitmap8& bmp
 		}
 
 		dstInd += stride;
-		for (auto count = *src++; count; count--)
+		for (auto count = read16(); count; count--)
 		{
-			auto depth = *src++;
-			bmp.IndexedBmpPtr[dstInd] = **srcChar;
-			zMap.ZPtr1[dstInd] = depth;
-			zMap.Holes[dstInd] = 0;
+			auto depth = read16();
+			if (dstInd < end)
+			{
+				bmp.IndexedBmpPtr[dstInd] = *src;
+				zMap.ZPtr1[dstInd] = depth;
+				zMap.Holes[dstInd] = 0;
+			}
 
-			(*srcChar)++;
+			src++;
 			dstInd++;
 		}
 	}

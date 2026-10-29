@@ -189,6 +189,7 @@ optionsStruct options::Options
 	{"Edition", static_cast<int>(Editions::Definitive)},
 	{"Edition Hint Shown", false},
 	{"Game Data Folder", ""},
+	{"Table", "SpaceCadet"},
 	{"Lighting", true},
 	{"Lamp Glow", true},
 	{"Shaded Ball", true},
@@ -659,6 +660,7 @@ void options::PostProcessOptions()
 		pack.clear();
 	// Also a folder typed into the settings file by hand
 	Options.GameDataFolder.V = FolderPath(Options.GameDataFolder.V);
+	Options.Table.V = pb::TableKey(pb::TableFromKey(Options.Table.V));
 	// The drawing options of each edition are clamped while that edition's are on show
 	for (auto edition : {Editions::Classic, Editions::Definitive})
 	{
@@ -803,21 +805,39 @@ void options::RemoveSetting(const std::string& key)
 
 const char* options::TableKeyPrefix()
 {
-	if (pb::Table == Tables::DragonsKeep)
+	return TableKeyPrefix(pb::Table);
+}
+
+const char* options::TableKeyPrefix(Tables table)
+{
+	using enum Tables;
+	switch (table)
+	{
+	case DragonsKeep:
 		return DragonsKeepKeyPrefix;
-	if (pb::FullTiltDemoMode)
+	case FullTiltDemo:
 		return FullTiltDemoKeyPrefix;
-	if (pb::FullTiltMode)
+	case SpaceCadetFullTilt:
+	case Skulduggery:
 		return FullTiltKeyPrefix;
-	return SpaceCadetKeyPrefix;
+	default:
+		return SpaceCadetKeyPrefix;
+	}
 }
 
 std::string options::TableKeyPrefixToRead(const std::string& key)
 {
+	return TableKeyPrefixToRead(key, pb::Table);
+}
+
+std::string options::TableKeyPrefixToRead(const std::string& key, Tables table)
+{
 	// Before tables had their own keys, every table saved under the unprefixed ones.
 	// A table that never saved its own value starts from that one; saving then writes it under its prefix.
-	std::string prefix = TableKeyPrefix();
-	if (!prefix.empty() && !HasSetting(prefix + key) && HasSetting(key))
+	// The bonus tables had their keys from the start, so the unprefixed ones are only ever 3D Pinball's.
+	std::string prefix = TableKeyPrefix(table);
+	if (auto bonusTable = table == Tables::DragonsKeep || table == Tables::Skulduggery;
+		!prefix.empty() && !bonusTable && !HasSetting(prefix + key) && HasSetting(key))
 		prefix.clear();
 	return prefix;
 }

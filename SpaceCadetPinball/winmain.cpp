@@ -46,6 +46,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "font_selection.h"
 #include "high_score.h"
 
+#include <filesystem>
 #include <mutex>
 #include <new>
 #include <optional>
@@ -202,7 +203,10 @@ static bool TakeChosenFolder()
 	if (folder.empty())
 		return false;
 	folder = options::FolderPath(std::move(folder));
-	ChosenFolderEmpty = pb::FindDatFile(folder).empty();
+	// While -table asks for a table, only a folder with that table's data has it
+	ChosenFolderEmpty =
+		std::ranges::none_of(pb::FindTables({folder.c_str()}), [](const TableData& data)
+							 { return !pb::RequestedTable || pb::SameTable(data.Table, *pb::RequestedTable); });
 	if (ChosenFolderEmpty)
 	{
 		printf("No game data in the folder chosen: %s\n", folder.c_str());
@@ -210,6 +214,91 @@ static bool TakeChosenFolder()
 	}
 	options::Options.GameDataFolder.V = std::move(folder);
 	return true;
+}
+
+// The tables found, for both editions' table menus, with their pictures from the game data
+struct TableChoice
+{
+	TableData Data;
+	SDL_Texture* Picture;
+};
+// The tables found, and whether Classic's Select Table dialog opens on the next frame
+struct TableMenuState
+{
+	std::vector<TableChoice> Choices;
+	bool OpenDialog = false;
+};
+
+static TableMenuState& TableMenus()
+{
+	static TableMenuState state;
+	return state;
+}
+#ifdef __EMSCRIPTEN__
+// A browser opens a tab for Ctrl+T, so the game never sees it there
+constexpr const char* SelectTableShortcut = nullptr;
+#else
+constexpr const char* SelectTableShortcut = "Ctrl+T";
+#endif
+
+static void LoadTableChoices()
+{
+	for (const auto& data : pb::FoundTables)
+	{
+		// Full Tilt! keeps a 120 by 120 picture of each table next to its DAT, such as DRAGON.BMP; 3D Pinball has none
+		// Looked for first, so a missing picture leaves no SDL error behind
+		auto stem = data.DatFileName.substr(0, data.DatFileName.rfind('.'));
+		auto fileName = pb::FindFile(data.Folder, stem + ".BMP");
+		SDL_Texture* picture = nullptr;
+		if (auto surface = fileName.empty() ? nullptr : SDL_LoadBMP((data.Folder + fileName).c_str()))
+		{
+			picture = SDL_CreateTextureFromSurface(winmain::Renderer, surface);
+			SDL_DestroySurface(surface);
+		}
+		TableMenus().Choices.emplace_back(data, picture);
+	}
+}
+
+static void FreeTableChoices()
+{
+	for (const auto& choice : TableMenus().Choices)
+		SDL_DestroyTexture(choice.Picture);
+	TableMenus().Choices.clear();
+}
+
+// Classic's Select Table, as Full Tilt!'s Ctrl+T: it pauses the game, which stays paused if nothing is picked
+static void ShowTableDialog()
+{
+	winmain::pause(false);
+	TableMenus().OpenDialog = true;
+}
+
+// The tables for Space Cadet 2026's table list
+static std::vector<DefinitiveHost::TableChoice> TableList()
+{
+	std::vector<DefinitiveHost::TableChoice> list;
+	for (const auto& [data, picture] : TableMenus().Choices)
+	{
+		// The table loaded may have scores it hasn't saved yet
+		auto loaded = pb::SameTable(data.Table, pb::Table);
+		auto best = loaded ? high_score::highscore_table[0].Score : high_score::BestScore(data.Table);
+		list.emplace_back(pb::TableName(data.Table), pb::TableSource(data.Table), best, loaded, picture);
+	}
+	return list;
+}
+
+// The folder the table was loaded from, for Settings
+static std::string DataFolder()
+{
+	if (pb::BasePath.empty())
+		return std::string{pb::get_rc_string(Msg::Definitive_DataStartFolder)};
+	// A table in Full Tilt!'s layout can be found from the start folder, such as ../DRAGON/
+	std::error_code error;
+	auto path = std::filesystem::absolute(std::u8string{pb::BasePath.begin(), pb::BasePath.end()}, error);
+	if (error)
+		return pb::BasePath;
+	auto text = path.lexically_normal().u8string();
+	return std::string{text.begin(), text.end()};
 }
 
 // What Space Cadet 2026's screens can ask for, through the entry points the Classic menus use
@@ -238,6 +327,12 @@ static DefinitiveHost MakeDefinitiveHost()
 		return records;
 	};
 	host.ClearRecords = [] { high_score::clear_table(); };
+	host.TableList = TableList;
+	host.SelectTable = [](size_t index)
+	{
+		if (index < TableMenus().Choices.size())
+			pb::SelectTable(TableMenus().Choices[index].Data.Table);
+	};
 	host.Busy = [] { return !pb::GameEnded || ImGui::GetTopMostPopupModal() != nullptr; };
 	host.NextRecord = [](DefinitiveHost::Record& record, int& place)
 	{
@@ -314,8 +409,7 @@ static DefinitiveHost MakeDefinitiveHost()
 		return FolderDialogError;
 	};
 	host.ChosenFolderEmpty = [] { return ChosenFolderEmpty; };
-	host.DataFolder = []
-	{ return pb::BasePath.empty() ? std::string{pb::get_rc_string(Msg::Definitive_DataStartFolder)} : pb::BasePath; };
+	host.DataFolder = DataFolder;
 	// Taken at the start of the next frame, so ImGui lays out that whole frame for the new turn
 	host.SetRotation = [](int quarterTurns) { PendingRotation = quarterTurns; };
 #ifndef __EMSCRIPTEN__
@@ -415,7 +509,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			printf("%s\n", message.c_str());
 		return 1;
 	}
-	// Bonus tables load only when asked for until their rules are done (Phase F)
+	// A test run of a bonus table, whichever table the player chose; Skulduggery isn't loadable yet (Phase F6)
 	auto tableArg = GetArgValue(args, "-table");
 	if (tableArg == "dragon")
 		pb::RequestedTable = Tables::DragonsKeep;
@@ -434,12 +528,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	{
 		if (!replay::StartPlayback(replayPath))
 			return 1;
-		// A recording of a bonus table plays it back without -table
-		auto recordedDat = replay::RecordedDatFile();
-		std::transform(recordedDat.begin(), recordedDat.end(), recordedDat.begin(),
-					   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-		if (recordedDat.starts_with("DRAGON.DAT "))
-			pb::RequestedTable = Tables::DragonsKeep;
+		// A recording plays back on its own table, whichever the player chose, and a bonus table's without -table
+		const auto& recordedDat = replay::RecordedDatFile();
+		pb::RequestedTable = pb::TableOf(recordedDat.substr(0, recordedDat.find(' ')));
 		// Playback is headless; the SDL_VIDEODRIVER environment variable still takes precedence
 		SDL_SetHint(SDL_HINT_VIDEO_DRIVER, "dummy");
 	}
@@ -604,7 +695,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			searchPaths.insert(searchPaths.begin(), Options.GameDataFolder.V.c_str());
 		searchPaths.insert(searchPaths.end(), std::begin(PlatformDataPaths), std::end(PlatformDataPaths));
 		pb::SelectDatFile(searchPaths);
-		SDL_SetWindowTitle(window, pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_Caption : Msg::STRING139));
+		SDL_SetWindowTitle(window, pb::get_rc_string(pb::Caption()));
 
 		// Second step: run updates that depend on .DAT file selection
 		options::InitSecondary();
@@ -679,6 +770,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			return 1;
 		}
 		recordPath.clear();
+		LoadTableChoices();
 
 		fullscrn::init();
 		render::SetUpscale(Options.UpscaledArt ? Options.UpscaleFactor.V : 0);
@@ -753,6 +845,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		midi::music_shutdown();
 		Sound::Close();
 		pb::uninit();
+		FreeTableChoices();
 		DefinitiveEdition::Reset();
 		DefinitiveStats::Reset();
 
@@ -1111,6 +1204,10 @@ void winmain::RenderUi()
 			ImGui::Separator();
 			ImGuiMenuItemWShortcut(GameBindings::ToggleMenuDisplay, Options.ShowMenu);
 			ImGuiMenuItemWShortcut(GameBindings::ToggleFullScreen, Options.FullScreen);
+			// Where Full Tilt! has it, with its shortcut, once there is a choice
+			if (TableMenus().Choices.size() > 1 &&
+				ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_Select_Table), SelectTableShortcut))
+				ShowTableDialog();
 			if (ImGui::BeginMenu(pb::get_rc_string(Msg::Menu1_Select_Players)))
 			{
 				if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_1Player), nullptr, Options.Players == 1))
@@ -1471,9 +1568,12 @@ void winmain::RenderUi()
 	}
 
 	a_dialog();
-	// Space Cadet 2026 asks for high score names itself
+	// Space Cadet 2026 asks for high score names itself, and has its own list of tables
 	if (!definitive)
+	{
 		high_score::RenderHighScoreDialog();
+		RenderTableDialog();
+	}
 	font_selection::RenderDialog();
 	if (ShowSpriteViewer)
 		render::SpriteViewer(&ShowSpriteViewer);
@@ -1698,6 +1798,13 @@ int winmain::event_handler(const SDL_Event* event)
 	case SDL_EVENT_KEY_DOWN:
 		if (event->key.repeat)
 			break;
+		// Full Tilt!'s Ctrl+T, which doesn't reach the table
+		if (event->key.key == SDLK_T && (event->key.mod & SDL_KMOD_CTRL) &&
+			options::GetEdition() == Editions::Classic && TableMenus().Choices.size() > 1)
+		{
+			ShowTableDialog();
+			break;
+		}
 
 		pb::KeyDown(event->key.scancode, event->key.key);
 		if (!pb::cheat_mode)
@@ -2178,6 +2285,85 @@ void winmain::memalloc_failure()
 	std::exit(1);
 }
 
+void winmain::RenderTableDialog()
+{
+	// Laid out as Full Tilt!'s launcher: the tables' pictures side by side, the one picked in a teal frame, its name
+	// under them, Ok and Cancel. The table loaded can't be picked. A table without a picture shows its name instead.
+	auto title = pb::get_rc_string(Msg::Menu1_Select_Table);
+	static size_t picked = SIZE_MAX;
+	auto& menus = TableMenus();
+	const auto& choices = menus.Choices;
+	if (menus.OpenDialog)
+	{
+		menus.OpenDialog = false;
+		picked = SIZE_MAX;
+		ImGui::OpenPopup(title);
+	}
+	if (!ImGui::BeginPopupModal(title, nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
+		return;
+
+	const ImVec2 pictureSize{120, 120};
+	const auto teal = ImGui::ColorConvertFloat4ToU32(ImVec4{0, 128 / 255.0f, 128 / 255.0f, 1});
+	auto load = SIZE_MAX;
+	// The first table that can be picked has the focus, shown, so the first Enter loads it
+	auto focusFirst = ImGui::IsWindowAppearing();
+	for (size_t i = 0; i < choices.size(); i++)
+	{
+		const auto& [data, picture] = choices[i];
+		if (i > 0)
+			ImGui::SameLine(0, 24);
+		ImGui::PushID(static_cast<int>(i));
+		auto enabled = !pb::SameTable(data.Table, pb::Table);
+		ImGui::BeginDisabled(!enabled);
+		const auto& padding = ImGui::GetStyle().FramePadding;
+		auto chosen = picture ? ImGui::ImageButton("table", reinterpret_cast<ImTextureID>(picture), pictureSize)
+							  : ImGui::Button(pb::TableName(data.Table),
+											  ImVec2{pictureSize.x + padding.x * 2, pictureSize.y + padding.y * 2});
+		// The keyboard picks by moving the focus and loads by choosing; the mouse picks by a click and loads by a
+		// double click
+		if (ImGui::IsItemFocused() || chosen)
+			picked = i;
+		if ((chosen && !ImGui::IsMouseReleased(ImGuiMouseButton_Left)) ||
+			(ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)))
+			load = i;
+		ImGui::EndDisabled();
+		if (focusFirst && enabled)
+		{
+			ImGui::SetItemDefaultFocus();
+			ImGui::SetNavCursorVisible(true);
+			focusFirst = false;
+		}
+		if (picked == i)
+		{
+			auto min = ImGui::GetItemRectMin();
+			auto max = ImGui::GetItemRectMax();
+			ImGui::GetWindowDrawList()->AddRect(ImVec2{min.x - 3, min.y - 3}, ImVec2{max.x + 3, max.y + 3}, teal, 0.0f,
+												3.0f);
+		}
+		ImGui::PopID();
+	}
+
+	ImGui::Spacing();
+	ImGui::TextUnformatted(picked < choices.size() ? pb::TableName(choices[picked].Data.Table) : "");
+	ImGui::SameLine();
+	auto buttonWidth = 80.0f;
+	// Ok and Cancel at the right
+	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - buttonWidth * 2 -
+						 ImGui::GetStyle().ItemSpacing.x);
+	ImGui::BeginDisabled(picked >= choices.size());
+	if (ImGui::Button(pb::get_rc_string(Msg::GenericOk), ImVec2{buttonWidth, 0}))
+		load = picked;
+	ImGui::EndDisabled();
+	ImGui::SameLine();
+	if (ImGui::Button(pb::get_rc_string(Msg::GenericCancel), ImVec2{buttonWidth, 0}) ||
+		ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+		ImGui::CloseCurrentPopup();
+	ImGui::EndPopup();
+
+	if (load < choices.size())
+		pb::SelectTable(choices[load].Data.Table);
+}
+
 void winmain::a_dialog()
 {
 	auto aboutTitle = pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_About : Msg::STRING204);
@@ -2195,7 +2381,7 @@ void winmain::a_dialog()
 		{
 			if (ImGui::BeginTabItem("3DPB"))
 			{
-				ImGui::TextUnformatted(pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_Caption : Msg::STRING139));
+				ImGui::TextUnformatted(pb::get_rc_string(pb::Caption()));
 				ImGui::TextUnformatted("Original game by Cinematronics, Microsoft");
 				ImGui::Separator();
 

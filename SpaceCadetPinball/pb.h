@@ -13,7 +13,7 @@ class TTextBox;
 enum class Msg : int;
 
 // The table the DAT file holds. Space Cadet comes as 3D Pinball's, Full Tilt's and Full Tilt's demo;
-// Skulduggery and Dragon's Keep are Full Tilt's bonus tables (Phase F), which load only when asked for (-table).
+// Skulduggery and Dragon's Keep are Full Tilt's bonus tables (Phase F); Skulduggery isn't loadable yet.
 enum class Tables
 {
 	SpaceCadet3DPB,
@@ -21,6 +21,16 @@ enum class Tables
 	FullTiltDemo,
 	Skulduggery,
 	DragonsKeep,
+};
+
+// A table whose data was found, and where
+struct TableData
+{
+	Tables Table;
+	// Ends in a separator, or is empty for the working directory
+	std::string Folder;
+	// As found, in upper or lower case
+	std::string DatFileName;
 };
 
 enum class GameModes
@@ -40,8 +50,11 @@ public:
 	static DatFile* record_table;
 	static TPinballTable* MainTable;
 	static Tables Table;
-	// A bonus table asked for with -table, which FindDatFile then looks for instead of Space Cadet's DAT files
+	// A table asked for with -table or by the recording -replay plays, which SelectDatFile loads instead of the
+	// player's choice; any of Space Cadet's tables stands for Space Cadet
 	static std::optional<Tables> RequestedTable;
+	// The tables SelectDatFile found, Space Cadet first, which the table menus list
+	static std::vector<TableData> FoundTables;
 	// Set with Table: Full Tilt's DAT format and behaviour, and its demo's
 	static bool FullTiltMode, FullTiltDemoMode;
 	// Skulduggery or Dragon's Keep, whose engine is CADET.EXE's where it differs from Pinball.exe's
@@ -59,9 +72,30 @@ public:
 
 	static int init();
 	static int uninit();
-	// The DAT file in a folder that ends in a separator, as SelectDatFile would pick it there, or an empty string
-	static std::string FindDatFile(const std::string& folder);
+	// The tables whose data is in the folders, each from the first folder that has it, Space Cadet first. A folder
+	// ends in a separator; besides it, each table is looked for in its folder of a Full Tilt! installation: in
+	// CADET or DRAGON under it, and next to it when the folder is one of Full Tilt!'s CADET, DRAGON or PIRATE.
+	static std::vector<TableData> FindTables(const std::vector<const char*>& dataSearchPaths);
+	// Loads the table asked for, else the player's choice (options' Table), else the first table found
 	static void SelectDatFile(const std::vector<const char*>& dataSearchPaths);
+	// The player's choice from the table menus: saves it and restarts the game with that table, which ends a game in
+	// progress. Nothing happens for the table loaded.
+	static void SelectTable(Tables table);
+	// The table a DAT file holds, from its name in any case
+	static Tables TableOf(const std::string& datFileName);
+	// Whether two tables are the same for the player: Space Cadet's three DAT files are one table
+	static bool SameTable(Tables a, Tables b);
+	// The saved choice of table: "SpaceCadet" for any of Space Cadet's, or "DragonsKeep"; an unknown key is Space Cadet
+	static const char* TableKey(Tables table);
+	static Tables TableFromKey(std::string_view key);
+	// The window title and About box name of the table loaded, as each original EXE has it
+	static Msg Caption();
+	// A table's name and the game its data comes from, for the table menus, the same in every language
+	static const char* TableName(Tables table);
+	static const char* TableSource(Tables table);
+	// The file in a folder that ends in a separator, its name in upper case and then lower case: the name as found,
+	// or empty
+	static std::string FindFile(const std::string& folder, const std::string& name);
 	static void reset_table();
 	static void firsttime_setup();
 	static void mode_change(GameModes mode);

@@ -305,6 +305,10 @@ enum class Msg : int
 	Definitive_ClearStats,
 	Definitive_ClearStatsConfirm,
 	Definitive_Recordings,
+	// The title's table list: its row, the mark on the table loaded and each table's best score
+	Definitive_Table,
+	Definitive_TableCurrent,
+	Definitive_TableBest,
 	Definitive_RecordSessions,
 	Definitive_RecordSessionsNote,
 	Definitive_NoRecordings,
@@ -499,6 +503,7 @@ enum class Msg : int
 	FullTilt_GameOver,
 
 	// Dragon's Keep, DRAGON.EXE's strings; the rules show "Player N Shoot Again" as STRING198 to STRING201
+	Dragon_Caption,
 	Dragon_HitFireLizards,
 	Dragon_TargetBonus,
 	Dragon_QuestBonus,

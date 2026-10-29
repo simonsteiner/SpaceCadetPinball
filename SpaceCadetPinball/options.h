@@ -1,6 +1,7 @@
 #pragma once
 
 enum class Msg : int;
+enum class Tables;
 
 enum class Menu1:int
 {
@@ -138,6 +139,8 @@ public:
 	static void RemoveSetting(const std::string& key);
 	// Settings kept for each table start with this: none for 3D Pinball, which keeps the original keys
 	static const char* TableKeyPrefix();
+	// The prefix of a table that may not be the one loaded, for showing what it saved
+	static const char* TableKeyPrefix(Tables table);
 	static constexpr const char* SpaceCadetKeyPrefix = "";
 	static constexpr const char* FullTiltKeyPrefix = "FullTilt.";
 	static constexpr const char* FullTiltDemoKeyPrefix = "FullTiltDemo.";
@@ -146,6 +149,7 @@ public:
 												 DragonsKeepKeyPrefix};
 	// TableKeyPrefix, or none while the table hasn't saved its own value for key yet
 	static std::string TableKeyPrefixToRead(const std::string& key);
+	static std::string TableKeyPrefixToRead(const std::string& key, Tables table);
 	static int get_int(LPCSTR lpValueName, int defaultValue);
 	static void set_int(LPCSTR lpValueName, int data);
 	static float get_float(LPCSTR lpValueName, float defaultValue);
@@ -427,6 +431,8 @@ struct optionsStruct
 	BoolOption EditionHintShown;
 	// The folder the player chose for the game data, searched before the usual places; empty when none was chosen
 	StringOption GameDataFolder;
+	// The table the player chose (pb::TableKey), loaded when its data is found
+	StringOption Table;
 	// Space Cadet 2026's effects on SDL's GPU renderer (Compositor)
 	BoolOption Lighting;
 	BoolOption LampGlow;

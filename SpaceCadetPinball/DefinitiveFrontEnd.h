@@ -26,6 +26,21 @@ struct DefinitiveHost
 	void (*Quit)();
 	std::vector<Record> (*Records)();
 	void (*ClearRecords)();
+	// The tables whose data was found, Space Cadet first; the title lists them when there is more than one
+	struct TableChoice
+	{
+		std::string Name;
+		// The game its data comes from, such as Full Tilt! Pinball
+		std::string Source;
+		// Its best high score, or a negative number for none
+		int BestScore;
+		bool Loaded;
+		// Its picture from the game data, or null
+		SDL_Texture* Picture;
+	};
+	std::vector<TableChoice> (*TableList)();
+	// Saves the choice and restarts the game with that table, as Classic's Select Table does
+	void (*SelectTable)(size_t index);
 	// The next new high score that needs a name, with its default name, which is its player's, and its place from 0;
 	// false when none is left
 	bool (*NextRecord)(Record& record, int& place);
@@ -167,6 +182,7 @@ private:
 		Stats,
 		Recordings,
 		Viewer,
+		Tables,
 	};
 
 	static DefinitiveHost Host;
@@ -184,6 +200,7 @@ private:
 	static void FollowGame(const TableView& view, bool playing);
 	static void RenderTitle(const TableView& view);
 	static void RenderRecords();
+	static void RenderTables();
 	static void RenderCredits();
 	// In DefinitiveInGame.cpp
 	static void RenderPause(const TableView& view);
