@@ -177,7 +177,7 @@ So our port missed launches that the originals don't, on 3D Pinball's data and F
 
 Three fixes were proposed: keep the push until the ball touches, shorter physics steps (`timed_frame` in sub-steps of about 1 ms, which would change every collision's timing and every replay), or a longer window (40 ms, which covers 120 updates per second but not 60). The owner chose the first.
 
-A release still takes the push back after `PullbackDelay` if the ball touched the plunger in that time, as in the originals. If it didn't, `ReleasedTimer` keeps the push until the ball's next touch, which ends it, or until 0.1 s after the release (`ReleasePushLimit`) if no ball touches, as when the plunger is released with no ball on it. A new pull or release, a reset, a player change and 3D Pinball's Launch Ball command each end a push that is still waiting. Only `TPlunger` changed; the timers the originals set run as before.
+A release still takes the push back after `PullbackDelay` if the ball touched the plunger in that time, as in the originals. If it didn't, `ReleasedTimer` keeps the push until the ball's next touch, which ends it, or until 0.1 s after the release (`ReleasePushLimit`) if no ball touches, as when the plunger is released with no ball on it. A new pull or release, a reset, a player change on Full Tilt's data (3D Pinball's plunger ignores PlayerChanged since 2026-10-29, as `Pinball.exe`'s does) and 3D Pinball's Launch Ball command each end a push that is still waiting. Only `TPlunger` changed; the timers the originals set run as before.
 
 | Run, our port in Classic, 40 presses each | Missed before | Missed after |
 | --- | --- | --- |
@@ -189,15 +189,49 @@ The one press missed at 60 updates per second came during a Re-Deploy, the ball 
 
 The reference replays that held a release whose ball touched only after 25 ms play differently from that frame on and were recorded again: in `../replays`, `definitive-title-demo`, `game-flippers`, `launch-then-focus-loss` and `pull-focus-loss-release`; in `../replays/fulltilt`, `ft-launch-then-focus-loss`, `ft-pull-focus-loss-release`, `ft-pull-repress-after-full` and `ft-pull-repress-mid`; and in `../replays/dragon`, `dragon-flipping`. Each of them first differs 33 to 40 ms after a release of the plunger key or a focus loss, where the ball used to stay on the plunger and now launches. The other eleven replays play as before.
 
+## Full Tilt's release timer (2026-10-29)
+
+`CADET.EXE` and `DRAGON.EXE` take a release's push back 0.2 s after it (`TPlunger::Message`, the timer set at 0x418aa6, whose callback 0x418930 clears it whatever happened since), where `Pinball.exe` and our port used `PullbackDelay`, 25 ms, with the launch window above. Our port in Classic on `CADET.DAT` and `CADET.EXE` under Wine got the same keys.
+
+- **A launch from rest doesn't change.** With a temporary log of every touch, all 27 releases of holds from 0.03 to 1.2 s touched the plunger once, with the push, and not again within 0.25 s. Both games agreed which holds sent the ball out of the lane (0.8 s and more) and which fell back (0.3 s and less). After the change, 20 launches from rest on `CADET.DAT` missed none.
+- **A release before a returning ball lands does.** A 0.08 s tap sends the ball a little way up the lane, and it lands back about 0.58 s after that release. The plunger was pulled again 0.05 s after the tap and released Δ before the ball was due; the ball counted as pushed when it was away from the plunger at both looks after it landed. The log put the landings at 0.01 to 0.06 s, 0.13 to 0.18 s and 0.23 to 0.27 s after the release.
+
+| Δ, 8 trials each | Our port before | `CADET.EXE` | Our port after |
+| --- | --- | --- | --- |
+| 0.05 s | 8 pushed | 7 pushed | 8 pushed |
+| 0.15 s | 0 pushed | 8 pushed | 7 pushed |
+| 0.25 s | 0 pushed | 1 pushed | 0 pushed |
+
+So on Full Tilt's data and the bonus tables a release keeps its push for 0.2 s, and #91's wait for a touch, which ends at 0.1 s, no longer applies there; 3D Pinball keeps 25 ms and the wait (decided 2026-10-29). As in `CADET.EXE`, a new pull within 0.2 s of a release starts over when that release's timer ends. Unlike it, an earlier release's timer still leaves a later release's push alone, as #91 has it for both games. Of the reference replays only `dragon-smiley` plays differently, from a release 0.152 s before a ball reached the plunger, which now launches it; it was recorded again.
+
+## 3D Pinball's plunger messages (2026-10-29)
+
+`Pinball.exe`'s `TPlunger::Message` (its switch from 0x10185ad) takes only the plunger key's press and release, Resume, LooseFocus, the ball feed, its timer, Launch Ball and Reset. It has no case for SetTiltLock, PlungerRelaunchBall or PlayerChanged, and it calls `control::handler` only for the ball feed and its timer. Our port handled SetTiltLock and PlayerChanged in 3D Pinball as `CADET.EXE` does for Full Tilt's data, and forwards every message. Our port in Classic on `PINBALL.DAT` and `Pinball.exe` under Wine got the same keys.
+
+- **A tilt while the first ball is on its way.** A game's first ball feed timer starts 5.03 s after F2 and serves the ball 0.97 s later; until then the nudges can tilt the table. Seven timings of five nudges, 0.2 s apart, looked at 8 s after F2:
+
+  | | Tilts inside the feed window | At 8 s |
+  | --- | --- | --- |
+  | Our port before | 5 of 7 (5.05 to 5.85 s) | Those 5 show TILT and no ball; the feed was killed. 30 s later the tilt timeout drained the unserved ball and the panel moved to ball 2. |
+  | `Pinball.exe` | | All 7 have the ball on the plunger and no TILT. A closer look showed TILT, then 0.3 s later the ball and the tilt cleared, so its feed timer had been running when the table tilted. |
+  | Our port after | | All 7 as `Pinball.exe`. |
+
+  After a drain the drain flag blocks a tilt until the next ball is served, so only a game's first ball meets this.
+- **A pull held as the player changes.** In a two-player game, a tilt ended player 1's first ball while the plunger was pulled and held through the drain and the change to player 2; the key was let go after player 2's ball rested on the plunger. `Pinball.exe` launched it. Our port's PlayerChanged had dropped the pull (Boost 100 to 0, from a temporary log), so the release left the ball where it was; after the change it launches it, as `Pinball.exe`.
+- **`control::handler` for every message stays.** On Full Tilt's data it is faithful: `CADET.EXE`'s `TPlunger::Message` ends by calling its handler (0x422bc0) for every message. In 3D Pinball, Space Cadet's rules act on the plunger's messages only for the ball feed and its timer, as `Pinball.exe` sends them, and `MissionControl` only on Resume, which it turns into ControlMissionStarted; that shows the mission text that is already showing, and the gates pass Resume on anyway.
+
+So in 3D Pinball the plunger now ignores SetTiltLock and PlayerChanged, as `Pinball.exe` does; Full Tilt's data keeps `CADET.EXE`'s handling (decided 2026-10-29). No reference replay plays differently.
+
 ## Known differences between Pinball.exe and CADET.EXE (2026-10-28)
 
-Our port follows `Pinball.exe` for Space Cadet, in both its 3D Pinball and its Full Tilt data. `CADET.EXE`'s engine is a later revision, so Full Tilt's own Space Cadet plays differently in a few places. None of these is changed, except `TSoloTarget`'s timer on the bonus tables only (#113); each would change Space Cadet, so it's the owner's call.
+Our port follows `Pinball.exe` for Space Cadet, in both its 3D Pinball and its Full Tilt data. `CADET.EXE`'s engine is a later revision, so Full Tilt's own Space Cadet plays differently in a few places. None of these is changed, except `TSoloTarget`'s timer on the bonus tables only (#113) and the plunger's release timer on all of Full Tilt's data (#121); each would change Space Cadet, so it's the owner's call.
 
 | Where | `Pinball.exe` and our port | `CADET.EXE` | Effect on Space Cadet |
 | --- | --- | --- | --- |
 | Kicker attribute 404 (throw direction) | Kept as given | Normalised in x and y, like 410 (`loader.cpp`) | **Yes.** Five of Space Cadet's eight throws are diagonal, with length √2: `v_sink1`, `v_sink2`, `v_sink3`, `a_kout2` and `a_kout3` (`PINBALL.DAT`; `a_kout1` and `v_sink7` throw straight). `TBall::throw_ball` takes the direction as given, and the next frame folds its length into the speed, so these sinks and kickouts throw the ball about 1.41 times as fast as `CADET.EXE` does, up to the ball's speed limit. |
 | `TRamp` events | Only `ControlCollision` on wall 1303 | Also 0x55 and 0x56 when the ball crosses walls 1301 and 1302, and 0x54 when a ramp plane changes its layer (`TRamp::Collision`, 0x4177d0) | **No.** The events go to the ramp's rules handler and then to the table-wide one (0x42a260), which takes only 0x33, 0x46 and 0x3f1. Space Cadet's ramp handler, `LaunchRampControl` (0x423560 in `CADET.EXE`), acts only on `ControlCollision`, and `s_ramp9` has none. They matter for the bonus tables' rules. |
 | `TRamp` layer change | The ball keeps moving | The same crossings set the ball's field 0x9b (`CollisionDisabledFlag`), which stops it for the rest of the frame | **Yes, slightly.** Every crossing of `ramp`'s or `s_ramp9`'s walls costs the ball the rest of that frame's movement, so ramp shots run a little differently. |
+| `TPlunger`'s release timer | 25 ms (`PullbackDelay`); our port keeps the push until the ball touches, for at most 0.1 s (#91) | 0.2 s (0x418aa6), which ends the push whatever happened since | **Yes, on Full Tilt's data only (#121).** A release up to 0.2 s before a ball lands on the plunger launches it, as in `CADET.EXE` ([measured](#full-tilts-release-timer-2026-10-29)); 3D Pinball keeps 25 ms and #91's wait. |
 | `TSoloTarget` (1019) | Disable and Enable leave a running re-enable timer alone; only Reset stops it | Disable and Enable both stop it (`TSoloTarget::Message`, 0x414be0); with no bitmap for a state it clears the sprite | **No.** Space Cadet's rules never send Disable or Enable to a target. Dragon's Keep's do, for the sword's and the gargoyles' targets as they are hit, so on the bonus tables Disable and Enable stop the timer as in `CADET.EXE` (2026-10-29); before, those targets came back on 0.1 s after the hit that turned them off. Its targets have two bitmaps or none, which both versions draw alike. |
 | `TLightRollover` (1020) | | Same logic step for step (`TLightRollover::Collision`, 0x415840; `Message`, 0x4159b0) | **No.** Dragon's Keep's `v_wlite96` to `v_wlite99` have one bitmap each and no sound 304; both versions show that bitmap on a hit and play no sound. |
 

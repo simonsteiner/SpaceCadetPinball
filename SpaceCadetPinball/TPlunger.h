@@ -13,6 +13,9 @@ public:
 	int Message(MessageCode code, float value) override;
 	bool CanStartPull() const;
 	void CancelReleaseWait();
+	// How long a release keeps its push: PullbackDelay in 3D Pinball, as Pinball.exe; FullTiltReleaseDelay on Full
+	// Tilt's data, as CADET.EXE and DRAGON.EXE (0x418aa6)
+	float ReleaseDelay() const;
 
 	static void BallFeedTimer(int timerId, void* caller);
 	static void PullbackTimer(int timerId, void* caller);
@@ -29,11 +32,20 @@ public:
 	int SoundIndexP2;
 	bool PullbackStartedFlag{};
 	int SomeCounter{};
-	// A released pull keeps its push past PullbackDelay until the ball touches the plunger, for at most this long
+	static constexpr float FullTiltReleaseDelay = 0.2f;
+	// A released pull keeps its push past a shorter ReleaseDelay, 3D Pinball's, until the ball touches the plunger,
+	// for at most this long
 	static constexpr float ReleasePushLimit = 0.1f;
 	bool ReleasePushPending{};
 	bool ReleaseTouched{};
 	bool ReleaseWaitsForTouch{};
-	// The latest release's timer: its PullbackDelay one, then its ReleasePushLimit one
+	// The latest release's timer: its ReleaseDelay one, then in 3D Pinball its ReleasePushLimit one
 	int ReleaseTimerId{};
+
+private:
+	// PlayerChanged and SetTiltLock, which only Full Tilt's plunger takes
+	void HandlePlayerChanged();
+	void HandleTiltLock();
+	// Full Tilt's PlayerChanged and Reset: the pull, the ball feed and the push stop (CADET.EXE's 0x3fe and 0x402)
+	void Stop();
 };

@@ -145,34 +145,15 @@ int TPlunger::Message(MessageCode code, float value)
 		PullbackTimer(0, this);
 		break;
 	case MessageCode::PlayerChanged:
-		PullbackStartedFlag = false;
-		Boost = 0.0f;
-		Threshold = 1000000000.0f;
-		SomeCounter = 0;
-		timer::kill(BallFeedTimer);
-		timer::kill(PullbackTimer);
-		PullbackTimer_ = 0;
-		timer::kill(ReleasedTimer);
-		CancelReleaseWait();
+		HandlePlayerChanged();
 		break;
 	case MessageCode::SetTiltLock:
-		SomeCounter = 0;
-		timer::kill(BallFeedTimer);
+		HandleTiltLock();
 		break;
 	case MessageCode::Reset:
 		if (pb::FullTiltMode)
 		{
-			PullbackStartedFlag = false;
-			Boost = 0.0f;
-			Threshold = 1000000000.0f;
-			SomeCounter = 0;
-
-			timer::kill(BallFeedTimer);
-			timer::kill(PullbackTimer);
-			PullbackTimer_ = 0;
-			timer::kill(ReleasedTimer);
-			CancelReleaseWait();
-
+			Stop();
 			SpriteSet(0);
 			break;
 		}
@@ -194,12 +175,13 @@ int TPlunger::Message(MessageCode code, float value)
 			if (pb::FullTiltMode || code == MessageCode::PlungerInputReleased)
 				loader::play_sound(SoundIndexP2, this, "TPlunger3");
 			SpriteSet(0);
-			// The originals' short physics steps let a ball resting on the plunger touch it within PullbackDelay;
-			// with ours it can bounce for longer, so ReleasedTimer keeps the push until it touches
+			// The push lasts ReleaseDelay. In 3D Pinball, Pinball.exe's short physics steps let a ball resting on the
+			// plunger touch it within PullbackDelay; with ours it can bounce for longer, so ReleasedTimer keeps the
+			// push until it touches
 			CancelReleaseWait();
 			ReleasePushPending = true;
 			ReleaseTouched = false;
-			ReleaseTimerId = timer::set(PullbackDelay, this, ReleasedTimer);
+			ReleaseTimerId = timer::set(ReleaseDelay(), this, ReleasedTimer);
 		}
 		break;
 	default:
@@ -210,9 +192,47 @@ int TPlunger::Message(MessageCode code, float value)
 	return 0;
 }
 
+void TPlunger::HandlePlayerChanged()
+{
+	// Pinball.exe's plunger takes no PlayerChanged, so a pull held as the player changes stays for the next player's
+	// ball; CADET.EXE's lets go of it (0x3fe)
+	if (pb::FullTiltMode)
+		Stop();
+}
+
+void TPlunger::HandleTiltLock()
+{
+	// Pinball.exe's plunger takes no SetTiltLock either: a tilt leaves 3D Pinball's ball feed running, and the ball
+	// it serves ends the tilt; CADET.EXE's stops the feed (0x3f3)
+	if (pb::FullTiltMode)
+	{
+		SomeCounter = 0;
+		timer::kill(BallFeedTimer);
+	}
+}
+
+void TPlunger::Stop()
+{
+	PullbackStartedFlag = false;
+	Boost = 0.0f;
+	Threshold = 1000000000.0f;
+	SomeCounter = 0;
+
+	timer::kill(BallFeedTimer);
+	timer::kill(PullbackTimer);
+	PullbackTimer_ = 0;
+	timer::kill(ReleasedTimer);
+	CancelReleaseWait();
+}
+
+float TPlunger::ReleaseDelay() const
+{
+	return pb::FullTiltMode ? FullTiltReleaseDelay : PullbackDelay;
+}
+
 void TPlunger::CancelReleaseWait()
 {
-	// Only a push kept past PullbackDelay has a timer of its own to stop; the originals' timers stay as they were
+	// Only a push kept past ReleaseDelay has a timer of its own to stop; the originals' timers stay as they were
 	if (ReleaseWaitsForTouch)
 		timer::kill(ReleaseTimerId);
 	ReleasePushPending = false;
@@ -261,11 +281,12 @@ void TPlunger::ReleasedTimer(int timerId, void* caller)
 	// A newer release's push is under way: an older release's timer leaves it alone
 	if ((plunger->ReleasePushPending || plunger->ReleaseWaitsForTouch) && timerId != plunger->ReleaseTimerId)
 		return;
-	if (plunger->ReleasePushPending && !plunger->ReleaseTouched)
+	// Full Tilt's 0.2 s already outlasts ReleasePushLimit, so only 3D Pinball's PullbackDelay waits for the touch
+	if (plunger->ReleasePushPending && !plunger->ReleaseTouched && plunger->ReleaseDelay() < ReleasePushLimit)
 	{
 		plunger->ReleasePushPending = false;
 		plunger->ReleaseWaitsForTouch = true;
-		plunger->ReleaseTimerId = timer::set(ReleasePushLimit - plunger->PullbackDelay, plunger, ReleasedTimer);
+		plunger->ReleaseTimerId = timer::set(ReleasePushLimit - plunger->ReleaseDelay(), plunger, ReleasedTimer);
 		return;
 	}
 	plunger->ReleasePushPending = false;
