@@ -2,10 +2,9 @@
 #include "TTextBoxMessage.h"
 #include "pb.h"
 
-TTextBoxMessage::TTextBoxMessage(const char* text, float time, bool lowPriority, int fontIndex)
+TTextBoxMessage::TTextBoxMessage(const char* text, float time, bool lowPriority, int fontIndex) : FontIndex(fontIndex)
 {
 	NextMessage = nullptr;
-	FontIndex = fontIndex;
 	Time = time;
 	EndTicks = pb::time_ticks + static_cast<int>(time * 1000.0f);
 	LowPriority = lowPriority;

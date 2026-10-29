@@ -109,7 +109,7 @@ void TTextBox::Display(const char* text, float time, bool lowPriority, int fontI
 	if (!text)
 		return;
 
-	if (CurrentMessage && !strcmp(text, PreviousMessage->Text) && PreviousMessage->FontIndex == fontIndex)
+	if (IsRepeat(text, fontIndex))
 	{
 		PreviousMessage->Refresh(time);
 		if (PreviousMessage == CurrentMessage)
@@ -238,11 +238,9 @@ void TTextBox::Draw()
 
 		std::vector<LayoutResult> lines{};
 		auto textHeight = 0;
-		for (auto text = CurrentMessage->Text;; textHeight += font->Height)
+		for (auto text = CurrentMessage->Text; text[0] && textHeight + font->Height <= Height;
+			 textHeight += font->Height)
 		{
-			if (!text[0] || textHeight + font->Height > Height)
-				break;
-
 			auto line = LayoutTextLine(text, font);
 			if (line.Start == line.End)
 				break;
@@ -261,7 +259,7 @@ void TTextBox::Draw()
 				offX += (Width - line.Width) / 2;
 			for (auto text = line.Start; text < line.End; text++)
 			{
-				auto charBmp = font->Chars[*text & 0x7F];
+				auto charBmp = font->Chars[static_cast<unsigned char>(*text) % 128];
 				if (charBmp)
 				{
 					auto height = charBmp->Height;
@@ -277,6 +275,11 @@ void TTextBox::Draw()
 			offY += font->Height;
 		}
 	}
+}
+
+bool TTextBox::IsRepeat(const char* text, int fontIndex) const
+{
+	return CurrentMessage && !strcmp(text, PreviousMessage->Text) && PreviousMessage->FontIndex == fontIndex;
 }
 
 const score_msg_font_type* TTextBox::MessageFont(const TTextBoxMessage* message) const
