@@ -1394,11 +1394,10 @@ namespace
 			break;
 		}
 		if (text)
-		{
 			info_text_box->Display(pb::get_rc_string(*text), -1.0f);
-			if (code == EnterState)
-				tabc33wave->Play(nullptr, "ShopStateControl");
-		}
+		// The shop sounds even with no offer to show
+		if (code == EnterState)
+			tabc33wave->Play(nullptr, "ShopStateControl");
 	}
 
 	// State 7, 0x429b10: Dragon Pass. The gargoyle kickout (a_kout2) lays a dragon egg, the armor kickout (a_kout1)
