@@ -178,6 +178,8 @@ void RecordingViewer::Prepare()
 	pb::cheat_mode = false;
 	control::easyMode = false;
 	control::table_unlimited_balls = false;
+	// The viewer's own screen holds the input; the recording's commands say when the player's did
+	pb::SetUiHoldsInput(false);
 	HasEnded = false;
 	Clock = 0;
 	RunTo(RequestedFrame);

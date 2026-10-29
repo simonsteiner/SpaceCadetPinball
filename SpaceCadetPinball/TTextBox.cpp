@@ -100,7 +100,28 @@ void TTextBox::Clear(bool lowPriorityOnly)
 		CurrentMessage = message->NextMessage;
 		delete message;
 	}
-	if (CurrentMessage)
+	if (CurrentMessage || Overlay)
+		Draw();
+}
+
+void TTextBox::DisplayOverlay(const char* text)
+{
+	Overlay = text;
+	Repaint();
+}
+
+void TTextBox::EndOverlay()
+{
+	Overlay.reset();
+	Repaint();
+}
+
+void TTextBox::Repaint()
+{
+	// A running timer means the current message shows; drawing it again would set a second one
+	if (Timer)
+		Paint(true);
+	else
 		Draw();
 }
 
@@ -148,8 +169,19 @@ void TTextBox::Display(const char* text, float time, bool lowPriority, int fontI
 void TTextBox::DrawImGui()
 {
 	// Do nothing when using a font (the text will be rendered to VScreen in TTextBox::Draw)
-	if (!CurrentMessage || CurrentMessage->FontIndex == 1 || MessageFont(CurrentMessage))
-		return;
+	const char* text;
+	if (Overlay)
+	{
+		if (Font)
+			return;
+		text = Overlay->c_str();
+	}
+	else
+	{
+		if (!CurrentMessage || CurrentMessage->FontIndex == 1 || MessageFont(CurrentMessage))
+			return;
+		text = CurrentMessage->Text;
+	}
 
 	char windowName[64];
 	SDL_Rect rect;
@@ -180,7 +212,7 @@ void TTextBox::DrawImGui()
 
 		// ToDo: centered text in FT
 		ImGui::PushStyleColor(ImGuiCol_Text, pb::TextBoxColor);
-		ImGui::TextWrapped("%s", CurrentMessage->Text);
+		ImGui::TextWrapped("%s", text);
 		ImGui::PopStyleColor();
 		ImGui::PopFont();
 	}
@@ -189,20 +221,6 @@ void TTextBox::DrawImGui()
 
 void TTextBox::Draw()
 {
-	auto bmp = BgBmp;
-	if (bmp)
-		gdrv::copy_bitmap(
-			render::vscreen,
-			Width,
-			Height,
-			OffsetX,
-			OffsetY,
-			bmp,
-			OffsetX,
-			OffsetY);
-	else
-		gdrv::fill_bitmap(render::vscreen, Width, Height, OffsetX, OffsetY, 0);
-
 	bool display = false;
 	while (CurrentMessage)
 	{
@@ -227,9 +245,20 @@ void TTextBox::Draw()
 		delete tmp;
 	}
 
-	if (display)
+	Paint(display);
+}
+
+void TTextBox::Paint(bool display)
+{
+	auto bmp = BgBmp;
+	if (bmp)
+		gdrv::copy_bitmap(render::vscreen, Width, Height, OffsetX, OffsetY, bmp, OffsetX, OffsetY);
+	else
+		gdrv::fill_bitmap(render::vscreen, Width, Height, OffsetX, OffsetY, 0);
+
+	if (display || Overlay)
 	{
-		auto font = MessageFont(CurrentMessage);
+		auto font = Overlay ? Font : MessageFont(CurrentMessage);
 		if (!font)
 		{
 			// Immediate mode drawing using system font is handled by TTextBox::DrawImGui
@@ -238,8 +267,8 @@ void TTextBox::Draw()
 
 		std::vector<LayoutResult> lines{};
 		auto textHeight = 0;
-		for (auto text = CurrentMessage->Text; text[0] && textHeight + font->Height <= Height;
-			 textHeight += font->Height)
+		for (auto text = Overlay ? Overlay->data() : CurrentMessage->Text;
+			 text[0] && textHeight + font->Height <= Height; textHeight += font->Height)
 		{
 			auto line = LayoutTextLine(text, font);
 			if (line.Start == line.End)

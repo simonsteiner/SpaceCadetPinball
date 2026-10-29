@@ -340,6 +340,8 @@ bool replay::PlayStep()
 			pb::launch_ball();
 		else if (key == "c")
 			pb::PushCheat(rest);
+		else if (key == "h")
+			pb::SetUiHoldsInput(rest == "1");
 		else
 			break;
 	}

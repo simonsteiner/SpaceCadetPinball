@@ -5,6 +5,7 @@
 #include "control_dragon.h"
 #include "control_skulduggery.h"
 #include "pb.h"
+#include "TTextBox.h"
 
 namespace
 {
@@ -13,8 +14,13 @@ namespace
 		control::ClearLinks,
 		control::table_control_handler,
 		control::UnstuckBall,
-		control::pbctrl_bdoor_controller,
+		[](int key) { control::pbctrl_bdoor_controller(static_cast<char>(key)); },
 		control::cheat_bump_rank,
+		[]
+		{
+			if (pb::MissTextBox)
+				pb::MissTextBox->Clear(true);
+		},
 	};
 }
 

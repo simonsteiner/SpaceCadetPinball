@@ -110,6 +110,7 @@ start
 | `b` | `pb::launch_ball` |
 | `m <dx> <dy>` | `pb::ballset` |
 | `c <cheat>` | `pb::PushCheat` |
+| `h <holds>` | `pb::SetUiHoldsInput`: 1 while a menu or dialog holds the player's input, which holds back Full Tilt's idle credits |
 
 Floating-point values are written with `%a`, so they read back exactly. The state is:
 

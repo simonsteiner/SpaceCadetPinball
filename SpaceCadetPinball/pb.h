@@ -91,6 +91,9 @@ public:
 	static void tilt_no_more();
 	static bool chk_highscore();
 	static void PushCheat(const std::string& cheat);
+	// Whether a menu or dialog holds the player's input. Full Tilt's modal dialogs stop its game loop, so its idle
+	// credits wait for them; recordings keep the changes, so playing them back doesn't depend on the UI
+	static void SetUiHoldsInput(bool holds);
 	static LPCSTR get_rc_string(Msg uID);
 	static int get_rc_int(Msg uID, int* dst);
 	static std::string make_path_name(const std::string& fileName);
@@ -98,6 +101,7 @@ public:
 private:
 	static bool demo_mode;
 	static float IdleTimerMs;
+	static bool UiHoldsInput;
 
 	// The shared path of InputUp/Down and BindingUp/Down: shortcuts, then, while a game runs, record and act
 	static bool TableTakesInput();
