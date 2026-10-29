@@ -953,7 +953,7 @@ namespace
 
 	// State 6, 0x429510: Rescue Maiden. The prison tripwires light the tower's windows; with all four lit, the ball
 	// in the prison tower (a_sink18) rescues the maiden. A highlight runs round the windows every 0.2 s
-	void RescueMaidenStateControl(MessageCode code, TPinballComponent* caller)
+	void RescueMaidenStateControl(MessageCode code, const TPinballComponent* caller)
 	{
 		using enum MessageCode;
 		auto windows = prison_window_light_group;
@@ -1002,7 +1002,12 @@ namespace
 			windows->Message(TLightGroupRestartNotifyTimer, -1.0f);
 			break;
 		case EnterState:
-			MaidenLockLight = v_lite48->FlasherOnFlag ? 2 : v_lite48->LightOnFlag || v_lite48->ToggledOnFlag ? 1 : 0;
+			if (v_lite48->FlasherOnFlag)
+				MaidenLockLight = 2;
+			else if (v_lite48->LightOnFlag || v_lite48->ToggledOnFlag)
+				MaidenLockLight = 1;
+			else
+				MaidenLockLight = 0;
 			light_sweeps->Message(TLightSweepsStart, 2.0f);
 			v_lite47->Message(TLightResetAndTurnOn, 0.0f);
 			diverters[0]->Message(TDiverterDisable, 0.0f);
@@ -2398,8 +2403,8 @@ namespace
 											   tabc50wave,
 											   tabc51wave};
 		if (const bool listsFound = std::ranges::none_of(diverters, [](auto c) { return !c; }) &&
-								std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
-								std::ranges::none_of(lizard_lights, [](auto c) { return !c; });
+									std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
+									std::ranges::none_of(lizard_lights, [](auto c) { return !c; });
 			std::ranges::find(all, nullptr) != all.end() || !listsFound)
 		{
 			// Not Dragon's Keep's DAT as DRAGON.EXE knows it; leave the table without rules
