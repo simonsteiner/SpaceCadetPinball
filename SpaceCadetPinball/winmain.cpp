@@ -615,12 +615,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			searchPaths.insert(searchPaths.begin(), Options.GameDataFolder.V.c_str());
 		searchPaths.insert(searchPaths.end(), std::begin(PlatformDataPaths), std::end(PlatformDataPaths));
 		pb::SelectDatFile(searchPaths);
-		auto caption = Msg::STRING139;
-		if (pb::Table == Tables::DragonsKeep)
-			caption = Msg::Dragon_Caption;
-		else if (pb::FullTiltMode)
-			caption = Msg::FullTilt_Caption;
-		SDL_SetWindowTitle(window, pb::get_rc_string(caption));
+		SDL_SetWindowTitle(window, pb::get_rc_string(pb::Caption()));
 
 		// Second step: run updates that depend on .DAT file selection
 		options::InitSecondary();
@@ -2211,7 +2206,7 @@ void winmain::a_dialog()
 		{
 			if (ImGui::BeginTabItem("3DPB"))
 			{
-				ImGui::TextUnformatted(pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_Caption : Msg::STRING139));
+				ImGui::TextUnformatted(pb::get_rc_string(pb::Caption()));
 				ImGui::TextUnformatted("Original game by Cinematronics, Microsoft");
 				ImGui::Separator();
 
