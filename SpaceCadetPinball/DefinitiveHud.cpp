@@ -166,8 +166,9 @@ namespace
 		}
 
 		std::string note;
+		// A ball in the mouth after the last hit takes the hits left below 0, as in DRAGON.EXE
 		if (dragon.State == 9)
-			note = Ui::Fill(Text(Msg::Definitive_HitsLeft), std::to_string(dragon.HitsLeft));
+			note = Ui::Fill(Text(Msg::Definitive_HitsLeft), std::to_string(std::max(dragon.HitsLeft, 0)));
 		else if (auto picked = QuestName(dragon.PickedQuest); picked && dragon.State != dragon.PickedQuest)
 			note = Ui::Fill(Text(Msg::Definitive_NextQuest), picked);
 		if (!note.empty())
