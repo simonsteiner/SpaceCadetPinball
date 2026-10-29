@@ -7605,6 +7605,132 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_GuideQuests,
+		{
+			{ Lang::English, "Quests" },
+		}
+	},
+	{
+		Msg::Definitive_GuideShop,
+		{
+			{ Lang::English, "Shop" },
+		}
+	},
+	{
+		Msg::Definitive_GuideSeconds,
+		{
+			{ Lang::English, "%s seconds" },
+		}
+	},
+	{
+		Msg::Definitive_GuideBalls,
+		{
+			{ Lang::English, "%s balls" },
+		}
+	},
+	{
+		Msg::Definitive_GuideDragonQuestsTitle,
+		{
+			{ Lang::English, "Quests" },
+		}
+	},
+	{
+		Msg::Definitive_GuideDragonQuests,
+		{
+			{ Lang::English, "Five quests each run against the clock. The quest light that flashes, in the lower right, is the quest picked next: put the ball in both fire lizard sinks, in front of the lower bumpers, to start it. The well starts it one time in four, and so does a plunger shot straight into the dragon egg kickout; the quest target, the yellow target in the lower right, picks another. When a quest's time runs out, a fire lizard sink within 10 seconds takes it up again for 15 more. A quest that ends, or loses its ball, is done: its light stays on and 500,000 goes to the jackpot. With all five done, Slay Dragon starts." },
+		}
+	},
+	{
+		Msg::Definitive_GuideDragonJackpotsTitle,
+		{
+			{ Lang::English, "Jackpots" },
+		}
+	},
+	{
+		Msg::Definitive_GuideDragonJackpots,
+		{
+			{ Lang::English, "The jackpot grows with every quest done, each dragon ramp shot and the pass targets in Dragon Pass, and is awarded by several quests' shots. The Super Jackpot grows by 200,000 through the dragon chute behind the dragon's neck, and with nearly every shot during Slay Dragon, which awards it when the dragon is slain." },
+		}
+	},
+	{
+		Msg::Definitive_GuideDragonItemsTitle,
+		{
+			{ Lang::English, "Weapons, armor, spells and eggs" },
+		}
+	},
+	{
+		Msg::Definitive_GuideDragonItems,
+		{
+			{ Lang::English, "Every tenth bumper hit raises a weapon: Frantz's Ax, Firebow, Dragon Lance and Sword of Virtue multiply scores by 2 to 5. The armor kickout gives a piece of armor you lack: the Chainmail lights the kickback, the Shield raises the center post and the Helmet closes an outlane, each for a while. The well casts a spell when it starts no quest, and so do all five spell targets and two tower ramp shots within 10 seconds. The two wire ramps lay dragon eggs, scoring 100,000 for each egg lit, to spend in the shop. Weapons, armor, spells and eggs all count in the bonus, and make Slay Dragon easier." },
+		}
+	},
+	{
+		Msg::Definitive_GuideDragonHoard,
+		{
+			{ Lang::English, "Steal the dragon's nine gems, each from the shot whose gem light flashes: Gold from a bumper (10,000), Diamond from a spell target (50,000), Pearl from a tower target (60,000), Sapphire from a gargoyle target (70,000), Ruby from a fire lizard sink (100,000), Opal from the moat chute (100,000), Emerald from the tower ramp (200,000), Amethyst from the dragon ramp (250,000), and the jackpot from the dragon chute. All nine give an extra ball." },
+		}
+	},
+	{
+		Msg::Definitive_GuideFireLizards,
+		{
+			{ Lang::English, "Each ball in a fire lizard sink slays a lizard and scores 100,000 for every lizard slain so far; every third one also awards the jackpot." },
+		}
+	},
+	{
+		Msg::Definitive_GuideRescueMaiden,
+		{
+			{ Lang::English, "The prison tower's tripwires light its windows, and each one lit awards more: 250,000, 500,000, the jackpot, then the extra ball light. With all four windows lit, put the ball in the prison tower to rescue the maiden, which ends the quest." },
+		}
+	},
+	{
+		Msg::Definitive_GuideDragonPass,
+		{
+			{ Lang::English, "The gargoyle kickout lays a dragon egg, the armor kickout awards the jackpot, and the two pass targets among the four at the top add 250,000 to it." },
+		}
+	},
+	{
+		Msg::Definitive_GuideWizardsFury,
+		{
+			{ Lang::English, "Each ball in the well gives the mystery award: an extra ball, max weapons, max armor, the jackpot or 1,000,000. After each, the award changes to another at random; the spell targets set it too." },
+		}
+	},
+	{
+		Msg::Definitive_GuideTowerBarrage,
+		{
+			{ Lang::English, "Hit the three tower targets to arm the tower lock. Each armed lock catches a ball and serves a new one; the third, with all three lock lights lit, starts the multiball. The three balls come out one second apart, the tower's windows flash and its tripwires score 100,000. It ends when one ball is left." },
+		}
+	},
+	{
+		Msg::Definitive_GuideGaggleBall,
+		{
+			{ Lang::English, "Hit all four targets at the top to slide the rocks open, then put the ball in the gargoyle kickout behind them while no quest runs. A second ball comes out of a fire lizard sink. It ends when one ball is left." },
+		}
+	},
+	{
+		Msg::Definitive_GuideDragonFlurry,
+		{
+			{ Lang::English, "Light the six D-R-A-G-O-N letters while no quest runs: put the ball in both fire lizard sinks, hit all five spell targets, shoot the dragon ramp, clear the four targets at the top, shoot the tower ramp, and hit the three tower targets. Balls come out of both fire lizard sinks, the well and the first tower lock. It ends when one ball is left." },
+		}
+	},
+	{
+		Msg::Definitive_GuideShopTitle,
+		{
+			{ Lang::English, "Dragon Egg Shop" },
+		}
+	},
+	{
+		Msg::Definitive_GuideShopText,
+		{
+			{ Lang::English, "With one ball in play, the dragon egg kickout below the dragon ramp opens the shop. Your dragon eggs buy what their number offers, or the best that is still of use: 1 to 3 eggs start the picked quest, 4 cast a spell, 5 raise a weapon, 6 give armor, 7 light the extra ball and 8 give an extra ball. The left flipper buys it and spends that many eggs; another flipper declines for 25,000, as the shop does without eggs." },
+		}
+	},
+	{
+		Msg::Definitive_GuideSlayDragon,
+		{
+			{ Lang::English, "The dragon's mouth opens once all five quests are done, or when the last of the sword's three targets is hit while its light flashes. You have 30 seconds, and 5 more for each armor piece and spell lit; the dragon needs 8 hits, less one for each weapon and for two of the spells lit. Each ball in the dragon's mouth is a hit that adds 15 seconds and scores by how far the fire lights have run: 100,000, 1,000,000, the jackpot, then the extra ball light or an extra ball. Bumpers, kickouts, sinks and targets add to the Super Jackpot meanwhile. The last hit slays the dragon: the Super Jackpot, 1,500,000, the jackpot, and full weapons and armor." },
+		}
+	},
+	{
 		Msg::FullTilt_Caption,
 		{
 			{ Lang::English, "Full Tilt! - Space Cadet" },

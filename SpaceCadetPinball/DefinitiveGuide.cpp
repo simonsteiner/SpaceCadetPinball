@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <array>
+#include <span>
 #include <utility>
 
 int DefinitiveGuide::Current = 0;
@@ -117,10 +118,86 @@ namespace
 	{
 		return Text(static_cast<Msg>(std::to_underlying(Msg::Definitive_GuideTargetPractice) + mission - 2));
 	}
+
+	// Dragon's Keep's tabs after the basics, and its rules' states (TableView::DragonsKeep::State) that each shows
+	enum class DragonTab
+	{
+		Basics,
+		Quests,
+		Multiball,
+		Shop,
+		SlayDragon,
+	};
+
+	constexpr auto DragonTabs =
+		std::to_array({Msg::Definitive_GuideBasics, Msg::Definitive_GuideQuests, Msg::Definitive_Multiball,
+					   Msg::Definitive_GuideShop, Msg::Definitive_SlayDragon});
+
+	// A quest by its state, 4 to 8, as the HUD names them
+	struct DragonQuest
+	{
+		Msg Name;
+		Msg Guide;
+		// Its time as the quest's text first counts it, in whole seconds
+		int Seconds;
+	};
+
+	constexpr auto DragonQuests = std::to_array<DragonQuest>({
+		{Msg::Definitive_DragonHoard, Msg::Definitive_GuideDragonHoard, 27},
+		{Msg::Definitive_FireLizards, Msg::Definitive_GuideFireLizards, 31},
+		{Msg::Definitive_RescueMaiden, Msg::Definitive_GuideRescueMaiden, 30},
+		{Msg::Definitive_DragonPass, Msg::Definitive_GuideDragonPass, 30},
+		{Msg::Definitive_WizardsFury, Msg::Definitive_GuideWizardsFury, 30},
+	});
+
+	// A multiball mode by its state, 13 to 15, and its balls
+	struct DragonMode
+	{
+		Msg Name;
+		Msg Guide;
+		int Balls;
+	};
+
+	constexpr auto DragonModes = std::to_array<DragonMode>({
+		{Msg::Dragon_TowerBarrage, Msg::Definitive_GuideTowerBarrage, 3},
+		{Msg::Dragon_GargoyleGaggleBall, Msg::Definitive_GuideGaggleBall, 2},
+		{Msg::Dragon_DragonFlurry, Msg::Definitive_GuideDragonFlurry, 5},
+	});
+
+	// The quest that runs or waits to be taken up again, by its index in DragonQuests, or -1
+	int RunningQuest(const TableView& view)
+	{
+		auto state = view.Dragon.State == 3 ? view.Dragon.RestartQuest : view.Dragon.State;
+		return state >= 4 && state <= 8 ? state - 4 : -1;
+	}
+
+	// The tab with what runs, and its row; the basics while nothing does
+	std::pair<DragonTab, int> DragonRunning(const TableView& view)
+	{
+		auto state = view.Dragon.State;
+		if (auto quest = RunningQuest(view); quest >= 0)
+			return {DragonTab::Quests, quest};
+		if (state >= 13 && state <= 15)
+			return {DragonTab::Multiball, state - 13};
+		if (state == 12)
+			return {DragonTab::Shop, 0};
+		if (state == 9)
+			return {DragonTab::SlayDragon, 0};
+		return {DragonTab::Basics, -1};
+	}
 } // namespace
 
 void DefinitiveGuide::Open(const TableView& view)
 {
+	if (view.Kind == TableView::TableKind::DragonsKeep)
+	{
+		auto [tab, focus] = DragonRunning(view);
+		Current = std::to_underlying(tab);
+		Focus = focus;
+		FocusFrames = 3;
+		Opened = true;
+		return;
+	}
 	Current = TabOf(view.Rank);
 	// The row of the mission that runs, if the tab has it
 	Focus = -1;
@@ -144,9 +221,18 @@ bool DefinitiveGuide::Render(const TableView& view)
 
 	// The basics, then each pair of ranks by the name of the first
 	auto tabsY = panel.Min.y + panel.Padding + 48 * scale;
+	auto dragon = view.Kind == TableView::TableKind::DragonsKeep;
 	std::vector tabs{Text(Msg::Definitive_GuideBasics)};
-	for (const auto& tier : Tiers)
-		tabs.push_back(DefinitiveHud::RankName(tier.FirstRank));
+	if (dragon)
+	{
+		for (auto tab : std::span(DragonTabs).subspan(1))
+			tabs.push_back(Text(tab));
+	}
+	else
+	{
+		for (const auto& tier : Tiers)
+			tabs.push_back(DefinitiveHud::RankName(tier.FirstRank));
+	}
 	auto previous = Current;
 	Current = Ui::Tabs(panel.DrawList, ImVec2{panel.Min.x + panel.Padding, tabsY}, panel.Size.x - panel.Padding * 2,
 					   tabs, Current);
@@ -167,7 +253,9 @@ bool DefinitiveGuide::Render(const TableView& view)
 		FocusFrames = 3;
 	}
 	auto row = 0;
-	if (Current == 0)
+	if (dragon)
+		RenderDragon(view, row);
+	else if (Current == 0)
 		RenderBasics(view, row);
 	else
 		RenderMissions(view, row);
@@ -253,5 +341,53 @@ void DefinitiveGuide::RenderMissions(const TableView& view, int& row)
 							ImVec2{footer.x, footer.y + (awardHeight + FooterGap) * scale}, Theme::LedOrange,
 							progress.c_str(), width);
 		ImGui::PopID();
+	}
+}
+
+void DefinitiveGuide::RenderDragon(const TableView& view, int& row)
+{
+	using enum Msg;
+	auto [runningTab, runningRow] = DragonRunning(view);
+	auto now = [&](DragonTab tab, int index)
+	{ return tab == runningTab && index == runningRow ? Text(Definitive_GuideNow) : nullptr; };
+	switch (static_cast<DragonTab>(Current))
+	{
+	case DragonTab::Basics:
+		Paragraph(row, "quests", Text(Definitive_GuideDragonQuestsTitle), nullptr, Text(Definitive_GuideDragonQuests),
+				  nullptr);
+		Paragraph(row, "jackpots", Text(Definitive_GuideDragonJackpotsTitle), nullptr,
+				  Text(Definitive_GuideDragonJackpots), nullptr);
+		Paragraph(row, "items", Text(Definitive_GuideDragonItemsTitle), nullptr, Text(Definitive_GuideDragonItems),
+				  nullptr);
+		break;
+	case DragonTab::Quests:
+		for (auto index = 0; index < static_cast<int>(DragonQuests.size()); index++)
+		{
+			const auto& quest = DragonQuests[index];
+			auto seconds = Ui::Fill(Text(Definitive_GuideSeconds), std::to_string(quest.Seconds));
+			ImGui::PushID(index);
+			Paragraph(row, "quest", Text(quest.Name), seconds.c_str(), Text(quest.Guide),
+					  now(DragonTab::Quests, index));
+			ImGui::PopID();
+		}
+		break;
+	case DragonTab::Multiball:
+		for (auto index = 0; index < static_cast<int>(DragonModes.size()); index++)
+		{
+			const auto& mode = DragonModes[index];
+			auto balls = Ui::Fill(Text(Definitive_GuideBalls), std::to_string(mode.Balls));
+			ImGui::PushID(index);
+			Paragraph(row, "mode", Text(mode.Name), balls.c_str(), Text(mode.Guide), now(DragonTab::Multiball, index));
+			ImGui::PopID();
+		}
+		break;
+	case DragonTab::Shop:
+		Paragraph(row, "shop", Text(Definitive_GuideShopTitle), nullptr, Text(Definitive_GuideShopText),
+				  now(DragonTab::Shop, 0));
+		break;
+	case DragonTab::SlayDragon:
+		Paragraph(row, "slay", Text(Definitive_SlayDragon), nullptr, Text(Definitive_GuideSlayDragon),
+				  now(DragonTab::SlayDragon, 0));
+		break;
 	}
 }
