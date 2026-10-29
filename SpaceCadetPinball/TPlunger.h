@@ -12,11 +12,6 @@ public:
 	int Message(MessageCode code, float value) override;
 	bool CanStartPull() const;
 	void CancelReleaseWait();
-	// PlayerChanged and SetTiltLock, which only Full Tilt's plunger takes
-	void TakePlayerChange();
-	void TakeTiltLock();
-	// Full Tilt's PlayerChanged and Reset: the pull, the ball feed and the push stop (CADET.EXE's 0x3fe and 0x402)
-	void Stop();
 
 	static void BallFeedTimer(int timerId, void* caller);
 	static void PullbackTimer(int timerId, void* caller);
@@ -38,4 +33,11 @@ public:
 	bool ReleaseWaitsForTouch{};
 	// The latest release's timer: its PullbackDelay one, then its ReleasePushLimit one
 	int ReleaseTimerId{};
+
+private:
+	// PlayerChanged and SetTiltLock, which only Full Tilt's plunger takes
+	void HandlePlayerChanged();
+	void HandleTiltLock();
+	// Full Tilt's PlayerChanged and Reset: the pull, the ball feed and the push stop (CADET.EXE's 0x3fe and 0x402)
+	void Stop();
 };
