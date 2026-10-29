@@ -3,6 +3,7 @@
 
 #include "control.h"
 #include "loader.h"
+#include "pb.h"
 #include "proj.h"
 #include "render.h"
 #include "TPinballTable.h"
@@ -101,10 +102,30 @@ TPinballComponent::~TPinballComponent()
 
 int TPinballComponent::Message(MessageCode code, float value)
 {
+	if (pb::BonusTable())
+	{
+		// CADET.EXE's base keeps the field per player and doesn't store the code
+		KeepMessageFieldPerPlayer(code, value);
+		return 0;
+	}
 	MessageField = static_cast<int>(code);
 	if (code == MessageCode::Reset)
 		MessageField = 0;
 	return 0;
+}
+
+void TPinballComponent::KeepMessageFieldPerPlayer(MessageCode code, float value)
+{
+	if (code == MessageCode::PlayerChanged)
+	{
+		PlayerMessageFields[PinballTable->CurrentPlayer] = MessageField;
+		MessageField = PlayerMessageFields[static_cast<int>(value)];
+	}
+	else if (code == MessageCode::Reset)
+	{
+		MessageField = 0;
+		PlayerMessageFields.fill(0);
+	}
 }
 
 void TPinballComponent::port_draw()

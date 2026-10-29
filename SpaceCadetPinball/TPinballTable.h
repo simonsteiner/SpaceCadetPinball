@@ -18,6 +18,7 @@ struct score_struct_super
 	int Score;
 	int ScoreE9Part;
 	int JackpotScore;
+	int SecondJackpotScore;
 	int BallCount;
 	int ExtraBalls;
 	int BallLockedCounter;
@@ -81,6 +82,7 @@ public:
 	float GravityAnglY{};
 	float CollisionCompOffset{};
 	vector2 PlungerPosition{};
+	// An index into score_multipliers; on the bonus tables the factor itself, as CADET.EXE keeps it
 	int ScoreMultiplier{};
 	int ScoreAdded{};
 	int ReflexShotScore{};
@@ -88,6 +90,9 @@ public:
 	bool BonusScoreFlag{};
 	int JackpotScore{};
 	bool JackpotScoreFlag{};
+	// CADET.EXE's second jackpot (table fields 0x17a and 0x17e), which only the bonus tables' rules use
+	int SecondJackpotScore{};
+	bool SecondJackpotScoreFlag{};
 	int UnknownP71{};
 	int BallCount{};
 	int MaxBallCount;
@@ -103,6 +108,8 @@ public:
 	int TiltLockFlag;
 	// The factor of each ScoreMultiplier
 	static int score_multipliers[5];
+	// ScoreMultiplier's value for a factor of 1
+	static int NoScoreMultiplier();
 
 private:
 

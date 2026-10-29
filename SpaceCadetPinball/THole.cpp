@@ -21,6 +21,12 @@ THole::THole(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	BallCapturedFlag = false;
 	Unknown3 = loader::query_float_attribute(groupIndex, 0, 407, 0.25f);
 	GravityMult = loader::query_float_attribute(groupIndex, 0, 701, 0.2f);
+	if (pb::BonusTable())
+	{
+		// CADET.EXE reads the gravity factor from attribute 703 and the throw from 1306
+		GravityMult = loader::query_float_attribute(groupIndex, 0, 703, 0.5f);
+		EjectSpeed = loader::query_float_attribute(groupIndex, 0, 1306, 0.0f);
+	}
 	GravityPull = *loader::query_float_attribute(groupIndex, 0, 305);
 
 	loader::query_visual(groupIndex, 0, &visual);
@@ -56,6 +62,11 @@ THole::THole(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 
 int THole::Message(MessageCode code, float value)
 {
+	if (pb::BonusTable())
+	{
+		BonusTableMessage(code, value);
+		return 0;
+	}
 	if (code == MessageCode::Reset && BallCapturedFlag)
 	{
 		if (Timer)
@@ -64,6 +75,42 @@ int THole::Message(MessageCode code, float value)
 		BallCapturedSecondStage = true;
 	}
 	return 0;
+}
+
+void THole::BonusTableMessage(MessageCode code, float value)
+{
+	using enum MessageCode;
+	KeepMessageFieldPerPlayer(code, value);
+	switch (code)
+	{
+	case THoleRelease:
+		ReleaseAfter(value);
+		break;
+	case SetTiltLock:
+		ReleaseAfter(-1.0f);
+		break;
+	case PlayerChanged:
+	case Reset:
+		if (RetryTimer)
+			timer::kill(RetryTimer);
+		RetryTimer = 0;
+		if (BallCapturedFlag)
+			ReleaseAfter(-1.0f);
+		break;
+	default:
+		break;
+	}
+}
+
+void THole::ReleaseAfter(float time)
+{
+	if (Timer)
+		timer::kill(Timer);
+	Timer = 0;
+	if (time <= 0.0f)
+		BallCapturedSecondStage = true;
+	else
+		Timer = timer::set(time, this, TimerExpired);
 }
 
 void THole::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
@@ -79,9 +126,19 @@ void THole::Collision(TBall* ball, vector2* nextPosition, vector2* direction, fl
 		ball->Direction.Z = 0.0;
 		ball->CollisionDisabledFlag = true;
 
-		// Ramp hole has no delay in FT.
-		auto captureTime = pb::FullTiltMode ? 0 : 0.5f;
-		Timer = timer::set(captureTime, this, TimerExpired);
+		if (pb::BonusTable())
+		{
+			// CADET.EXE takes the time from attribute 407; a negative time keeps the ball until the rules let it go
+			CapturedBall = ball;
+			ball->Direction.Z = EjectSpeed;
+			Timer = Unknown3 >= 0.0f ? timer::set(Unknown3, this, TimerExpired) : 0;
+		}
+		else
+		{
+			// Ramp hole has no delay in FT.
+			auto captureTime = pb::FullTiltMode ? 0 : 0.5f;
+			Timer = timer::set(captureTime, this, TimerExpired);
+		}
 
 		if (!PinballTable->TiltLockFlag)
 		{
@@ -102,7 +159,24 @@ int THole::FieldEffect(TBall* ball, vector2* vecDst)
 
 	if (BallCapturedFlag)
 	{
-		if (BallCapturedSecondStage)
+		if (BallCapturedSecondStage && pb::BonusTable())
+		{
+			// CADET.EXE (0x416ab0): thrown up or dropped until the ball reaches the release height
+			if (EjectSpeed > 0.0f)
+				ball->Direction.Z = EjectSpeed;
+			else
+				ball->Direction.Z -= PinballTable->GravityDirVectMult * GravityMult * ball->TimeDelta;
+			ball->Position.Z += ball->Direction.Z;
+			ball->Direction.X = 0.0f;
+			ball->Direction.Y = 0.0f;
+			if (EjectSpeed > 0.0f ? ball->Position.Z >= ZSetValue : ball->Position.Z <= ZSetValue)
+			{
+				ball->Direction.Z = 0.0f;
+				ball->Speed = 0.0f;
+				FinishRelease(ball);
+			}
+		}
+		else if (BallCapturedSecondStage)
 		{
 			ball->Direction.Z -= PinballTable->GravityDirVectMult * ball->TimeDelta * GravityMult;
 			ball->Position.Z += ball->Direction.Z;
@@ -145,4 +219,44 @@ void THole::TimerExpired(int timerId, void* caller)
 	auto hole = static_cast<THole*>(caller);
 	hole->Timer = 0;
 	hole->BallCapturedSecondStage = true;
+}
+
+void THole::FinishRelease(TBall* ball)
+{
+	if (RetryTimer)
+		timer::kill(RetryTimer);
+	RetryTimer = 0;
+	if (!BallCapturedFlag)
+		return;
+
+	// Another ball on the release layer within two ball widths keeps this one in, to be tried again in 0.5 s
+	auto margin = PinballTable->CollisionCompOffset * 2.0f;
+	for (auto other : PinballTable->BallList)
+	{
+		if (other->ActiveFlag && (other->CollisionMask & CollisionMask) &&
+			other->Position.X >= Circle.Center.X - margin && other->Position.X <= Circle.Center.X + margin &&
+			other->Position.Y >= Circle.Center.Y - margin && other->Position.Y <= Circle.Center.Y + margin)
+		{
+			RetryTimer = timer::set(0.5f, this, RetryRelease);
+			return;
+		}
+	}
+
+	BallCapturedFlag = false;
+	BallCapturedSecondStage = false;
+	CapturedBall = nullptr;
+	ball->Position.Z = ZSetValue;
+	ball->CollisionDisabledFlag = true;
+	ball->CollisionMask = CollisionMask;
+	ball->CollisionComp = nullptr;
+	loader::play_sound(SoftHitSoundId, ball, "THole2");
+	control::handler(MessageCode::ControlBallReleased, this);
+}
+
+void THole::RetryRelease(int, void* caller)
+{
+	auto hole = static_cast<THole*>(caller);
+	hole->RetryTimer = 0;
+	if (hole->CapturedBall)
+		hole->FinishRelease(hole->CapturedBall);
 }

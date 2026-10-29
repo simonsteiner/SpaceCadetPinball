@@ -53,6 +53,8 @@ TTextBox::~TTextBox()
 
 int TTextBox::Message(MessageCode code, float value)
 {
+	if (pb::BonusTable())
+		KeepMessageFieldPerPlayer(code, value);
 	return 0;
 }
 

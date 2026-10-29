@@ -5,6 +5,7 @@
 #include "control.h"
 #include "loader.h"
 #include "maths.h"
+#include "pb.h"
 #include "render.h"
 #include "timer.h"
 #include "TPinballTable.h"
@@ -21,6 +22,8 @@ TKickback::TKickback(TPinballTable* table, int groupIndex): TCollisionComponent(
 
 int TKickback::Message(MessageCode code, float value)
 {
+	if (pb::BonusTable())
+		KeepMessageFieldPerPlayer(code, value);
 	if ((code == MessageCode::SetTiltLock || code == MessageCode::Reset) && Timer)
 	{
 		timer::kill(Timer);

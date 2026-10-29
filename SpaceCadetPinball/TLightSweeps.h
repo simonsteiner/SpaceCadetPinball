@@ -39,7 +39,6 @@ public:
 	int Radius = 0;
 	int MaxRadius = 0;
 	int Timer = 0;
-	std::array<int, 4> PlayerMessageFields{};
 
 	static void StepTimer(int timerId, void* caller);
 };

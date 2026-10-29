@@ -57,4 +57,4 @@ Three pitfalls showed up on the way:
 - **Cheat mode stays on.** `hidden test` turns cheat mode on until it's typed again, across games. In cheat mode `r` alone bumps the rank, so `rmax` then bumps it twice.
 - **Text-box queues.** A screenshot of the text box may show a queued message rather than the latest one; messages last up to 8 s.
 
-In one run, our port didn't launch on a 1.5 s plunger press after `1max`, while `CADET.EXE` did. That's the launch window: at our default 120 updates per second about a quarter of the presses miss, where the originals launched on all of 40 ([measurements](plan/2026-10-26-bonus-tables-spike.md#plunger-launch-window-2026-10-28)).
+In one run, our port didn't launch on a 1.5 s plunger press after `1max`, while `CADET.EXE` did. That was the launch window: at our default 120 updates per second about a quarter of the presses missed, where the originals launched on all of 40. Since the fix of 2026-10-28 a released pull keeps its push until the ball touches the plunger, and our port launched on all of 40 presses on each data file ([measurements](plan/2026-10-26-bonus-tables-spike.md#plunger-launch-window-2026-10-28)).

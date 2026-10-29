@@ -29,6 +29,7 @@
 #include <cstring>
 #include <string>
 #include <thread>
+#include <deque>
 #include <map>
 #include <unordered_map>
 #include <initializer_list>

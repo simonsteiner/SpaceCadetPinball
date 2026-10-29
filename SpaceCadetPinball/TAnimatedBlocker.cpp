@@ -26,6 +26,11 @@ TAnimatedBlocker::TAnimatedBlocker(TPinballTable* table, int groupIndex) : TColl
 
 	FrameTime = loader::query_float_attribute(groupIndex, 0, 903, 0.1f);
 	InitialState = static_cast<int>(loader::query_float_attribute(groupIndex, 0, 409, -1.0f));
+	if (auto durations = loader::query_float_attribute(groupIndex, 0, 407))
+	{
+		InitialDuration = static_cast<int>(durations[0]);
+		ExtendedDuration = static_cast<int>(durations[1]);
+	}
 	Threshold = 1000000000.0f;
 	Message(MessageCode::Reset, 0.0f);
 }
@@ -104,15 +109,12 @@ int TAnimatedBlocker::Message(MessageCode code, float value)
 		loader::play_sound(OffSoundIndex, this, "TAnimatedBlocker4");
 		break;
 	case PlayerChanged:
-		// CADET.EXE's components keep their message field for each player
-		PlayerMessageFields[PinballTable->CurrentPlayer] = MessageField;
-		MessageField = PlayerMessageFields[static_cast<int>(value)];
+		KeepMessageFieldPerPlayer(code, value);
 		KillTimers();
 		Message(TAnimatedBlockerSetState, static_cast<float>(InitialState));
 		break;
 	case Reset:
-		MessageField = 0;
-		std::ranges::fill(PlayerMessageFields, 0);
+		KeepMessageFieldPerPlayer(code, value);
 		[[fallthrough]];
 	case SetTiltLock:
 		KillTimers();

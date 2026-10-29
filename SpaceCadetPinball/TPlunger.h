@@ -11,6 +11,7 @@ public:
 	               TEdgeSegment* edge) override;
 	int Message(MessageCode code, float value) override;
 	bool CanStartPull() const;
+	void CancelReleaseWait();
 
 	static void BallFeedTimer(int timerId, void* caller);
 	static void PullbackTimer(int timerId, void* caller);
@@ -25,4 +26,11 @@ public:
 	int SoundIndexP2;
 	bool PullbackStartedFlag{};
 	int SomeCounter{};
+	// A released pull keeps its push past PullbackDelay until the ball touches the plunger, for at most this long
+	static constexpr float ReleasePushLimit = 0.1f;
+	bool ReleasePushPending{};
+	bool ReleaseTouched{};
+	bool ReleaseWaitsForTouch{};
+	// The latest release's timer: its PullbackDelay one, then its ReleasePushLimit one
+	int ReleaseTimerId{};
 };

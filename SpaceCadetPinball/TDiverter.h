@@ -17,7 +17,6 @@ public:
 
 	float FlashTime;
 	std::array<char, 4> PlayerActiveFlags{};
-	std::array<int, 4> PlayerMessageFields{};
 
 	static void FlashEnd(int timerId, void* caller);
 };

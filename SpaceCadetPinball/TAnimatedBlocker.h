@@ -20,6 +20,9 @@ public:
 	std::array<char, MaxStates> StateActive{};
 	int State = -1;
 	int InitialState;
+	// Attribute 407, as CADET.EXE reads it: how long the rules keep the blocker up, then how long it warns
+	int InitialDuration = 55;
+	int ExtendedDuration = 5;
 	int TimeoutTimer = 0;
 	int TargetState = -1;
 	float FrameTime;
@@ -29,7 +32,6 @@ public:
 	float DeferredValue = 0;
 	int OnSoundIndex;
 	int OffSoundIndex;
-	std::array<int, 4> PlayerMessageFields{};
 
 	static void TimeoutExpired(int timerId, void* caller);
 	static void AnimationStep(int timerId, void* caller);

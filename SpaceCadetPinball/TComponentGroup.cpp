@@ -4,6 +4,7 @@
 
 #include "control.h"
 #include "loader.h"
+#include "pb.h"
 #include "timer.h"
 #include "TPinballTable.h"
 
@@ -35,6 +36,9 @@ TComponentGroup::~TComponentGroup()
 
 int TComponentGroup::Message(MessageCode code, float value)
 {
+	// CADET.EXE's component group swaps its message field on a player change but doesn't clear it on Reset
+	if (pb::BonusTable() && code == MessageCode::PlayerChanged)
+		KeepMessageFieldPerPlayer(code, value);
 	if (code == MessageCode::TComponentGroupResetNotifyTimer)
 	{
 		if (this->Timer)

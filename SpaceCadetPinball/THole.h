@@ -14,6 +14,12 @@ public:
 	int FieldEffect(TBall* ball, vector2* vecDst) override;
 
 	static void TimerExpired(int timerId, void* caller);
+	// Full Tilt's later THole (CADET.EXE), the bonus tables only: the ball goes out once no other ball is in the way
+	void FinishRelease(TBall* ball);
+	static void RetryRelease(int timerId, void* caller);
+	// The bonus tables' Message: THoleRelease lets the ball go after its value in seconds, at once if 0 or less
+	void BonusTableMessage(MessageCode code, float value);
+	void ReleaseAfter(float time);
 
 	bool BallCapturedFlag{};
 	bool BallCapturedSecondStage{};
@@ -24,6 +30,10 @@ public:
 	float ZSetValue;
 	int CollisionMask;
 	float GravityPull;
+	// The bonus tables only: attribute 1306 throws the ball up at this speed instead of letting it drop
+	float EjectSpeed{};
+	TBall* CapturedBall{};
+	int RetryTimer{};
 	circle_type Circle{};
 	field_effect_type Field{};
 };

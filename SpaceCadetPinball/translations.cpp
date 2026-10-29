@@ -7507,5 +7507,329 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "Weapon Bonus\n%ld" },
 		}
+	},
+	{
+		Msg::Dragon_RestartQuest,
+		{
+			{ Lang::English, "Restart Quest\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_FireLizards,
+		{
+			{ Lang::English, "Fire Lizards\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_PutBallInFireLizardSinks,
+		{
+			{ Lang::English, "Put ball in Fire Lizard Sinks" },
+		}
+	},
+	{
+		Msg::Dragon_FireLizardSlain,
+		{
+			{ Lang::English, "Fire Lizard Slain\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_ExtraBall,
+		{
+			{ Lang::English, "Extra Ball" },
+		}
+	},
+	{
+		Msg::Dragon_WizardsFury,
+		{
+			{ Lang::English, "Wizard's Fury\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_PutBallInWell,
+		{
+			{ Lang::English, "Put ball in Well and hit Spell Targets" },
+		}
+	},
+	{
+		Msg::Dragon_MysteryExtraBall,
+		{
+			{ Lang::English, "Mystery Bonus set to:\nExtra Ball" },
+		}
+	},
+	{
+		Msg::Dragon_MysteryMaxWeapons,
+		{
+			{ Lang::English, "Mystery Bonus set to:\nMax Weapons" },
+		}
+	},
+	{
+		Msg::Dragon_MysteryMaxArmor,
+		{
+			{ Lang::English, "Mystery Bonus set to:\nMax Armor" },
+		}
+	},
+	{
+		Msg::Dragon_MysteryJackpot,
+		{
+			{ Lang::English, "Mystery Bonus set to:\nJackpot" },
+		}
+	},
+	{
+		Msg::Dragon_MysteryOneMillion,
+		{
+			{ Lang::English, "Mystery Bonus set to:\nOne Million" },
+		}
+	},
+	{
+		Msg::Dragon_MaxArmor,
+		{
+			{ Lang::English, "Max Armor" },
+		}
+	},
+	{
+		Msg::Dragon_MaxWeapons,
+		{
+			{ Lang::English, "Max Weapons" },
+		}
+	},
+	{
+		Msg::Dragon_OneMillion,
+		{
+			{ Lang::English, "One Million" },
+		}
+	},
+	{
+		Msg::Dragon_DragonPass,
+		{
+			{ Lang::English, "Dragon Pass\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_PutBallInKickouts,
+		{
+			{ Lang::English, "Put ball in Armor and Gargoyle Kickouts" },
+		}
+	},
+	{
+		Msg::Dragon_PassClear,
+		{
+			{ Lang::English, "Pass Clear" },
+		}
+	},
+	{
+		Msg::Dragon_RescueMaiden,
+		{
+			{ Lang::English, "Rescue Maiden\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_PutBallInPrisonTower,
+		{
+			{ Lang::English, "Put ball in Prison Tower" },
+		}
+	},
+	{
+		Msg::Dragon_MaidenRescued,
+		{
+			{ Lang::English, "Maiden Rescued\nExtra Ball Available" },
+		}
+	},
+	{
+		Msg::Dragon_Score,
+		{
+			{ Lang::English, "%ld" },
+		}
+	},
+	{
+		Msg::Dragon_DragonHoard,
+		{
+			{ Lang::English, "Dragon Hoard\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_StealGems,
+		{
+			{ Lang::English, "Steal Gems From Dragon" },
+		}
+	},
+	{
+		Msg::Dragon_Gold,
+		{
+			{ Lang::English, "Gold\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_Diamond,
+		{
+			{ Lang::English, "Diamond\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_Pearl,
+		{
+			{ Lang::English, "Pearl\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_Ruby,
+		{
+			{ Lang::English, "Ruby\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_Emerald,
+		{
+			{ Lang::English, "Emerald\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_Sapphire,
+		{
+			{ Lang::English, "Sapphire\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_Amethyst,
+		{
+			{ Lang::English, "Amethyst\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_Opal,
+		{
+			{ Lang::English, "Opal\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_TowerLockEnabled,
+		{
+			{ Lang::English, "Tower Lock Enabled" },
+		}
+	},
+	{
+		Msg::Dragon_BallSaved,
+		{
+			{ Lang::English, "Ball Saved" },
+		}
+	},
+	{
+		Msg::Dragon_DragonHoardSelected,
+		{
+			{ Lang::English, "Dragon Hoard\nQuest Selected" },
+		}
+	},
+	{
+		Msg::Dragon_FireLizardsSelected,
+		{
+			{ Lang::English, "Fire Lizards\nQuest Selected" },
+		}
+	},
+	{
+		Msg::Dragon_RescueMaidenSelected,
+		{
+			{ Lang::English, "Rescue Maiden\nQuest Selected" },
+		}
+	},
+	{
+		Msg::Dragon_DragonPassSelected,
+		{
+			{ Lang::English, "Dragon Pass\nQuest Selected" },
+		}
+	},
+	{
+		Msg::Dragon_WizardsFurySelected,
+		{
+			{ Lang::English, "Wizard's Fury\nQuest Selected" },
+		}
+	},
+	{
+		Msg::Dragon_JackpotGrows,
+		{
+			{ Lang::English, "Jackpot Grows" },
+		}
+	},
+	{
+		Msg::Dragon_FireRidge,
+		{
+			{ Lang::English, "Fire Ridge\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_SuperJackpotIncreased,
+		{
+			{ Lang::English, "Super Jackpot Increased\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_BallTrapped,
+		{
+			{ Lang::English, "Ball Trapped\n%ld" },
+		}
+	},
+	{
+		Msg::Dragon_PurchaseExtraBall,
+		{
+			{ Lang::English, "Purchase Extra Ball?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_PurchaseExtraBallLight,
+		{
+			{ Lang::English, "Purchase Extra Ball Light?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_PurchaseArmor,
+		{
+			{ Lang::English, "Purchase Armor?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_PurchaseWeapon,
+		{
+			{ Lang::English, "Purchase Weapon?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_PurchaseSpell,
+		{
+			{ Lang::English, "Purchase Spell?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_BuyDragonHoard,
+		{
+			{ Lang::English, "Dragon Hoard?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_BuyFireLizards,
+		{
+			{ Lang::English, "Fire Lizards?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_BuyRescueMaiden,
+		{
+			{ Lang::English, "Rescue Maiden?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_BuyDragonPass,
+		{
+			{ Lang::English, "Dragon Pass?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_BuyWizardsFury,
+		{
+			{ Lang::English, "Wizard's Fury?\nYes [Left]\nNo [Right]" },
+		}
+	},
+	{
+		Msg::Dragon_NoDragonEggs,
+		{
+			{ Lang::English, "No Dragon Eggs" },
+		}
 	}
 };

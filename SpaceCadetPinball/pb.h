@@ -44,6 +44,11 @@ public:
 	static std::optional<Tables> RequestedTable;
 	// Set with Table: Full Tilt's DAT format and behaviour, and its demo's
 	static bool FullTiltMode, FullTiltDemoMode;
+	// Skulduggery or Dragon's Keep, whose engine is CADET.EXE's where it differs from Pinball.exe's
+	static bool BonusTable()
+	{
+		return Table == Tables::Skulduggery || Table == Tables::DragonsKeep;
+	}
 	// False from the start of a game until end_game has checked its high scores, which the table does a few seconds
 	// after it shows Game Over, or until the demo is stopped
 	static bool GameEnded;
@@ -81,7 +86,7 @@ public:
 	static void GameInputUp(const std::vector<GameBindings>& bindings);
 	static void GameInputDown(GameInput input, const std::vector<GameBindings>& bindings);
 	static void launch_ball();
-	static void end_game();
+	static bool end_game();
 	static void high_scores();
 	static void tilt_no_more();
 	static bool chk_highscore();

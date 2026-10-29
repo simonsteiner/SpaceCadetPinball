@@ -4,6 +4,7 @@
 
 #include "control.h"
 #include "loader.h"
+#include "pb.h"
 #include "render.h"
 #include "TBall.h"
 #include "timer.h"
@@ -20,6 +21,8 @@ TLightRollover::TLightRollover(TPinballTable* table, int groupIndex) : TRollover
 
 int TLightRollover::Message(MessageCode code, float value)
 {
+	if (pb::BonusTable())
+		KeepMessageFieldPerPlayer(code, value);
 	if (code == MessageCode::Reset)
 	{
 		ActiveFlag = 1;

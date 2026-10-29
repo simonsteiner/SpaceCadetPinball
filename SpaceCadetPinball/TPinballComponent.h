@@ -111,6 +111,12 @@ enum class MessageCode
 	TSoloTargetEnable = 50,
 
 	TTimerResetTimer = 59,
+	// CADET.EXE's number, the bonus tables only: the time left in milliseconds, 0 when the timer isn't running
+	TTimerGetTimeLeft = 72,
+
+	// THole, CADET.EXE's number, the bonus tables only: let the ball go after <value> seconds, at once if it is 0 or
+	// less
+	THoleRelease = 67,
 
 	ControlBallCaptured = 57,
 	ControlBallReleased = 58,
@@ -123,17 +129,21 @@ enum class MessageCode
 	ControlMissionComplete = 66,
 	ControlMissionStarted = 67,
 	// Full Tilt only (Phase F): the ball crossed a ramp exit (TRampExit) into its second or its first layer.
-	// CADET.EXE numbers them 0x56 and 0x55 and its TRamp sends them too, for walls 1302 and 1301; this TRamp,
-	// like Pinball.exe's, doesn't.
+	// CADET.EXE numbers them 0x56 and 0x55 and its TRamp sends them too, for walls 1302 and 1301; this TRamp does
+	// on the bonus tables only, as Pinball.exe's doesn't.
 	ControlRampExitToLayer2 = 68,
 	ControlRampExitToLayer1 = 69,
 	// Full Tilt only: a TAnimatedBlocker reached the state it was animating to (CADET.EXE's 0x3d)
 	ControlAnimationDone = 70,
+	// The bonus tables only: a TRamp's plane moved the ball to another layer (CADET.EXE's 0x54)
+	ControlRampLayerChanged = 71,
 
 	// Dragon's Keep's rules only, DRAGON.EXE's numbers, which its rules send only among themselves
 	DragonSkipBonusText = 1,
 	DragonEnterState = 79,
 	DragonShowStateText = 80,
+	DragonQuestResume = 81,
+	DragonQuestEnd = 82,
 	DragonBallDrained = 83,
 
 	// Public codes 1000+, apply to all components
@@ -171,10 +181,15 @@ public:
 	virtual vector2 get_coordinates();
 	void SpriteSet(int index) const;
 	void SpriteSetBall(int index, vector2i pos, float depth) const;
+	// CADET.EXE, the bonus tables' engine, keeps every component's message field per player: a player change swaps it
+	// (0x413570) and Reset clears it for all players (0x413550). Its components but the flippers do this in Message;
+	// TLight, TLightGroup, TBumper, TPopupTarget and TSink already keep theirs per player, as 3D Pinball's do.
+	void KeepMessageFieldPerPlayer(MessageCode code, float value);
 
 	char UnusedBaseFlag;
 	char ActiveFlag;
 	int MessageField;
+	std::array<int, 4> PlayerMessageFields{};
 	char* GroupName;
 	component_control* Control;
 	int GroupIndex;
