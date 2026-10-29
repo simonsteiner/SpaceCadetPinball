@@ -65,8 +65,8 @@ void TPlunger::Collision(TBall* ball, vector2* nextPosition, vector2* direction,
 		if (ReleaseWaitsForTouch)
 		{
 			// The push kept past PullbackDelay ends with the touch it waited for
-			timer::kill(ReleasedTimer);
-			ReleasedTimer(0, this);
+			timer::kill(ReleaseTimerId);
+			ReleasedTimer(ReleaseTimerId, this);
 		}
 	}
 }
@@ -192,7 +192,7 @@ int TPlunger::Message(MessageCode code, float value)
 			CancelReleaseWait();
 			ReleasePushPending = true;
 			ReleaseTouched = false;
-			timer::set(PullbackDelay, this, ReleasedTimer);
+			ReleaseTimerId = timer::set(PullbackDelay, this, ReleasedTimer);
 		}
 		break;
 	default:
@@ -207,7 +207,7 @@ void TPlunger::CancelReleaseWait()
 {
 	// Only a push kept past PullbackDelay has a timer of its own to stop; the originals' timers stay as they were
 	if (ReleaseWaitsForTouch)
-		timer::kill(ReleasedTimer);
+		timer::kill(ReleaseTimerId);
 	ReleasePushPending = false;
 	ReleaseWaitsForTouch = false;
 }
@@ -248,11 +248,14 @@ void TPlunger::PullbackTimer(int timerId, void* caller)
 void TPlunger::ReleasedTimer(int timerId, void* caller)
 {
 	auto plunger = static_cast<TPlunger*>(caller);
+	// A newer release's push is under way: an older release's timer leaves it alone
+	if ((plunger->ReleasePushPending || plunger->ReleaseWaitsForTouch) && timerId != plunger->ReleaseTimerId)
+		return;
 	if (plunger->ReleasePushPending && !plunger->ReleaseTouched)
 	{
 		plunger->ReleasePushPending = false;
 		plunger->ReleaseWaitsForTouch = true;
-		timer::set(ReleasePushLimit - plunger->PullbackDelay, plunger, ReleasedTimer);
+		plunger->ReleaseTimerId = timer::set(ReleasePushLimit - plunger->PullbackDelay, plunger, ReleasedTimer);
 		return;
 	}
 	plunger->ReleasePushPending = false;
