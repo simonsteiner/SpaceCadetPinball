@@ -584,7 +584,7 @@ namespace
 		return state >= DragonHoardState && state <= WizardsFuryState;
 	}
 
-	// 0x424210: the picked quest starts. A quest whose state isn't ported yet doesn't, and its light keeps flashing
+	// 0x424210: the picked quest starts; without one picked, nothing does
 	bool StartQuest()
 	{
 		auto state = a_kout2->MessageField;
@@ -902,6 +902,8 @@ namespace
 		}
 	}
 
+	void RaiseWeapon();
+
 	// The launch ends at the first object of these types the ball hits (DRAGON.EXE: 1000, 1005, 1006, 1012, 1014,
 	// 1015, 1017, 1018, 1019, 1020, 1021, 1024, 1030); TLightRollover and TTripwire are TRollovers. The types are
 	// what each class reports, so 1010's walls count as 1000 and 1029's kickouts as 1012, as in DRAGON.EXE
@@ -926,7 +928,8 @@ namespace
 		}
 		if (code == MessageCode::ControlBallCaptured && caller == s_hole118)
 		{
-			// A stand-in: DRAGON.EXE always has a quest to start here, but one not ported yet doesn't start
+			// Each new ball picks a quest, so DRAGON.EXE always has one to start here; should none be picked, the ball
+			// comes out of a_sink1 rather than stay in the hole
 			if (!StartQuest())
 				KickOrShop(a_sink1, 0.0f);
 			return;
@@ -938,16 +941,31 @@ namespace
 		{
 			if (!EndsLaunch(caller))
 				return;
-			if (dynamic_cast<TSoloTarget*>(caller))
+			// The skill shot: the spell targets, first to last, cast a spell, lay a dragon egg, raise a weapon, give
+			// armor or start Gargoyle Gaggle-Ball, in place of the 15,000 and the state's text
+			bool skillShot = true;
+			if (caller == a_spot4)
 			{
-				// a_spot4 to a_spot7 select a quest and a_spot22 a mode, without a skill shot; ported with them
-				const std::string_view name = caller->GroupName;
-				if (name == "a_spot4" || name == "a_spot5" || name == "a_spot6" || name == "a_spot7" ||
-					name == "a_spot22")
-				{
-					SetState(PlayState);
-					return;
-				}
+				if (auto spell = PickSpell(); spell != -1)
+					CastSpell(spell);
+			}
+			else if (caller == a_spot5)
+				AwardDragonEggs(1);
+			else if (caller == a_spot6)
+				RaiseWeapon();
+			else if (caller == a_spot7)
+				AwardArmor();
+			else
+				skillShot = false;
+			if (skillShot)
+			{
+				SetState(PlayState);
+				return;
+			}
+			if (caller == a_spot22)
+			{
+				SetState(GaggleBallState);
+				return;
 			}
 			if (!Table->TiltLockFlag)
 				AddScore(nullptr, 15000);
@@ -1318,8 +1336,6 @@ namespace
 			diverters[7]->Message(TDiverterDisable, 0.0f);
 		}
 	}
-
-	void RaiseWeapon();
 
 	// State 12, 0x42ac80: the shop. The ball waits in s_hole118 while the dragon eggs buy what their number offers,
 	// or the best that is still of use: 1 to 3 the picked quest, 4 a spell, 5 a weapon, 6 armor, 7 the extra ball
@@ -3352,7 +3368,7 @@ namespace
 				{
 					BallHeld = false;
 					// DRAGON.EXE lets the ball go twice here, which serves a second ball once the first is clear. It
-					// does so only when no quest is picked; a picked quest not ported yet goes out once
+					// does so only when no quest is picked
 					if (!a_kout2->MessageField)
 						a_sink4->Message(TSinkResetTimer, -1.0f);
 				}
