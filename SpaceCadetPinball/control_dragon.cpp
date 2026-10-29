@@ -597,18 +597,15 @@ namespace
 			info_text_box->Display(pb::get_rc_string(Msg::Dragon_ExtraBall), textTime);
 	}
 
-	// 0x423240: full armor, the kickback and the outlane kickers lit; with <show>, its picture and sound
-	void AwardMaxArmor(bool show)
+	// 0x423240: full armor, the kickback and the outlane kickers lit, with its picture and sound
+	void AwardMaxArmor()
 	{
 		a_kick1->ActiveFlag = 1;
 		v_lite37->MessageField = 0;
 		v_lite37->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 2.0f);
 		outlane_kicker_light_group->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
-		if (show)
-		{
-			ShowPicture("+", 2.0f);
-			tabc41wave->Play(nullptr, "AwardMaxArmor");
-		}
+		ShowPicture("+", 2.0f);
+		tabc41wave->Play(nullptr, "AwardMaxArmor");
 	}
 
 	void CenterPostControl(MessageCode code, TPinballComponent*);
@@ -630,7 +627,7 @@ namespace
 		switch (open[std::min(static_cast<int>(RandFloat() * count), count - 1)])
 		{
 		case 0:
-			AwardMaxArmor(true);
+			AwardMaxArmor();
 			AddScore(nullptr, 25000);
 			break;
 		case 1:
@@ -2961,7 +2958,7 @@ namespace
 			info_text_box->Display(pb::get_rc_string(Msg::Dragon_MaxWeapons), 2.0f);
 			break;
 		case 2:
-			AwardMaxArmor(false);
+			AwardMaxArmor();
 			tabc24wave->Play(nullptr, "WellControl");
 			CenterPostControl(TAnimatedBlockerAnimateOn, a_center_post);
 			BloceControl(TAnimatedBlockerAnimateOn, a_bloce);
