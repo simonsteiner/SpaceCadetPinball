@@ -1395,11 +1395,10 @@ namespace
 			break;
 		}
 		if (text)
-		{
 			info_text_box->Display(pb::get_rc_string(*text), -1.0f);
-			if (code == EnterState)
-				tabc33wave->Play(nullptr, "ShopStateControl");
-		}
+		// The shop sounds even with no offer to show
+		if (code == EnterState)
+			tabc33wave->Play(nullptr, "ShopStateControl");
 	}
 
 	// State 13, 0x42b0e0: Tower Barrage, a multiball. With all three locks lit, their three balls come out one second
@@ -2617,6 +2616,13 @@ namespace
 		a_kout3->Message(TKickoutRestartTimer, 0.0f);
 	}
 
+	// a_kout3, 0x427ef0: a ball it takes waits there until the upper flipper lets it go
+	void SpellKickoutControl(MessageCode code, TPinballComponent*)
+	{
+		if (code == MessageCode::ControlCollision)
+			a_kout3->MessageField = 1;
+	}
+
 	// a_kick1, the kickback, 0x426d00: "Ball Saved"; without full armor it uses up an outlane kicker light, and the
 	// last one turns it off
 	void KickbackControl(MessageCode code, TPinballComponent* caller)
@@ -3608,6 +3614,8 @@ namespace
 				Link(component, WithHook<RampExitControl>);
 			else if (component == a_flip2)
 				Link(component, WithHook<UpperFlipperControl>);
+			else if (component == a_kout3)
+				Link(component, WithHook<SpellKickoutControl>);
 			else if (component == a_kick1)
 				Link(component, WithHook<KickbackControl>);
 			else if (component == a_rocka || component == a_rockb)
