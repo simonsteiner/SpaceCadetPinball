@@ -1732,7 +1732,9 @@ namespace
 					return;
 				if (step < 9)
 				{
-					ShowPicture(std::string(1, static_cast<char>(',' + step)), -1.0f);
+					// 0x439ac8: eight pictures, then a blank one
+					constexpr std::string_view countdown = ",-./0123";
+					ShowPicture(step < 8 ? std::string(1, countdown[step]) : std::string(), -1.0f);
 					dragon_mouth_light_group->Message(TLightGroupRestartNotifyTimer, 0.4f);
 					return;
 				}
