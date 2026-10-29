@@ -1006,6 +1006,9 @@ void winmain::MainLoop()
 
 void winmain::TableFrame(float dtMilliSec)
 {
+	if (!replay::IsPlaying())
+		pb::SetUiHoldsInput(ImGui::GetTopMostPopupModal() != nullptr ||
+							(options::GetEdition() == Editions::Definitive && DefinitiveFrontEnd::ScreenOpen()));
 	pb::frame(dtMilliSec);
 	// Stats count the game in either edition, so switching during a game loses nothing
 	DefinitiveStats::Update(TableView::Get());

@@ -37,6 +37,7 @@ GameModes pb::game_mode = GameModes::GameOver;
 float pb::time_now = 0, pb::time_next = 0, pb::time_ticks_remainder = 0;
 float pb::BallMaxSpeed, pb::BallHalfRadius, pb::BallToBallCollisionDistance;
 float pb::IdleTimerMs = 0;
+bool pb::UiHoldsInput = false;
 bool pb::GameEnded = true;
 Tables pb::Table = Tables::SpaceCadet3DPB;
 std::optional<Tables> pb::RequestedTable;
@@ -326,7 +327,7 @@ void pb::frame(float dtMilliSec)
 		return;
 	replay::Scope replayScope(dtMilliSec);
 
-	if (FullTiltMode && !demo_mode)
+	if (FullTiltMode && !demo_mode && !UiHoldsInput)
 	{
 		IdleTimerMs += dtMilliSec;
 		if (IdleTimerMs >= 60000 && !CreditsActive)
@@ -848,6 +849,14 @@ bool pb::chk_highscore()
 			return true;
 	}
 	return false;
+}
+
+void pb::SetUiHoldsInput(bool holds)
+{
+	if (holds == UiHoldsInput)
+		return;
+	replay::Scope replayScope("h %d", holds);
+	UiHoldsInput = holds;
 }
 
 void pb::PushCheat(const std::string& cheat)
