@@ -158,7 +158,7 @@ uint64_t TableView::Hash() const
 	hash.Add(std::to_underlying(Kind));
 	for (auto value : {Dragon.State, Dragon.RestartQuest, Dragon.PickedQuest, Dragon.TimeLeft,
 					   static_cast<int>(Dragon.QuestLights), Dragon.QuestsDone, Dragon.Jackpot, Dragon.SuperJackpot,
-					   Dragon.Eggs, Dragon.Weapons, static_cast<int>(Dragon.Armor), Dragon.HitsLeft})
+					   Dragon.Eggs, Dragon.Weapons, static_cast<int>(Dragon.Armor), Dragon.HitsLeft, Dragon.BallSaves})
 		hash.Add(value);
 	return hash.Value;
 }

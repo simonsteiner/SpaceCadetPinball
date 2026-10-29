@@ -7731,6 +7731,72 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_StatQuests,
+		{
+			{ Lang::English, "Quests done" },
+		}
+	},
+	{
+		Msg::Definitive_StatDragonsSlain,
+		{
+			{ Lang::English, "Dragons slain" },
+		}
+	},
+	{
+		Msg::Definitive_StatEachQuest,
+		{
+			{ Lang::English, "Quests done, one by one" },
+		}
+	},
+	{
+		Msg::Definitive_AchFirstQuest,
+		{
+			{ Lang::English, "Quest fulfilled" },
+		}
+	},
+	{
+		Msg::Definitive_AchFirstQuestText,
+		{
+			{ Lang::English, "Complete a quest" },
+		}
+	},
+	{
+		Msg::Definitive_AchFiveQuests,
+		{
+			{ Lang::English, "Questing knight" },
+		}
+	},
+	{
+		Msg::Definitive_AchFiveQuestsText,
+		{
+			{ Lang::English, "Complete five quests in one game" },
+		}
+	},
+	{
+		Msg::Definitive_AchEveryQuest,
+		{
+			{ Lang::English, "Hero of the realm" },
+		}
+	},
+	{
+		Msg::Definitive_AchEveryQuestText,
+		{
+			{ Lang::English, "Complete each of the five quests at least once" },
+		}
+	},
+	{
+		Msg::Definitive_AchDragonSlayer,
+		{
+			{ Lang::English, "Dragon slayer" },
+		}
+	},
+	{
+		Msg::Definitive_AchDragonSlayerText,
+		{
+			{ Lang::English, "Slay the dragon" },
+		}
+	},
+	{
 		Msg::FullTilt_Caption,
 		{
 			{ Lang::English, "Full Tilt! - Space Cadet" },

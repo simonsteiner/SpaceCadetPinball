@@ -63,6 +63,9 @@ struct TableView
 		unsigned Armor;
 		// The hits Slay Dragon still needs
 		int HitsLeft;
+		// How often the ball save has served a drained ball again since the table loaded, which the view can't
+		// otherwise tell, as the save shows no text
+		int BallSaves;
 	};
 
 	struct Light

@@ -333,6 +333,8 @@ namespace
 	int TallyTotal;                // 0x434d00
 	int TargetHits;                // 0x434d08, Target Bonus
 	int SpellCount;                // 0x434d24, Spell Bonus: the spells cast this ball
+	// Not DRAGON.EXE's: the balls the ball save served again, for Space Cadet 2026's stats; play never reads it
+	int BallSaves;
 
 	void TableHook(MessageCode code, TPinballComponent* caller);
 
@@ -2453,6 +2455,7 @@ namespace
 
 			// Ball save: the drain's own timer serves the same ball again
 			DrainStep = 3;
+			BallSaves++;
 			drain->Message(SetTiltLock, 0.0f);
 			code = ControlTimerExpired;
 			Table->BallInDrainFlag = 1; // DRAGON.EXE's table field 0x6a, taken to be this flag
@@ -4433,6 +4436,7 @@ namespace
 	{
 		Table = nullptr;
 		info_text_box = nullptr;
+		BallSaves = 0;
 		// DRAGON.EXE keeps the cheats' state for its session, which a restart into a recording begins anew
 		CheatKey = 0;
 		CheatTyped = 0;
@@ -4473,6 +4477,7 @@ namespace
 				dragon.Armor |= bit;
 		}
 		dragon.HitsLeft = dragon.State == SlayDragonState ? v_lite114->MessageField : 0;
+		dragon.BallSaves = BallSaves;
 	}
 } // namespace
 

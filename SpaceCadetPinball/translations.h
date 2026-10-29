@@ -480,6 +480,19 @@ enum class Msg : int
 	Definitive_GuideShopText,
 	Definitive_GuideSlayDragon,
 
+	// Space Cadet 2026's stats and achievements on Dragon's Keep
+	Definitive_StatQuests,
+	Definitive_StatDragonsSlain,
+	Definitive_StatEachQuest,
+	Definitive_AchFirstQuest,
+	Definitive_AchFirstQuestText,
+	Definitive_AchFiveQuests,
+	Definitive_AchFiveQuestsText,
+	Definitive_AchEveryQuest,
+	Definitive_AchEveryQuestText,
+	Definitive_AchDragonSlayer,
+	Definitive_AchDragonSlayerText,
+
 	// Full Tilt's CADET.EXE strings, shown instead of 3D Pinball's in Full Tilt mode
 	FullTilt_Caption,
 	FullTilt_About,
