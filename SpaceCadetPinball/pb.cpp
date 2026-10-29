@@ -162,8 +162,9 @@ namespace
 	}
 
 	// What the game knows of each DAT file it can load: the table it holds, the key the player's choice is saved
-	// as, the folder of a Full Tilt! installation it is in and the window title. Space Cadet's DAT files share a key,
-	// and are tried in this order. Skulduggery gets its row in F6.
+	// as, the folder of a Full Tilt! installation it is in, the window title, and the table's name and game for the
+	// table menus, which stay as they are in every language. Space Cadet's DAT files share a key, and are tried in
+	// this order. Skulduggery gets its row in F6.
 	struct TableInfo
 	{
 		Tables Table;
@@ -171,13 +172,19 @@ namespace
 		const char* Key;
 		const char* FullTiltFolder;
 		Msg Caption;
+		const char* Name;
+		const char* Source;
 	};
 
 	constexpr std::array TableInfos{
-		TableInfo{Tables::SpaceCadetFullTilt, "CADET.DAT", "SpaceCadet", "CADET", Msg::FullTilt_Caption},
-		TableInfo{Tables::SpaceCadet3DPB, "PINBALL.DAT", "SpaceCadet", "CADET", Msg::STRING139},
-		TableInfo{Tables::FullTiltDemo, "DEMO.DAT", "SpaceCadet", "CADET", Msg::FullTilt_Caption},
-		TableInfo{Tables::DragonsKeep, "DRAGON.DAT", "DragonsKeep", "DRAGON", Msg::Dragon_Caption},
+		TableInfo{Tables::SpaceCadetFullTilt, "CADET.DAT", "SpaceCadet", "CADET", Msg::FullTilt_Caption, "Space Cadet",
+				  "Full Tilt! Pinball"},
+		TableInfo{Tables::SpaceCadet3DPB, "PINBALL.DAT", "SpaceCadet", "CADET", Msg::STRING139, "Space Cadet",
+				  "3D Pinball for Windows"},
+		TableInfo{Tables::FullTiltDemo, "DEMO.DAT", "SpaceCadet", "CADET", Msg::FullTilt_Caption, "Space Cadet",
+				  "Full Tilt! Pinball demo"},
+		TableInfo{Tables::DragonsKeep, "DRAGON.DAT", "DragonsKeep", "DRAGON", Msg::Dragon_Caption, "Dragon's Keep",
+				  "Full Tilt! Pinball"},
 	};
 
 	const TableInfo& Info(Tables table)
@@ -255,26 +262,13 @@ namespace
 		return folders;
 	}
 
-	// The file in the folder, in upper case and then lower case: its name as found, or empty
-	std::string FindFile(const std::string& folder, const std::string& upperName)
-	{
-		for (const auto& fileName : {upperName, ToLower(upperName)})
-		{
-			if (auto file = fopenu((folder + fileName).c_str(), "r"))
-			{
-				fclose(file);
-				return fileName;
-			}
-		}
-		return {};
-	}
 
 	// The table's DAT file in the folder: its name as found, or empty
 	std::string FindDatFile(const std::string& folder, Tables table)
 	{
 		for (const auto& datFileName : DatFileNames(table))
 		{
-			auto fileName = FindFile(folder, datFileName);
+			auto fileName = pb::FindFile(folder, datFileName);
 			if (!fileName.empty())
 				return fileName;
 		}
@@ -373,6 +367,30 @@ Tables pb::TableFromKey(std::string_view key)
 Msg pb::Caption()
 {
 	return Info(Table).Caption;
+}
+
+const char* pb::TableName(Tables table)
+{
+	return Info(table).Name;
+}
+
+const char* pb::TableSource(Tables table)
+{
+	return Info(table).Source;
+}
+
+std::string pb::FindFile(const std::string& folder, const std::string& name)
+{
+	auto upper = ToUpper(name);
+	for (const auto& fileName : {upper, ToLower(upper)})
+	{
+		if (auto file = fopenu((folder + fileName).c_str(), "r"))
+		{
+			fclose(file);
+			return fileName;
+		}
+	}
+	return {};
 }
 
 void pb::reset_table()

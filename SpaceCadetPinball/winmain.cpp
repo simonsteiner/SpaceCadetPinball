@@ -231,22 +231,14 @@ static void LoadTableChoices()
 	for (const auto& data : pb::FoundTables)
 	{
 		// Full Tilt! keeps a 120 by 120 picture of each table next to its DAT, such as DRAGON.BMP; 3D Pinball has none
+		// Looked for first, so a missing picture leaves no SDL error behind
 		auto stem = data.DatFileName.substr(0, data.DatFileName.rfind('.'));
+		auto fileName = pb::FindFile(data.Folder, stem + ".BMP");
 		SDL_Texture* picture = nullptr;
-		for (const auto* extension : {".BMP", ".bmp"})
+		if (auto surface = fileName.empty() ? nullptr : SDL_LoadBMP((data.Folder + fileName).c_str()))
 		{
-			auto path = data.Folder + stem + extension;
-			// Only a file that is there, so a missing picture leaves no SDL error behind
-			auto file = fopenu(path.c_str(), "rb");
-			if (!file)
-				continue;
-			fclose(file);
-			if (auto surface = SDL_LoadBMP(path.c_str()))
-			{
-				picture = SDL_CreateTextureFromSurface(winmain::Renderer, surface);
-				SDL_DestroySurface(surface);
-			}
-			break;
+			picture = SDL_CreateTextureFromSurface(winmain::Renderer, surface);
+			SDL_DestroySurface(surface);
 		}
 		TableChoices.emplace_back(data, picture);
 	}
@@ -257,25 +249,6 @@ static void FreeTableChoices()
 	for (const auto& choice : TableChoices)
 		SDL_DestroyTexture(choice.Picture);
 	TableChoices.clear();
-}
-
-// The tables' names and games, which stay as they are in every language
-static const char* TableName(Tables table)
-{
-	return table == Tables::DragonsKeep ? "Dragon's Keep" : "Space Cadet";
-}
-
-static const char* TableSource(Tables table)
-{
-	switch (table)
-	{
-	case Tables::SpaceCadet3DPB:
-		return "3D Pinball for Windows";
-	case Tables::FullTiltDemo:
-		return "Full Tilt! Pinball demo";
-	default:
-		return "Full Tilt! Pinball";
-	}
 }
 
 // Classic's Select Table, as Full Tilt!'s Ctrl+T: it pauses the game, which stays paused if nothing is picked
@@ -294,7 +267,7 @@ static std::vector<DefinitiveHost::TableChoice> TableList()
 		// The table loaded may have scores it hasn't saved yet
 		auto loaded = pb::SameTable(data.Table, pb::Table);
 		auto best = loaded ? high_score::highscore_table[0].Score : high_score::BestScore(data.Table);
-		list.emplace_back(TableName(data.Table), TableSource(data.Table), best, loaded, picture);
+		list.emplace_back(pb::TableName(data.Table), pb::TableSource(data.Table), best, loaded, picture);
 	}
 	return list;
 }
@@ -2330,7 +2303,7 @@ void winmain::RenderTableDialog()
 		ImGui::BeginDisabled(!enabled);
 		const auto& padding = ImGui::GetStyle().FramePadding;
 		auto chosen = picture ? ImGui::ImageButton("table", reinterpret_cast<ImTextureID>(picture), pictureSize)
-							  : ImGui::Button(TableName(data.Table),
+							  : ImGui::Button(pb::TableName(data.Table),
 											  ImVec2{pictureSize.x + padding.x * 2, pictureSize.y + padding.y * 2});
 		// The keyboard picks by moving the focus and loads by choosing; the mouse picks by a click and loads by a
 		// double click
@@ -2357,7 +2330,7 @@ void winmain::RenderTableDialog()
 	}
 
 	ImGui::Spacing();
-	ImGui::TextUnformatted(picked < TableChoices.size() ? TableName(TableChoices[picked].Data.Table) : "");
+	ImGui::TextUnformatted(picked < TableChoices.size() ? pb::TableName(TableChoices[picked].Data.Table) : "");
 	ImGui::SameLine();
 	auto buttonWidth = 80.0f;
 	// Ok and Cancel at the right

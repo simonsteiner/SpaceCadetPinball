@@ -90,6 +90,12 @@ public:
 	static Tables TableFromKey(std::string_view key);
 	// The window title and About box name of the table loaded, as each original EXE has it
 	static Msg Caption();
+	// A table's name and the game its data comes from, for the table menus, the same in every language
+	static const char* TableName(Tables table);
+	static const char* TableSource(Tables table);
+	// The file in a folder that ends in a separator, its name in upper case and then lower case: the name as found,
+	// or empty
+	static std::string FindFile(const std::string& folder, const std::string& name);
 	static void reset_table();
 	static void firsttime_setup();
 	static void mode_change(GameModes mode);
