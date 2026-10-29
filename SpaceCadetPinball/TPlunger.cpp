@@ -140,6 +140,10 @@ int TPlunger::Message(MessageCode code, float value)
 		PullbackTimer(0, this);
 		break;
 	case MessageCode::PlayerChanged:
+		// Pinball.exe's plunger takes no PlayerChanged, so a pull held as the player changes stays for the next
+		// player's ball; CADET.EXE's lets go of it (0x3fe)
+		if (!pb::FullTiltMode)
+			break;
 		PullbackStartedFlag = false;
 		Boost = 0.0f;
 		Threshold = 1000000000.0f;
@@ -151,6 +155,10 @@ int TPlunger::Message(MessageCode code, float value)
 		CancelReleaseWait();
 		break;
 	case MessageCode::SetTiltLock:
+		// Nor SetTiltLock: a tilt leaves 3D Pinball's ball feed running, and the ball it serves ends the tilt;
+		// CADET.EXE's stops the feed (0x3f3)
+		if (!pb::FullTiltMode)
+			break;
 		SomeCounter = 0;
 		timer::kill(BallFeedTimer);
 		break;

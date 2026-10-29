@@ -189,6 +189,24 @@ The one press missed at 60 updates per second came during a Re-Deploy, the ball 
 
 The reference replays that held a release whose ball touched only after 25 ms play differently from that frame on and were recorded again: in `../replays`, `definitive-title-demo`, `game-flippers`, `launch-then-focus-loss` and `pull-focus-loss-release`; in `../replays/fulltilt`, `ft-launch-then-focus-loss`, `ft-pull-focus-loss-release`, `ft-pull-repress-after-full` and `ft-pull-repress-mid`; and in `../replays/dragon`, `dragon-flipping`. Each of them first differs 33 to 40 ms after a release of the plunger key or a focus loss, where the ball used to stay on the plunger and now launches. The other eleven replays play as before.
 
+## 3D Pinball's plunger messages (2026-10-29)
+
+`Pinball.exe`'s `TPlunger::Message` (its switch from 0x10185ad) takes only the plunger key's press and release, Resume, LooseFocus, the ball feed, its timer, Launch Ball and Reset. It has no case for SetTiltLock, PlungerRelaunchBall or PlayerChanged, and it calls `control::handler` only for the ball feed and its timer. Our port handled SetTiltLock and PlayerChanged in 3D Pinball as `CADET.EXE` does for Full Tilt's data, and forwards every message. Our port in Classic on `PINBALL.DAT` and `Pinball.exe` under Wine got the same keys.
+
+- **A tilt while the first ball is on its way.** A game's first ball feed timer starts 5.03 s after F2 and serves the ball 0.97 s later; until then the nudges can tilt the table. Seven timings of five nudges, 0.2 s apart, looked at 8 s after F2:
+
+| | Tilts inside the feed window | At 8 s |
+| --- | --- | --- |
+| Our port before | 5 of 7 (5.05 to 5.85 s) | Those 5 show TILT and no ball; the feed was killed. 30 s later the tilt timeout drained the unserved ball and the panel moved to ball 2. |
+| `Pinball.exe` | | All 7 have the ball on the plunger and no TILT. A closer look showed TILT, then 0.3 s later the ball and the tilt cleared, so its feed timer had been running when the table tilted. |
+| Our port after | | All 7 as `Pinball.exe`. |
+
+  After a drain the drain flag blocks a tilt until the next ball is served, so only a game's first ball meets this.
+- **A pull held as the player changes.** In a two-player game, a tilt ended player 1's first ball while the plunger was pulled and held through the drain and the change to player 2; the key was let go after player 2's ball rested on the plunger. `Pinball.exe` launched it. Our port's PlayerChanged had dropped the pull (Boost 100 to 0, from a temporary log), so the release left the ball where it was; after the change it launches it, as `Pinball.exe`.
+- **`control::handler` for every message stays.** On Full Tilt's data it is faithful: `CADET.EXE`'s `TPlunger::Message` ends by calling its handler (0x422bc0) for every message. In 3D Pinball, Space Cadet's rules act on the plunger's messages only for the ball feed and its timer, as `Pinball.exe` sends them, and `MissionControl` only on Resume, which it turns into ControlMissionStarted; that shows the mission text that is already showing, and the gates pass Resume on anyway.
+
+So in 3D Pinball the plunger now ignores SetTiltLock and PlayerChanged, as `Pinball.exe` does; Full Tilt's data keeps `CADET.EXE`'s handling (decided 2026-10-29). No reference replay plays differently.
+
 ## Known differences between Pinball.exe and CADET.EXE (2026-10-28)
 
 Our port follows `Pinball.exe` for Space Cadet, in both its 3D Pinball and its Full Tilt data. `CADET.EXE`'s engine is a later revision, so Full Tilt's own Space Cadet plays differently in a few places. None of these is changed, except `TSoloTarget`'s timer on the bonus tables only (#113); each would change Space Cadet, so it's the owner's call.
