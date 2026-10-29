@@ -174,16 +174,17 @@ namespace
 	// The tab with what runs, and its row; the basics while nothing does
 	std::pair<DragonTab, int> DragonRunning(const TableView& view)
 	{
+		using enum DragonTab;
 		auto state = view.Dragon.State;
 		if (auto quest = RunningQuest(view); quest >= 0)
-			return {DragonTab::Quests, quest};
+			return {Quests, quest};
 		if (state >= 13 && state <= 15)
-			return {DragonTab::Multiball, state - 13};
+			return {Multiball, state - 13};
 		if (state == 12)
-			return {DragonTab::Shop, 0};
+			return {Shop, 0};
 		if (state == 9)
-			return {DragonTab::SlayDragon, 0};
-		return {DragonTab::Basics, -1};
+			return {SlayDragon, 0};
+		return {Basics, -1};
 	}
 } // namespace
 
