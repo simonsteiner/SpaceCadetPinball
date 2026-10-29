@@ -64,34 +64,7 @@ int THole::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())
 	{
-		KeepMessageFieldPerPlayer(code, value);
-		switch (code)
-		{
-		case MessageCode::THoleRelease:
-		case MessageCode::SetTiltLock:
-		case MessageCode::PlayerChanged:
-		case MessageCode::Reset:
-			if (code == MessageCode::PlayerChanged || code == MessageCode::Reset)
-			{
-				if (RetryTimer)
-					timer::kill(RetryTimer);
-				RetryTimer = 0;
-				if (!BallCapturedFlag)
-					break;
-			}
-			if (code != MessageCode::THoleRelease)
-				value = -1.0f;
-			if (Timer)
-				timer::kill(Timer);
-			Timer = 0;
-			if (value <= 0.0f)
-				BallCapturedSecondStage = true;
-			else
-				Timer = timer::set(value, this, TimerExpired);
-			break;
-		default:
-			break;
-		}
+		BonusTableMessage(code, value);
 		return 0;
 	}
 	if (code == MessageCode::Reset && BallCapturedFlag)
@@ -102,6 +75,41 @@ int THole::Message(MessageCode code, float value)
 		BallCapturedSecondStage = true;
 	}
 	return 0;
+}
+
+void THole::BonusTableMessage(MessageCode code, float value)
+{
+	KeepMessageFieldPerPlayer(code, value);
+	switch (code)
+	{
+	case MessageCode::THoleRelease:
+		ReleaseAfter(value);
+		break;
+	case MessageCode::SetTiltLock:
+		ReleaseAfter(-1.0f);
+		break;
+	case MessageCode::PlayerChanged:
+	case MessageCode::Reset:
+		if (RetryTimer)
+			timer::kill(RetryTimer);
+		RetryTimer = 0;
+		if (BallCapturedFlag)
+			ReleaseAfter(-1.0f);
+		break;
+	default:
+		break;
+	}
+}
+
+void THole::ReleaseAfter(float time)
+{
+	if (Timer)
+		timer::kill(Timer);
+	Timer = 0;
+	if (time <= 0.0f)
+		BallCapturedSecondStage = true;
+	else
+		Timer = timer::set(time, this, TimerExpired);
 }
 
 void THole::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
@@ -244,7 +252,7 @@ void THole::FinishRelease(TBall* ball)
 	control::handler(MessageCode::ControlBallReleased, this);
 }
 
-void THole::RetryRelease(int timerId, void* caller)
+void THole::RetryRelease(int, void* caller)
 {
 	auto hole = static_cast<THole*>(caller);
 	hole->RetryTimer = 0;
