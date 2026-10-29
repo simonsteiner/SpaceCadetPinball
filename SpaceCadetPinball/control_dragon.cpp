@@ -1870,7 +1870,7 @@ namespace
 		auto secondsLeft = static_cast<float>(static_cast<float>(msLeft) / 1000.0);
 		mode_timer->Message(TTimerResetTimer, secondsLeft + 15.0f);
 		auto roll = [](int count) { return std::min(static_cast<int>(RandFloat() * count), count - 1); };
-		TSink* sinks[] = {a_sink4, a_sink1, a_sink2, a_sink18, a_sink17, a_sink16};
+		std::array<TSink*, 6> sinks{a_sink4, a_sink1, a_sink2, a_sink18, a_sink17, a_sink16};
 		sinks[roll(6)]->Message(TSinkResetTimer, 3.0f);
 
 		int score = 100000;
@@ -4051,11 +4051,11 @@ namespace
 											   tabc18wave,
 											   tabc20wave};
 		if (const bool listsFound = std::ranges::none_of(diverters, [](auto c) { return !c; }) &&
-								std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
-								std::ranges::none_of(lizard_lights, [](auto c) { return !c; }) &&
-								std::ranges::none_of(diamond_targets, [](auto c) { return !c; }) &&
-								std::ranges::none_of(pearl_targets, [](auto c) { return !c; }) &&
-								std::ranges::none_of(fire_lights, [](auto c) { return !c; });
+									std::ranges::none_of(quest_lights, [](auto c) { return !c; }) &&
+									std::ranges::none_of(lizard_lights, [](auto c) { return !c; }) &&
+									std::ranges::none_of(diamond_targets, [](auto c) { return !c; }) &&
+									std::ranges::none_of(pearl_targets, [](auto c) { return !c; }) &&
+									std::ranges::none_of(fire_lights, [](auto c) { return !c; });
 			std::ranges::find(all, nullptr) != all.end() || !listsFound)
 		{
 			// Not Dragon's Keep's DAT as DRAGON.EXE knows it; leave the table without rules
