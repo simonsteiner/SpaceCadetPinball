@@ -164,12 +164,15 @@ namespace
 		{Msg::Dragon_DragonFlurry, Msg::Definitive_GuideDragonFlurry, 5},
 	});
 
+	using Dragon = TableView::DragonsKeep;
+
 	// The quest that runs or waits to be taken up again, by its index in DragonQuests, or -1
 	int RunningQuest(const TableView& view)
 	{
 		const auto& dragon = view.Dragon;
-		auto state = dragon.State == dragon.RestartQuestState ? dragon.RestartQuest : dragon.State;
-		return state >= dragon.FirstQuestState && state <= dragon.LastQuestState ? state - dragon.FirstQuestState : -1;
+		auto state = dragon.State == Dragon::RestartQuestState ? dragon.RestartQuest : dragon.State;
+		return state >= Dragon::FirstQuestState && state <= Dragon::LastQuestState ? state - Dragon::FirstQuestState
+																				   : -1;
 	}
 
 	// The tab with what runs, and its row; the basics while nothing does
@@ -178,14 +181,14 @@ namespace
 		using enum DragonTab;
 		const auto& dragon = view.Dragon;
 		// A restart runs its quest's tab, Slay Dragon's included
-		auto state = dragon.State == dragon.RestartQuestState ? dragon.RestartQuest : dragon.State;
+		auto state = dragon.State == Dragon::RestartQuestState ? dragon.RestartQuest : dragon.State;
 		if (auto quest = RunningQuest(view); quest >= 0)
 			return {Quests, quest};
-		if (state >= dragon.FirstModeState && state <= dragon.LastModeState)
-			return {Multiball, state - dragon.FirstModeState};
-		if (state == dragon.ShopState)
+		if (state >= Dragon::FirstModeState && state <= Dragon::LastModeState)
+			return {Multiball, state - Dragon::FirstModeState};
+		if (state == Dragon::ShopState)
 			return {Shop, 0};
-		if (state == dragon.SlayDragonState)
+		if (state == Dragon::SlayDragonState)
 			return {SlayDragon, 0};
 		return {Basics, -1};
 	}

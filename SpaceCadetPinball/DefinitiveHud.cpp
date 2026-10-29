@@ -142,7 +142,7 @@ namespace
 		std::string name;
 		if (mode)
 			name = mode;
-		else if (dragon.State == dragon.RestartQuestState && DefinitiveHud::QuestName(dragon.RestartQuest))
+		else if (dragon.State == TableView::DragonsKeep::RestartQuestState && DefinitiveHud::QuestName(dragon.RestartQuest))
 			name = Ui::Fill(Text(Msg::Definitive_RestartQuest), DefinitiveHud::QuestName(dragon.RestartQuest));
 		else if (auto quest = DefinitiveHud::QuestName(dragon.State))
 			name = quest;
@@ -160,7 +160,7 @@ namespace
 
 		std::string note;
 		// A ball in the mouth after the last hit takes the hits left below 0, as in DRAGON.EXE
-		if (dragon.State == dragon.SlayDragonState)
+		if (dragon.State == TableView::DragonsKeep::SlayDragonState)
 			note = Ui::Fill(Text(Msg::Definitive_HitsLeft), std::to_string(std::max(dragon.HitsLeft, 0)));
 		// A quest running or waiting to restart is still the picked one; it isn't next
 		else if (auto picked = DefinitiveHud::QuestName(dragon.PickedQuest);
