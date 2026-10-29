@@ -97,8 +97,8 @@
   function refresh() {
     const files = listFiles();
     $("files").textContent = files.length ? files.join("  ") : "No game data yet.";
-    // A table's DAT, or one in its folder of a Full Tilt! installation, where the game looks too
-    const hasTable = files.some(name => /^([^/]+\/)?(pinball|cadet|demo|dragon)\.dat$/i.test(name));
+    // A table's DAT, or one in its CADET or DRAGON folder of a Full Tilt! installation, where the game looks too
+    const hasTable = files.some(name => /^((cadet|dragon)\/)?(pinball|cadet|demo|dragon)\.dat$/i.test(name));
     $("play").disabled = !hasTable;
     setStatus(hasTable ? "" : "Add a .DAT file to play.");
   }
