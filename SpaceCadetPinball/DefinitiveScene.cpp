@@ -47,7 +47,9 @@ const DefinitiveScene& DefinitiveScene::Build(const TableView& view, const Table
 	}
 
 	// Where the frame would have drawn each ball's sprite. A smiley ball isn't shaded: the frame's sprite stays, as
-	// render::PresentVScreen leaves it.
+	// render::PresentVScreen leaves it. The shaded balls are depth-tested against the table only, so where one
+	// overlaps a smiley it covers it, even a nearer one; testing them against the smiley would take a depth texture
+	// of the ball sprites, which a cheat's ball doesn't warrant.
 	scene.ShadedBalls = options.ShadedBall;
 	scene.Balls.clear();
 	for (auto index = 0u; index < view.Balls.size(); index++)
