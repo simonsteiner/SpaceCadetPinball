@@ -606,18 +606,15 @@ namespace
 			info_text_box->Display(pb::get_rc_string(Msg::Dragon_ExtraBall), textTime);
 	}
 
-	// 0x423240: full armor, the kickback and the outlane kickers lit; with <show>, its picture and sound
-	void AwardMaxArmor(bool show)
+	// 0x423240: full armor, the kickback and the outlane kickers lit, with its picture and sound
+	void AwardMaxArmor()
 	{
 		a_kick1->ActiveFlag = 1;
 		v_lite37->MessageField = 0;
 		v_lite37->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 2.0f);
 		outlane_kicker_light_group->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
-		if (show)
-		{
-			ShowPicture("+", 2.0f);
-			tabc41wave->Play(nullptr, "AwardMaxArmor");
-		}
+		ShowPicture("+", 2.0f);
+		tabc41wave->Play(nullptr, "AwardMaxArmor");
 	}
 
 	void CenterPostControl(MessageCode code, TPinballComponent*);
@@ -639,7 +636,7 @@ namespace
 		switch (open[std::min(static_cast<int>(RandFloat() * count), count - 1)])
 		{
 		case 0:
-			AwardMaxArmor(true);
+			AwardMaxArmor();
 			AddScore(nullptr, 25000);
 			break;
 		case 1:
@@ -1419,11 +1416,10 @@ namespace
 			break;
 		}
 		if (text)
-		{
 			info_text_box->Display(pb::get_rc_string(*text), -1.0f);
-			if (code == EnterState)
-				tabc33wave->Play(nullptr, "ShopStateControl");
-		}
+		// The shop sounds even with no offer to show
+		if (code == EnterState)
+			tabc33wave->Play(nullptr, "ShopStateControl");
 	}
 
 	// State 13, 0x42b0e0: Tower Barrage, a multiball. With all three locks lit, their three balls come out one second
@@ -3089,6 +3085,13 @@ namespace
 		a_kout3->Message(TKickoutRestartTimer, 0.0f);
 	}
 
+	// a_kout3, 0x427ef0: a ball it takes waits there until the upper flipper lets it go
+	void SpellKickoutControl(MessageCode code, TPinballComponent*)
+	{
+		if (code == MessageCode::ControlCollision)
+			a_kout3->MessageField = 1;
+	}
+
 	// a_kick1, the kickback, 0x426d00: "Ball Saved"; without full armor it uses up an outlane kicker light, and the
 	// last one turns it off
 	void KickbackControl(MessageCode code, TPinballComponent* caller)
@@ -3312,7 +3315,7 @@ namespace
 			info_text_box->Display(pb::get_rc_string(Msg::Dragon_MaxWeapons), 2.0f);
 			break;
 		case 2:
-			AwardMaxArmor(false);
+			AwardMaxArmor();
 			tabc24wave->Play(nullptr, "WellControl");
 			CenterPostControl(TAnimatedBlockerAnimateOn, a_center_post);
 			BloceControl(TAnimatedBlockerAnimateOn, a_bloce);
@@ -4101,6 +4104,8 @@ namespace
 				Link(component, WithHook<RampExitControl>);
 			else if (component == a_flip2)
 				Link(component, WithHook<UpperFlipperControl>);
+			else if (component == a_kout3)
+				Link(component, WithHook<SpellKickoutControl>);
 			else if (component == a_kick1)
 				Link(component, WithHook<KickbackControl>);
 			else if (component == a_rocka || component == a_rockb)

@@ -31,4 +31,6 @@ public:
 	bool ReleasePushPending{};
 	bool ReleaseTouched{};
 	bool ReleaseWaitsForTouch{};
+	// The latest release's timer: its PullbackDelay one, then its ReleasePushLimit one
+	int ReleaseTimerId{};
 };
