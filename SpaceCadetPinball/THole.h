@@ -17,6 +17,9 @@ public:
 	// Full Tilt's later THole (CADET.EXE), the bonus tables only: the ball goes out once no other ball is in the way
 	void FinishRelease(TBall* ball);
 	static void RetryRelease(int timerId, void* caller);
+	// The bonus tables' Message: THoleRelease lets the ball go after its value in seconds, at once if 0 or less
+	void BonusTableMessage(MessageCode code, float value);
+	void ReleaseAfter(float time);
 
 	bool BallCapturedFlag{};
 	bool BallCapturedSecondStage{};
