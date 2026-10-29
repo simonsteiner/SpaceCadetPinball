@@ -7,6 +7,7 @@
 #include "TAnimatedBlocker.h"
 #include "TBall.h"
 #include "TBumper.h"
+#include "TDemo.h"
 #include "TDiverter.h"
 #include "TDrain.h"
 #include "TFlagSpinner.h"
@@ -29,13 +30,13 @@
 #include "TTextBox.h"
 #include "TTimer.h"
 #include "TWall.h"
+#include "timer.h"
 #include "translations.h"
 
 // Dragon's Keep's rules, recovered from DRAGON.EXE (Phase F): the serve, drain and game-over flow, with the ball
 // save, the end-of-ball bonus and the music; the quest framework and the five quests (Dragon Hoard, Fire Lizards,
-// Rescue Maiden, Dragon Pass, Wizard's Fury); the shop; the three multiball modes and Slay Dragon; and the
-// components' own scoring. A stuck ball is freed as Space Cadet's rules free one, and DRAGON.EXE's cheats (0x4282c0)
-// aren't ported.
+// Rescue Maiden, Dragon Pass, Wizard's Fury); the shop; the three multiball modes and Slay Dragon; the components'
+// own scoring; and the cheats (0x4282c0). A stuck ball is freed as Space Cadet's rules free one.
 //
 // DRAGON.EXE's rules run a state machine whose state each player keeps in info_text_box's message field: the
 // component handlers and the engine report to one table-wide function (0x42c020), which hands every event to the
@@ -47,7 +48,7 @@
 // diverters keep CADET.EXE's.
 namespace
 {
-	// Codes DRAGON.EXE's rules functions send only among themselves; SkipBonusText comes from a rule not ported yet
+	// Codes DRAGON.EXE's rules functions send only among themselves
 	constexpr auto EnterState = MessageCode::DragonEnterState;
 	constexpr auto ShowStateText = MessageCode::DragonShowStateText;
 	constexpr auto BallDrained = MessageCode::DragonBallDrained;
@@ -3603,6 +3604,14 @@ namespace
 			for (auto light : {v_lite113, v_lite114, v_lite115})
 				light->ActiveFlag = 0;
 			break;
+		case LeftFlipperInputPressed:
+		case RightFlipperInputPressed:
+			// 0x4282c0, before the cheats: a flipper key skips the bonus texts while the tower lock's balls come out
+			// at the game's end. DRAGON.EXE checks its flipper keys; any input bound to a flipper does here, and the
+			// demo's flippers don't
+			if (!(Table->Demo && Table->Demo->ActiveFlag) && GameState() == EndOfBallState && LastBallRelease)
+				TableHook(SkipBonusText, nullptr);
+			break;
 		default:
 			break;
 		}
@@ -4192,18 +4201,228 @@ namespace
 		}
 	}
 
+	// The developers' quotes QUOTE shows (0x43baa0) and the credits a minute without a key shows (0x43b6e8, the same
+	// as control.cpp's), one text up to each '~'
+	constexpr const char* QuotesText = "Hey, is that a screen saver?~JOHN!!!~I wanna be a 500Lb. Bananna~"
+									   "Guess what I'm gonna do APS...~We could make fun paperclips.~"
+									   "I would like to read more than Post-Its~The real trick?~";
+	constexpr const char* CreditsText =
+		"Full Tilt! was created by Cinematronics~for Maxis.~Cinematronics Team:~"
+		"Programming\nMichael Sandige\nJohn Taylor~Art\nJohn Frantz Jr.\nRyan Medeiros~Design\nKevin Gliner~"
+		"Sound Effects\nMatt Ridgeway~Donald S. Griffin~Design Consultant\nMark Sprenger~Music\nMatt Ridgeway~"
+		"Producer\nKevin Gliner~Voices\nMike McGeary\nWilliam Rice~Grand Poobah\nDavid Stafford~"
+		"Special Thanks\nPaula Sandige\nAlex St. John~Brad Silverberg\nJeff Camp~Danny Thorpe\nGreg Hospelhorn~"
+		"Maxis Team:~Producer\nJohn Csicsery~Product Manager\nLarry Lee~Lead Tester\nMichael Gilmartin~"
+		"QA Manager\nAlan Barton~Additional Testing\nJoe Longworth\nScott Shicoff~Owen Nelson\nJohn \"Jussi\" Ylinen~"
+		"John Landes\nMarc Meyer~Cathy Castro\nKeith Meyer~Additional Art\nOcean Quigley~"
+		"Rick Macaraeg\nCharlie Aquilina~Art Director\nSharon Barr~Install Program\nKevin O'Hare~Intro Music~"
+		"Brian Conrad~John Csicsery~Special Thanks\nSam Poole\nJoe Scirica~Jeff Braun\nBob Derber\nAshley Csicsery~"
+		"Tom Forge\nWill \"Burr\" Wright~";
+
+	// The cheats' state, which DRAGON.EXE keeps for the whole session
+	int CheatKey;           // 0x43bb70: the last key of the cheat being typed, 0 for none
+	int CheatTyped;         // 0x43bb74: which one, 1 1MAX, 2 NMAX, 3 FMAX, 4 PB, 5 QUOTE
+	int HiddenTestStep;     // 0x439154: how much of "hidden<Tab>test" is typed, which the engine checks (0x411f50)
+	bool AltBall;           // 0x438140, PB: balls made from now on take their frames' second bitmap; not drawn yet
+	bool QuotesShown;       // 0x43ba9c: QUOTE was typed; until the credits next show, every key ends the scroller
+	int ScrollTimer;        // 0x43ba98
+	const char* ScrollNext; // 0x434cfc: the scroller's next text, nullptr after the last
+	std::string Typed;      // the last keys, for the "credits" pb::frame types after a minute without a key
+
+	void ScrollTimerExpired(int, void*);
+
+	// 0x422a80: the scroller shows the next of the quotes or the credits over info_text_box for 2 s; after the last,
+	// or with <restart>, it starts over
+	void Scroll(bool restart)
+	{
+		if (ScrollTimer)
+			timer::kill(ScrollTimer);
+		ScrollTimer = 0;
+		if (restart || !ScrollNext)
+			ScrollNext = QuotesShown ? QuotesText : CreditsText;
+
+		std::string_view rest{ScrollNext};
+		auto text = rest.substr(0, rest.find('~'));
+		ScrollNext = text.size() < rest.size() ? ScrollNext + text.size() + 1 : nullptr;
+		info_text_box->DisplayOverlay(std::string{text}.c_str());
+		ScrollTimer = timer::set(2.0f, nullptr, ScrollTimerExpired);
+	}
+
+	void ScrollTimerExpired(int, void*)
+	{
+		ScrollTimer = 0;
+		Scroll(false);
+	}
+
+	// 0x422b50 and the text box's 0x41e0e0: the scroller stops and the messages show again
+	void EndScroll()
+	{
+		if (!info_text_box)
+			return;
+		if (ScrollTimer)
+			timer::kill(ScrollTimer);
+		ScrollTimer = 0;
+		info_text_box->EndOverlay();
+	}
+
+	// 0x411f50: "hidden<Tab>test" turns cheat mode on for good; DRAGON.EXE takes no space in place of the Tab
+	void HiddenTest(int key)
+	{
+		auto& step = HiddenTestStep;
+		switch (key)
+		{
+		case 'H':
+			step = step == 0 ? 1 : 0;
+			break;
+		case 'I':
+			step = step == 1 ? 2 : 0;
+			break;
+		case 'D':
+			step = step == 2 || step == 3 ? step + 1 : 0;
+			break;
+		case 'E':
+			step = step == 4 || step == 8 ? step + 1 : 0;
+			break;
+		case 'N':
+			step = step == 5 ? 6 : 0;
+			break;
+		case '\t':
+			step = step == 6 ? 7 : 0;
+			break;
+		case 'S':
+			step = step == 9 ? 10 : 0;
+			break;
+		case 'T':
+			step = step == 7 || step == 10 ? step + 1 : 0;
+			if (step == 11)
+			{
+				pb::cheat_mode = true;
+				Table->CheatsUsed = 1;
+			}
+			break;
+		default:
+			step = 0;
+			break;
+		}
+	}
+
+	// Whether <key> is the next of a cheat's keys; a first key also picks the cheat
+	bool CheatKeyFits(int key)
+	{
+		switch (key)
+		{
+		case '1':
+		case 'N':
+		case 'F':
+		case 'P':
+		case 'Q':
+			if (CheatKey)
+				return false;
+			CheatTyped = key == '1' ? 1 : key == 'N' ? 2 : key == 'F' ? 3 : key == 'P' ? 4 : 5;
+			return true;
+		case 'M':
+			return CheatKey == '1' || CheatKey == 'N' || CheatKey == 'F';
+		case 'A':
+			return CheatKey == 'M';
+		case 'U':
+			return CheatKey == 'Q';
+		case 'O':
+			return CheatKey == 'U';
+		case 'T':
+			return CheatKey == 'O';
+		default:
+			return false;
+		}
+	}
+
+	// 0x4282c0, on every key in a game: 1MAX gives an extra ball, NMAX starts the quest whose light flashes, PB
+	// switches the look of balls made from then on (not drawn yet), QUOTE shows the developers' quotes, and FMAX does
+	// nothing. A key that isn't the next of the cheat being typed ends it, except an X, B or E, which DRAGON.EXE
+	// then ignores; so does the X of FMAX, PB or QUOTE
+	void Cheat(int key)
+	{
+		if (!info_text_box)
+			return;
+		// DRAGON.EXE gets Windows' key codes, whose letters are capitals and which SDL's keys without a character
+		// don't match
+		if (static_cast<unsigned>(key) & SDLK_SCANCODE_MASK)
+			key = 0;
+		else if (key >= 'a' && key <= 'z')
+			key -= 'a' - 'A';
+
+		if (QuotesShown)
+			EndScroll();
+
+		auto ended = true;
+		if (CheatKeyFits(key))
+		{
+			CheatKey = key;
+			ended = false;
+		}
+		else if ((key == 'X' && CheatKey != 'A') || (key == 'B' && CheatKey != 'P') || (key == 'E' && CheatKey != 'T'))
+		{
+			ended = false;
+		}
+		else if (key == 'X')
+		{
+			if (CheatTyped == 1)
+			{
+				AwardExtraBall(2.0f);
+				Table->CheatsUsed = 1;
+			}
+			else if (CheatTyped == 2)
+			{
+				if (GameState() == PlayState)
+				{
+					BallHeld = true;
+					if (StartQuest())
+						Table->CheatsUsed = 1;
+					else
+						BallHeld = false;
+				}
+			}
+			else
+			{
+				ended = false;
+			}
+		}
+		else if (key == 'B')
+		{
+			AltBall = !AltBall;
+		}
+		else if (key == 'E')
+		{
+			QuotesShown = true;
+			Scroll(true);
+		}
+		if (ended)
+			CheatKey = 0;
+		if (!CheatKey)
+			CheatTyped = 0;
+
+		HiddenTest(key);
+
+		// The idle credits come this way, as Space Cadet's rules take them
+		Typed.push_back(static_cast<char>(key));
+		if (Typed.size() > 7)
+			Typed.erase(0, 1);
+		if (Typed == "CREDITS")
+		{
+			QuotesShown = false;
+			Scroll(true);
+			pb::CreditsActive = true;
+		}
+	}
+
 	void ClearLinks()
 	{
 		Table = nullptr;
 		info_text_box = nullptr;
+		ScrollTimer = 0;
+		ScrollNext = nullptr;
 	}
 } // namespace
 
 const TableRules control_dragon::Rules{
-	MakeLinks,
-	ClearLinks,
-	TableControl,
-	UnstuckBall,
-	[](char) { /* DRAGON.EXE's cheats aren't ported yet */ },
-	[] { /* nor its rank bump */ },
+	MakeLinks, ClearLinks, TableControl, UnstuckBall, Cheat, [] { /* DRAGON.EXE has no rank to bump */ }, EndScroll,
 };

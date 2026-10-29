@@ -1420,7 +1420,20 @@ void winmain::RenderUi()
 					Options.DebugOverlayCollisionMask ^= true;
 				ImGui::EndMenu();
 			}
-			if (ImGui::BeginMenu("Cheats"))
+			if (pb::Table == Tables::DragonsKeep && ImGui::BeginMenu("Cheats"))
+			{
+				// DRAGON.EXE's, which takes a Tab in "hidden test" and turns cheat mode only on
+				if (ImGui::MenuItem("hidden test", nullptr, pb::cheat_mode))
+					pb::PushCheat("hidden\ttest");
+				if (ImGui::MenuItem("1max"))
+					pb::PushCheat("1max");
+				if (ImGui::MenuItem("nmax"))
+					pb::PushCheat("nmax");
+				if (ImGui::MenuItem("quote"))
+					pb::PushCheat("quote");
+				ImGui::EndMenu();
+			}
+			else if (pb::Table != Tables::DragonsKeep && ImGui::BeginMenu("Cheats"))
 			{
 				if (ImGui::MenuItem("hidden test", nullptr, pb::cheat_mode))
 					pb::PushCheat("hidden test");

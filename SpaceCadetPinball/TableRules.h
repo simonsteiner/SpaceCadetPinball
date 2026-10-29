@@ -13,8 +13,11 @@ struct TableRules
 	void (*ClearLinks)();
 	void (*TableControl)(MessageCode code);
 	void (*UnstuckBall)(TBall& ball, int dt);
-	void (*Cheat)(char key);
+	// A key pressed: an SDL keycode, or a character of a cheat the menu, the idle credits or a recording types
+	void (*Cheat)(int key);
 	void (*CheatBumpRank)();
+	// The idle credits stop, on a key or a change of game mode
+	void (*EndCredits)();
 
 	// The rules of the table pb::SelectDatFile picked
 	static const TableRules& Current();

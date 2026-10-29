@@ -223,8 +223,8 @@ void pb::firsttime_setup()
 
 void pb::mode_change(GameModes mode)
 {
-	if (CreditsActive && MissTextBox)
-		MissTextBox->Clear(true);
+	if (CreditsActive)
+		TableRules::Current().EndCredits();
 	CreditsActive = false;
 	IdleTimerMs = 0;
 
@@ -678,13 +678,13 @@ void pb::KeyDown(SDL_Scancode scancode, SDL_Keycode key)
 
 void pb::GameInputDown(GameInput input, const std::vector<GameBindings>& bindings)
 {
-	if (CreditsActive && MissTextBox)
-		MissTextBox->Clear(true);
+	if (CreditsActive)
+		TableRules::Current().EndCredits();
 	CreditsActive = false;
 	IdleTimerMs = 0;
 
 	if (input.Type == InputTypes::Keyboard)
-		TableRules::Current().Cheat(static_cast<char>(input.Value));
+		TableRules::Current().Cheat(input.Value);
 
 	for (const auto binding : bindings)
 	{
