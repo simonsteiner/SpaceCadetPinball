@@ -22,7 +22,8 @@ struct TableRules
 	// Copies the table's own state into the view after each update, for the fields only these rules know
 	void (*FillView)(TableView& view);
 	// Whether the ball being made takes its next frame's second bitmap, as Dragon's Keep's PB cheat asks;
-	// available is whether the frame has one
+	// available is whether the frame has one. A frame without one may change the rules' state: Dragon's Keep turns
+	// PB off, so that frame and the ones after it take their first bitmap, as DRAGON.EXE does.
 	bool (*AltBallFrame)(bool available);
 
 	// The rules of the table pb::SelectDatFile picked

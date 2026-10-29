@@ -139,14 +139,16 @@ static std::string SpriteFileName(int groupId, std::string name, int resolution)
 }
 
 // The names an override of a group's bitmap may have: with stateOwner, the component's name and the bitmap's index
-// first, then the group's own
+// first, then the group's own. A second bitmap (suffix _alt) of a group without a name takes only the first, because
+// the bare number is kept only for what earlier versions looked for.
 static void AddSpriteNames(std::vector<std::string>& names, const GroupData& group, const GroupData* stateOwner,
 						   int stateIndex, std::string_view suffix, int resolution)
 {
 	if (stateOwner)
 		names.push_back(SpriteFileName(stateOwner->GroupId,
 									   std::format("{}_{}{}", stateOwner->GroupName, stateIndex, suffix), resolution));
-	names.push_back(SpriteFileName(group.GroupId, std::format("{}{}", group.GroupName, suffix), resolution));
+	if (suffix.empty() || !group.GroupName.empty())
+		names.push_back(SpriteFileName(group.GroupId, std::format("{}{}", group.GroupName, suffix), resolution));
 }
 
 void Upscale::FindSpriteNames()
@@ -156,7 +158,7 @@ void Upscale::FindSpriteNames()
 	// component's number and name with the bitmap's index, so the ball's sizes are 0108-ball-r0.png, then
 	// 0108-ball_1-r0.png to 0108-ball_6-r0.png. Their own number with an empty name, such as 0109--r0.png, is
 	// what earlier versions looked for, so it still works. A second bitmap, such as Dragon's Keep's smiley ball,
-	// takes the same names with _alt after the name, so 0108-ball_alt-r0.png to 0108-ball_6_alt-r0.png.
+	// takes the same names with _alt after the name, so 0240-ball2_alt-r2.png to 0240-ball2_10_alt-r2.png.
 	if (!SpriteNames.empty() || !pb::record_table)
 		return;
 	auto resolution = fullscrn::GetResolution();
