@@ -85,6 +85,8 @@ public:
 	[[ noreturn ]] static void memalloc_failure();
 	static int ProcessWindowMessages();
 	static void a_dialog();
+	// Classic's Select Table
+	static void RenderTableDialog();
 	static void end_pause();
 	static void new_game();
 	static void pause(bool toggle = true);

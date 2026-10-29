@@ -313,6 +313,16 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 	printf("Loading game from: %s\n", make_path_name(DatFileName).c_str());
 }
 
+void pb::SelectTable(Tables table)
+{
+	if (SameTable(table, Table))
+		return;
+	options::Options.Table.V = TableKey(table);
+	// The choice, not -table's table, loads from now on
+	RequestedTable.reset();
+	winmain::Restart();
+}
+
 Tables pb::TableOf(const std::string& datFileName)
 {
 	auto upper = ToUpper(datFileName);

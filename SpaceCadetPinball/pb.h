@@ -78,6 +78,9 @@ public:
 	static std::vector<TableData> FindTables(const std::vector<const char*>& dataSearchPaths);
 	// Loads the table asked for, else the player's choice (options' Table), else the first table found
 	static void SelectDatFile(const std::vector<const char*>& dataSearchPaths);
+	// The player's choice from the table menus: saves it and restarts the game with that table, which ends a game in
+	// progress. Nothing happens for the table loaded.
+	static void SelectTable(Tables table);
 	// The table a DAT file holds, from its name in any case
 	static Tables TableOf(const std::string& datFileName);
 	// Whether two tables are the same for the player: Space Cadet's three DAT files are one table

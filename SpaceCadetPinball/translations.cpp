@@ -6717,6 +6717,24 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_Table,
+		{
+			{ Lang::English, "Table" },
+		}
+	},
+	{
+		Msg::Definitive_TableCurrent,
+		{
+			{ Lang::English, "Current" },
+		}
+	},
+	{
+		Msg::Definitive_TableBest,
+		{
+			{ Lang::English, "Best score %s" },
+		}
+	},
+	{
 		Msg::Definitive_RecordSessions,
 		{
 			{ Lang::English, "Record sessions" },

@@ -34,10 +34,11 @@
   <div class="panel">
     <p><strong>1. Add the game data.</strong> Choose <code>PINBALL.DAT</code> with its <code>.WAV</code> and <code>.MID</code> files
       and <code>PINBALL.EXE</code>, which holds the font of the messages, from 3D Pinball for Windows, or the folder of
-      Full Tilt! Pinball (<code>CADET.DAT</code>).</p>
+      Full Tilt! Pinball (<code>CADET.DAT</code>). Add Full Tilt!'s <code>DRAGON</code> folder too, with
+      <code>DRAGON.DAT</code>, to play Dragon's Keep; the game's title then lets you pick the table.</p>
     <label class="button" for="pickFiles">Choose files…</label>
     <label class="button" for="pickFolder">Choose a folder…</label>
-    <input id="pickFiles" type="file" multiple accept=".dat,.wav,.mid,.mds,.exe,.sf2,.sf3">
+    <input id="pickFiles" type="file" multiple accept=".dat,.wav,.mid,.mds,.exe,.bmp,.sf2,.sf3">
     <input id="pickFolder" type="file" webkitdirectory>
     <details>
       <summary>Where do I find these files?</summary>
@@ -72,7 +73,8 @@
   // The player's own SoundFont first, then the downloaded one; the game reads this list when it starts
   const SoundFonts = [DataDir + "/soundfont.sf2", DataDir + "/soundfont.sf3", "/soundfont/" + SoundFontUrl];
   // Of the executables, only 3D Pinball's is used, for its message font
-  const GameExtensions = /\.(dat|wav|mid|mds)$|^pinball\.exe$/i, SoundFontExtensions = /\.(sf2|sf3)$/i;
+  // Full Tilt!'s tables have a picture each, such as DRAGON.BMP, which the table list shows
+  const GameExtensions = /\.(dat|wav|mid|mds)$|^pinball\.exe$|(^|\/)(cadet|dragon)\.bmp$/i, SoundFontExtensions = /\.(sf2|sf3)$/i;
   const $ = id => document.getElementById(id);
 
   function setStatus(text) { $("status").textContent = text; }
@@ -95,7 +97,8 @@
   function refresh() {
     const files = listFiles();
     $("files").textContent = files.length ? files.join("  ") : "No game data yet.";
-    const hasTable = files.some(name => /^(pinball|cadet|demo)\.dat$/i.test(name));
+    // A table's DAT, or one in its folder of a Full Tilt! installation, where the game looks too
+    const hasTable = files.some(name => /^([^/]+\/)?(pinball|cadet|demo|dragon)\.dat$/i.test(name));
     $("play").disabled = !hasTable;
     setStatus(hasTable ? "" : "Add a .DAT file to play.");
   }

@@ -212,6 +212,75 @@ static bool TakeChosenFolder()
 	return true;
 }
 
+// The tables found, for both editions' table menus, with their pictures from the game data
+struct TableChoice
+{
+	TableData Data;
+	SDL_Texture* Picture;
+};
+static std::vector<TableChoice> TableChoices;
+// Classic's Select Table dialog opens on the next frame
+static bool OpenTableDialog = false;
+
+static void LoadTableChoices()
+{
+	for (const auto& data : pb::FoundTables)
+	{
+		// Full Tilt! keeps a 120 by 120 picture of each table next to its DAT, such as DRAGON.BMP; 3D Pinball has none
+		auto stem = data.DatFileName.substr(0, data.DatFileName.rfind('.'));
+		SDL_Texture* picture = nullptr;
+		for (const auto* extension : {".BMP", ".bmp"})
+		{
+			auto path = data.Folder + stem + extension;
+			// Only a file that is there, so a missing picture leaves no SDL error behind
+			auto file = fopenu(path.c_str(), "rb");
+			if (!file)
+				continue;
+			fclose(file);
+			if (auto surface = SDL_LoadBMP(path.c_str()))
+			{
+				picture = SDL_CreateTextureFromSurface(winmain::Renderer, surface);
+				SDL_DestroySurface(surface);
+			}
+			break;
+		}
+		TableChoices.push_back({data, picture});
+	}
+}
+
+static void FreeTableChoices()
+{
+	for (const auto& choice : TableChoices)
+		SDL_DestroyTexture(choice.Picture);
+	TableChoices.clear();
+}
+
+// The tables' names and games, which stay as they are in every language
+static const char* TableName(Tables table)
+{
+	return table == Tables::DragonsKeep ? "Dragon's Keep" : "Space Cadet";
+}
+
+static const char* TableSource(Tables table)
+{
+	switch (table)
+	{
+	case Tables::SpaceCadet3DPB:
+		return "3D Pinball for Windows";
+	case Tables::FullTiltDemo:
+		return "Full Tilt! Pinball demo";
+	default:
+		return "Full Tilt! Pinball";
+	}
+}
+
+// Classic's Select Table, as Full Tilt!'s Ctrl+T: it pauses the game, which stays paused if nothing is picked
+static void ShowTableDialog()
+{
+	winmain::pause(false);
+	OpenTableDialog = true;
+}
+
 // What Space Cadet 2026's screens can ask for, through the entry points the Classic menus use
 static DefinitiveHost MakeDefinitiveHost()
 {
@@ -238,6 +307,23 @@ static DefinitiveHost MakeDefinitiveHost()
 		return records;
 	};
 	host.ClearRecords = [] { high_score::clear_table(); };
+	host.TableList = []
+	{
+		std::vector<DefinitiveHost::TableChoice> list;
+		for (const auto& [data, picture] : TableChoices)
+		{
+			// The table loaded may have scores it hasn't saved yet
+			auto loaded = pb::SameTable(data.Table, pb::Table);
+			auto best = loaded ? high_score::highscore_table[0].Score : high_score::BestScore(data.Table);
+			list.push_back({TableName(data.Table), TableSource(data.Table), best, loaded, picture});
+		}
+		return list;
+	};
+	host.SelectTable = [](size_t index)
+	{
+		if (index < TableChoices.size())
+			pb::SelectTable(TableChoices[index].Data.Table);
+	};
 	host.Busy = [] { return !pb::GameEnded || ImGui::GetTopMostPopupModal() != nullptr; };
 	host.NextRecord = [](DefinitiveHost::Record& record, int& place)
 	{
@@ -681,6 +767,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			return 1;
 		}
 		recordPath.clear();
+		LoadTableChoices();
 
 		fullscrn::init();
 		render::SetUpscale(Options.UpscaledArt ? Options.UpscaleFactor.V : 0);
@@ -755,6 +842,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		midi::music_shutdown();
 		Sound::Close();
 		pb::uninit();
+		FreeTableChoices();
 		DefinitiveEdition::Reset();
 		DefinitiveStats::Reset();
 
@@ -1113,6 +1201,9 @@ void winmain::RenderUi()
 			ImGui::Separator();
 			ImGuiMenuItemWShortcut(GameBindings::ToggleMenuDisplay, Options.ShowMenu);
 			ImGuiMenuItemWShortcut(GameBindings::ToggleFullScreen, Options.FullScreen);
+			// Where Full Tilt! has it, with its shortcut, once there is a choice
+			if (TableChoices.size() > 1 && ImGui::MenuItem("Select Table...", "Ctrl+T"))
+				ShowTableDialog();
 			if (ImGui::BeginMenu(pb::get_rc_string(Msg::Menu1_Select_Players)))
 			{
 				if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_1Player), nullptr, Options.Players == 1))
@@ -1473,9 +1564,12 @@ void winmain::RenderUi()
 	}
 
 	a_dialog();
-	// Space Cadet 2026 asks for high score names itself
+	// Space Cadet 2026 asks for high score names itself, and has its own list of tables
 	if (!definitive)
+	{
 		high_score::RenderHighScoreDialog();
+		RenderTableDialog();
+	}
 	font_selection::RenderDialog();
 	if (ShowSpriteViewer)
 		render::SpriteViewer(&ShowSpriteViewer);
@@ -1700,6 +1794,13 @@ int winmain::event_handler(const SDL_Event* event)
 	case SDL_EVENT_KEY_DOWN:
 		if (event->key.repeat)
 			break;
+		// Full Tilt!'s Ctrl+T, which doesn't reach the table
+		if (event->key.key == SDLK_T && (event->key.mod & SDL_KMOD_CTRL) &&
+			options::GetEdition() == Editions::Classic && TableChoices.size() > 1)
+		{
+			ShowTableDialog();
+			break;
+		}
 
 		pb::KeyDown(event->key.scancode, event->key.key);
 		if (!pb::cheat_mode)
@@ -2178,6 +2279,82 @@ void winmain::memalloc_failure()
 	const char* text = pb::get_rc_string(Msg::STRING279);
 	pb::ShowMessageBox(SDL_MESSAGEBOX_ERROR, caption, text);
 	std::exit(1);
+}
+
+void winmain::RenderTableDialog()
+{
+	// Laid out as Full Tilt!'s launcher: the tables' pictures side by side, the one picked in a teal frame, its name
+	// under them, Ok and Cancel. The table loaded can't be picked. A table without a picture shows its name instead.
+	constexpr auto title = "Select Table";
+	static size_t picked = SIZE_MAX;
+	if (OpenTableDialog)
+	{
+		OpenTableDialog = false;
+		picked = SIZE_MAX;
+		ImGui::OpenPopup(title);
+	}
+	if (!ImGui::BeginPopupModal(title, nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
+		return;
+
+	const ImVec2 pictureSize{120, 120};
+	const auto teal = ImGui::ColorConvertFloat4ToU32(ImVec4{0, 128 / 255.0f, 128 / 255.0f, 1});
+	auto load = SIZE_MAX;
+	// The first table that can be picked has the focus, shown, so the first Enter loads it
+	auto focusFirst = ImGui::IsWindowAppearing();
+	for (size_t i = 0; i < TableChoices.size(); i++)
+	{
+		const auto& [data, picture] = TableChoices[i];
+		if (i > 0)
+			ImGui::SameLine(0, 24);
+		ImGui::PushID(static_cast<int>(i));
+		auto enabled = !pb::SameTable(data.Table, pb::Table);
+		ImGui::BeginDisabled(!enabled);
+		const auto& padding = ImGui::GetStyle().FramePadding;
+		auto chosen = picture ? ImGui::ImageButton("table", reinterpret_cast<ImTextureID>(picture), pictureSize)
+							  : ImGui::Button(TableName(data.Table),
+											  ImVec2{pictureSize.x + padding.x * 2, pictureSize.y + padding.y * 2});
+		// The keyboard picks by moving the focus and loads by choosing; the mouse picks by a click and loads by a
+		// double click
+		if (ImGui::IsItemFocused() || chosen)
+			picked = i;
+		if ((chosen && !ImGui::IsMouseReleased(ImGuiMouseButton_Left)) ||
+			(ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)))
+			load = i;
+		ImGui::EndDisabled();
+		if (focusFirst && enabled)
+		{
+			ImGui::SetItemDefaultFocus();
+			ImGui::SetNavCursorVisible(true);
+			focusFirst = false;
+		}
+		if (picked == i)
+		{
+			auto min = ImGui::GetItemRectMin(), max = ImGui::GetItemRectMax();
+			ImGui::GetWindowDrawList()->AddRect(ImVec2{min.x - 3, min.y - 3}, ImVec2{max.x + 3, max.y + 3}, teal, 0.0f,
+												3.0f);
+		}
+		ImGui::PopID();
+	}
+
+	ImGui::Spacing();
+	ImGui::TextUnformatted(picked < TableChoices.size() ? TableName(TableChoices[picked].Data.Table) : "");
+	ImGui::SameLine();
+	auto buttonWidth = 80.0f;
+	// Ok and Cancel at the right
+	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - buttonWidth * 2 -
+						 ImGui::GetStyle().ItemSpacing.x);
+	ImGui::BeginDisabled(picked >= TableChoices.size());
+	if (ImGui::Button(pb::get_rc_string(Msg::GenericOk), ImVec2{buttonWidth, 0}))
+		load = picked;
+	ImGui::EndDisabled();
+	ImGui::SameLine();
+	if (ImGui::Button(pb::get_rc_string(Msg::GenericCancel), ImVec2{buttonWidth, 0}) ||
+		ImGui::IsKeyPressed(ImGuiKey_Escape, false))
+		ImGui::CloseCurrentPopup();
+	ImGui::EndPopup();
+
+	if (load < TableChoices.size())
+		pb::SelectTable(TableChoices[load].Data.Table);
 }
 
 void winmain::a_dialog()

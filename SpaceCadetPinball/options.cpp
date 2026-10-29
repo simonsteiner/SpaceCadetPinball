@@ -805,21 +805,38 @@ void options::RemoveSetting(const std::string& key)
 
 const char* options::TableKeyPrefix()
 {
-	if (pb::Table == Tables::DragonsKeep)
+	return TableKeyPrefix(pb::Table);
+}
+
+const char* options::TableKeyPrefix(Tables table)
+{
+	switch (table)
+	{
+	case Tables::DragonsKeep:
 		return DragonsKeepKeyPrefix;
-	if (pb::FullTiltDemoMode)
+	case Tables::FullTiltDemo:
 		return FullTiltDemoKeyPrefix;
-	if (pb::FullTiltMode)
+	case Tables::SpaceCadetFullTilt:
+	case Tables::Skulduggery:
 		return FullTiltKeyPrefix;
-	return SpaceCadetKeyPrefix;
+	default:
+		return SpaceCadetKeyPrefix;
+	}
 }
 
 std::string options::TableKeyPrefixToRead(const std::string& key)
 {
+	return TableKeyPrefixToRead(key, pb::Table);
+}
+
+std::string options::TableKeyPrefixToRead(const std::string& key, Tables table)
+{
 	// Before tables had their own keys, every table saved under the unprefixed ones.
 	// A table that never saved its own value starts from that one; saving then writes it under its prefix.
-	std::string prefix = TableKeyPrefix();
-	if (!prefix.empty() && !HasSetting(prefix + key) && HasSetting(key))
+	// The bonus tables had their keys from the start, so the unprefixed ones are only ever 3D Pinball's.
+	std::string prefix = TableKeyPrefix(table);
+	auto bonusTable = table == Tables::DragonsKeep || table == Tables::Skulduggery;
+	if (!prefix.empty() && !bonusTable && !HasSetting(prefix + key) && HasSetting(key))
 		prefix.clear();
 	return prefix;
 }
