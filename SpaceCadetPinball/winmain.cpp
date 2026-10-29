@@ -216,6 +216,20 @@ static bool TakeChosenFolder()
 	return true;
 }
 
+// The folder the table was loaded from, for Settings
+static std::string DataFolder()
+{
+	if (pb::BasePath.empty())
+		return std::string{pb::get_rc_string(Msg::Definitive_DataStartFolder)};
+	// A table in Full Tilt!'s layout can be found from the start folder, such as ../DRAGON/
+	std::error_code error;
+	auto path = std::filesystem::absolute(std::u8string{pb::BasePath.begin(), pb::BasePath.end()}, error);
+	if (error)
+		return pb::BasePath;
+	auto text = path.lexically_normal().u8string();
+	return std::string{text.begin(), text.end()};
+}
+
 // What Space Cadet 2026's screens can ask for, through the entry points the Classic menus use
 static DefinitiveHost MakeDefinitiveHost()
 {
@@ -318,18 +332,7 @@ static DefinitiveHost MakeDefinitiveHost()
 		return FolderDialogError;
 	};
 	host.ChosenFolderEmpty = [] { return ChosenFolderEmpty; };
-	host.DataFolder = []
-	{
-		if (pb::BasePath.empty())
-			return std::string{pb::get_rc_string(Msg::Definitive_DataStartFolder)};
-		// A table in Full Tilt!'s layout can be found from the start folder, such as ../DRAGON/
-		std::error_code error;
-		auto path = std::filesystem::absolute(std::u8string{pb::BasePath.begin(), pb::BasePath.end()}, error);
-		if (error)
-			return pb::BasePath;
-		auto text = path.lexically_normal().u8string();
-		return std::string{text.begin(), text.end()};
-	};
+	host.DataFolder = DataFolder;
 	// Taken at the start of the next frame, so ImGui lays out that whole frame for the new turn
 	host.SetRotation = [](int quarterTurns) { PendingRotation = quarterTurns; };
 #ifndef __EMSCRIPTEN__
