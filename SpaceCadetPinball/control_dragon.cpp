@@ -573,7 +573,7 @@ namespace
 		return state >= DragonHoardState && state <= WizardsFuryState;
 	}
 
-	// 0x424210: the picked quest starts. A quest whose state isn't ported yet doesn't, and its light keeps flashing
+	// 0x424210: the picked quest starts; without one picked, nothing does
 	bool StartQuest()
 	{
 		auto state = a_kout2->MessageField;
@@ -922,21 +922,22 @@ namespace
 				return;
 			// The skill shot: the spell targets, first to last, cast a spell, lay a dragon egg, raise a weapon, give
 			// armor or start Gargoyle Gaggle-Ball, in place of the 15,000 and the state's text
+			bool skillShot = true;
 			if (caller == a_spot4)
 			{
 				if (auto spell = PickSpell(); spell != -1)
 					CastSpell(spell);
-				SetState(PlayState);
-				return;
 			}
-			if (caller == a_spot5 || caller == a_spot6 || caller == a_spot7)
+			else if (caller == a_spot5)
+				AwardDragonEggs(1);
+			else if (caller == a_spot6)
+				RaiseWeapon();
+			else if (caller == a_spot7)
+				AwardArmor();
+			else
+				skillShot = false;
+			if (skillShot)
 			{
-				if (caller == a_spot5)
-					AwardDragonEggs(1);
-				else if (caller == a_spot6)
-					RaiseWeapon();
-				else
-					AwardArmor();
 				SetState(PlayState);
 				return;
 			}
@@ -3337,7 +3338,7 @@ namespace
 				{
 					BallHeld = false;
 					// DRAGON.EXE lets the ball go twice here, which serves a second ball once the first is clear. It
-					// does so only when no quest is picked; a picked quest not ported yet goes out once
+					// does so only when no quest is picked
 					if (!a_kout2->MessageField)
 						a_sink4->Message(TSinkResetTimer, -1.0f);
 				}

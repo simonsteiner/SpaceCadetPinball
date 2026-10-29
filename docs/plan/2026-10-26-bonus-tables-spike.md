@@ -191,7 +191,7 @@ The reference replays that held a release whose ball touched only after 25 ms pl
 
 ## Known differences between Pinball.exe and CADET.EXE (2026-10-28)
 
-Our port follows `Pinball.exe` for Space Cadet, in both its 3D Pinball and its Full Tilt data. `CADET.EXE`'s engine is a later revision, so Full Tilt's own Space Cadet plays differently in a few places. None of these is changed; each would change Space Cadet, so it's the owner's call.
+Our port follows `Pinball.exe` for Space Cadet, in both its 3D Pinball and its Full Tilt data. `CADET.EXE`'s engine is a later revision, so Full Tilt's own Space Cadet plays differently in a few places. None of these is changed, except `TSoloTarget`'s timer on the bonus tables only (#113); each would change Space Cadet, so it's the owner's call.
 
 | Where | `Pinball.exe` and our port | `CADET.EXE` | Effect on Space Cadet |
 | --- | --- | --- | --- |
