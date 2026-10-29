@@ -1602,6 +1602,31 @@ namespace
 		a_jaw->Message(MessageCode::TAnimatedBlockerAnimateTo, 7.0f);
 	}
 
+	// The diverters and their lights as a serve sets them; Rescue Maiden (6) and Tower Barrage (13) keep the first and
+	// last diverter pairs
+	void ResetDiverters()
+	{
+		using enum MessageCode;
+		auto keep = GameState() == RescueMaidenState || GameState() == TowerBarrageState;
+		if (!keep)
+		{
+			v_lite47->Message(TLightResetAndTurnOff, 0.0f);
+			diverters[0]->Message(TDiverterEnable, 0.0f);
+			diverters[1]->Message(TDiverterDisable, 0.0f);
+		}
+		diverters[2]->Message(TDiverterDisable, 0.0f);
+		diverters[3]->Message(TDiverterEnable, 0.0f);
+		diverters[4]->Message(TDiverterDisable, 0.0f);
+		diverters[5]->Message(TDiverterEnable, 0.0f);
+		if (!keep)
+		{
+			v_lite125->Message(TLightResetAndTurnOff, 0.0f);
+			v_lite126->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			diverters[6]->Message(TDiverterEnable, 0.0f);
+			diverters[7]->Message(TDiverterDisable, 0.0f);
+		}
+	}
+
 	// State 9, 0x42a150: Slay Dragon, once all five quests are done or from the sword (a_spot28). Its time is 30 s
 	// and 5 more for each armor piece and spell lit; the hits it needs, in v_lite114's message field, are 8 less
 	// the weapons and two spells lit. Each ball in the dragon's mouth (a_sink19) is a hit; the last one counts down
@@ -1646,24 +1671,7 @@ namespace
 					if (light->light_on())
 						v_lite114->MessageField--;
 				}
-				auto keep = GameState() == RescueMaidenState || GameState() == TowerBarrageState;
-				if (!keep)
-				{
-					v_lite47->Message(TLightResetAndTurnOff, 0.0f);
-					diverters[0]->Message(TDiverterEnable, 0.0f);
-					diverters[1]->Message(TDiverterDisable, 0.0f);
-				}
-				diverters[2]->Message(TDiverterDisable, 0.0f);
-				diverters[3]->Message(TDiverterEnable, 0.0f);
-				diverters[4]->Message(TDiverterDisable, 0.0f);
-				diverters[5]->Message(TDiverterEnable, 0.0f);
-				if (!keep)
-				{
-					v_lite125->Message(TLightResetAndTurnOff, 0.0f);
-					v_lite126->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
-					diverters[6]->Message(TDiverterEnable, 0.0f);
-					diverters[7]->Message(TDiverterDisable, 0.0f);
-				}
+				ResetDiverters();
 				AddScore(nullptr, 500000);
 				info_text_box->Display(pb::get_rc_string(Msg::Dragon_PutBallInDragonsMouth), -1.0f);
 				v_lite29->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
@@ -3423,25 +3431,7 @@ namespace
 		for (auto light : {v_lite33, v_lite34, v_lite35, v_lite36})
 			light->Message(TLightResetAndTurnOff, 0.0f);
 		Table->ScoreMultiplier = 1;
-		// Rescue Maiden (6) and Tower Barrage (13) keep the first and last diverter pairs
-		auto keep = GameState() == RescueMaidenState || GameState() == TowerBarrageState;
-		if (!keep)
-		{
-			v_lite47->Message(TLightResetAndTurnOff, 0.0f);
-			diverters[0]->Message(TDiverterEnable, 0.0f);
-			diverters[1]->Message(TDiverterDisable, 0.0f);
-		}
-		diverters[2]->Message(TDiverterDisable, 0.0f);
-		diverters[3]->Message(TDiverterEnable, 0.0f);
-		diverters[4]->Message(TDiverterDisable, 0.0f);
-		diverters[5]->Message(TDiverterEnable, 0.0f);
-		if (!keep)
-		{
-			v_lite125->Message(TLightResetAndTurnOff, 0.0f);
-			v_lite126->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
-			diverters[6]->Message(TDiverterEnable, 0.0f);
-			diverters[7]->Message(TDiverterDisable, 0.0f);
-		}
+		ResetDiverters();
 		SetLevelLights(3);
 		v_lite46->Message(TLightResetAndTurnOff, 0.0f);
 		a_rockb->Message(TAnimatedBlockerAnimateOn, 0.0f);
