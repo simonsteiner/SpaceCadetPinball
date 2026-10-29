@@ -2096,7 +2096,8 @@ namespace
 	}
 
 	// 0x425c30: a ball in a fire lizard sink (a_sink1 or a_sink2) comes out of the other one. In play, the second
-	// starts the picked quest; in Fire Lizards each slays a lizard for 100,000 per lizard, and every third the jackpot
+	// starts the picked quest; in Fire Lizards each slays a lizard for 100,000 per lizard, and every fourth the jackpot
+	// in its place
 	void FireLizardSlain(TSink* sink)
 	{
 		using enum MessageCode;

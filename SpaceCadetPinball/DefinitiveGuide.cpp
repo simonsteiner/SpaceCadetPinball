@@ -119,7 +119,7 @@ namespace
 		return Text(static_cast<Msg>(std::to_underlying(Msg::Definitive_GuideTargetPractice) + mission - 2));
 	}
 
-	// Dragon's Keep's tabs after the basics, and its rules' states (TableView::DragonsKeep::State) that each shows
+	// Dragon's Keep's tabs, in their order on screen; Render draws the basics apart from the others
 	enum class DragonTab
 	{
 		Basics,
@@ -167,22 +167,25 @@ namespace
 	// The quest that runs or waits to be taken up again, by its index in DragonQuests, or -1
 	int RunningQuest(const TableView& view)
 	{
-		auto state = view.Dragon.State == 3 ? view.Dragon.RestartQuest : view.Dragon.State;
-		return state >= 4 && state <= 8 ? state - 4 : -1;
+		const auto& dragon = view.Dragon;
+		auto state = dragon.State == dragon.RestartQuestState ? dragon.RestartQuest : dragon.State;
+		return state >= dragon.FirstQuestState && state <= dragon.LastQuestState ? state - dragon.FirstQuestState : -1;
 	}
 
 	// The tab with what runs, and its row; the basics while nothing does
 	std::pair<DragonTab, int> DragonRunning(const TableView& view)
 	{
 		using enum DragonTab;
-		auto state = view.Dragon.State;
+		const auto& dragon = view.Dragon;
+		// A restart runs its quest's tab, Slay Dragon's included
+		auto state = dragon.State == dragon.RestartQuestState ? dragon.RestartQuest : dragon.State;
 		if (auto quest = RunningQuest(view); quest >= 0)
 			return {Quests, quest};
-		if (state >= 13 && state <= 15)
-			return {Multiball, state - 13};
-		if (state == 12)
+		if (state >= dragon.FirstModeState && state <= dragon.LastModeState)
+			return {Multiball, state - dragon.FirstModeState};
+		if (state == dragon.ShopState)
 			return {Shop, 0};
-		if (state == 9)
+		if (state == dragon.SlayDragonState)
 			return {SlayDragon, 0};
 		return {Basics, -1};
 	}

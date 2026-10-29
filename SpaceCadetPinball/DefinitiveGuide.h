@@ -9,7 +9,8 @@ struct TableView;
 class DefinitiveGuide
 {
 public:
-	// Opens on the missions the player's rank offers, with the mission that runs in focus, if one does
+	// Opens on what runs, in focus: on Space Cadet the missions the player's rank offers, on Dragon's Keep the tab of
+	// the quest, mode, shop or Slay Dragon that runs, else the basics
 	static void Open(const TableView& view);
 	// Draws the screen; false once the player goes back
 	static bool Render(const TableView& view);

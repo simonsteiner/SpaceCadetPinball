@@ -7649,7 +7649,7 @@ const TextArray translations::Translations =
 	{
 		Msg::Definitive_GuideDragonJackpots,
 		{
-			{ Lang::English, "The jackpot grows with every quest done, each dragon ramp shot and the pass targets in Dragon Pass, and is awarded by several quests' shots. The Super Jackpot grows by 200,000 through the dragon chute behind the dragon's neck, and with nearly every shot during Slay Dragon, which awards it when the dragon is slain." },
+			{ Lang::English, "The jackpot grows by 50,000 with every spot target hit and by 75,000 with every ball in the well or the first fire lizard sink, and with every quest done, each dragon ramp shot and the pass targets in Dragon Pass, and is awarded by several quests' shots. The Super Jackpot grows by 200,000 through the dragon chute behind the dragon's neck, and with nearly every shot during Slay Dragon, which awards it when the dragon is slain." },
 		}
 	},
 	{
@@ -7661,7 +7661,7 @@ const TextArray translations::Translations =
 	{
 		Msg::Definitive_GuideDragonItems,
 		{
-			{ Lang::English, "Every tenth bumper hit raises a weapon: Frantz's Ax, Firebow, Dragon Lance and Sword of Virtue multiply scores by 2 to 5. The armor kickout gives a piece of armor you lack: the Chainmail lights the kickback, the Shield raises the center post and the Helmet closes an outlane, each for a while. The well casts a spell when it starts no quest, and so do all five spell targets and two tower ramp shots within 10 seconds. The two wire ramps lay dragon eggs, scoring 100,000 for each egg lit, to spend in the shop. Weapons, armor, spells and eggs all count in the bonus, and make Slay Dragon easier." },
+			{ Lang::English, "Every tenth bumper hit raises a weapon: Frantz's Ax, Firebow, Dragon Lance and Sword of Virtue multiply scores by 2 to 5. The armor kickout gives a piece of armor you lack: the Chainmail lights the kickback, the Shield raises the center post and the Helmet closes an outlane, each for a while. The well casts a spell when it starts no quest, and so do all five spell targets and two tower ramp shots within 10 seconds. The two wire ramps lay dragon eggs, scoring 100,000 for each egg lit, to spend in the shop. Weapons, armor, spells and eggs all count in the bonus; weapons, armor and spells also make Slay Dragon easier." },
 		}
 	},
 	{
@@ -7673,7 +7673,7 @@ const TextArray translations::Translations =
 	{
 		Msg::Definitive_GuideFireLizards,
 		{
-			{ Lang::English, "Each ball in a fire lizard sink slays a lizard and scores 100,000 for every lizard slain so far; every third one also awards the jackpot." },
+			{ Lang::English, "Each ball in a fire lizard sink slays a lizard and scores 100,000 for every lizard slain so far, up to 1,000,000; the third lights the jackpot and every fourth one awards it in place of its score." },
 		}
 	},
 	{
@@ -7721,13 +7721,13 @@ const TextArray translations::Translations =
 	{
 		Msg::Definitive_GuideShopText,
 		{
-			{ Lang::English, "With one ball in play, the dragon egg kickout below the dragon ramp opens the shop. Your dragon eggs buy what their number offers, or the best that is still of use: 1 to 3 eggs start the picked quest, 4 cast a spell, 5 raise a weapon, 6 give armor, 7 light the extra ball and 8 give an extra ball. The left flipper buys it and spends that many eggs; another flipper declines for 25,000, as the shop does without eggs." },
+			{ Lang::English, "With one ball in play, the dragon egg kickout below the dragon ramp opens the shop. Your dragon eggs buy what their number offers, or the best that is still of use: 1 to 3 eggs start the picked quest, 4 cast a spell, 5 raise a weapon, 6 give armor, 7 light the extra ball and 8 give an extra ball. The left flipper buys it and spends that many eggs, or one egg for the quest; another flipper declines for 25,000, as the shop does without eggs." },
 		}
 	},
 	{
 		Msg::Definitive_GuideSlayDragon,
 		{
-			{ Lang::English, "The dragon's mouth opens once all five quests are done, or when the last of the sword's three targets is hit while its light flashes. You have 30 seconds, and 5 more for each armor piece and spell lit; the dragon needs 8 hits, less one for each weapon and for two of the spells lit. Each ball in the dragon's mouth is a hit that adds 15 seconds and scores by how far the fire lights have run: 100,000, 1,000,000, the jackpot, then the extra ball light or an extra ball. Bumpers, kickouts, sinks and targets add to the Super Jackpot meanwhile. The last hit slays the dragon: the Super Jackpot, 1,500,000, the jackpot, and full weapons and armor." },
+			{ Lang::English, "The dragon's mouth opens once all five quests are done, or when the last of the sword's three targets is hit while its light flashes. You have 30 seconds, and 5 more for each armor piece and for two of the four spells lit; the dragon needs 8 hits, less one for each weapon and for the other two spells lit. Each ball in the dragon's mouth before the last is a hit that adds 15 seconds and scores by how far the fire lights have run: 100,000 at first, 1,000,000 with two lit, then a chance of the jackpot (one in five with three lit) or of the extra ball light or an extra ball (one in ten with four or more), else 100,000. Bumpers, kickouts, sinks and targets add to the Super Jackpot meanwhile. The last hit slays the dragon: the Super Jackpot, 1,500,000, the jackpot, and full weapons and armor." },
 		}
 	},
 	{
