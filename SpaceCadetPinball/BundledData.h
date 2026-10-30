@@ -6,6 +6,7 @@ class BundledData
 {
 public:
 	// The folder that holds the data, ending in a separator, or empty when there is none. On Windows the data is in
-	// the executable, and the first start unpacks it into prefPath, in a folder named after the data's hash.
+	// the executable, and the first start unpacks it into prefPath, in a folder named after the data's hash; the web
+	// page preloads it.
 	static std::string Folder(const std::string& prefPath);
 };

@@ -92,6 +92,13 @@ std::string BundledData::Folder(const std::string& prefPath)
 	printf("Bundled game data: %s\n", folder.c_str());
 	return folder + PathSeparator;
 }
+#elif defined(SCP_BUNDLED_DATA_PRELOADED)
+std::string BundledData::Folder(const std::string& prefPath)
+{
+	// The web page loads SpaceCadetPinball.data there before the game starts (CMakeLists.txt)
+	printf("Bundled game data: /bundled\n");
+	return "/bundled/";
+}
 #else
 std::string BundledData::Folder(const std::string& prefPath)
 {

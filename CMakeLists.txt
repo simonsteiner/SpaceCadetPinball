@@ -24,7 +24,7 @@ option(SCP_VENDORED_SDL "Build SDL3 and SDL3_mixer from pinned sources instead o
 option(SCP_WARNINGS "Compile the game with extra warnings (-Wall -Wextra, or /W4 with MSVC) and treat them as errors" OFF)
 option(SCP_SANITIZERS "Build the game with AddressSanitizer and UndefinedBehaviorSanitizer (GCC and Clang)" OFF)
 # Set only by tools/make-test-build.sh, for test builds that are never published (docs/deployment.md)
-set(SCP_BUNDLED_DATA "" CACHE PATH "A folder of game data, in the layout the game searches, to build into a Windows test build")
+set(SCP_BUNDLED_DATA "" CACHE PATH "A folder of game data, in the layout the game searches, to build into a Windows or web test build")
 set(SCP_BUILD_COMMIT "" CACHE STRING "The commit a test build was made from, shown with the version")
 
 # Link mingw libs static
@@ -324,11 +324,12 @@ if(WIN32)
     list(APPEND SOURCE_FILES SpaceCadetPinball/SpaceCadetPinball.rc)
 endif(WIN32)
 
-# A test build's game data goes into the executable as a tar archive, which BundledData.cpp unpacks at the first start.
-# It is packed at configure time; changing a file in the folder configures again.
-if(SCP_BUNDLED_DATA)
+# A test build's game data goes into the Windows executable as a tar archive, which BundledData.cpp unpacks at the
+# first start. It is packed at configure time; changing a file in the folder configures again. The web build preloads
+# the folder instead (below).
+if(SCP_BUNDLED_DATA AND NOT EMSCRIPTEN)
     if(NOT WIN32)
-        message(FATAL_ERROR "SCP_BUNDLED_DATA is for Windows builds")
+        message(FATAL_ERROR "SCP_BUNDLED_DATA is for Windows and web builds")
     endif()
     file(GLOB_RECURSE SCP_BUNDLED_FILES LIST_DIRECTORIES false RELATIVE ${SCP_BUNDLED_DATA} ${SCP_BUNDLED_DATA}/*)
     list(SORT SCP_BUNDLED_FILES)
@@ -406,7 +407,7 @@ target_precompile_headers(SpaceCadetPinball
 
 target_link_libraries(SpaceCadetPinball imgui ${SDL_LIBRARIES})
 
-if(SCP_BUNDLED_DATA)
+if(SCP_BUNDLED_DATA AND NOT EMSCRIPTEN)
     target_compile_definitions(SpaceCadetPinball PRIVATE SCP_BUNDLED_DATA_HASH="${SCP_BUNDLED_HASH}")
 endif()
 if(SCP_BUILD_COMMIT)
@@ -480,6 +481,14 @@ if(EMSCRIPTEN)
         "--shell-file=${CMAKE_CURRENT_SOURCE_DIR}/Platform/Web/shell.html"
         )
     set_property(TARGET SpaceCadetPinball APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Platform/Web/shell.html")
+    # A test build's game data: SpaceCadetPinball.data, next to the .wasm, which the page loads into /bundled before
+    # the game starts. The page then skips asking for the player's files.
+    if(SCP_BUNDLED_DATA)
+        target_link_options(SpaceCadetPinball PRIVATE "SHELL:--preload-file \"${SCP_BUNDLED_DATA}@/bundled\"")
+        target_compile_definitions(SpaceCadetPinball PRIVATE SCP_BUNDLED_DATA_PRELOADED)
+        file(GLOB_RECURSE SCP_BUNDLED_FILES LIST_DIRECTORIES false CONFIGURE_DEPENDS ${SCP_BUNDLED_DATA}/*)
+        set_property(TARGET SpaceCadetPinball APPEND PROPERTY LINK_DEPENDS ${SCP_BUNDLED_FILES})
+    endif()
 endif()
 
 if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
