@@ -11,7 +11,7 @@ The CD image's Win95 folder has 32-bit builds of both tables, linked on the same
 | Skulduggery | `../gamedata-skulduggery/` | `PIRATES.EXE`, PE32 i386 GUI, 1996-03-17 | `5EB97B0CF190F628C7F1C02A9D148F27A508E580` |
 | Dragon's Keep | `../gamedata-dragon/` | `DRAGON.EXE`, PE32 i386 GUI, 1996-03-17 | `7BBC2FEF948613644773B7689FB0CCA28C7F1B5C` |
 
-Each folder holds the table's DAT, its BMP, the EXE and `SOUND/` with the Win95 music (MDS, and MID for Skulduggery) plus the WAVs, which only the CD's `WIN31` folder has. The same method reproduces `../gamedata-fulltilt/` byte for byte. The workspace `AGENTS.md` lists both folders.
+Each folder holds the table's DAT, its BMP, the EXE and `SOUND/` with the Win95 music (MDS, and MID for Skulduggery) plus the WAVs. The WAVs were taken from the CD's `WIN31` folder, but the `WIN95` folders have the same files: 58 in `PIRATE`, 51 in `DRAGON` (and 43 in `CADET`), identical to `WIN31`'s. The same method reproduces `../gamedata-fulltilt/` byte for byte. The workspace `AGENTS.md` lists both folders.
 
 ## F2: what works
 
