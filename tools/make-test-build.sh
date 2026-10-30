@@ -280,7 +280,7 @@ build_web() {
 		name=${entry% *}
 		hash=${entry#* }
 		if [ ! -f "$build/soundfont/$name" ] || [ "$(sha256 "$build/soundfont/$name")" != "$hash" ]; then
-			curl -sSfL -o "$build/soundfont/$name" "$soundfont_base/$name"
+			curl -sSfL --proto =https --proto-redir =https -o "$build/soundfont/$name" "$soundfont_base/$name"
 			if [ "$(sha256 "$build/soundfont/$name")" != "$hash" ]; then
 				echo "$name doesn't match its pinned SHA-256" >&2
 				exit 1
