@@ -2254,7 +2254,7 @@ namespace
 	};
 
 	// The sinks in Treasure Hunt: the ball in the sink the X marks finds treasure, else Secret Hideaway
-	void TreasureHuntSink(const TreasureSink* sink, TPinballComponent* caller)
+	void TreasureHuntSink(const TreasureSink* sink, const TPinballComponent* caller)
 	{
 		using enum MessageCode;
 		if (auto x = *sink->X; !x->FlasherOnFlag)
@@ -2298,7 +2298,7 @@ namespace
 		auto sink = std::ranges::find(TreasureSinks, caller, [](const TreasureSink& entry) { return *entry.Sink; });
 		if (GameState() == TreasureHuntState)
 		{
-			TreasureHuntSink(&*sink, caller);
+			TreasureHuntSink(std::to_address(sink), caller);
 			return;
 		}
 		if (!sink->Flash)
