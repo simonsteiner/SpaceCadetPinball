@@ -408,8 +408,9 @@ namespace
 		ModePicture{AttackShipState, "H", 1.0f, Msg::Skulduggery_PictureAttackShip},
 	};
 
-	// 0x423610 and the mode starts (0x423480 to 0x4235f0): v_lite606 flashes while a mode runs (0x423400), the mode
-	// shows its picture, and its state begins. A mode that isn't ported yet doesn't start
+	// 0x423610 and the mode starts (0x423480 to 0x4235f0): v_lite606 flashes (0x423400), the mode shows its picture,
+	// and its state begins. As in PIRATES.EXE, a mode's end leaves v_lite606 flashing; only the next launch and a new
+	// game put it out (0x423440, 0x423460). A mode that isn't ported yet doesn't start
 	bool StartMode(int state)
 	{
 		if (!ModePorted(state))
