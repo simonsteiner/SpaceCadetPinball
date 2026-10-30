@@ -88,6 +88,8 @@ struct TableView
 		static constexpr int PegLegsLootState = 11;
 		static constexpr int LavaBallState = 12;
 		static constexpr int JailbreakState = 13;
+		// The game's last ball drained: the table is locked while the brig's balls come out with the flippers dead
+		static constexpr int LastBallState = 17;
 		// The modes, states 4 to 11, Peg Leg's Loot the last
 		static constexpr int ModeCount = 8;
 		// The letters of SKULDUGGERY, one drop target each

@@ -77,6 +77,14 @@ namespace
 			std::count_if(view.Balls.begin(), view.Balls.end(), [](const auto& ball) { return ball.Active; }));
 	}
 
+	// Skulduggery's rules lock the table once the game's last ball has drained and let the brig's balls out in the same
+	// frame, with the flippers dead; that is neither a tilt nor a multiball
+	bool LastBallRelease(const TableView& view)
+	{
+		return view.Kind == TableView::TableKind::Skulduggery &&
+			   view.Pirates.State == TableView::Skulduggery::LastBallState;
+	}
+
 	bool Playing(const TableView& view)
 	{
 		return !view.GameOver && !view.Demo && view.PlayerCount > 0;
@@ -228,7 +236,7 @@ void DefinitiveStats::Update(const TableView& view)
 			Unlock("Extra Ball");
 		}
 
-		if (ActiveBalls(view) >= 2 && ActiveBalls(Previous) < 2)
+		if (ActiveBalls(view) >= 2 && ActiveBalls(Previous) < 2 && !LastBallRelease(view))
 		{
 			Add(Key("Multiballs"), 1);
 			Unlock("Multiball");
@@ -239,7 +247,7 @@ void DefinitiveStats::Update(const TableView& view)
 		if (view.Kind == TableView::TableKind::SpaceCadet)
 			Current.Tilted |= view.Tilted;
 		else
-			Current.Tilted |= view.Tilted && !Previous.Tilted && ActiveBalls(view) > 0;
+			Current.Tilted |= view.Tilted && !Previous.Tilted && ActiveBalls(view) > 0 && !LastBallRelease(view);
 		auto current = PlayerOf(view);
 		auto score = Current.Billions[current] * 1'000'000'000 + view.Scores[current];
 		constexpr std::pair<long long, const char*> Scores[] = {
