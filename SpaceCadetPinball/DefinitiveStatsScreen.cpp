@@ -54,6 +54,19 @@ namespace
 			ImGui::PopID();
 		}
 	}
+
+	// Skulduggery's modes by name, Peg Leg's Loot last, with how often each was done
+	void RenderModes()
+	{
+		using Pirates = TableView::Skulduggery;
+		for (auto mode = Pirates::FirstModeState; mode <= Pirates::PegLegsLootState; mode++)
+		{
+			ImGui::PushID(mode);
+			auto count = DefinitiveStats::ModesDone(mode);
+			Ui::MenuRow("mode", DefinitiveHud::SkulduggeryModeName(mode), false, count ? Number(count).c_str() : "-");
+			ImGui::PopID();
+		}
+	}
 } // namespace
 
 void DefinitiveStatsScreen::Open()
@@ -112,6 +125,7 @@ void DefinitiveStatsScreen::RenderStats(const TableView& view)
 	auto bestRank = DefinitiveStats::Get(Stat::BestRank);
 	auto rankName = DefinitiveHud::RankName(bestRank);
 	auto dragon = view.Kind == TableView::TableKind::DragonsKeep;
+	auto skulduggery = view.Kind == TableView::TableKind::Skulduggery;
 	std::vector<std::pair<Msg, std::string>> rows = {
 		{Msg::Definitive_StatGames, Number(DefinitiveStats::Get(Stat::Games))},
 		{Msg::Definitive_StatBestScore, Number(DefinitiveStats::Get(Stat::BestScore))},
@@ -121,6 +135,12 @@ void DefinitiveStatsScreen::RenderStats(const TableView& view)
 	{
 		rows.emplace_back(Msg::Definitive_StatQuests, Number(DefinitiveStats::Get(Stat::Quests)));
 		rows.emplace_back(Msg::Definitive_StatDragonsSlain, Number(DefinitiveStats::Get(Stat::DragonsSlain)));
+	}
+	// Skulduggery counts modes and Peg Leg's Loot found, and has no rank either
+	else if (skulduggery)
+	{
+		rows.emplace_back(Msg::Definitive_StatModes, Number(DefinitiveStats::Get(Stat::Modes)));
+		rows.emplace_back(Msg::Definitive_StatLoots, Number(DefinitiveStats::Get(Stat::Loots)));
 	}
 	else
 	{
@@ -138,16 +158,22 @@ void DefinitiveStatsScreen::RenderStats(const TableView& view)
 		ImGui::PopID();
 	}
 
-	// Every mission by name, with how often it was finished; on Dragon's Keep every quest
+	// Every mission by name, with how often it was finished; on Dragon's Keep every quest, on Skulduggery every mode
+	auto each = Msg::Definitive_StatEachMission;
+	if (dragon)
+		each = Msg::Definitive_StatEachQuest;
+	else if (skulduggery)
+		each = Msg::Definitive_StatEachMode;
 	ImGui::Dummy(ImVec2{0, 12 * scale});
 	at = ImGui::GetCursorScreenPos();
 	Ui::DrawText(ImGui::GetWindowDrawList(), Theme::TextFont(), Theme::LabelSize,
-				 ImVec2{at.x + 16 * scale, at.y + 4 * scale}, Theme::Chrome400,
-				 Text(dragon ? Msg::Definitive_StatEachQuest : Msg::Definitive_StatEachMission),
+				 ImVec2{at.x + 16 * scale, at.y + 4 * scale}, Theme::Chrome400, Text(each),
 				 ImGui::CalcItemWidth() - 32 * scale);
 	ImGui::Dummy(ImVec2{0, Theme::LabelSize * Ui::TextScale() + 12 * scale});
 	if (dragon)
 		RenderQuests();
+	else if (skulduggery)
+		RenderModes();
 	else
 	{
 		for (auto mission = 2; mission <= 18; mission++)

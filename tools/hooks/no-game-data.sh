@@ -8,7 +8,7 @@ failed=0
 for file in "$@"; do
     name=$(basename "$file" | tr '[:upper:]' '[:lower:]')
     case "$name" in
-        *.dat | *.wav | *.mid | *.exe | *.7z | table.bmp | wavemix.inf)
+        *.dat | *.wav | *.mid | *.mds | *.exe | *.7z | table.bmp | cadet.bmp | dragon.bmp | pirates.bmp | wavemix.inf)
             echo "Game data must not be committed: $file" >&2
             failed=1
             ;;

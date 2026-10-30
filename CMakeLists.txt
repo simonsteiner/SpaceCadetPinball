@@ -91,6 +91,8 @@ endif()
 
 
 set(SOURCE_FILES
+        SpaceCadetPinball/BonusTableCheats.cpp
+        SpaceCadetPinball/BonusTableCheats.h
         SpaceCadetPinball/control.cpp
         SpaceCadetPinball/control.h
         SpaceCadetPinball/control_dragon.cpp

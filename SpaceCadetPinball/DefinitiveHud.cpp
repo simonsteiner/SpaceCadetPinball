@@ -212,6 +212,103 @@ namespace
 		return y;
 	}
 
+	// SKULDUGGERY across the width, one letter for each drop target, lit as their letters on the table; the word is
+	// the table's and isn't translated. Returns the bottom
+	float DrawLetters(ImDrawList* drawList, ImVec2 at, float width, unsigned lit)
+	{
+		constexpr std::string_view Word = "SKULDUGGERY";
+		static_assert(Word.size() == TableView::Skulduggery::LetterCount);
+		auto cell = width / static_cast<float>(Word.size());
+		auto contrast = Theme::HighContrast();
+		for (size_t index = 0; index < Word.size(); index++)
+		{
+			std::string letter{Word[index]};
+			auto on = lit & (1u << static_cast<unsigned>(index));
+			auto size = Ui::TextSize(Theme::HeadingFont(), Theme::HeadingSize, letter.c_str());
+			auto litColor = contrast ? Theme::Chrome50 : Theme::LedOrange;
+			auto color = on ? litColor : Theme::Chrome600;
+			Ui::DrawText(drawList, Theme::HeadingFont(), Theme::HeadingSize,
+						 ImVec2{at.x + cell * static_cast<float>(index) + (cell - size.x) / 2, at.y}, color,
+						 letter.c_str());
+		}
+		return at.y + Theme::HeadingSize * Ui::TextScale();
+	}
+
+	// Skulduggery in place of the mission: the mode or multiball that runs, with the mode's time left; the mode picked
+	// next or the balls in play; the letters of SKULDUGGERY, which start the picked mode; and the eight modes' lamps
+	// with the modes done. Returns the bottom.
+	float DrawSkulduggeryMode(ImDrawList* drawList, const TableView& view, ImVec2 at, float width)
+	{
+		using Pirates = TableView::Skulduggery;
+		auto scale = Ui::Scale();
+		const auto& pirates = view.Pirates;
+		auto y = at.y;
+		auto multiball = pirates.State == Pirates::LavaBallState || pirates.State == Pirates::JailbreakState;
+		Ui::DrawText(drawList, Theme::TextFont(), LabelSize, ImVec2{at.x, y}, LabelColor(),
+					 Text(multiball ? Msg::Definitive_Multiball : Msg::Definitive_Mode), width);
+		y += LabelSize * Ui::TextScale() + LabelGap * scale;
+
+		if (auto name = DefinitiveHud::SkulduggeryModeName(pirates.State))
+		{
+			// The seconds left at the end of the line, as the mode's own text counts them
+			auto time = pirates.TimeLeft > 0 ? std::to_string(pirates.TimeLeft / 1000) : std::string{};
+			auto timeWidth = time.empty() ? 0.0f : Theme::LedSize(Theme::HeadingSize * scale, time.c_str()).x;
+			Ui::DrawText(drawList, Theme::HeadingFont(), Theme::HeadingSize, ImVec2{at.x, y}, Theme::Chrome50, name,
+						 width - timeWidth - (time.empty() ? 0 : LabelGap * scale));
+			if (!time.empty())
+				Theme::DrawLed(drawList, ImVec2{at.x + width - timeWidth, y}, Theme::HeadingSize * scale, time.c_str());
+			y += Theme::HeadingSize * Ui::TextScale() + 6 * scale;
+		}
+
+		std::string note;
+		if (multiball)
+			note = Ui::Fill(Text(Msg::Definitive_BallsInPlay), std::to_string(pirates.BallsInPlay));
+		else if (auto picked = DefinitiveHud::SkulduggeryModeName(pirates.PickedMode))
+			note = Ui::Fill(Text(Msg::Definitive_NextMode), picked);
+		if (!note.empty())
+			y += Ui::DrawWrapped(drawList, Theme::TextFont(), NoteSize, ImVec2{at.x, y}, NoteColor(), note.c_str(),
+								 width) +
+				 LabelGap * scale;
+
+		y = DrawLetters(drawList, ImVec2{at.x, y}, width, pirates.Letters) + LabelGap * scale;
+
+		// The round's modes lit as their lights on the table, and the game's count beside them
+		auto lampsWidth = LampsWidth(Pirates::ModeCount, scale);
+		DrawLamps(drawList, ImVec2{at.x, y}, Pirates::ModeCount, pirates.ModeLights, scale);
+		auto done = Ui::Fill(Text(Msg::Definitive_ModesDone), std::to_string(pirates.ModesDone));
+		auto noteHeight = NoteSize * Ui::TextScale();
+		auto lampsHeight = LampRadius * 2 * scale;
+		Ui::DrawText(drawList, Theme::TextFont(), NoteSize,
+					 ImVec2{at.x + lampsWidth + Gap * scale, y + (lampsHeight - noteHeight) / 2}, NoteColor(),
+					 done.c_str(), width - lampsWidth - Gap * scale);
+		return y + std::max(lampsHeight, noteHeight);
+	}
+
+	// Skulduggery in place of the rank: the jackpot, and the brig's balls, the coins, the special treasures and the
+	// map pieces lit as their lights on the table. Returns the bottom.
+	float DrawSkulduggeryItems(ImDrawList* drawList, const TableView& view, ImVec2 at, float width)
+	{
+		auto scale = Ui::Scale();
+		const auto& pirates = view.Pirates;
+		auto jackpot = Ui::FormatScore(pirates.Jackpot, 0);
+		auto size = Theme::LedSize(OtherScoreSize * scale, jackpot.c_str());
+		auto y = DrawRow(drawList, Text(Msg::Definitive_Jackpot), at, width, size.x, size.y,
+						 [drawList, scale, &jackpot](ImVec2 position)
+						 { Theme::DrawLed(drawList, position, OtherScoreSize * scale, jackpot.c_str()); }) +
+				 OtherGap * scale;
+		// The third ball in the brig starts Jailbreak
+		for (auto [label, count, lit] : {std::tuple{Msg::Definitive_Brig, 3, pirates.BrigBalls},
+										 {Msg::Definitive_Coins, pirates.CoinLights, pirates.Coins},
+										 {Msg::Definitive_SpecialTreasures, pirates.TreasureLights, pirates.Treasures},
+										 {Msg::Definitive_MapPieces, pirates.MapPieceLights, pirates.MapPieces}})
+		{
+			y = DrawRow(drawList, Text(label), ImVec2{at.x, y + OtherGap * scale}, width, LampsWidth(count, scale),
+						LampRadius * 2 * scale, [drawList, count, lit, scale](ImVec2 position)
+						{ DrawLamps(drawList, position, count, FirstLamps(std::min(lit, count)), scale); });
+		}
+		return y;
+	}
+
 	// The info text box's message in a box, in the LED orange of the table's text: from the top of its place at the
 	// earliest, else ending at bottom; returns the box's bottom. Without a draw list it only measures.
 	float DrawMessage(ImDrawList* drawList, const TableView& view, ImVec2 at, float width, float bottom)
@@ -269,6 +366,14 @@ const char* DefinitiveHud::QuestName(int state)
 	if (state < Dragon::FirstQuestState || state > Dragon::SlayDragonState)
 		return nullptr;
 	return Text(static_cast<Msg>(std::to_underlying(Msg::Definitive_DragonHoard) + state - Dragon::FirstQuestState));
+}
+
+const char* DefinitiveHud::SkulduggeryModeName(int state)
+{
+	using Pirates = TableView::Skulduggery;
+	if (state < Pirates::FirstModeState || state > Pirates::JailbreakState)
+		return nullptr;
+	return Text(static_cast<Msg>(std::to_underlying(Msg::Definitive_AttackShip) + state - Pirates::FirstModeState));
 }
 
 const char* DefinitiveHud::RankName(int rank)
@@ -338,6 +443,12 @@ float DefinitiveHud::DrawContents(ImDrawList* drawList, const TableView& view, I
 	{
 		y = DrawDragonQuest(drawList, view, ImVec2{left, y}, width) + Gap * scale;
 		y = DrawDragonItems(drawList, view, ImVec2{left, y}, width) + Gap * scale;
+		return DrawMessage(drawList, view, ImVec2{left, y}, width, max.y - Padding * scale) + Padding * scale - min.y;
+	}
+	if (view.Kind == TableView::TableKind::Skulduggery)
+	{
+		y = DrawSkulduggeryMode(drawList, view, ImVec2{left, y}, width) + Gap * scale;
+		y = DrawSkulduggeryItems(drawList, view, ImVec2{left, y}, width) + Gap * scale;
 		return DrawMessage(drawList, view, ImVec2{left, y}, width, max.y - Padding * scale) + Padding * scale - min.y;
 	}
 
@@ -428,6 +539,15 @@ float DefinitiveHud::DrawBand(ImDrawList* drawList, const TableView& view, ImVec
 		auto itemsY =
 			DrawDragonItems(drawList, view, ImVec2{itemsLeft, columns ? y : questY + Gap * scale}, columnWidth);
 		y = std::max(questY, itemsY) + Gap * scale;
+		return DrawMessage(drawList, view, ImVec2{left, y}, width, max.y - Padding * scale) + Padding * scale - min.y;
+	}
+	if (view.Kind == TableView::TableKind::Skulduggery)
+	{
+		auto modeY = DrawSkulduggeryMode(drawList, view, ImVec2{left, y}, columnWidth);
+		auto itemsLeft = columns ? left + columnWidth + Gap * scale : left;
+		auto itemsY =
+			DrawSkulduggeryItems(drawList, view, ImVec2{itemsLeft, columns ? y : modeY + Gap * scale}, columnWidth);
+		y = std::max(modeY, itemsY) + Gap * scale;
 		return DrawMessage(drawList, view, ImVec2{left, y}, width, max.y - Padding * scale) + Padding * scale - min.y;
 	}
 	auto missionY = label(Text(Msg::Definitive_Mission), left, columnWidth, y);

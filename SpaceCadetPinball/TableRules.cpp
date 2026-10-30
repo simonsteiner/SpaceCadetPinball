@@ -51,7 +51,8 @@ const TableRules& TableRules::Current()
 	}
 }
 
-void TableRules::UnstuckBonusTableBall(TPinballTable& table, TBall& ball)
+void TableRules::UnstuckBonusTableBall(TPinballTable& table, TBall& ball,
+									   std::initializer_list<const TCollisionComponent*> resting)
 {
 	if (table.Plunger && InBounds(table, ball, *table.Plunger))
 		return;
@@ -59,6 +60,9 @@ void TableRules::UnstuckBonusTableBall(TPinballTable& table, TBall& ball)
 		for (auto flipper : *flippers)
 			if (InBounds(table, ball, *flipper))
 				return;
+	for (auto component : resting)
+		if (InBounds(table, ball, *component))
+			return;
 
 	if (ball.StuckCounter <= 20)
 	{

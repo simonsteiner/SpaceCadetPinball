@@ -4,7 +4,8 @@
 set -euo pipefail
 dir=${1:?usage: tools/check-no-game-data.sh <folder>}
 found=$(find "$dir" -type f \( -iname '*.dat' -o -iname '*.wav' -o -iname '*.mid' -o -iname '*.mds' -o -iname '*.exe' \
-	-o -iname 'table.bmp' -o -iname 'wavemix.inf' \) -print)
+	-o -iname 'table.bmp' -o -iname 'cadet.bmp' -o -iname 'dragon.bmp' -o -iname 'pirates.bmp' -o -iname 'wavemix.inf' \) \
+	-print)
 if [ -n "$found" ]; then
 	echo "Game data must not be published:"
 	echo "$found"

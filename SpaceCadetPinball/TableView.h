@@ -79,6 +79,53 @@ struct TableView
 		int BallSaves;
 	};
 
+	// Skulduggery's own state, which its rules fill (control_skulduggery.cpp); all zero on the other tables
+	struct Skulduggery
+	{
+		// The rules' states the HUD and the guide tell apart; control_skulduggery.cpp checks they match its own
+		static constexpr int PlayState = 2;
+		static constexpr int FirstModeState = 4;
+		static constexpr int PegLegsLootState = 11;
+		static constexpr int LavaBallState = 12;
+		static constexpr int JailbreakState = 13;
+		// The game's last ball drained: the table is locked while the brig's balls come out with the flippers dead
+		static constexpr int LastBallState = 17;
+		// The modes, states 4 to 11, Peg Leg's Loot the last
+		static constexpr int ModeCount = 8;
+		// The letters of SKULDUGGERY, one drop target each
+		static constexpr int LetterCount = 11;
+
+		// The rules' state, as PIRATES.EXE numbers it: 2 play, 3 the launch, 4 to 11 the modes (Attack Ship, Bermuda
+		// Triangle, Storm, Tavern, Treasure Hunt, Mutiny, Sword Fight, Peg Leg's Loot), 12 Lava-Ball, 13 Jailbreak;
+		// the others are the serve, the end of a ball and the game's
+		int State;
+		// The mode picked to start next, whose light flashes, by its state (4 to 11); 0 for none
+		int PickedMode;
+		// Milliseconds left of the time of the mode that runs; 0 while none runs or its light sweep still turns
+		int TimeLeft;
+		// The modes done since their round began, one bit each from bit 0 for state 4, as their lights show
+		unsigned ModeLights;
+		// The modes the current player has played in this game, which the Mode Bonus counts
+		int ModesDone;
+		// The letters of SKULDUGGERY spelled, one bit each from bit 0 for the S
+		unsigned Letters;
+		int Jackpot;
+		// The balls the brig holds; the third starts Jailbreak
+		int BrigBalls;
+		// The balls in play, more than one in a multiball
+		int BallsInPlay;
+		// The game's last ball drained and the brig's balls come out, the flippers dead (0x43aba8); a tilt enters
+		// LastBallState too, without this
+		bool LastBallRelease;
+		// The coins, special treasures and map pieces lit, and how many lights each has
+		int Coins;
+		int CoinLights;
+		int Treasures;
+		int TreasureLights;
+		int MapPieces;
+		int MapPieceLights;
+	};
+
 	struct Light
 	{
 		// The light's group name in the DAT file, such as "lite198"
@@ -125,6 +172,7 @@ struct TableView
 	// Which table this is
 	TableKind Kind;
 	DragonsKeep Dragon;
+	Skulduggery Pirates;
 
 	// 64-bit FNV-1a over every field, so two runs can compare their views frame by frame
 	uint64_t Hash() const;

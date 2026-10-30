@@ -7,7 +7,8 @@ struct TableView;
 enum class Msg : int;
 
 // Space Cadet 2026's stats and achievements, worked out from the table view: games played, missions finished, ranks
-// reached, balls saved and the like; on Dragon's Keep, quests done and dragons slain in place of missions and ranks.
+// reached, balls saved and the like; on Dragon's Keep, quests done and dragons slain in place of missions and ranks,
+// and on Skulduggery modes done and Peg Leg's Loot found.
 // They are kept per table in the settings file, next to the high scores, and never leave the player's machine.
 class DefinitiveStats
 {
@@ -24,6 +25,9 @@ public:
 		// Dragon's Keep's
 		Quests,
 		DragonsSlain,
+		// Skulduggery's
+		Modes,
+		Loots,
 		Count,
 	};
 
@@ -33,6 +37,7 @@ public:
 		Every,
 		SpaceCadet,
 		DragonsKeep,
+		Skulduggery,
 	};
 
 	struct Achievement
@@ -54,6 +59,8 @@ public:
 	static int MissionsFinished(int mission);
 	// How often a Dragon's Keep quest was done, by its state, 4 for Dragon Hoard to 8 for Wizard's Fury
 	static int QuestsDone(int quest);
+	// How often a Skulduggery mode was done, by its state, 4 for Attack Ship to 11 for Peg Leg's Loot
+	static int ModesDone(int mode);
 	static std::span<const Achievement> Achievements();
 	// Whether the table in the view offers an achievement
 	static bool Offered(const Achievement& achievement, const TableView& view);
@@ -69,6 +76,8 @@ private:
 	static std::string Key(const char* name);
 	// The key of a Dragon's Keep quest's count, by its state
 	static std::string QuestKey(int quest);
+	// The key of a Skulduggery mode's count, by its state
+	static std::string ModeKey(int mode);
 	static int Read(const std::string& key);
 	static void Add(const std::string& key, int amount);
 	static void Raise(const std::string& key, int value);
@@ -76,4 +85,6 @@ private:
 	// Dragon's Keep's quests done, dragons slain and balls saved, in place of Space Cadet's missions, ranks and balls
 	// saved, which its view doesn't have
 	static void UpdateDragon(const TableView& view, int player, bool samePlayer);
+	// Skulduggery's modes done and Peg Leg's Loot found, in place of Space Cadet's missions and ranks
+	static void UpdateSkulduggery(const TableView& view, int player, bool samePlayer);
 };

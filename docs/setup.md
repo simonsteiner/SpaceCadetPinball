@@ -9,7 +9,7 @@ The game needs the original game data, which is not included. Copy the `.DAT` fi
 - 3D Pinball for Windows (`PINBALL.DAT`), or
 - Full Tilt! Pinball (`CADET.DAT`, or `DEMO.DAT` from the demo).
 
-Full Tilt! Pinball also has Dragon's Keep, a second table the game plays in both editions. Its texts are in English in every language for now.
+Full Tilt! Pinball also has Dragon's Keep and Skulduggery, two more tables the game plays in both editions. Their texts are in English in every language for now.
 
 3D Pinball for Windows came with Windows NT 4.0, Windows 2000, Windows Me and Windows XP, and before them with Microsoft Plus! for Windows 95. On an installed 32-bit Windows XP it is in (the x64 Edition shipped without it) `C:\Program Files\Windows NT\Pinball`. On the Windows XP CD its files are compressed (`PINBALL.DA_`, `SOUND1.WA_` and so on); unpack them with `expand` on Windows or `cabextract` on Linux and macOS. Full Tilt! Pinball, which has the same table, came on its own CD. Use a copy you own: the project doesn't distribute the data or point to downloads of it, and the web build only reads game files the player picks.
 
@@ -21,11 +21,11 @@ The game searches these folders in order, for each table on its own, and uses th
 4. the user preferences folder (`SDL_GetPrefPath`, for example `~/.local/share/SpaceCadetPinball/` on Linux)
 5. Linux and macOS only: `/usr/local/share/SpaceCadetPinball/`, then `/usr/share/SpaceCadetPinball/`
 
-For Space Cadet it tries `CADET.DAT`, then `PINBALL.DAT`, then `DEMO.DAT` in each folder, in upper case and then lower case; the "Prefer 3DPB Data" menu option swaps the first two. Full Tilt!'s Dragon's Keep is `DRAGON.DAT`. A table's sounds and music go with its data file: 3D Pinball's next to `PINBALL.DAT`, Full Tilt!'s in the `SOUND` folder next to its `.DAT`. The tables' file names don't clash, so `DRAGON.DAT` and its `SOUND` folder can go into the same folder as Space Cadet's data.
+For Space Cadet it tries `CADET.DAT`, then `PINBALL.DAT`, then `DEMO.DAT` in each folder, in upper case and then lower case; the "Prefer 3DPB Data" menu option swaps the first two. Full Tilt!'s Dragon's Keep is `DRAGON.DAT`, and its Skulduggery `PIRATES.DAT`. A table's sounds and music go with its data file: 3D Pinball's next to `PINBALL.DAT`, Full Tilt!'s in the `SOUND` folder next to its `.DAT`. The tables' file names don't clash, so `DRAGON.DAT`, `PIRATES.DAT` and their `SOUND` folders can go into the same folder as Space Cadet's data.
 
-Full Tilt! installs each table in a folder of its own, `CADET` and `DRAGON` (`Cadet` and `Dragon` on an installed copy). So that an installation works as it is, each table is also looked for in its folder under each of the folders above, and next to a folder that is one of Full Tilt!'s three (`CADET`, `DRAGON` and Skulduggery's `PIRATE`): Space Cadet in `CADET`, Dragon's Keep in `DRAGON`. Pointing the game at the installation's folder, or at its `CADET` folder, finds both.
+Full Tilt! installs each table in a folder of its own, `CADET`, `DRAGON` and `PIRATE` (`Cadet`, `Dragon` and `Pirate` on an installed copy; the Windows 3.1 release has `PIRATES`). So that an installation works as it is, each table is also looked for in its folder under each of the folders above, and next to a folder that is one of Full Tilt!'s: Space Cadet in `CADET`, Dragon's Keep in `DRAGON`, Skulduggery in `PIRATE` or `PIRATES`. Pointing the game at the installation's folder, or at one of its tables' folders, finds all three.
 
-With the data of more than one table found, the game loads the table chosen last (`Table` in `imgui_pb.ini`: `SpaceCadet` or `DragonsKeep`), and Space Cadet before anything was chosen. When the chosen table's data is gone, it loads the first table it finds, Space Cadet first, and keeps the choice for when the data is back. A folder with only `DRAGON.DAT` loads Dragon's Keep.
+With the data of more than one table found, the game loads the table chosen last (`Table` in `imgui_pb.ini`: `SpaceCadet`, `DragonsKeep` or `Skulduggery`), and Space Cadet before anything was chosen. When the chosen table's data is gone, it loads the first table it finds, Space Cadet first, and keeps the choice for when the data is back. A folder with only `DRAGON.DAT` loads Dragon's Keep, one with only `PIRATES.DAT` Skulduggery.
 
 When it finds none, Space Cadet 2026 opens a "Game data needed" screen instead of the table. It lists the places it looked and offers the system's folder dialog; the game checks the folder chosen for any table's data file, saves it as the Game Data Folder and restarts to load from it. The files stay where they are. A folder without data keeps the screen open with a note. Settings → Edition shows the folder in use under "Game data folder" and changes it the same way; a folder without data leaves the old one in use. On Linux the dialog needs an XDG desktop portal or `zenity`; without either, the screen and the Settings row say that the dialog could not open, and the data has to go into one of the places above. The web build has its own page for picking the files instead. Classic shows the error box described in [Troubleshooting](#troubleshooting).
 
@@ -35,12 +35,18 @@ When it finds none, Space Cadet 2026 opens a "Game data needed" screen instead o
 
 Copy `DRAGON.DAT`, `DRAGON.BMP` and the `SOUND` folder from Full Tilt!'s `DRAGON` folder; on the CD that is `WIN95\FULLTILT\DRAGON`. Put them next to Space Cadet's data, or anywhere the game looks; an installed copy of Full Tilt! works as it is. The `SOUND` folder holds the table's sound effects (`TABC*.WAV`) and its music (`TABC1.MDS` to `TABC7.MDS`). `DRAGON.BMP` is the table's picture in the table lists.
 
-Once the game finds the data of both tables, it lets the player pick one:
+### Skulduggery
+
+Copy `PIRATES.DAT`, `PIRATES.BMP` and the `SOUND` folder from Full Tilt!'s `PIRATE` folder; on the CD that is `WIN95\FULLTILT\PIRATE`. Put them next to Space Cadet's data, or anywhere the game looks; an installed copy of Full Tilt! works as it is. The `SOUND` folder holds the table's sound effects (`TABB*.WAV`) and its music (`TABB1.MDS` to `TABB6.MDS`, with the same songs as `.MID`). `PIRATES.BMP` is the table's picture in the table lists.
+
+### Picking a table
+
+Once the game finds the data of more than one table, it lets the player pick one:
 
 - **Space Cadet 2026:** Table on the title, under Play, names the table loaded. It opens the list of tables, each with the game its data comes from and its best score; choosing another table loads it.
 - **Classic:** Options → Select Table... (Ctrl+T), as in Full Tilt!, pauses the game and shows the tables' pictures side by side. Pick one with the arrow keys or a click and choose Ok, or press Enter or double-click it. The table loaded is greyed out.
 
-Loading another table restarts the game in its window and ends a game in progress. The choice is kept for the next start. Each table has its own high scores, stats and table resolution. With the data of only one table, neither list shows. In the web build, add the `DRAGON` folder on the start page as well.
+Loading another table restarts the game in its window and ends a game in progress. The choice is kept for the next start. Each table has its own high scores, stats and table resolution. With the data of only one table, neither list shows. In the web build, add the `DRAGON` and `PIRATE` folders on the start page as well.
 
 ## Build
 
@@ -264,7 +270,7 @@ No SoundFont ships with the game. Music needs an audio device, so `-noaudio` and
 | `-replay <file>` | play a replay back headless, check every frame, and exit; status 1 if play differs. It loads the table the replay recorded, whichever table was chosen |
 | `-edition classic` or `-edition definitive` | start in that edition and save it, like the Tab switch; playback runs Classic unless this says otherwise, and saves nothing |
 | `-table dragon` | load Full Tilt!'s Dragon's Keep (`DRAGON.DAT`) for this run, whichever table was chosen, without changing the choice; for test runs |
-| `-table skulduggery` | load Full Tilt!'s Skulduggery (`PIRATES.DAT`) the same way; until its rules are done, only this flag or a recording of it loads it, and the table list shows it only when one of them did |
+| `-table skulduggery` | load Full Tilt!'s Skulduggery (`PIRATES.DAT`) the same way |
 
 ## Troubleshooting
 

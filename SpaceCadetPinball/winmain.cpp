@@ -121,6 +121,19 @@ std::map<SDL_JoystickID, std::set<int>> winmain::GamepadHeld{};
 std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> winmain::TouchBindings{};
 Uint64 winmain::EditionHintEnd = 0;
 
+// A bonus table's Cheats menu: its <cheats>, and "hidden test", which DRAGON.EXE and PIRATES.EXE take with a Tab and
+// which turns cheat mode only on
+static void BonusTableCheatsMenu(std::initializer_list<const char*> cheats)
+{
+	if (ImGui::MenuItem("hidden test", nullptr, pb::cheat_mode))
+		pb::PushCheat("hidden\ttest");
+	for (auto cheat : cheats)
+	{
+		if (ImGui::MenuItem(cheat))
+			pb::PushCheat(cheat);
+	}
+}
+
 // Splits the command line at spaces and tabs; double quotes keep an argument with spaces together
 static std::vector<std::string> SplitArgs(LPCSTR cmdLine)
 {
@@ -509,8 +522,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			printf("%s\n", message.c_str());
 		return 1;
 	}
-	// A test run of a bonus table, whichever table the player chose; Skulduggery loads only this way until its rules
-	// are done (Phase F6)
+	// A test run of a bonus table, whichever table the player chose
 	auto tableArg = GetArgValue(args, "-table");
 	if (tableArg == "dragon")
 		pb::RequestedTable = Tables::DragonsKeep;
@@ -1525,15 +1537,13 @@ void winmain::RenderUi()
 			}
 			if (pb::Table == Tables::DragonsKeep && ImGui::BeginMenu("Cheats"))
 			{
-				// DRAGON.EXE's, which takes a Tab in "hidden test" and turns cheat mode only on
-				if (ImGui::MenuItem("hidden test", nullptr, pb::cheat_mode))
-					pb::PushCheat("hidden\ttest");
-				if (ImGui::MenuItem("1max"))
-					pb::PushCheat("1max");
-				if (ImGui::MenuItem("nmax"))
-					pb::PushCheat("nmax");
-				if (ImGui::MenuItem("quote"))
-					pb::PushCheat("quote");
+				BonusTableCheatsMenu({"1max", "nmax", "quote"});
+				ImGui::EndMenu();
+			}
+			else if (pb::Table == Tables::Skulduggery && ImGui::BeginMenu("Cheats"))
+			{
+				// gmax switches the balls to their second bitmap, as Dragon's Keep's PB does
+				BonusTableCheatsMenu({"1max", "nmax", "gmax", "quote"});
 				ImGui::EndMenu();
 			}
 			else if (!pb::BonusTable() && ImGui::BeginMenu("Cheats"))

@@ -163,9 +163,9 @@ namespace
 	}
 
 	// What the game knows of each DAT file it can load: the table it holds, the key the player's choice is saved
-	// as, the folder of a Full Tilt! installation it is in, the window title, and the table's name and game for the
-	// table menus, which stay as they are in every language. Space Cadet's DAT files share a key, and are tried in
-	// this order.
+	// as, the folder of a Full Tilt! installation it is in, the window title, the table's name and game for the
+	// table menus, which stay as they are in every language, and the folder of Full Tilt!'s Windows 3.1 release
+	// where it differs. Space Cadet's DAT files share a key, and are tried in this order.
 	struct TableInfo
 	{
 		Tables Table;
@@ -175,6 +175,7 @@ namespace
 		Msg Caption;
 		const char* Name;
 		const char* Source;
+		const char* Win31Folder = nullptr;
 	};
 
 	constexpr std::array TableInfos{
@@ -187,7 +188,7 @@ namespace
 		TableInfo{Tables::DragonsKeep, "DRAGON.DAT", "DragonsKeep", "DRAGON", Msg::Dragon_Caption, "Dragon's Keep",
 				  "Full Tilt! Pinball"},
 		TableInfo{Tables::Skulduggery, "PIRATES.DAT", "Skulduggery", "PIRATE", Msg::Skulduggery_Caption, "Skulduggery",
-				  "Full Tilt! Pinball"},
+				  "Full Tilt! Pinball", "PIRATES"},
 	};
 
 	const TableInfo& Info(Tables table)
@@ -211,9 +212,14 @@ namespace
 		return names;
 	}
 
-	// The folders a Full Tilt! installation keeps its tables in, each with its EXE, DAT and SOUND folder:
-	// Space Cadet, Dragon's Keep and Skulduggery
-	constexpr std::array FullTiltFolders{"CADET", "DRAGON", "PIRATE"};
+	// Whether <name>, in upper case, is a folder a Full Tilt! installation keeps a table in, with its EXE, DAT and
+	// SOUND folder: any table's FullTiltFolder, or its Win31Folder where the Windows 3.1 release differs
+	bool IsFullTiltFolder(std::string_view name)
+	{
+		return std::ranges::any_of(
+			TableInfos, [name](const TableInfo& info)
+			{ return name == info.FullTiltFolder || (info.Win31Folder && name == info.Win31Folder); });
+	}
 
 	bool IsSeparator(char c)
 	{
@@ -225,13 +231,19 @@ namespace
 	}
 
 	// The folders to look in for a table, given a folder that ends in a separator or is empty: the folder, the
-	// table's Full Tilt! folder under it, and that folder next to it when the folder is one of Full Tilt!'s.
+	// table's Full Tilt! folders under it, and those folders next to it when the folder is one of Full Tilt!'s.
 	// Full Tilt!'s CD has the folders in upper case, its installer wrote them capitalized ("Dragon").
 	std::vector<std::string> TableFolders(const std::string& folder, Tables table)
 	{
-		std::string upper = Info(table).FullTiltFolder;
-		auto lower = ToLower(upper);
-		std::array spellings{upper, lower, upper.substr(0, 1) + lower.substr(1)};
+		std::vector<std::string> own{Info(table).FullTiltFolder};
+		if (Info(table).Win31Folder)
+			own.emplace_back(Info(table).Win31Folder);
+		std::vector<std::string> spellings;
+		for (const auto& upper : own)
+		{
+			auto lower = ToLower(upper);
+			spellings.insert(spellings.end(), {upper, lower, upper.substr(0, 1) + lower.substr(1)});
+		}
 
 		std::vector<std::string> folders{folder};
 		for (const auto& spelling : spellings)
@@ -258,7 +270,7 @@ namespace
 		}
 		// A table's own folder isn't next to itself
 		name = ToUpper(name);
-		if (name == upper || std::ranges::find(FullTiltFolders, name) == FullTiltFolders.end())
+		if (std::ranges::find(own, name) != own.end() || !IsFullTiltFolder(name))
 			return folders;
 		for (const auto& spelling : spellings)
 			folders.push_back(parent + spelling + PathSeparator);
@@ -300,10 +312,6 @@ std::vector<TableData> pb::FindTables(const std::vector<const char*>& dataSearch
 	std::vector<TableData> found;
 	for (auto table : {SpaceCadet3DPB, DragonsKeep, Skulduggery})
 	{
-		// Skulduggery is only for test runs until its rules are done (F6): only -table skulduggery or a recording of
-		// it looks for its data
-		if (table == Skulduggery && RequestedTable != Skulduggery)
-			continue;
 		if (auto data = FindTable(dataSearchPaths, table))
 			found.push_back(std::move(*data));
 	}
