@@ -857,7 +857,9 @@ namespace
 	}
 
 	// Each lit light of <group> goes out, and then, as CADET.EXE's 0x31 does, its first <count> plus one light up;
-	// this port's TLightGroupToggleSplitIndex skips a <count> of all the lights, which CADET.EXE lights in full
+	// this port's TLightGroupToggleSplitIndex skips a <count> of all the lights, which CADET.EXE lights in full. So a
+	// count saved from TLightGroupGetOnCount comes back one light more, none lit as one: PIRATES.EXE's Treasure Hunt
+	// saves the orbits' counts with 0x29 and gives them back with 0x31 (0x42b090) all the same
 	void LightFirst(TLightGroup* group, int count)
 	{
 		using enum MessageCode;
