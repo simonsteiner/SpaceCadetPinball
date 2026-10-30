@@ -2345,7 +2345,8 @@ namespace
 	}
 
 	// 0x424290: with all of WINDS lit, its letters flash out and a map piece follows. Returns how long the map piece's
-	// texts show past <time>, else <time>
+	// texts show past <time>, else <time>. A letter counts while it is on or still flashing, as PIRATES.EXE checks each
+	// light's three flags, so a lane during the 1 s flash out can give another map piece there too
 	float LaneWindsAward(float time)
 	{
 		using enum MessageCode;
