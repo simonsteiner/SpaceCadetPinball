@@ -4065,9 +4065,10 @@ namespace
 		pirates.Jackpot = Table->JackpotScore;
 		pirates.BrigBalls = BrigBalls;
 		pirates.BallsInPlay = Table->MultiballCount;
-		for (auto [group, lit, count] : {std::tuple{coin_light_group, &pirates.Coins, &pirates.CoinLights},
-										 {special_treasure_light_group, &pirates.Treasures, &pirates.TreasureLights},
-										 {map_piece_light_group, &pirates.MapPieces, &pirates.MapPieceLights}})
+		for (const auto& [group, lit, count] :
+			 {std::tuple{coin_light_group, &pirates.Coins, &pirates.CoinLights},
+			  {special_treasure_light_group, &pirates.Treasures, &pirates.TreasureLights},
+			  {map_piece_light_group, &pirates.MapPieces, &pirates.MapPieceLights}})
 		{
 			*lit = group->Message(TLightGroupGetOnCount, 0.0f);
 			*count = group->Message(TLightGroupGetLightCount, 0.0f);

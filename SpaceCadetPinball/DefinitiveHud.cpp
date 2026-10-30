@@ -225,7 +225,8 @@ namespace
 			std::string letter{Word[index]};
 			auto on = lit & (1u << static_cast<unsigned>(index));
 			auto size = Ui::TextSize(Theme::HeadingFont(), Theme::HeadingSize, letter.c_str());
-			auto color = on ? (contrast ? Theme::Chrome50 : Theme::LedOrange) : Theme::Chrome600;
+			auto litColor = contrast ? Theme::Chrome50 : Theme::LedOrange;
+			auto color = on ? litColor : Theme::Chrome600;
 			Ui::DrawText(drawList, Theme::HeadingFont(), Theme::HeadingSize,
 						 ImVec2{at.x + cell * static_cast<float>(index) + (cell - size.x) / 2, at.y}, color,
 						 letter.c_str());
