@@ -1116,6 +1116,9 @@ namespace
 			PlayTrack(MidiTracks::Track4);
 			tabb65wave->Play(nullptr, "TavernStateControl");
 			ResetBank(drop_banks[0]);
+			// The mugs go out but keep their bits in v_lite547's message field, and nothing lights them again when
+			// the mode ends, so the next mug sinks after Tavern count the mugs lit before it, as in PIRATES.EXE:
+			// TLight's 20 doesn't touch the field (CADET.EXE's 0x40a490), and 0x42ab40 doesn't light them
 			for (auto light : tavern_lights)
 				light->Message(TLightResetAndTurnOff, 0.0f);
 			a_spot6->MessageField = 0;
@@ -1137,6 +1140,8 @@ namespace
 			BloceDown();
 			break;
 		case BallDrained:
+			// Unlike the timer's end, this leaves the mugs as they are, as 0x42b420 does: a mug still flashing goes
+			// out when its flash ends, and its timer no longer reaches Tavern
 			mode_timer->Message(TTimerResetTimer, -1.0f);
 			TableHook(ModeEnd, nullptr);
 			break;
