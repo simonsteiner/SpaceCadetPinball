@@ -2444,6 +2444,7 @@ namespace
 		}
 		else if (code == ControlRampExitToLayer2)
 		{
+			// 0x428f70 drops it on 0x56, the ramp's exit wall, not on the layer change as the ball enters the ramp
 			a_blocc->Message(TAnimatedBlockerSetState, -1.0f);
 		}
 	}
