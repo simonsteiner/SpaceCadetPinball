@@ -272,7 +272,9 @@ namespace
 		return info_text_box->MessageField;
 	}
 
-	// drain's message field, the Ship's Hold: the bonus a lit v_lite570 carries to the next ball, also per player
+	// drain's message field, the Ship's Hold: the bonus a lit v_lite570 carries to the next ball, also per player.
+	// The drain's Reset, which a ball save and a drain during multiball send, clears it for every player, as Full
+	// Tilt's TDrain does (0x418770 calls 0x413550 in CADET.EXE and PIRATES.EXE)
 	int& ShipsHold()
 	{
 		return drain->MessageField;
@@ -287,13 +289,13 @@ namespace
 	int BallSaveStep;       // 0x435d90: 3 lit until the ball leaves the lane, 2 lit 10 s, 1 flashing 5 s, 0 off
 	int DrainStep;          // 0x435d08: what the drain's timer does next
 	bool LastBallRelease;   // 0x43aba8: the game's last ball drained, and the flippers are dead until the bonus ends
-	bool ClearBuriedLights; // 0x43abb0: set when Peg Leg's Loot ends; the next drain turns its lights off
-	bool Launching;         // 0x435d30: set from the launch until play starts
+	bool ClearBuriedLights; // 0x43abb0: set when Peg Leg's Loot ends (#140); the next drain turns its lights off
+	bool Launching;         // 0x435d30: set from the launch until play starts; the modes read it (#128)
 	bool TallyQuiet;        // 0x435d34: count the bonus without showing it
 	int TallyStep;          // 0x435d38
 	int TallyTotal;         // 0x435d00
 	int TargetHits;         // 0x435d48, Target Bonus: the popup targets hit this ball
-	int BrigBalls;          // 0x435d3c: the balls the brig holds, which the last ball releases
+	int BrigBalls;          // 0x435d3c: the balls the brig holds (#139), which the last ball releases
 	int ModeFlags;          // 0x435cf8: the running mode's own count or flags; Attack Ship counts the ships captured
 	int ModeAwardStep;      // 0x435d04: the next of a mode's awards
 	const TPinballComponent* LastScorer; // 0x435d44: the component that scored last, if any
@@ -459,6 +461,12 @@ namespace
 		return bank.Targets.front()->MessageField;
 	}
 
+	// Every target of the bank is down
+	bool BankFull(const DropBank& bank)
+	{
+		return AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1);
+	}
+
 	// 0x424f70, 0x424440 and 0x4252d0: the bank's targets come up again
 	void ResetBank(const DropBank& bank)
 	{
@@ -621,9 +629,7 @@ namespace
 	// The fathom lights' pictures in the second font (0x43aad8), by how many are lit: an anchor and the multiplier
 	constexpr std::array FathomPictures{":", ":=<", ":><", ":?<", ":@<", ":A<", ":B<"};
 
-	// 0x424350: the fathom lights flash and stay on, the multiplier is one more than those lit, and with a <time> of 0
-	// or more its picture shows for <time> plus 2 s. The light group passes the flash to all of them, as CADET.EXE's
-	// does, so this lights them all
+	// The fathom lights' picture for <lit> lights, the multiplier one more, for <time>
 	void ShowFathoms(int lit, float time)
 	{
 		auto index = std::clamp(lit, 0, static_cast<int>(FathomPictures.size()) - 1);
@@ -633,6 +639,9 @@ namespace
 		ShowPicture(FathomPictures[index], time, words.data());
 	}
 
+	// 0x424350: the fathom lights flash and stay on, the multiplier is one more than those lit, and with a <time> of 0
+	// or more its picture shows for <time> plus 2 s. The light group passes the flash to all of them, as CADET.EXE's
+	// does, so this lights them all. Returns how long the picture shows
 	float LightFathoms(float time)
 	{
 		using enum MessageCode;
@@ -760,8 +769,15 @@ namespace
 		TableHook(ShowStateText, nullptr);
 	}
 
+	// The running mode ends before its time: mode_timer stops, and the mode's end runs
+	void EndModeEarly()
+	{
+		mode_timer->Message(MessageCode::TTimerResetTimer, -1.0f);
+		TableHook(ModeEnd, nullptr);
+	}
+
 	// 0x424d30: a random magnet whose light is neither on nor flashing, or any once none is, switches on, with its
-	// light and the keg's picture for 2 s. Returns how long the picture shows
+	// light, the keg's next light and the keg's picture for 2 s. Returns how long the picture shows
 	float MagnetOn()
 	{
 		using enum MessageCode;
@@ -780,6 +796,7 @@ namespace
 		auto index = open[std::min(static_cast<int>(RandFloat() * count), count - 1)];
 		magnets[index]->Message(TMagnetEnable, 0.0f);
 		magnet_lights[index]->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+		keg_light_group->Message(TLightGroupResetAndTurnOn, 0.0f);
 		ShowPicture("E", 2.0f, Msg::Skulduggery_PictureKeg);
 		return 2.0f;
 	}
@@ -826,7 +843,7 @@ namespace
 	void TavernBankHit(const DropBank& bank, const TPinballComponent* caller)
 	{
 		using enum MessageCode;
-		auto full = AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1);
+		auto full = BankFull(bank);
 		if (&bank == &drop_banks[2])
 		{
 			if (full)
@@ -871,7 +888,7 @@ namespace
 	void SwordFightBankHit(const DropBank& bank)
 	{
 		using enum MessageCode;
-		if (AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1))
+		if (BankFull(bank))
 		{
 			auto lit = (static_cast<unsigned>(ModeFlags) & VolcanoBits) == 0;
 			if (lit)
@@ -901,7 +918,7 @@ namespace
 		if (GameState() == AttackShipState && &bank == &drop_banks[1])
 		{
 			// Attack Ship's ship (0x4264f0): a full bank sinks it for the jackpot, and "Ship Sunk" follows the picture
-			if (AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1))
+			if (BankFull(bank))
 			{
 				ResetBank(bank);
 				auto time = AwardJackpot(0.0f);
@@ -928,11 +945,11 @@ namespace
 		if (GameState() == StormState)
 		{
 			// Storm scores the targets itself; a full bank only comes up again
-			if (AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1))
+			if (BankFull(bank))
 				ResetBank(bank);
 			return;
 		}
-		if (AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1))
+		if (BankFull(bank))
 		{
 			a_blocc->Message(TAnimatedBlockerSetState, bank.BloccState);
 			BloceUp();
@@ -1055,9 +1072,7 @@ namespace
 		switch (code)
 		{
 		case ControlTimerExpired:
-			if (caller == mode_timer)
-				TableHook(ModeEnd, nullptr);
-			else if (caller == light_sweeps)
+			if (caller == light_sweeps)
 				ModeSweepDone(29.38f);
 			break;
 		case ControlNotifyTimerExpired:
@@ -1091,13 +1106,6 @@ namespace
 		case ModeEnd:
 			v_lite567->Message(TLightResetAndTurnOff, 0.0f);
 			ResetBank(drop_banks[1]);
-			ModeLeave();
-			v_lite606->MessageField++;
-			BloceDown();
-			break;
-		case BallDrained:
-			mode_timer->Message(TTimerResetTimer, -1.0f);
-			TableHook(ModeEnd, nullptr);
 			break;
 		default:
 			break;
@@ -1214,9 +1222,7 @@ namespace
 		switch (code)
 		{
 		case ControlTimerExpired:
-			if (caller == mode_timer)
-				TableHook(ModeEnd, nullptr);
-			else if (caller == light_sweeps)
+			if (caller == light_sweeps)
 				ModeSweepDone(30.68f);
 			break;
 		case ControlCollision:
@@ -1253,18 +1259,11 @@ namespace
 			TreasureXsOff();
 			a_sink9->ActiveFlag = 0;
 			a_sink12->ActiveFlag = 0;
-			ModeLeave();
-			v_lite606->MessageField++;
-			BloceDown();
 			v_lite519->Message(TLightResetAndTurnOff, 0.0f);
 			s_trip3->ActiveFlag = 1;
 			s_trip8->ActiveFlag = 1;
 			LightFirst(left_orbit_light_group, s_trip3->MessageField);
 			LightFirst(right_orbit_light_group, s_trip8->MessageField);
-			break;
-		case BallDrained:
-			mode_timer->Message(TTimerResetTimer, -1.0f);
-			TableHook(ModeEnd, nullptr);
 			break;
 		default:
 			break;
@@ -1456,9 +1455,10 @@ namespace
 		case ControlTimerExpired:
 			if (caller == mode_timer)
 			{
+				// The mugs go out before the mode ends (ModeStateControl). A drain ends it without this, as 0x42b420
+				// does: a mug still flashing goes out when its flash ends, and its timer no longer reaches Tavern
 				for (auto light : tavern_lights)
 					light->Message(TLightResetAndTurnOff, 0.0f);
-				TableHook(ModeEnd, nullptr);
 			}
 			else if (caller == light_sweeps)
 			{
@@ -1481,6 +1481,9 @@ namespace
 			PlayTrack(MidiTracks::Track4);
 			tabb65wave->Play(nullptr, "TavernStateControl");
 			ResetBank(drop_banks[0]);
+			// The mugs go out but keep their bits in v_lite547's message field, and nothing lights them again when
+			// the mode ends, so the next mug sinks after Tavern count the mugs lit before it, as in PIRATES.EXE:
+			// TLight's 20 doesn't touch the field (CADET.EXE's 0x40a490), and 0x42ab40 doesn't light them
 			for (auto light : tavern_lights)
 				light->Message(TLightResetAndTurnOff, 0.0f);
 			a_spot6->MessageField = 0;
@@ -1497,13 +1500,6 @@ namespace
 			CrewLightsOff();
 			ResetBank(drop_banks[0]);
 			MagnetsOff();
-			ModeLeave();
-			v_lite606->MessageField++;
-			BloceDown();
-			break;
-		case BallDrained:
-			mode_timer->Message(TTimerResetTimer, -1.0f);
-			TableHook(ModeEnd, nullptr);
 			break;
 		default:
 			break;
@@ -1525,11 +1521,7 @@ namespace
 		switch (code)
 		{
 		case ControlTimerExpired:
-			if (caller == mode_timer)
-			{
-				TableHook(ModeEnd, nullptr);
-			}
-			else if (caller == light_sweeps)
+			if (caller == light_sweeps)
 			{
 				bermuda_light_group->Message(TLightGroupRestartNotifyTimer, 0.1f);
 				a_kout1->Message(TKickoutEnable, 0.0f);
@@ -1566,13 +1558,6 @@ namespace
 			bermuda_light_group->Message(TLightGroupRestartNotifyTimer, -1.0f);
 			bermuda_light_group->Message(TLightResetAndTurnOff, 0.0f);
 			a_kout1->Message(TKickoutDisable, 0.0f);
-			ModeLeave();
-			v_lite606->MessageField++;
-			BloceDown();
-			break;
-		case BallDrained:
-			mode_timer->Message(TTimerResetTimer, -1.0f);
-			TableHook(ModeEnd, nullptr);
 			break;
 		default:
 			break;
@@ -1611,8 +1596,8 @@ namespace
 		case ControlTimerExpired:
 			if (caller == mode_timer)
 			{
+				// Before the mode ends (ModeStateControl)
 				v_lite778->Message(TLightResetAndTurnOff, -1.0f);
-				TableHook(ModeEnd, nullptr);
 			}
 			else if (caller == light_sweeps)
 			{
@@ -1645,7 +1630,7 @@ namespace
 			else if (caller == a_sink14 || caller == a_sink15 || caller == a_sink17)
 			{
 				info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_Shipwrecked), 2.0f);
-				StormStateControl(BallDrained, caller);
+				EndModeEarly();
 				ShipwreckMysteryAvailable(2.0f);
 			}
 			break;
@@ -1687,13 +1672,6 @@ namespace
 		case ModeEnd:
 			v_lite778->Message(TLightResetAndTurnOff, 0.0f);
 			a_kout2->Message(TKickoutDisable, 0.0f);
-			ModeLeave();
-			v_lite606->MessageField++;
-			BloceDown();
-			break;
-		case BallDrained:
-			mode_timer->Message(TTimerResetTimer, -1.0f);
-			TableHook(ModeEnd, nullptr);
 			break;
 		default:
 			break;
@@ -1708,9 +1686,7 @@ namespace
 		switch (code)
 		{
 		case ControlTimerExpired:
-			if (caller == mode_timer)
-				TableHook(ModeEnd, nullptr);
-			else if (caller == light_sweeps)
+			if (caller == light_sweeps)
 				ModeSweepDone(48.28f);
 			break;
 		case EnterState:
@@ -1726,15 +1702,6 @@ namespace
 			break;
 		case ShowStateText:
 			ShowTimeLeft(Msg::Skulduggery_Mutiny);
-			break;
-		case ModeEnd:
-			ModeLeave();
-			v_lite606->MessageField++;
-			BloceDown();
-			break;
-		case BallDrained:
-			mode_timer->Message(TTimerResetTimer, -1.0f);
-			TableHook(ModeEnd, nullptr);
 			break;
 		default:
 			break;
@@ -1806,9 +1773,7 @@ namespace
 		switch (code)
 		{
 		case ControlTimerExpired:
-			if (caller == mode_timer)
-				TableHook(ModeEnd, nullptr);
-			else if (caller == light_sweeps)
+			if (caller == light_sweeps)
 				ModeSweepDone(29.38f);
 			break;
 		case EnterState:
@@ -1828,15 +1793,6 @@ namespace
 			break;
 		case ShowStateText:
 			ShowTimeLeft(Msg::Skulduggery_SwordFight);
-			break;
-		case ModeEnd:
-			ModeLeave();
-			v_lite606->MessageField++;
-			BloceDown();
-			break;
-		case BallDrained:
-			mode_timer->Message(TTimerResetTimer, -1.0f);
-			TableHook(ModeEnd, nullptr);
 			break;
 		default:
 			break;
@@ -1926,9 +1882,7 @@ namespace
 		switch (code)
 		{
 		case ControlTimerExpired:
-			if (caller == mode_timer)
-				TableHook(ModeEnd, nullptr);
-			else if (caller == light_sweeps)
+			if (caller == light_sweeps)
 				ModeSweepDone(30.68f);
 			break;
 		case ControlCollision:
@@ -1950,9 +1904,6 @@ namespace
 			TreasureXsOff();
 			a_sink9->ActiveFlag = 0;
 			a_sink12->ActiveFlag = 0;
-			ModeLeave();
-			v_lite606->MessageField++;
-			BloceDown();
 			s_trip3->ActiveFlag = 1;
 			s_trip8->ActiveFlag = 1;
 			left_orbit_light_group->Message(TLightFtResetOverride, 0.0f);
@@ -1967,10 +1918,6 @@ namespace
 			for (auto index = 0; index < 6; index++)
 				mode_lights[index]->Message(TLightResetAndTurnOff, 0.0f);
 			ClearBuriedLights = true;
-			break;
-		case BallDrained:
-			mode_timer->Message(TTimerResetTimer, -1.0f);
-			TableHook(ModeEnd, nullptr);
 			break;
 		default:
 			break;
@@ -2166,6 +2113,10 @@ namespace
 			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_LavaBall), -1.0f);
 			break;
 		case BallDrained:
+			// A ball still falling from s_hole19 to a_kick1 counts as the one left, so it stays in the brig with
+			// a_kick1 off and BrigBalls at 0, and UnstuckBall leaves it there; only a tilt frees it. PIRATES.EXE does
+			// the same: 0x42d480 and 0x42d590 end the mode here, 0x429040 and 0x42a340 ignore the brig in states 12
+			// and 13, and 0x42db30 skips a ball by a_kick1
 			if (Table->MultiballCount != 1)
 				break;
 			ModeLeave();
@@ -2212,6 +2163,7 @@ namespace
 			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_JailBreak), -1.0f);
 			break;
 		case BallDrained:
+			// As in Lava-Ball, a ball still falling to a_kick1 stays in the brig, as in PIRATES.EXE
 			if (Table->MultiballCount != 1)
 				break;
 			ModeLeave();
@@ -2220,6 +2172,32 @@ namespace
 			SetState(PlayState);
 			CrewLightsOff();
 			CaptiveLightsFlashOut();
+			break;
+		default:
+			break;
+		}
+	}
+
+	// What every mode's state does alike (0x42ad70 to 0x42cfc0), after the mode's own function: its timer or a drain
+	// ends the mode, and its end leaves the mode (0x42ab40), counts one more mode played (v_lite606) and puts a_bloce
+	// down. PIRATES.EXE's Treasure Hunt and Peg Leg's Loot do the rest of their cleanup after this; it touches none of
+	// the same lights, so here it comes first
+	void ModeStateControl(MessageCode code, const TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case ControlTimerExpired:
+			if (caller == mode_timer)
+				TableHook(ModeEnd, nullptr);
+			break;
+		case ModeEnd:
+			ModeLeave();
+			v_lite606->MessageField++;
+			BloceDown();
+			break;
+		case BallDrained:
+			EndModeEarly();
 			break;
 		default:
 			break;
@@ -2297,6 +2275,8 @@ namespace
 			SetState(PlayState);
 			break;
 		}
+		if (state >= FirstModeState && state <= LastModeState)
+			ModeStateControl(code, caller);
 	}
 
 	// 0x42d850: every component's events reach it before the component's own handler
@@ -2356,7 +2336,8 @@ namespace
 		}
 		if (v_lite569->light_on())
 		{
-			// Ball save: the drain's own timer serves the same ball again
+			// Ball save: the drain's own timer serves the same ball again. Its Reset clears every player's Ship's Hold,
+			// as PIRATES.EXE's 0x402 does
 			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_ShootAgain), 2.0f);
 			DrainStep = 3;
 			drain->Message(Reset, 0.0f);
@@ -2757,6 +2738,10 @@ namespace
 				auto lights = PegLegsLootLights();
 				std::for_each(lights.begin() + 1, lights.end(),
 							  [](TLight* light) { light->Message(TLightResetAndTurnOff, 0.0f); });
+				// mode_timer keeps running until PegLegsLootText's next step stops it, so if it runs out first the mode
+				// ends and nothing lets the ball out of the hold; only a tilt frees it. PIRATES.EXE does the same:
+				// 0x4283f0 only sets the flag, 0x42cfc0 stops mode_timer at its next 0x50, and its timer's end goes
+				// straight to 0x52, which doesn't release the ball
 				ModeFlags = 1;
 				break;
 			}
@@ -2906,11 +2891,15 @@ namespace
 		return LaneWindsAward(0.0f);
 	}
 
-	// The picture of a letter of WINDS for 2 s, a large W, I, N, D or S, which Space Cadet 2026's HUD shows as it is
+	// The picture of a letter of WINDS for 2 s, a large W, I, N, D or S, with the letter as words for Space Cadet
+	// 2026's HUD
 	void ShowLaneLetter(int index)
 	{
 		static constexpr std::array pictures{"5", "6", "7", "8", "9"};
-		static constexpr std::array letters{"W", "I", "N", "D", "S"};
+		using enum Msg;
+		static constexpr std::array letters{Skulduggery_PictureLetterW, Skulduggery_PictureLetterI,
+											Skulduggery_PictureLetterN, Skulduggery_PictureLetterD,
+											Skulduggery_PictureLetterS};
 		ShowPicture(pictures[index], 2.0f, letters[index]);
 	}
 
@@ -2991,6 +2980,7 @@ namespace
 		}
 		else if (code == ControlRampExitToLayer2)
 		{
+			// 0x428f70 drops it on 0x56, the ramp's exit wall, not on the layer change as the ball enters the ramp
 			a_blocc->Message(TAnimatedBlockerSetState, -1.0f);
 		}
 	}
