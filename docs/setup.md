@@ -156,7 +156,7 @@ The preset uses `mingwcc.cmake` as its toolchain file, builds SDL from source an
 
 ### macOS
 
-Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake 3.24 or newer.
+Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake 3.24 or newer. The game runs on macOS 13.3 or newer: it uses C++23's `std::format` and `std::print`, which Apple's C++ library has only from then on.
 
 - **Packaged app:** run `bash build-mac-app.sh` from the repository root. It builds the `macos` preset and produces `SpaceCadetPinball-<version>-mac.dmg`. See [deployment.md](deployment.md).
 - **Manual build:** `cmake --preset macos && cmake --build --preset macos` builds a universal binary with SDL linked statically. To use SDL from Homebrew (`sdl3`, `sdl3_mixer`) instead, configure without the preset and pass `-DSCP_VENDORED_SDL=OFF`. That build targets only the host architecture unless `CMAKE_OSX_ARCHITECTURES` is set.

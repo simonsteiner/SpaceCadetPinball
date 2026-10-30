@@ -29,7 +29,7 @@
 	<key>CSResourcesFileMapped</key>
 	<true/>
 	<key>LSMinimumSystemVersion</key>
-	<string>10.11</string>
+	<string>13.3</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 </dict>

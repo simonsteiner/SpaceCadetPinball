@@ -29,8 +29,9 @@ if(MINGW)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static")
 endif()
 
+# std::format and std::print need the floating-point std::to_chars, which Apple's libc++ has from macOS 13.3 on
 if(APPLE)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "13.3")
 endif()
 
 if(SCP_VENDORED_SDL)
