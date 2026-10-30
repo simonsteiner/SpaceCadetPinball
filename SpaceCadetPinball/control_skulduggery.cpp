@@ -1879,9 +1879,7 @@ namespace
 		switch (code)
 		{
 		case ControlTimerExpired:
-			if (caller == mode_timer)
-				TableHook(ModeEnd, nullptr);
-			else if (caller == light_sweeps)
+			if (caller == light_sweeps)
 				ModeSweepDone(30.68f);
 			break;
 		case ControlCollision:
@@ -1903,9 +1901,6 @@ namespace
 			TreasureXsOff();
 			a_sink9->ActiveFlag = 0;
 			a_sink12->ActiveFlag = 0;
-			ModeLeave();
-			v_lite606->MessageField++;
-			BloceDown();
 			s_trip3->ActiveFlag = 1;
 			s_trip8->ActiveFlag = 1;
 			left_orbit_light_group->Message(TLightFtResetOverride, 0.0f);
@@ -1920,10 +1915,6 @@ namespace
 			for (auto index = 0; index < 6; index++)
 				mode_lights[index]->Message(TLightResetAndTurnOff, 0.0f);
 			ClearBuriedLights = true;
-			break;
-		case BallDrained:
-			mode_timer->Message(TTimerResetTimer, -1.0f);
-			TableHook(ModeEnd, nullptr);
 			break;
 		default:
 			break;
