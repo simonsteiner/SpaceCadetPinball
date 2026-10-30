@@ -159,13 +159,15 @@ void DefinitiveStatsScreen::RenderStats(const TableView& view)
 	}
 
 	// Every mission by name, with how often it was finished; on Dragon's Keep every quest, on Skulduggery every mode
+	auto each = Msg::Definitive_StatEachMission;
+	if (dragon)
+		each = Msg::Definitive_StatEachQuest;
+	else if (skulduggery)
+		each = Msg::Definitive_StatEachMode;
 	ImGui::Dummy(ImVec2{0, 12 * scale});
 	at = ImGui::GetCursorScreenPos();
 	Ui::DrawText(ImGui::GetWindowDrawList(), Theme::TextFont(), Theme::LabelSize,
-				 ImVec2{at.x + 16 * scale, at.y + 4 * scale}, Theme::Chrome400,
-				 Text(dragon        ? Msg::Definitive_StatEachQuest
-					  : skulduggery ? Msg::Definitive_StatEachMode
-									: Msg::Definitive_StatEachMission),
+				 ImVec2{at.x + 16 * scale, at.y + 4 * scale}, Theme::Chrome400, Text(each),
 				 ImGui::CalcItemWidth() - 32 * scale);
 	ImGui::Dummy(ImVec2{0, Theme::LabelSize * Ui::TextScale() + 12 * scale});
 	if (dragon)
