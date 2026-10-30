@@ -8631,6 +8631,18 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Skulduggery_SwordFight,
+		{
+			{ Lang::English, "Sword Fight\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_SwordFightHelp,
+		{
+			{ Lang::English, "Hit Parrot and Volcano targets" },
+		}
+	},
+	{
 		Msg::Skulduggery_PictureSkillShot,
 		{
 			{ Lang::English, "Skill Shot" },

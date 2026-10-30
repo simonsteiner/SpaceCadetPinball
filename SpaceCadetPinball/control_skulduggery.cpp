@@ -28,8 +28,8 @@
 // and game-over flow, with the ball save, the end-of-ball bonus, the launch's rolling skill shot and the music; the
 // mode framework: the SKULDUGGERY drop targets, the modes' lights and pick, the captive ball's targets and a_spot102;
 // and the modes Attack Ship, Bermuda Triangle with the winds' shots and the kickouts, Storm, Tavern with the magnets
-// and the mugs' sinks, Treasure Hunt with the buried treasure's sinks and rollovers, and Mutiny with the bumpers' crew
-// and a_spot6.
+// and the mugs' sinks, Treasure Hunt with the buried treasure's sinks and rollovers, Mutiny with the bumpers' crew
+// and a_spot6, and Sword Fight with the parrot's targets.
 // Everything else is still a stand-in that keeps the table playable: kickouts and sinks give back the balls they
 // catch, which only the rules would do otherwise, and a stuck ball is freed as Space Cadet's rules free one.
 //
@@ -37,8 +37,8 @@
 // message field: the engine's control::handler (0x423080) hands every event to one table-wide function (0x42d850),
 // which passes it to the current state's function (0x42d900), and then to the component's own handler. States 1
 // (game over), 2 (play), 3 (launch), 4 (Attack Ship), 5 (Bermuda Triangle), 6 (Storm), 7 (Tavern), 8 (Treasure Hunt),
-// 9 (Mutiny), 16 (end of ball) and 17 (the game's last ball) are ported; the other modes (10 to 13) come with their
-// features.
+// 9 (Mutiny), 10 (Sword Fight), 16 (end of ball) and 17 (the game's last ball) are ported; the other modes (11 to 13)
+// come with their features.
 // Addresses below are PIRATES.EXE's. Its message numbers are CADET.EXE's, which differ from this port's above the light
 // codes, so each call uses the port's MessageCode.
 namespace
@@ -62,6 +62,7 @@ namespace
 	constexpr int TavernState = 7;
 	constexpr int TreasureHuntState = 8;
 	constexpr int MutinyState = 9;
+	constexpr int SwordFightState = 10;
 	constexpr int LastModeState = 11;
 	constexpr int LavaBallState = 12;
 	constexpr int JailbreakState = 13;
@@ -185,6 +186,14 @@ namespace
 	TSound* tabb16wave;
 	TSound* tabb17wave;
 	TSound* tabb61wave;
+	// Sword Fight's, with the parrot's targets a_spot4 and a_spot5, which light v_lite522 and v_lite779 (v_lite522's
+	// message field keeps those hit)
+	TPinballComponent* a_spot4;
+	TPinballComponent* a_spot5;
+	TLight* v_lite522;
+	TLight* v_lite779;
+	TSound* tabb75wave;
+	TSound* tabb94wave;
 
 	// A bank of drop targets: its first target's message field keeps those down, and each target spells a letter
 	struct DropBank
@@ -388,8 +397,8 @@ namespace
 	constexpr int PegLegsLootPick = 7;
 
 	// The modes ported so far; whatever would start another one lets the game go on in play
-	constexpr std::array PortedModes{AttackShipState, BermudaState,      StormState,
-									 TavernState,     TreasureHuntState, MutinyState};
+	constexpr std::array PortedModes{AttackShipState,   BermudaState, StormState,     TavernState,
+									 TreasureHuntState, MutinyState,  SwordFightState};
 
 	bool ModePorted(int state)
 	{
@@ -752,6 +761,35 @@ namespace
 		}
 	}
 
+	// Sword Fight's ModeFlags: the captive targets hit (bits 0 to 3) and the full bank of a_drop10 to a_drop12
+	constexpr unsigned CaptiveBits = 0xf;
+	constexpr unsigned VolcanoBits = 0x70;
+
+	void SwordFightAwardIfDone();
+
+	// Sword Fight's half of 0x426eb0: the full bank lights v_lite9 to v_lite11, comes up again and gives the next
+	// award; each other target scores 30,000
+	void SwordFightBankHit(const DropBank& bank)
+	{
+		using enum MessageCode;
+		if (AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1))
+		{
+			auto lit = (static_cast<unsigned>(ModeFlags) & VolcanoBits) == 0;
+			if (lit)
+				ModeFlags = static_cast<int>(static_cast<unsigned>(ModeFlags) | VolcanoBits);
+			for (auto index = 8; index < 11; index++)
+				letter_lights[index]->Message(lit ? TLightResetAndTurnOn : TLightFlasherStartTimedThenStayOn,
+											  lit ? 0.0f : 1.0f);
+			ResetBank(bank);
+			SwordFightAwardIfDone();
+		}
+		else
+		{
+			AddScore(30000);
+		}
+		tabb94wave->Play(nullptr, "SwordFightBankHit");
+	}
+
 	// 0x426a40, 0x4264f0 and 0x426eb0: a full bank turns the blockers, comes up again and scores more. In play, the
 	// last letter of the word starts the picked mode instead
 	void BankHit(const DropBank& bank, const TPinballComponent* caller)
@@ -779,6 +817,11 @@ namespace
 		if (GameState() == TavernState && &bank != &drop_banks[1])
 		{
 			TavernBankHit(bank, caller);
+			return;
+		}
+		if (GameState() == SwordFightState && &bank == &drop_banks[2])
+		{
+			SwordFightBankHit(bank);
 			return;
 		}
 		if (GameState() == StormState)
@@ -1473,6 +1516,108 @@ namespace
 		}
 	}
 
+	// 0x425440: Sword Fight's next award: a special treasure, coins, a map piece, then extra balls
+	void SwordFightAward()
+	{
+		switch (ModeAwardStep++)
+		{
+		case 0:
+			AwardSpecialTreasure(special_treasure_light_group->MessageField);
+			break;
+		case 1:
+			AwardCoins();
+			break;
+		case 2:
+			AwardMapPiece();
+			break;
+		default:
+			AwardExtraBall();
+			break;
+		}
+	}
+
+	// 0x425550: all four captive targets (ModeFlags' bits 0 to 3) or the full bank of a_drop10 to a_drop12 (0x70)
+	// give the next award
+	void SwordFightAwardIfDone()
+	{
+		auto flags = static_cast<unsigned>(ModeFlags);
+		if (AllSet(ModeFlags, VolcanoBits))
+		{
+			ModeFlags = static_cast<int>(flags & CaptiveBits);
+			SwordFightAward();
+		}
+		else if (AllSet(ModeFlags, CaptiveBits))
+		{
+			ModeFlags = static_cast<int>(flags & VolcanoBits);
+			SwordFightAward();
+		}
+	}
+
+	// 0x425490: with the four bits of v_lite550's message field set, the captive ball's lights flash for 1 s and the
+	// field starts over; else 30,000. As PIRATES.EXE has it, it reads v_lite550's field, which nothing sets, so a
+	// captive target in Sword Fight always scores 30,000
+	void SwordFightCaptives()
+	{
+		using enum MessageCode;
+		auto& field = captive_lights[1]->MessageField;
+		if (!AllSet(field, 0xf))
+		{
+			AddScore(30000);
+			return;
+		}
+		field = 0;
+		for (auto light : captive_lights)
+			light->Message(TLightResetTimed, 0.0f);
+		for (auto light : captive_lights)
+			light->Message(TLightFlasherStartTimed, 1.0f);
+	}
+
+	// State 10, 0x42cc10: Sword Fight. The captive ball's four targets, or the full bank of a_drop10 to a_drop12 (the
+	// volcano), give an award: a special treasure, coins, a map piece, then extra balls (SwordFightAward). It runs for
+	// 29.38 s after its light sweep
+	void SwordFightStateControl(MessageCode code, const TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case ControlTimerExpired:
+			if (caller == mode_timer)
+				TableHook(ModeEnd, nullptr);
+			else if (caller == light_sweeps)
+				ModeSweepDone(29.38f);
+			break;
+		case EnterState:
+			// 0x4235c0: a_spot8's message field starts over as the mode starts
+			captive_targets[1]->MessageField = 0;
+			ModeEnter();
+			AddScore(250000);
+			light_sweeps->Message(TLightSweepsStart, 11.0f);
+			for (auto index = 8; index < 11; index++)
+				letter_lights[index]->Message(TLightFlasherStartTimed, -1.0f);
+			for (auto light : captive_lights)
+				light->Message(TLightFlasherStartTimed, -1.0f);
+			ResetBank(drop_banks[2]);
+			PlayTrack(MidiTracks::Track2);
+			tabb75wave->Play(nullptr, "SwordFightStateControl");
+			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_SwordFightHelp), -1.0f);
+			break;
+		case ShowStateText:
+			ShowTimeLeft(Msg::Skulduggery_SwordFight);
+			break;
+		case ModeEnd:
+			ModeLeave();
+			v_lite606->MessageField++;
+			BloceDown();
+			break;
+		case BallDrained:
+			mode_timer->Message(TTimerResetTimer, -1.0f);
+			TableHook(ModeEnd, nullptr);
+			break;
+		default:
+			break;
+		}
+	}
+
 	// State 16, 0x42b820: count the bonus, one text at a time, then serve the next ball or end the game
 	void EndOfBallStateControl(MessageCode code, const TPinballComponent* caller)
 	{
@@ -1689,6 +1834,9 @@ namespace
 			break;
 		case MutinyState:
 			MutinyStateControl(code, caller);
+			break;
+		case SwordFightState:
+			SwordFightStateControl(code, caller);
 			break;
 		default:
 			// The other modes' states (up to 13) aren't ported yet, and StartMode doesn't enter them; PIRATES.EXE goes
@@ -1925,7 +2073,7 @@ namespace
 	}
 
 	// a_spot11, a_spot8, a_spot9 and a_spot10, the captive ball's targets, 0x427580 to 0x4277f0: in play each one
-	// lights its light, and all four score more and start Lava-Ball (0x427540). Sword Fight's use of them comes with it
+	// lights its light, and all four score more and start Lava-Ball (0x427540); in Sword Fight all four give an award
 	void CaptiveTargetControl(MessageCode code, TPinballComponent* caller)
 	{
 		using enum MessageCode;
@@ -1934,13 +2082,25 @@ namespace
 		auto target = std::ranges::find(captive_targets, caller);
 		if (target == captive_targets.end())
 			return;
+		auto index = static_cast<int>(target - captive_targets.begin());
+		if (GameState() == SwordFightState)
+		{
+			SetBit(ModeFlags, index);
+			captive_lights[index]->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			// a_spot10 also marks a_spot8's message field, which nothing reads
+			if (index == 3)
+				SetBit(captive_targets[1]->MessageField, 3);
+			SwordFightCaptives();
+			SwordFightAwardIfDone();
+			tabb94wave->Play(nullptr, "CaptiveTargetControl");
+			return;
+		}
 		tabb23wave->Play(nullptr, "CaptiveTargetControl");
 		if (GameState() != PlayState)
 		{
 			ScoreBy(caller, 0);
 			return;
 		}
-		auto index = static_cast<int>(target - captive_targets.begin());
 		auto& hit = captive_targets[0]->MessageField;
 		SetBit(hit, index);
 		captive_lights[index]->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
@@ -2320,6 +2480,28 @@ namespace
 		}
 	}
 
+	// a_spot4 and a_spot5, the parrot's targets, 0x427940 and 0x427980 with 0x4278c0: each lights its light, and both
+	// turn a_blocf, flash out and score more
+	void ParrotTargetControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		auto index = caller == a_spot4 ? 0 : 1;
+		SetBit(v_lite522->MessageField, index);
+		(index ? v_lite779 : v_lite522)->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+		auto both = AllSet(v_lite522->MessageField, 3);
+		if (both)
+		{
+			a_blocf->Message(TAnimatedBlockerSetState, -1.0f);
+			v_lite522->MessageField = 0;
+			v_lite522->Message(TLightFlasherStartTimedThenStayOff, 1.0f);
+			v_lite779->Message(TLightFlasherStartTimedThenStayOff, 1.0f);
+		}
+		ScoreBy(caller, both ? 1 : 0);
+		tabb02wave->Play(nullptr, "ParrotTargetControl");
+	}
+
 	void NoControl(MessageCode, TPinballComponent*)
 	{
 		// Components whose own handler isn't ported yet; WithHook still passes their events to the table
@@ -2568,6 +2750,12 @@ namespace
 		Find(tabb16wave, "tabb16wave");
 		Find(tabb17wave, "tabb17wave");
 		Find(tabb61wave, "tabb61wave");
+		a_spot4 = Table->find_component("a_spot4");
+		a_spot5 = Table->find_component("a_spot5");
+		Find(v_lite522, "v_lite522");
+		Find(v_lite779, "v_lite779");
+		Find(tabb75wave, "tabb75wave");
+		Find(tabb94wave, "tabb94wave");
 		constexpr std::array windGroups{"left_orbit_light_group",  "right_orbit_light_group", "left_island_light_group",
 										"right_wind_light_group",  "south_wind_light_group",  "west_wind_light_group",
 										"east_wind_2_light_group", "east_wind_1_light_group"};
@@ -2652,7 +2840,8 @@ namespace
 				   {bermuda_light_group, tabb12wave, tabb66wave, v_lite778, v_lite529, tabb67wave, tabb68wave});
 		all.insert(all.end(), wind_light_groups.begin(), wind_light_groups.end());
 		all.insert(all.end(), bumpers.begin(), bumpers.end());
-		all.insert(all.end(), {tabb16wave, tabb17wave, tabb61wave});
+		all.insert(all.end(), {tabb16wave, tabb17wave, tabb61wave, a_spot4, a_spot5, v_lite522, v_lite779, tabb75wave,
+							   tabb94wave});
 		all.insert(all.end(), wind_shots.begin(), wind_shots.end());
 		all.insert(all.end(), wind_lights.begin(), wind_lights.end());
 		for (const auto& dropBank : drop_banks)
@@ -2703,6 +2892,8 @@ namespace
 				Link(*component, WithHook<BumperControl>);
 			else if (component == a_spot6)
 				Link(*component, WithHook<CrewTargetControl>);
+			else if (component == a_spot4 || component == a_spot5)
+				Link(*component, WithHook<ParrotTargetControl>);
 			else if (dynamic_cast<TKickout*>(component) || dynamic_cast<TSink*>(component))
 				Link(*component, WithHook<StandInControl>);
 			else
