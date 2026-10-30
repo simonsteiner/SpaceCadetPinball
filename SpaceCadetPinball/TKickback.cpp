@@ -23,7 +23,27 @@ TKickback::TKickback(TPinballTable* table, int groupIndex): TCollisionComponent(
 int TKickback::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())
+	{
 		KeepMessageFieldPerPlayer(code, value);
+		// CADET.EXE (0x415d70): off stops arming; on, a tilt and Reset turn it back on and let go of a kick
+		if (code == MessageCode::TKickbackDisable)
+		{
+			KickDisabled = true;
+			return 0;
+		}
+		if (code == MessageCode::TKickbackEnable || code == MessageCode::SetTiltLock || code == MessageCode::Reset)
+			KickDisabled = false;
+		if (code == MessageCode::TKickbackEnable)
+		{
+			if (Timer)
+				timer::kill(Timer);
+			SpriteSet(0);
+			Timer = 0;
+			KickActiveFlag = 0;
+			Threshold = 1000000000.0;
+			return 0;
+		}
+	}
 	if ((code == MessageCode::SetTiltLock || code == MessageCode::Reset) && Timer)
 	{
 		timer::kill(Timer);
@@ -45,7 +65,7 @@ void TKickback::Collision(TBall* ball, vector2* nextPosition, vector2* direction
 	}
 	else
 	{
-		if (!KickActiveFlag)
+		if (!KickActiveFlag && !KickDisabled)
 		{
 			Threshold = 1000000000.0;
 			KickActiveFlag = 1;

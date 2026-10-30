@@ -8281,5 +8281,65 @@ const TextArray translations::Translations =
 		{
 			{ Lang::English, "Full Tilt! - Skulduggery" },
 		}
+	},
+	{
+		Msg::Skulduggery_ShootAgain,
+		{
+			{ Lang::English, "Shoot Again" },
+		}
+	},
+	{
+		Msg::Skulduggery_HighScore,
+		{
+			{ Lang::English, "HIGH SCORE" },
+		}
+	},
+	{
+		Msg::Skulduggery_TargetBonus,
+		{
+			{ Lang::English, "Target Bonus\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_ModeBonus,
+		{
+			{ Lang::English, "Mode Bonus\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_MapPieceBonus,
+		{
+			{ Lang::English, "Map Piece Bonus\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_SpecialTreasures,
+		{
+			{ Lang::English, "Special Treasures\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_ShipsHold,
+		{
+			{ Lang::English, "Ship's Hold\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_TotalBonus,
+		{
+			{ Lang::English, "Total Bonus\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_SpellSkulduggery,
+		{
+			{ Lang::English, "Spell Skulduggery to Start Mode" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureSkillShot,
+		{
+			{ Lang::English, "Skill Shot" },
+		}
 	}
 };

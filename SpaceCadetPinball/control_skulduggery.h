@@ -1,8 +1,8 @@
 #pragma once
 #include "TableRules.h"
 
-// Skulduggery's table rules, to be recovered from PIRATES.EXE (Phase F6). Until then a stand-in keeps the table
-// playable: it serves the next ball after a drain and has kickouts and sinks give back the balls they catch.
+// Skulduggery's table rules, recovered from PIRATES.EXE one feature at a time (Phase F6). The serve, drain and
+// game-over flow are in; the rest is a stand-in that keeps the table playable.
 class control_skulduggery
 {
 public:

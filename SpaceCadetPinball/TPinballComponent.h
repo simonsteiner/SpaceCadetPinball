@@ -104,7 +104,12 @@ enum class MessageCode
 
 	TKickoutRestartTimer = 55,
 
-	// TMagnet, Skulduggery: CADET.EXE's numbers
+	// CADET.EXE's numbers, the bonus tables only: TKickout, TKickback and TMagnet switched on and off. TKickout lets
+	// go of a ball it holds as it goes off; a TKickback that is off doesn't kick
+	TKickoutEnable = 75,
+	TKickoutDisable = 76,
+	TKickbackEnable = 75,
+	TKickbackDisable = 76,
 	TMagnetEnable = 75,
 	TMagnetDisable = 76,
 

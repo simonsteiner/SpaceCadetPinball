@@ -580,6 +580,17 @@ enum class Msg : int
 
 	// Skulduggery's own texts, from PIRATES.EXE
 	Skulduggery_Caption,
+	Skulduggery_ShootAgain,
+	Skulduggery_HighScore,
+	Skulduggery_TargetBonus,
+	Skulduggery_ModeBonus,
+	Skulduggery_MapPieceBonus,
+	Skulduggery_SpecialTreasures,
+	Skulduggery_ShipsHold,
+	Skulduggery_TotalBonus,
+	Skulduggery_SpellSkulduggery,
+	// Not PIRATES.EXE's: what the rolling skill shot's pictures show, in words for Space Cadet 2026's HUD
+	Skulduggery_PictureSkillShot,
 
 	Max,
 };

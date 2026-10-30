@@ -70,6 +70,26 @@ int TKickout::Message(MessageCode code, float value)
 		KeepMessageFieldPerPlayer(code, value);
 	switch (code)
 	{
+	case MessageCode::TKickoutEnable:
+		// CADET.EXE's (0x4163a0), the bonus tables only
+		if (pb::BonusTable())
+			ActiveFlag = 1;
+		break;
+	case MessageCode::TKickoutDisable:
+		// CADET.EXE's: off, and a ball it holds goes out at once
+		if (!pb::BonusTable())
+			break;
+		ActiveFlag = 0;
+		if (BallCaputeredFlag)
+		{
+			if (Timer)
+				timer::kill(Timer);
+			TimerExpired(0, this);
+			if (Timer)
+				timer::kill(Timer);
+			Timer = 0;
+		}
+		break;
 	case MessageCode::TKickoutRestartTimer:
 		if (BallCaputeredFlag)
 		{
