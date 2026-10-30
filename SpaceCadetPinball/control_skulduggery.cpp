@@ -2004,8 +2004,7 @@ namespace
 	// A wind's shot in Bermuda Triangle: with its light flashing it follows the wind, else it scores 50,000
 	void WindShot(TPinballComponent* caller)
 	{
-		auto index = std::ranges::find(wind_shots, caller) - wind_shots.begin();
-		if (wind_lights[index]->FlasherOnFlag)
+		if (auto index = std::ranges::find(wind_shots, caller) - wind_shots.begin(); wind_lights[index]->FlasherOnFlag)
 		{
 			FollowWind();
 			return;
