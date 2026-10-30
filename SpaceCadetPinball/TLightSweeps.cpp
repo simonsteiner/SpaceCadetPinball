@@ -40,9 +40,10 @@ int TLightSweeps::Message(MessageCode code, float value)
 	{
 	case MessageCode::TLightSweepsStart:
 		{
-			// TODO: a start during a running sweep leaves its timer running, so the sweep steps
-			// twice as fast. When a rule first sends this, check the exe's type 1038 start case
-			// and add KillTimer() here, or note that the double speed is faithful.
+			// A start during a running sweep leaves its timer running, so the sweep steps twice as fast
+			// and its end can come early or twice. CADET.EXE's start (0x1b in 0x40c660) doesn't kill
+			// the timer either, only a tilt, a player change and Reset do, so this is faithful: a mode
+			// that ends during its sweep, as Skulduggery's on a drain, leaves the sweep to the next.
 			if (GroupIndex <= 0)
 				break;
 			auto sweep = static_cast<int>(value);
