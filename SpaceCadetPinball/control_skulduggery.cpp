@@ -482,8 +482,9 @@ namespace
 		ModePicture{TreasureHuntState, "I", 2.0f, Msg::Skulduggery_PictureTreasureHunt},
 	};
 
-	// 0x423610 and the mode starts (0x423480 to 0x4235f0): v_lite606 flashes while a mode runs (0x423400), the mode
-	// shows its picture, and its state begins. A mode that isn't ported yet doesn't start
+	// 0x423610 and the mode starts (0x423480 to 0x4235f0): v_lite606 flashes (0x423400), the mode shows its picture,
+	// and its state begins. As in PIRATES.EXE, a mode's end leaves v_lite606 flashing; only the next launch and a new
+	// game put it out (0x423440, 0x423460). A mode that isn't ported yet doesn't start
 	bool StartMode(int state)
 	{
 		if (!ModePorted(state))
@@ -1005,7 +1006,9 @@ namespace
 	}
 
 	// Each lit light of <group> goes out, and then, as CADET.EXE's 0x31 does, its first <count> plus one light up;
-	// this port's TLightGroupToggleSplitIndex skips a <count> of all the lights, which CADET.EXE lights in full
+	// this port's TLightGroupToggleSplitIndex skips a <count> of all the lights, which CADET.EXE lights in full. So a
+	// count saved from TLightGroupGetOnCount comes back one light more, none lit as one: PIRATES.EXE's Treasure Hunt
+	// saves the orbits' counts with 0x29 and gives them back with 0x31 (0x42b090) all the same
 	void LightFirst(TLightGroup* group, int count)
 	{
 		using enum MessageCode;
@@ -1101,7 +1104,8 @@ namespace
 		tabb84wave->Play(nullptr, "AwardCoins");
 	}
 
-	// 0x4239d0: an extra ball
+	// 0x4239d0: an extra ball. PIRATES.EXE sets the table's count to 1 rather than adding one, so a second extra ball
+	// before the drain is lost, as there
 	void AwardExtraBall()
 	{
 		tabb00wave->Play(nullptr, "AwardExtraBall");

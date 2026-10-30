@@ -29,6 +29,11 @@ int TKickback::Message(MessageCode code, float value)
 		if (code == MessageCode::TKickbackDisable)
 		{
 			KickDisabled = true;
+			// After a kick Threshold stays 0 until the kickback arms again, which it no longer does once off, so it
+			// would kick every ball; CADET.EXE's timer after a kick (0x415ce0) has closed it by now. A running timer
+			// closes it in TimerExpired
+			if (!Timer)
+				Threshold = 1000000000.0f;
 			return 0;
 		}
 		if (code == MessageCode::TKickbackEnable || code == MessageCode::SetTiltLock || code == MessageCode::Reset)
