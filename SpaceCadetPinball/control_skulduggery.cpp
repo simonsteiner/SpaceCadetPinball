@@ -2735,6 +2735,10 @@ namespace
 				auto lights = PegLegsLootLights();
 				std::for_each(lights.begin() + 1, lights.end(),
 							  [](TLight* light) { light->Message(TLightResetAndTurnOff, 0.0f); });
+				// mode_timer keeps running until PegLegsLootText's next step stops it, so if it runs out first the mode
+				// ends and nothing lets the ball out of the hold; only a tilt frees it. PIRATES.EXE does the same:
+				// 0x4283f0 only sets the flag, 0x42cfc0 stops mode_timer at its next 0x50, and its timer's end goes
+				// straight to 0x52, which doesn't release the ball
 				ModeFlags = 1;
 				break;
 			}
