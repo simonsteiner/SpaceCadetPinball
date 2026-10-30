@@ -20,7 +20,8 @@
 #   SCP_DATA_DRAGON       Full Tilt!'s Dragon's Keep (DRAGON.DAT)        default ../gamedata-dragon
 #   SCP_DATA_SKULDUGGERY  Full Tilt!'s Skulduggery (PIRATES.DAT)         default ../gamedata-skulduggery
 # The build goes to $SCP_TESTBUILDS/<commit>/<platform>/ and is built in $SCP_TESTBUILDS/build/; SCP_TESTBUILDS
-# defaults to ../testbuilds, and neither may be inside a Git repository. SCP_CMAKE_ARGS adds configure arguments.
+# defaults to ../testbuilds, and neither may be inside a Git repository. SCP_CMAKE_ARGS adds configure arguments; each
+# build configures afresh, so arguments from an earlier run don't stay in the cache (the downloaded SDL does).
 # It runs with macOS's bash 3.2 and BSD tools as well as on Linux.
 set -euo pipefail
 
@@ -206,7 +207,7 @@ build_windows_mingw() {
 		exit 1
 	fi
 	local dir=$build/windows-mingw
-	cmake -S "$src" --preset mingw -B "$dir" "-DSCP_BUNDLED_DATA=$layout" "${cmake_args[@]}"
+	cmake --fresh -S "$src" --preset mingw -B "$dir" "-DSCP_BUNDLED_DATA=$layout" "${cmake_args[@]}"
 	cmake --build "$dir" --parallel
 	cp "$src/bin/SpaceCadetPinball.exe" "$out/SpaceCadetPinball.exe"
 }
@@ -240,7 +241,7 @@ build_windows_msvc() {
 	win_dir=$(wslpath -m "$dir")
 	cmake_exe="$vs\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe"
 	printf '%s\r\n' "@echo off" \
-		"\"$cmake_exe\" -S \"$win_dir/src\" -B \"$win_dir/build\" -A x64 -DCMAKE_WIN32_EXECUTABLE=ON -DSCP_VENDORED_SDL=ON ^" \
+		"\"$cmake_exe\" --fresh -S \"$win_dir/src\" -B \"$win_dir/build\" -A x64 -DCMAKE_WIN32_EXECUTABLE=ON -DSCP_VENDORED_SDL=ON ^" \
 		"  \"-DSCP_BUNDLED_DATA=$win_dir/layout\" \"-DSCP_BUILD_COMMIT=$describe\" ${SCP_CMAKE_ARGS:-} || exit /b 1" \
 		"\"$cmake_exe\" --build \"$win_dir/build\" --config Release --parallel || exit /b 1" >"$dir/build.cmd"
 	(cd /mnt/c && cmd.exe /c "$(wslpath -w "$dir/build.cmd")")
@@ -269,7 +270,7 @@ build_web() {
 		exit 1
 	fi
 	local dir=$build/web entry name hash
-	cmake -S "$src" --preset web -B "$dir" "-DSCP_BUNDLED_DATA=$layout" "${cmake_args[@]}"
+	cmake --fresh -S "$src" --preset web -B "$dir" "-DSCP_BUNDLED_DATA=$layout" "${cmake_args[@]}"
 	cmake --build "$dir" --parallel
 	cp "$src/bin/SpaceCadetPinball.html" "$out/index.html"
 	cp "$src/bin/SpaceCadetPinball.js" "$src/bin/SpaceCadetPinball.wasm" "$src/bin/SpaceCadetPinball.data" "$out/"
@@ -293,7 +294,7 @@ build_web() {
 # for an app, signed ad hoc after the data is in, so macOS asks only once (docs/deployment.md)
 build_macos() {
 	local dir=$build/macos app=$build/SpaceCadetPinball.app version dmg
-	cmake -S "$src" --preset macos -B "$dir" "${cmake_args[@]}"
+	cmake --fresh -S "$src" --preset macos -B "$dir" "${cmake_args[@]}"
 	cmake --build "$dir" --parallel "$(sysctl -n hw.ncpu)"
 	version=$(sed -n "s/^sw_version='\(.*\)'$/\1/p" "$src/build-mac-app.sh")
 	if [ -d "$app" ]; then
