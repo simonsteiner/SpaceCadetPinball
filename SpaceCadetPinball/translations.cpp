@@ -8699,7 +8699,7 @@ const TextArray translations::Translations =
 	{
 		Msg::Skulduggery_PictureBuckets,
 		{
-			{ Lang::English, "%ld Buckets Bailed" },
+			{ Lang::English, "Buckets Bailed: %ld" },
 		}
 	}
 };
