@@ -26,8 +26,8 @@ namespace
 } // namespace
 
 BonusTableCheats::BonusTableCheats(std::initializer_list<std::string_view> words, const char* quotes,
-								   bool endQuotesOnce, bool (*fire)(int cheat)) :
-	Words(words), Quotes(quotes), EndQuotesOnce(endQuotesOnce), Fire(fire)
+								   bool endQuotesOnce, std::function<bool(int cheat)> fire) :
+	Words(words), Quotes(quotes), EndQuotesOnce(endQuotesOnce), Fire(std::move(fire))
 {
 }
 
