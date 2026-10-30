@@ -620,7 +620,7 @@ SDL_native_midi, MMPX)");
 				 Theme::Chrome50, Text(Msg::Definitive_Credits), innerWidth - 32 * scale);
 	if (Host.Version)
 	{
-		char version[64];
+		char version[128];
 		snprintf(version, sizeof version, Text(Msg::Definitive_Version), Host.Version);
 		Ui::DrawText(drawList, Theme::TextFont(), Theme::LabelSize,
 					 ImVec2{origin.x + 16 * scale, origin.y + 44 * scale}, Theme::Chrome400, version,

@@ -16,10 +16,11 @@ Full Tilt! Pinball also has Dragon's Keep and Skulduggery, two more tables the g
 The game searches these folders in order, for each table on its own, and uses the first data file it finds:
 
 1. the Game Data Folder, when one was chosen in Space Cadet 2026 (`Game Data Folder` in `imgui_pb.ini`)
-2. the current working directory
-3. the folder containing the executable
-4. the user preferences folder (`SDL_GetPrefPath`, for example `~/.local/share/SpaceCadetPinball/` on Linux)
-5. Linux and macOS only: `/usr/local/share/SpaceCadetPinball/`, then `/usr/share/SpaceCadetPinball/`
+2. a test build's own data, which only test builds have ([deployment.md](deployment.md#test-builds))
+3. the current working directory
+4. the folder containing the executable
+5. the user preferences folder (`SDL_GetPrefPath`, for example `~/.local/share/SpaceCadetPinball/` on Linux)
+6. Linux and macOS only: `/usr/local/share/SpaceCadetPinball/`, then `/usr/share/SpaceCadetPinball/`
 
 For Space Cadet it tries `CADET.DAT`, then `PINBALL.DAT`, then `DEMO.DAT` in each folder, in upper case and then lower case; the "Prefer 3DPB Data" menu option swaps the first two. Full Tilt!'s Dragon's Keep is `DRAGON.DAT`, and its Skulduggery `PIRATES.DAT`. A table's sounds and music go with its data file: 3D Pinball's next to `PINBALL.DAT`, Full Tilt!'s in the `SOUND` folder next to its `.DAT`. The tables' file names don't clash, so `DRAGON.DAT`, `PIRATES.DAT` and their `SOUND` folders can go into the same folder as Space Cadet's data.
 
@@ -136,7 +137,7 @@ cmake --preset web
 cmake --build --preset web
 ```
 
-To try it, copy the three files into a folder, rename the page to `index.html`, add `FluidR3Mono_GM.sf3` for music if you like, and serve the folder over HTTP (`python3 -m http.server`); browsers don't run it from a `file:` URL. The page asks for the game data with a file picker, including `PINBALL.EXE` for the message font. The files are kept in the browser's IndexedDB, so they are only asked for once, and are never uploaded; "Forget the game data" removes them. Settings and high scores are kept the same way.
+To try it, copy the three files into a folder, rename the page to `index.html`, add `FluidR3Mono_GM.sf3` for music if you like, and serve the folder over HTTP (`python3 -m http.server`); browsers don't run it from a `file:` URL. The page asks for the game data with a file picker, including `PINBALL.EXE` for the message font. The files are kept in the browser's IndexedDB, so they are only asked for once, and are never uploaded; "Forget the game data" removes them. Settings and high scores are kept the same way. A test build carries the data and skips the picker ([deployment.md](deployment.md#test-builds)).
 
 - The game's loop yields to the browser after every frame (`-sASYNCIFY` and `emscripten_sleep`), so the browser shows the frame and delivers input in between. It runs without threads, because GitHub Pages can't send the headers that threads need.
 - Music plays with TinySoundFont and the SoundFont the player adds with the game files (`.sf2` or `.sf3`), or else the free `FluidR3Mono_GM.sf3` that the page offers to download. It takes about 400 MB of memory once loaded.
@@ -156,7 +157,7 @@ The preset uses `mingwcc.cmake` as its toolchain file, builds SDL from source an
 
 ### macOS
 
-Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake 3.24 or newer.
+Install Xcode or the Command Line Tools (`xcode-select --install`) and CMake 3.24 or newer. The game runs on macOS 13.3 or newer: it uses C++23's `std::format` and `std::print`, which Apple's C++ library has only from then on.
 
 - **Packaged app:** run `bash build-mac-app.sh` from the repository root. It builds the `macos` preset and produces `SpaceCadetPinball-<version>-mac.dmg`. See [deployment.md](deployment.md).
 - **Manual build:** `cmake --preset macos && cmake --build --preset macos` builds a universal binary with SDL linked statically. To use SDL from Homebrew (`sdl3`, `sdl3_mixer`) instead, configure without the preset and pass `-DSCP_VENDORED_SDL=OFF`. That build targets only the host architecture unless `CMAKE_OSX_ARCHITECTURES` is set.

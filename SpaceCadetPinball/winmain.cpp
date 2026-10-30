@@ -22,6 +22,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 }
 #endif
 
+#include "BundledData.h"
 #include "control.h"
 #include "DefinitiveEdition.h"
 #include "DefinitiveStats.h"
@@ -583,6 +584,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	const std::unique_ptr<char, decltype(&SDL_free)> prefPathOwner{SDL_GetPrefPath("", "SpaceCadetPinball"), &SDL_free};
 	auto prefPath = prefPathOwner.get();
 	auto basePath = SDL_GetBasePath();
+	// A test build's own game data, empty in any other build
+	const auto bundledPath = BundledData::Folder(prefPath ? prefPath : "");
 
 	// SDL mixer init
 	MIX_Mixer* mixer = nullptr;
@@ -705,7 +708,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 				prefPath
 			}
 		};
-		// The folder the player chose comes first
+		// The folder the player chose comes first, then a test build's own data
+		if (!bundledPath.empty())
+			searchPaths.insert(searchPaths.begin(), bundledPath.c_str());
 		if (!Options.GameDataFolder.V.empty())
 			searchPaths.insert(searchPaths.begin(), Options.GameDataFolder.V.c_str());
 		searchPaths.insert(searchPaths.end(), std::begin(PlatformDataPaths), std::end(PlatformDataPaths));

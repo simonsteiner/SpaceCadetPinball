@@ -29,9 +29,12 @@
 <body>
 <div id="start">
   <h1>Space Cadet Pinball</h1>
-  <p>A port of 3D Pinball for Windows, running in your browser. It needs the original game data, which isn't included.</p>
+  <p id="needsData">A port of 3D Pinball for Windows, running in your browser. It needs the original game data, which isn't included.</p>
 
-  <div class="panel">
+  <p id="bundled" class="panel" hidden><strong>A test build.</strong> It carries the game data of all four tables, so
+    it asks for no files. It holds Microsoft's files: keep it on your own devices and never publish it.</p>
+
+  <div id="dataPanel" class="panel">
     <p><strong>1. Add the game data.</strong> Choose <code>PINBALL.DAT</code> with its <code>.WAV</code> and <code>.MID</code> files
       and <code>PINBALL.EXE</code>, which holds the font of the messages, from 3D Pinball for Windows, or the folder of
       Full Tilt! Pinball (<code>CADET.DAT</code>). Add Full Tilt!'s <code>DRAGON</code> folder too, with
@@ -77,6 +80,9 @@
   // Full Tilt!'s tables have a picture each, such as DRAGON.BMP, which the table list shows
   const GameExtensions = /\.(dat|wav|mid|mds)$|^pinball\.exe$|(^|\/)(cadet|dragon|pirates)\.bmp$/i, SoundFontExtensions = /\.(sf2|sf3)$/i;
   const $ = id => document.getElementById(id);
+  // A test build's data, which the page loads from SpaceCadetPinball.data before the game starts (CMakeLists.txt)
+  const BundledDir = "/bundled";
+  let bundled = false;
 
   function setStatus(text) { $("status").textContent = text; }
 
@@ -100,7 +106,7 @@
     $("files").textContent = files.length ? files.join("  ") : "No game data yet.";
     // A table's DAT, or one in its CADET, DRAGON or PIRATE folder of a Full Tilt! installation (PIRATES in the
     // Windows 3.1 release), where the game looks too
-    const hasTable = files.some(name => /^((cadet|dragon|pirates?)\/)?(pinball|cadet|demo|dragon|pirates)\.dat$/i.test(name));
+    const hasTable = bundled || files.some(name => /^((cadet|dragon|pirates?)\/)?(pinball|cadet|demo|dragon|pirates)\.dat$/i.test(name));
     $("play").disabled = !hasTable;
     setStatus(hasTable ? "" : "Add a .DAT file to play.");
   }
@@ -214,6 +220,10 @@
       });
     }],
     onRuntimeInitialized: () => {
+      // A test build doesn't ask for the player's files
+      bundled = FS.analyzePath(BundledDir).exists;
+      $("bundled").hidden = !bundled;
+      $("dataPanel").hidden = $("needsData").hidden = bundled;
       refresh();
       $("pickFiles").addEventListener("change", event => addFiles(event.target));
       $("pickFolder").addEventListener("change", event => addFiles(event.target));

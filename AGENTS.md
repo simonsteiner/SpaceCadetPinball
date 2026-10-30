@@ -13,6 +13,7 @@ cmake --preset linux-vendored && cmake --build --preset linux-vendored  # build 
 tools/run-headless.sh ../gamedata -noaudio  # run on a free Xvfb display of its own, as a renamed copy; prints the display and PID, stop it with kill <PID>, never pkill by name
 tools/wine-reference.sh start ../gamedata-fulltilt CADET.EXE -nomovie  # the original EXE under Wine, without network, as a reference (docs/wine-reference.md); setup once with `tools/wine-reference.sh setup`
 tools/check-replays.sh ../replays ../gamedata  # play back recorded sessions and report any that play differently
+tools/make-test-build.sh windows --msvc  # a test build with all four tables' data in it, in ../testbuilds/ (or web, or macos on a Mac); never uploaded (docs/deployment.md)
 lefthook install  # optional Git hooks from lefthook.yml: game-data guard, source-list and presentation-include checks, build and replays before push
 uvx --from clang-format==23.1.3 git-clang-format main  # format only the lines changed since main; never a whole file
 tools/lint-changed.sh main build/lint  # clang-format and clang-tidy on changed lines, as CI runs them (docs/setup.md)
