@@ -212,9 +212,14 @@ namespace
 		return names;
 	}
 
-	// The folders a Full Tilt! installation keeps its tables in, each with its EXE, DAT and SOUND folder:
-	// Space Cadet, Dragon's Keep and Skulduggery, which the Windows 3.1 release keeps in PIRATES
-	constexpr std::array FullTiltFolders{"CADET", "DRAGON", "PIRATE", "PIRATES"};
+	// Whether <name>, in upper case, is a folder a Full Tilt! installation keeps a table in, with its EXE, DAT and
+	// SOUND folder: any table's FullTiltFolder, or its Win31Folder where the Windows 3.1 release differs
+	bool IsFullTiltFolder(std::string_view name)
+	{
+		return std::ranges::any_of(
+			TableInfos, [name](const TableInfo& info)
+			{ return name == info.FullTiltFolder || (info.Win31Folder && name == info.Win31Folder); });
+	}
 
 	bool IsSeparator(char c)
 	{
@@ -265,8 +270,7 @@ namespace
 		}
 		// A table's own folder isn't next to itself
 		name = ToUpper(name);
-		if (std::ranges::find(own, name) != own.end() ||
-			std::ranges::find(FullTiltFolders, name) == FullTiltFolders.end())
+		if (std::ranges::find(own, name) != own.end() || !IsFullTiltFolder(name))
 			return folders;
 		for (const auto& spelling : spellings)
 			folders.push_back(parent + spelling + PathSeparator);
