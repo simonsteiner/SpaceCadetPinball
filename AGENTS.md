@@ -49,7 +49,7 @@ There are no automated tests of the game yet, only `tools/check-bidi.sh` for rig
 
 ## Hard constraints
 
-- **Never commit game data.** The original game's files (`*.DAT`, `*.WAV`, `*.MID`, `Pinball.exe`, `table.bmp`, `wavemix.inf`) are Microsoft's, and so is anything made from them, such as exported or upscaled sprites. `.gitignore` excludes them in any letter case; keep game data outside the repository and never force-add it.
+- **Never commit game data.** The original game's files (`*.DAT`, `*.WAV`, `*.MID`, Full Tilt!'s `*.MDS` music, `Pinball.exe` and the other EXEs, `table.bmp`, the tables' pictures `CADET.BMP`, `DRAGON.BMP` and `PIRATES.BMP`, `wavemix.inf`) are Microsoft's, and so is anything made from them, such as exported or upscaled sprites. `.gitignore` excludes them in any letter case; keep game data outside the repository and never force-add it.
 - **The web build never contains game data.** `.github/workflows/Pages.yml` publishes only the page, the game's code and the MIT SoundFont, after `tools/check-no-game-data.sh` has checked the folder. The player's files go into their browser's IndexedDB and nowhere else.
 - **Never commit to or push `master`.** Merge `upstream/master` into it only when asked.
 - **Ask the user before changing gameplay behaviour,** including fixes to physics or table rules. The decompiled physics and table rules reproduce the original; a quirk that looks like a bug may be faithful to it.
