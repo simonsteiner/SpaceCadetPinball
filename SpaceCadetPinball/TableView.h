@@ -114,6 +114,9 @@ struct TableView
 		int BrigBalls;
 		// The balls in play, more than one in a multiball
 		int BallsInPlay;
+		// The game's last ball drained and the brig's balls come out, the flippers dead (0x43aba8); a tilt enters
+		// LastBallState too, without this
+		bool LastBallRelease;
 		// The coins, special treasures and map pieces lit, and how many lights each has
 		int Coins;
 		int CoinLights;
