@@ -4,13 +4,17 @@ Libraries vendored as source, so that every build, including a distribution's of
 
 | Folder | Upstream | Version | Licence | Used for |
 | --- | --- | --- | --- | --- |
-| `SDL_native_midi/` | <https://github.com/libsdl-org/SDL_native_midi> | commit `6423664` (2025-11-17), without the Haiku backend | zlib | MIDI music through the operating system's synth on Windows and macOS |
+| `SDL_native_midi/` | <https://github.com/libsdl-org/SDL_native_midi> | commit `6423664` (2025-11-17), without the Haiku backend, with the edit listed below | zlib | MIDI music through the operating system's synth on Windows and macOS |
 | `MMPX/` | <https://casual-effects.com/research/McGuire2021PixelArt/>, C port <https://github.com/ITotalJustice/mmpx> | commit `cce3900` (2021-07-15), with the edits listed below | MIT | Upscaled Art: magnifying the table's sprites |
 | `stb/stb_vorbis.c` | <https://github.com/nothings/stb> | commit `2c980bb` (2026-08-02) | MIT or public domain | Ogg Vorbis samples of SF3 SoundFonts, for TinySoundFont |
 | `TinySoundFont/` | <https://github.com/schellingb/TinySoundFont> | commit `853a0a1` (2026-07-19) | MIT | MIDI music rendered with a SoundFont everywhere else |
 | `fonts/` | Exo 2, Noto Sans, Noto Sans Hebrew and Noto Sans Arabic from <https://github.com/google/fonts>; DSEG7 Classic from <https://github.com/keshikan/DSEG> | google/fonts commit `47d54ca` (2026-10-16); DSEG v0.46 | SIL Open Font License 1.1 (`OFL-*.txt`) | Space Cadet 2026's text and score digits, embedded at build time |
 
 `TinySoundFont/TinySoundFont.c` is this project's file: it compiles the implementations of `tsf.h` and `tml.h` once.
+
+`SDL_native_midi/` differs from upstream in this edit, to re-apply after an upgrade unless upstream has it:
+
+- `src/SDL_native_midi_win32.c`: `NativeMidi_Init` sets an SDL error with the `MMRESULT` when `midiStreamOpen` fails (upstream returned `false` without one).
 
 `MMPX/` differs from upstream in these edits, to re-apply after an upgrade unless upstream has them:
 
