@@ -786,7 +786,10 @@ void TPinballTable::tilt_timeout(int timerId, void* caller)
 	{
 		for (auto ball : table->BallList)
 		{
-			table->Drain->Collision(ball, &vec, &vec, 0.0, nullptr);
+			// Full Tilt's engine (0x41a1b0 in CADET.EXE and PIRATES.EXE) leaves a ball placed from the DAT,
+			// Skulduggery's captive ball, on the table; Space Cadet has none
+			if (!ball->HasGroupFlag)
+				table->Drain->Collision(ball, &vec, &vec, 0.0, nullptr);
 		}
 	}
 }
