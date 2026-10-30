@@ -867,6 +867,8 @@ namespace
 
 		for (auto component : table->ComponentList)
 		{
+			if (!component)
+				continue;
 			if (component == drain)
 				Link(*component, WithHook<DrainControl>);
 			else if (component == s_launcher1)
