@@ -149,6 +149,9 @@ enum class MessageCode
 
 	// Dragon's Keep's rules only, DRAGON.EXE's numbers, which its rules send only among themselves
 	DragonSkipBonusText = 1,
+	// The component that scored last no longer is, as another one scores (0x4d); Skulduggery's ramps and orbits end
+	// their combos on it
+	DragonScorerReplaced = 77,
 	DragonEnterState = 79,
 	DragonShowStateText = 80,
 	DragonQuestResume = 81,

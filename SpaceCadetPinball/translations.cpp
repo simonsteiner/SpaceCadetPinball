@@ -8643,6 +8643,48 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Skulduggery_TradewindLoop,
+		{
+			{ Lang::English, "Tradewind Loop\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_IslandBreeze,
+		{
+			{ Lang::English, "Island Breeze\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_NorEaster,
+		{
+			{ Lang::English, "Nor'Easter\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_PortOCall,
+		{
+			{ Lang::English, "Port O' Call\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_SouEastern,
+		{
+			{ Lang::English, "Sou'Eastern\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_Westerly,
+		{
+			{ Lang::English, "Westerly\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_Easterly,
+		{
+			{ Lang::English, "Easterly\n%ld" },
+		}
+	},
+	{
 		Msg::Skulduggery_PictureSkillShot,
 		{
 			{ Lang::English, "Skill Shot" },

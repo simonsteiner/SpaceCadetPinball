@@ -27,9 +27,10 @@
 // Skulduggery's rules, recovered from PIRATES.EXE one feature at a time (Phase F6). Ported so far: the serve, drain
 // and game-over flow, with the ball save, the end-of-ball bonus, the launch's rolling skill shot and the music; the
 // mode framework: the SKULDUGGERY drop targets, the modes' lights and pick, the captive ball's targets and a_spot102;
-// and the modes Attack Ship, Bermuda Triangle with the winds' shots and the kickouts, Storm, Tavern with the magnets
-// and the mugs' sinks, Treasure Hunt with the buried treasure's sinks and rollovers, Mutiny with the bumpers' crew
-// and a_spot6, and Sword Fight with the parrot's targets.
+// the modes Attack Ship, Bermuda Triangle with the winds' shots and the kickouts, Storm, Tavern with the magnets and
+// the mugs' sinks, Treasure Hunt with the buried treasure's sinks and rollovers, Mutiny with the bumpers' crew and
+// a_spot6, and Sword Fight with the parrot's targets; and the scoring outside the modes: the last scorer, the winds'
+// shots (the orbits, the ramps and their combos, the WINDS lanes and their letters) and Port O' Call.
 // Everything else is still a stand-in that keeps the table playable: kickouts and sinks give back the balls they
 // catch, which only the rules would do otherwise, and a stuck ball is freed as Space Cadet's rules free one.
 //
@@ -49,6 +50,7 @@ namespace
 	constexpr auto ShowStateText = MessageCode::DragonShowStateText; // 0x50
 	constexpr auto ModeEnd = MessageCode::DragonQuestEnd;            // 0x52: a mode is over, back to play
 	constexpr auto BallDrained = MessageCode::DragonBallDrained;     // 0x53
+	constexpr auto ScorerReplaced = MessageCode::DragonScorerReplaced; // 0x4d
 
 	// The game's states, as PIRATES.EXE numbers them; 0 is the new game's until the first ball is served
 	constexpr int NewGameState = 0;
@@ -175,6 +177,22 @@ namespace
 	std::array<TLightGroup*, 8> wind_light_groups;
 	std::array<TPinballComponent*, 8> wind_shots;
 	std::array<TLight*, 8> wind_lights;
+	// The winds' shots outside Bermuda Triangle: the second light of each wind, which its shot lights after the first
+	// in play, and the combos of the orbits and the ramps: each light of a combo's group (s_trip3: v_lite631 and
+	// v_lite632, s_trip8: v_lite634 and v_lite635, a_ramp8: v_lite629 and v_lite630, a_ramp5: v_lite626 and v_lite627)
+	// counts that shot made again before another component scored
+	std::array<TLight*, 8> wind_lights2;
+	std::array<TLightGroup*, 4> combo_light_groups;
+	std::array<std::array<TLight*, 2>, 4> combo_lights;
+	TPinballComponent* a_ramp13;
+	TSound* tabb41wave;
+	// The WINDS lanes' letters (lane_winds_light_group: v_lite533 to v_lite537), which s_trip11, a_roll5, a_roll1,
+	// a_roll2 and a_roll3 light in play
+	std::array<TPinballComponent*, 5> lane_rollovers;
+	std::array<TLight*, 5> lane_lights;
+	TLightGroup* lane_winds_light_group;
+	TSound* tabb43wave;
+	TSound* tabb44wave;
 	// Storm's: its light, the Shipwreck Mystery's light it lights as the ship goes down, and its sounds
 	TLight* v_lite778;
 	TLight* v_lite529;
@@ -243,6 +261,7 @@ namespace
 	int BrigBalls;          // 0x435d3c: the balls the brig holds, which the last ball releases
 	int ModeFlags;          // 0x435cf8: the running mode's own count or flags; Attack Ship counts the ships captured
 	int ModeAwardStep;      // 0x435d04: the next of a mode's awards
+	const TPinballComponent* LastScorer; // 0x435d44: the component that scored last, if any
 	// What Treasure Hunt's rollovers bury for Peg Leg's Loot to dig up (0x435d10 to 0x435d28)
 	int BuryStep;
 	int CoinsBuried;
@@ -267,9 +286,27 @@ namespace
 		Table->JackpotScore = std::min(Table->JackpotScore + score, 10000000);
 	}
 
-	// 0x423350: the score without multiplier, bonus or first jackpot; the second jackpot still counts it
-	int AddScoreUnmultiplied(TPinballComponent* /*scorer*/, int score)
+	// 0x4232c0, 0x423310 and 0x423350 first tell the component that scored last that it no longer is (0x4d), through
+	// control::handler (0x423080), so the table-wide function sees it too: a popup target, sink or spot target counts
+	// again for the jackpot and the Target Bonus. The ramps and orbits end their combos on it
+	void SetScorer(const TPinballComponent* scorer)
 	{
+		if (scorer == LastScorer)
+			return;
+		if (LastScorer)
+		{
+			// The components are the table's own; find the one that scored to send it a message
+			auto previous = std::ranges::find(Table->ComponentList, LastScorer);
+			if (previous != Table->ComponentList.end() && (*previous)->Control)
+				(*previous)->Control->ControlFunc(ScorerReplaced, *previous);
+		}
+		LastScorer = scorer;
+	}
+
+	// 0x423350: the score without multiplier, bonus or first jackpot; the second jackpot still counts it
+	int AddScoreUnmultiplied(const TPinballComponent* scorer, int score)
+	{
+		SetScorer(scorer);
 		auto bonus = Table->BonusScoreFlag;
 		auto jackpot = Table->JackpotScoreFlag;
 		auto multiplier = Table->ScoreMultiplier;
@@ -335,10 +372,10 @@ namespace
 		v_lite505->Message(TLightResetAndTurnOff, 0.0f);
 	}
 
-	// 0x4232c0: the scorer's own score at <index>. PIRATES.EXE first tells the previous scorer's rules that it no
-	// longer is (0x4d), which no ported handler takes yet, so the last scorer (0x435d44) isn't kept
+	// 0x4232c0: the scorer's own score at <index>
 	int ScoreBy(const TPinballComponent* scorer, int index)
 	{
+		SetScorer(scorer);
 		return Table->AddScore(scorer->get_scoring(index));
 	}
 
@@ -358,9 +395,10 @@ namespace
 		return (static_cast<unsigned>(field) & mask) == mask;
 	}
 
-	// 0x423310: <score> for the table; PIRATES.EXE keeps its last scorer as ScoreBy does
-	int AddScore(int score)
+	// 0x423310: <score> for the table, from <scorer>, which PIRATES.EXE often leaves out
+	int AddScore(const TPinballComponent* scorer, int score)
 	{
+		SetScorer(scorer);
 		return Table->AddScore(score);
 	}
 
@@ -685,10 +723,10 @@ namespace
 		return 2.0f;
 	}
 
-	// 0x425080: the winds' lights out. PIRATES.EXE first adds 0 to the score, which only forgets its last scorer (see
-	// ScoreBy)
+	// 0x425080: the winds' lights out, after a score of 0 that only forgets the last scorer (SetScorer)
 	void WindLightsOff()
 	{
+		AddScore(nullptr, 0);
 		for (auto group : wind_light_groups)
 			group->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
 	}
@@ -751,13 +789,13 @@ namespace
 			a_blocg->Message(TAnimatedBlockerSetState, 0.0f);
 			ResetBank(bank);
 			AwardJackpot(MagnetOn());
-			AddScore(50000);
+			AddScore(nullptr, 50000);
 		}
 		else
 		{
 			MagnetOn();
 			tabb87wave->Play(nullptr, "TavernBankHit");
-			AddScore(25000);
+			AddScore(nullptr, 25000);
 		}
 	}
 
@@ -785,7 +823,7 @@ namespace
 		}
 		else
 		{
-			AddScore(30000);
+			AddScore(nullptr, 30000);
 		}
 		tabb94wave->Play(nullptr, "SwordFightBankHit");
 	}
@@ -805,12 +843,12 @@ namespace
 				ResetBank(bank);
 				auto time = AwardJackpot(0.0f);
 				fathom_light_group->Message(TLightGroupRestartNotifyTimer, time);
-				AddScore(25000);
+				AddScore(caller, 25000);
 			}
 			else
 			{
 				tabb22wave->Play(nullptr, "BankHit");
-				AddScore(10000);
+				AddScore(caller, 10000);
 			}
 			return;
 		}
@@ -944,7 +982,7 @@ namespace
 			BloceUp();
 			a_blocf->Message(TAnimatedBlockerSetState, 0.0f);
 			a_blocg->Message(TAnimatedBlockerSetState, 0.0f);
-			AddScore(200000);
+			AddScore(nullptr, 200000);
 			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_AttackShipHelp), -1.0f);
 			for (auto index = 3; index < 8; index++)
 				letter_lights[index]->Message(TLightFlasherStartTimed, -1.0f);
@@ -1031,7 +1069,7 @@ namespace
 		special_treasure_light_group->MessageField++;
 		index = std::clamp(index, 0, static_cast<int>(treasures.size()) - 1);
 		treasure_lights[index]->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
-		AddScore(treasures[index].Score);
+		AddScore(nullptr, treasures[index].Score);
 		info_text_box->Display(pb::get_rc_string(treasures[index].Name), 2.0f);
 		tabb84wave->Play(nullptr, "AwardSpecialTreasure");
 	}
@@ -1085,7 +1123,7 @@ namespace
 			a_blocc->Message(TAnimatedBlockerSetState, -1.0f);
 			a_blocf->Message(TAnimatedBlockerSetState, -1.0f);
 			a_blocg->Message(TAnimatedBlockerSetState, -1.0f);
-			AddScore(300000);
+			AddScore(nullptr, 300000);
 			TreasureXsOff();
 			s_trip3->ActiveFlag = 0;
 			s_trip8->ActiveFlag = 0;
@@ -1128,20 +1166,22 @@ namespace
 		}
 	}
 
-	// 0x423aa0: a map piece, with its picture, and One Million; the last one picks Peg Leg's Loot in play
-	void AwardMapPiece()
+	// 0x423aa0: a map piece, with its picture for <time> plus 2 s, and One Million for 2 s more; the last one picks
+	// Peg Leg's Loot in play. Returns how long the texts show
+	float AwardMapPiece(float time)
 	{
 		using enum MessageCode;
 		map_piece_light_group->Message(TLightGroupResetAndTurnOn, 1.0f);
 		v_lite607->MessageField++;
-		ShowPicture("C", 2.0f, Msg::Skulduggery_PictureMapPiece);
-		info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_OneMillion), 4.0f);
-		AddScore(1000000);
+		ShowPicture("C", time + 2.0f, Msg::Skulduggery_PictureMapPiece);
+		info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_OneMillion), time + 4.0f);
+		AddScore(nullptr, 1000000);
 		tabb83wave->Play(nullptr, "AwardMapPiece");
 		if (map_piece_light_group->Message(TLightGroupGetOnCount, 0.0f) ==
 				map_piece_light_group->Message(TLightGroupGetLightCount, 0.0f) &&
 			GameState() == PlayState)
 			PickMode();
+		return time + 4.0f;
 	}
 
 	// 0x423720: the next coin lights, and the coins lit score (0x43d0c0), with the coins' picture and the score
@@ -1150,7 +1190,7 @@ namespace
 		static constexpr std::array scores{0, 50000, 100000, 200000, 400000, 800000, 1600000};
 		coin_light_group->Message(MessageCode::TLightGroupResetAndTurnOn, 1.0f);
 		auto lit = coin_light_group->Message(MessageCode::TLightGroupGetOnCount, 1.0f);
-		auto score = AddScore(scores[std::clamp(lit, 0, static_cast<int>(scores.size()) - 1)]);
+		auto score = AddScore(nullptr, scores[std::clamp(lit, 0, static_cast<int>(scores.size()) - 1)]);
 		ShowPicture("D", 2.0f, Msg::Skulduggery_PictureCoins);
 		ShowBonus(Msg::Skulduggery_Score, score, 4.0f);
 		tabb84wave->Play(nullptr, "AwardCoins");
@@ -1170,7 +1210,7 @@ namespace
 		switch (std::min(static_cast<int>(RandFloat() * 4.0f), 3))
 		{
 		case 0:
-			AwardMapPiece();
+			AwardMapPiece(0.0f);
 			break;
 		case 1:
 			AwardSpecialTreasure(special_treasure_light_group->MessageField);
@@ -1251,7 +1291,7 @@ namespace
 		case EnterState:
 			ModeEnter();
 			CrewLightsOff();
-			AddScore(200000);
+			AddScore(nullptr, 200000);
 			light_sweeps->Message(TLightSweepsStart, 7.0f);
 			PlayTrack(MidiTracks::Track4);
 			tabb65wave->Play(nullptr, "TavernStateControl");
@@ -1326,7 +1366,7 @@ namespace
 			break;
 		case EnterState:
 			ModeEnter();
-			AddScore(200000);
+			AddScore(nullptr, 200000);
 			light_sweeps->Message(TLightSweepsStart, 8.0f);
 			WindLightsOff();
 			PlayTrack(MidiTracks::Track5);
@@ -1404,7 +1444,7 @@ namespace
 					break;
 				}
 				tabb68wave->Play(nullptr, "StormStateControl");
-				AddScore(Storm.Score);
+				AddScore(caller, Storm.Score);
 				auto buckets = std::clamp(ModeFlags, 0, static_cast<int>(BucketPictures.size()) - 1);
 				std::array<char, 64> words{};
 				snprintf(words.data(), words.size(), pb::get_rc_string(Msg::Skulduggery_PictureBuckets),
@@ -1427,7 +1467,7 @@ namespace
 		case EnterState:
 			{
 				ModeEnter();
-				AddScore(300000);
+				AddScore(nullptr, 300000);
 				light_sweeps->Message(TLightSweepsStart, 9.0f);
 				PlayTrack(MidiTracks::Track6);
 				tabb67wave->Play(nullptr, "StormStateControl");
@@ -1490,7 +1530,7 @@ namespace
 			break;
 		case EnterState:
 			ModeEnter();
-			AddScore(100000);
+			AddScore(nullptr, 100000);
 			light_sweeps->Message(TLightSweepsStart, 10.0f);
 			PlayTrack(MidiTracks::Track6);
 			tabb73wave->Play(nullptr, "MutinyStateControl");
@@ -1528,7 +1568,7 @@ namespace
 			AwardCoins();
 			break;
 		case 2:
-			AwardMapPiece();
+			AwardMapPiece(0.0f);
 			break;
 		default:
 			AwardExtraBall();
@@ -1562,7 +1602,7 @@ namespace
 		auto& field = captive_lights[1]->MessageField;
 		if (!AllSet(field, 0xf))
 		{
-			AddScore(30000);
+			AddScore(nullptr, 30000);
 			return;
 		}
 		field = 0;
@@ -1590,7 +1630,7 @@ namespace
 			// 0x4235c0: a_spot8's message field starts over as the mode starts
 			captive_targets[1]->MessageField = 0;
 			ModeEnter();
-			AddScore(250000);
+			AddScore(nullptr, 250000);
 			light_sweeps->Message(TLightSweepsStart, 11.0f);
 			for (auto index = 8; index < 11; index++)
 				letter_lights[index]->Message(TLightFlasherStartTimed, -1.0f);
@@ -1708,7 +1748,7 @@ namespace
 				}
 				if (TallyTotal)
 				{
-					AddScoreUnmultiplied(nullptr, TallyTotal);
+					AddScoreUnmultiplied(caller, TallyTotal);
 					if (!TallyQuiet)
 					{
 						tabb74wave->Play(nullptr, "EndOfBallStateControl");
@@ -1982,6 +2022,7 @@ namespace
 			// A new ball, unless the ball save serves the same one again
 			if (!BallSaveStep)
 			{
+				LastScorer = nullptr;
 				SetState(LaunchState);
 				MagnetsOff();
 				BloceDown();
@@ -2255,20 +2296,221 @@ namespace
 		tabb12wave->Play(nullptr, "WindShot");
 	}
 
+	// A wind's shot outside Bermuda Triangle: the orbits (Tradewind Loop), the ramps (Island Breeze, Nor'Easter) and
+	// the WINDS lanes (Sou'Eastern, Westerly, Easterly). An orbit or a ramp made again before another component scores
+	// lights one more light of its combo, each three steps of its score, and in play each shot lights one more light
+	// of its wind, one step. The score shows with the shot's name for <time> plus 2 s
+	void WindShotScore(int index, const TPinballComponent* caller, float time)
+	{
+		using enum MessageCode;
+		using enum Msg;
+		static constexpr std::array names{
+			Skulduggery_TradewindLoop, Skulduggery_TradewindLoop, Skulduggery_IslandBreeze, Skulduggery_NorEaster,
+			Skulduggery_SouEastern,    Skulduggery_Westerly,      Skulduggery_Easterly,     Skulduggery_Easterly};
+		auto step = 0;
+		if (index < static_cast<int>(combo_light_groups.size()))
+		{
+			auto combo = combo_light_groups[index];
+			switch (combo->Message(TLightGroupGetOnCount, 0.0f))
+			{
+			case 0:
+				combo_lights[index][0]->Message(TLightFlasherStartTimedThenStayOn, 2.0f);
+				break;
+			case 1:
+				combo_lights[index][0]->Message(TLightFlasherStartTimedThenStayOn, 2.0f);
+				combo_lights[index][1]->Message(TLightFlasherStartTimedThenStayOn, 2.0f);
+				step = 3;
+				break;
+			case 2:
+				combo->Message(TLightFlasherStartTimedThenStayOn, 2.0f);
+				step = 6;
+				break;
+			default:
+				combo->Message(TLightFlasherStartTimedThenStayOn, 2.0f);
+				step = 9;
+				break;
+			}
+		}
+		auto play = GameState() == PlayState;
+		auto wind = wind_light_groups[index];
+		switch (wind->Message(TLightGroupGetOnCount, 0.0f))
+		{
+		case 0:
+			if (play)
+				wind_lights[index]->Message(TLightFlasherStartTimedThenStayOn, 2.0f);
+			break;
+		case 1:
+			if (play)
+			{
+				wind_lights[index]->Message(TLightFlasherStartTimedThenStayOn, 2.0f);
+				wind_lights2[index]->Message(TLightFlasherStartTimedThenStayOn, 2.0f);
+			}
+			step += 1;
+			break;
+		default:
+			if (play)
+				wind->Message(TLightFlasherStartTimedThenStayOn, 2.0f);
+			step += 2;
+			break;
+		}
+		ShowBonus(names[index], ScoreBy(caller, step), time + 2.0f);
+	}
+
+	// 0x424290: with all of WINDS lit, its letters flash out and a map piece follows. Returns how long the map piece's
+	// texts show past <time>, else <time>
+	float LaneWindsAward(float time)
+	{
+		using enum MessageCode;
+		if (std::ranges::any_of(lane_lights, [](const TLight* light) { return LightIdle(*light); }))
+			return time;
+		lane_winds_light_group->Message(TLightTurnOff, 0.0f);
+		lane_winds_light_group->Message(TLightFlasherStartTimedThenStayOff, 1.0f);
+		return AwardMapPiece(time);
+	}
+
+	// A letter of WINDS lit in play, by its lane; all five give a map piece (LaneWindsAward). Returns how long the map
+	// piece's texts show, or 0 without it
+	float LaneLetter(int index)
+	{
+		lane_lights[index]->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
+		return LaneWindsAward(0.0f);
+	}
+
+	// The picture of a letter of WINDS for 2 s, a large W, I, N, D or S, which Space Cadet 2026's HUD shows as it is
+	void ShowLaneLetter(int index)
+	{
+		static constexpr std::array pictures{"5", "6", "7", "8", "9"};
+		static constexpr std::array letters{"W", "I", "N", "D", "S"};
+		ShowPicture(pictures[index], 2.0f, letters[index]);
+	}
+
+	// 0x4239a0: with v_lite524 to v_lite527 all lit (v_lite524's message field), they flash out (0x423870 with 1) and
+	// coins follow
+	void LitLanesCoins()
+	{
+		if (!AllSet(v_lite524s[0]->MessageField, 0xf))
+			return;
+		v_lite524s[0]->MessageField = 0;
+		for (auto light : v_lite524s)
+			light->Message(MessageCode::TLightFlasherStartTimedThenStayOff, 1.0f);
+		AwardCoins();
+	}
+
 	// s_trip3, s_trip8, a_ramp8, a_ramp5, a_roll2 and a_roll6 (0x429210, 0x429400, 0x428b70, 0x428d80, 0x4298f0 and
-	// 0x429da0): the ramps as the ball comes off them, the others as it passes. Their Bermuda Triangle part; the rest
-	// comes with their features
+	// 0x429da0): the ramps as the ball comes off them, the others as it passes. In Bermuda Triangle they follow its
+	// winds, else they score (WindShotScore); in play s_trip8 also lights v_lite527 and a_roll2 the D of WINDS. Another
+	// component's score ends an orbit's or a ramp's combo, and the ball going up a_ramp8 drops a_blocg
 	void WindShotControl(MessageCode code, TPinballComponent* caller)
 	{
 		using enum MessageCode;
-		auto ramp = caller == wind_shots[2] || caller == wind_shots[3];
-		if (code == (ramp ? ControlRampExitToLayer2 : ControlCollision) && GameState() == BermudaState)
+		auto index = static_cast<int>(std::ranges::find(wind_shots, caller) - wind_shots.begin());
+		if (code == ScorerReplaced)
+		{
+			if (index < static_cast<int>(combo_light_groups.size()))
+				combo_light_groups[index]->Message(TLightResetAndTurnOff, 2.0f);
+			return;
+		}
+		if (code == ControlRampLayerChanged)
+		{
+			if (index == 2)
+				a_blocg->Message(TAnimatedBlockerSetState, -1.0f);
+			return;
+		}
+		if (code != (index == 2 || index == 3 ? ControlRampExitToLayer2 : ControlCollision))
+			return;
+		if (GameState() == BermudaState)
+		{
 			WindShot(caller);
+			return;
+		}
+		auto time = 0.0f;
+		if (index == 4)
+		{
+			// a_roll2 sounds only with its letter's picture
+			if (GameState() == PlayState && (time = LaneLetter(3)) == 0.0f)
+			{
+				ShowLaneLetter(3);
+				tabb12wave->Play(nullptr, "WindShotControl");
+			}
+		}
+		else
+		{
+			if (index == 1 && GameState() == PlayState)
+			{
+				v_lite524s[3]->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+				SetBit(v_lite524s[0]->MessageField, 3);
+				LitLanesCoins();
+			}
+			tabb12wave->Play(nullptr, "WindShotControl");
+		}
+		WindShotScore(index, caller, time);
+	}
+
+	// a_ramp13, 0x428f70: Port O' Call and its score as the ball comes off it; the ball going up drops a_blocc
+	void PortOCallControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code == ControlRampExitToLayer1)
+		{
+			ShowBonus(Msg::Skulduggery_PortOCall, ScoreBy(caller, 0), 2.0f);
+			tabb41wave->Play(nullptr, "PortOCallControl");
+		}
+		else if (code == ControlRampExitToLayer2)
+		{
+			a_blocc->Message(TAnimatedBlockerSetState, -1.0f);
+		}
+	}
+
+	// s_trip11, a_roll5, a_roll1 and a_roll3, 0x429630, 0x429790, 0x429840 and 0x4296d0: in play each lights its
+	// letter of WINDS (LaneLetter); without a map piece from it each scores, and in play its letter's picture shows,
+	// a_roll3's in every state. a_roll5 and a_roll1 also light v_lite544 and switch a_kick2 and s_bwal610 on, and
+	// score even after a map piece
+	void LaneControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code != MessageCode::ControlCollision)
+			return;
+		auto index = static_cast<int>(std::ranges::find(lane_rollovers, caller) - lane_rollovers.begin());
+		auto play = GameState() == PlayState;
+		auto time = play ? LaneLetter(index) : 0.0f;
+		switch (index)
+		{
+		case 0:
+			if (time == 0.0f)
+			{
+				ScoreBy(caller, 0);
+				if (play)
+					ShowLaneLetter(index);
+				tabb43wave->Play(nullptr, "LaneControl");
+			}
+			break;
+		case 4:
+			// The Shipwreck Mystery (0x425d10), which a lit v_lite529 gives here in every state, comes with the random
+			// award it gives
+			if (time == 0.0f)
+			{
+				tabb43wave->Play(nullptr, "LaneControl");
+				ShowLaneLetter(index);
+				ScoreBy(caller, 0);
+			}
+			break;
+		default:
+			if (time == 0.0f)
+			{
+				if (play)
+					ShowLaneLetter(index);
+				tabb44wave->Play(nullptr, "LaneControl");
+			}
+			v_lite544->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
+			a_kick2->ActiveFlag = 1;
+			s_bwal610->ActiveFlag = 1;
+			ScoreBy(caller, 0);
+			break;
+		}
 	}
 
 	// a_roll8 and a_roll9, 0x429c30 and 0x429ac0: in Bermuda Triangle they are winds' shots, and in Treasure Hunt each
 	// one buries the next treasure for Peg Leg's Loot (0x424b00): coins three times, two special treasures, the bonus,
-	// the jackpot and an extra ball, then coins. Their other states come with the WINDS lanes
+	// the jackpot and an extra ball, then coins. Else they score as the east winds' lanes (Easterly)
 	void BuryRolloverControl(MessageCode code, TPinballComponent* caller)
 	{
 		if (code != MessageCode::ControlCollision)
@@ -2279,7 +2521,11 @@ namespace
 			return;
 		}
 		if (GameState() != TreasureHuntState)
+		{
+			tabb12wave->Play(nullptr, "BuryRolloverControl");
+			WindShotScore(static_cast<int>(std::ranges::find(wind_shots, caller) - wind_shots.begin()), caller, 0.0f);
 			return;
+		}
 		using enum Msg;
 		switch (BuryStep++)
 		{
@@ -2372,7 +2618,7 @@ namespace
 		tabb87wave->Play(nullptr, "MagnetControl");
 		magnet_lights[index]->Message(TLightResetAndTurnOff, 2.0f);
 		caller->Message(TMagnetDisable, 0.0f);
-		ShowBonus(Msg::Skulduggery_Score, AddScore(100000), 2.0f);
+		ShowBonus(Msg::Skulduggery_Score, AddScore(caller, 100000), 2.0f);
 	}
 
 	// a_kout1 and a_kout2, 0x42a420: a kickout that is on (a_kout1 in Bermuda Triangle, a_kout2 in Storm) scores One
@@ -2381,7 +2627,7 @@ namespace
 	{
 		if (code != MessageCode::ControlCollision)
 			return;
-		AddScore(1000000);
+		AddScore(nullptr, 1000000);
 		info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_OneMillion), 2.0f);
 		caller->Message(MessageCode::TKickoutRestartTimer, 1.0f);
 	}
@@ -2423,7 +2669,7 @@ namespace
 			AwardJackpot(0.0f);
 			return;
 		}
-		AddScore(25000);
+		AddScore(caller, 25000);
 		tabb74wave->Play(nullptr, "BumperControl");
 	}
 
@@ -2595,6 +2841,7 @@ namespace
 			// them
 			Table->JackpotScore = 1000000;
 			BallSaveStep = 0;
+			LastScorer = nullptr;
 			BuryStep = 0;
 			CoinsBuried = 1;
 			TreasureBuried1 = -1;
@@ -2635,6 +2882,7 @@ namespace
 	void MakeLinks(TPinballTable* table)
 	{
 		Table = table;
+		LastScorer = nullptr;
 		Links.clear();
 		Find(drain, "drain");
 		Find(s_launcher1, "s_launcher1");
@@ -2761,12 +3009,34 @@ namespace
 		constexpr std::array windShots{"s_trip3", "s_trip8", "a_ramp8", "a_ramp5",
 									   "a_roll2", "a_roll6", "a_roll8", "a_roll9"};
 		constexpr std::array windLights{600, 608, 603, 611, 622, 623, 619, 616};
+		constexpr std::array windLights2{601, 609, 604, 612, 621, 624, 618, 615};
 		for (auto index = 0u; index < wind_shots.size(); index++)
 		{
 			Find(wind_light_groups[index], windGroups[index]);
 			wind_shots[index] = Table->find_component(windShots[index]);
 			Find(wind_lights[index], std::format("v_lite{}", windLights[index]).c_str());
+			Find(wind_lights2[index], std::format("v_lite{}", windLights2[index]).c_str());
 		}
+		combo_light_groups = {left_orbit_combo_light_group, right_orbit_combo_light_group, nullptr, nullptr};
+		Find(combo_light_groups[2], "left_island_combo_light_group");
+		Find(combo_light_groups[3], "right_island_combo_light_group");
+		constexpr std::array<std::array<int, 2>, 4> comboLights{{{631, 632}, {634, 635}, {629, 630}, {626, 627}}};
+		for (auto index = 0u; index < combo_lights.size(); index++)
+		{
+			for (auto light = 0u; light < 2; light++)
+				Find(combo_lights[index][light], std::format("v_lite{}", comboLights[index][light]).c_str());
+		}
+		a_ramp13 = Table->find_component("a_ramp13");
+		Find(tabb41wave, "tabb41wave");
+		constexpr std::array lanes{"s_trip11", "a_roll5", "a_roll1", "a_roll2", "a_roll3"};
+		for (auto index = 0u; index < lane_rollovers.size(); index++)
+		{
+			lane_rollovers[index] = Table->find_component(lanes[index]);
+			Find(lane_lights[index], std::format("v_lite{}", 533 + index).c_str());
+		}
+		Find(lane_winds_light_group, "lane_winds_light_group");
+		Find(tabb43wave, "tabb43wave");
+		Find(tabb44wave, "tabb44wave");
 		auto bank = [](int first, int last, int letter, float blocc, float blocf, TSound* hit, TSound* full)
 		{
 			DropBank result{{}, letter, blocc, blocf, hit, full};
@@ -2843,6 +3113,13 @@ namespace
 							   tabb94wave});
 		all.insert(all.end(), wind_shots.begin(), wind_shots.end());
 		all.insert(all.end(), wind_lights.begin(), wind_lights.end());
+		all.insert(all.end(), wind_lights2.begin(), wind_lights2.end());
+		all.insert(all.end(), combo_light_groups.begin(), combo_light_groups.end());
+		for (const auto& lights : combo_lights)
+			all.insert(all.end(), lights.begin(), lights.end());
+		all.insert(all.end(), lane_rollovers.begin(), lane_rollovers.end());
+		all.insert(all.end(), lane_lights.begin(), lane_lights.end());
+		all.insert(all.end(), {a_ramp13, tabb41wave, lane_winds_light_group, tabb43wave, tabb44wave});
 		for (const auto& dropBank : drop_banks)
 			all.insert(all.end(), dropBank.Targets.begin(), dropBank.Targets.end());
 		if (std::ranges::find(all, nullptr) != all.end())
@@ -2885,6 +3162,10 @@ namespace
 				Link(*component, WithHook<MagnetControl>);
 			else if (std::ranges::find(wind_shots, component) != wind_shots.end())
 				Link(*component, WithHook<WindShotControl>);
+			else if (std::ranges::find(lane_rollovers, component) != lane_rollovers.end())
+				Link(*component, WithHook<LaneControl>);
+			else if (component == a_ramp13)
+				Link(*component, WithHook<PortOCallControl>);
 			else if (component == a_kout1 || component == a_kout2)
 				Link(*component, WithHook<KickoutControl>);
 			else if (std::ranges::find(bumpers, component) != bumpers.end())
@@ -2909,6 +3190,7 @@ namespace
 	{
 		Table = nullptr;
 		info_text_box = nullptr;
+		LastScorer = nullptr;
 		Links.clear();
 	}
 } // namespace
