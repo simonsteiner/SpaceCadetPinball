@@ -85,6 +85,16 @@ void TKickback::TimerExpired(int timerId, void* caller)
 {
 	auto kick = static_cast<TKickback*>(caller);
 
+	// Armed by a ball that rolled away, this timer reopens the kickback every TimerTime2 until a ball hits it. Once the
+	// rules switched it off (76), it closes instead, as CADET.EXE's 0x415ce0 closes it after one opening
+	if (kick->KickActiveFlag && kick->KickDisabled)
+	{
+		kick->KickActiveFlag = 0;
+		kick->Threshold = 1000000000.0f;
+		kick->SpriteSet(0);
+		kick->Timer = 0;
+		return;
+	}
 	if (kick->KickActiveFlag)
 	{
 		kick->Threshold = 0.0;
