@@ -14,6 +14,7 @@
 #include "TLightRollover.h"
 #include "TLightSweeps.h"
 #include "TMagnet.h"
+#include "TOneway.h"
 #include "TPinballTable.h"
 #include "TPlunger.h"
 #include "TPopupTarget.h"
@@ -32,7 +33,8 @@
 // a_spot6, and Sword Fight with the parrot's targets; and the scoring outside the modes: the last scorer, the winds'
 // shots (the orbits, the ramps and their combos, the WINDS lanes and their letters), Port O' Call, the GOLD lanes,
 // the rebounds, a_kick2, the switches of a_bloce, the flippers' turning of the lanes' lights, Secret Hideaway, the
-// Shipwreck Mystery's sinks and the ship's hold; and the skill shot's awards with the random award.
+// Shipwreck Mystery's sinks and the ship's hold; the skill shot's awards with the random award; and the brig with
+// its multiballs, Lava-Ball and Jailbreak.
 // Everything else is still a stand-in that keeps the table playable: kickouts and sinks give back the balls they
 // catch, which only the rules would do otherwise, and a stuck ball is freed as Space Cadet's rules free one.
 //
@@ -40,8 +42,8 @@
 // message field: the engine's control::handler (0x423080) hands every event to one table-wide function (0x42d850),
 // which passes it to the current state's function (0x42d900), and then to the component's own handler. States 1
 // (game over), 2 (play), 3 (launch), 4 (Attack Ship), 5 (Bermuda Triangle), 6 (Storm), 7 (Tavern), 8 (Treasure Hunt),
-// 9 (Mutiny), 10 (Sword Fight), 16 (end of ball) and 17 (the game's last ball) are ported; the other modes (11 to 13)
-// come with their features.
+// 9 (Mutiny), 10 (Sword Fight), 12 (Lava-Ball), 13 (Jailbreak), 16 (end of ball) and 17 (the game's last ball) are
+// ported; Peg Leg's Loot (11) comes with its feature.
 // Addresses below are PIRATES.EXE's. Its message numbers are CADET.EXE's, which differ from this port's above the light
 // codes, so each call uses the port's MessageCode.
 namespace
@@ -105,7 +107,7 @@ namespace
 	TSink* a_sink9;
 	TSink* a_sink12;
 	TPinballComponent* s_oneway3;
-	TPinballComponent* s_oneway12;
+	TOneway* s_oneway12;
 	TPinballComponent* s_bwal610;
 	TSound* tabb42wave;
 	TSound* tabb73wave;
@@ -232,6 +234,13 @@ namespace
 	TLight* v_lite779;
 	TSound* tabb75wave;
 	TSound* tabb94wave;
+	// The brig: s_hole19 drops a ball into it, where a_kick1, while off, keeps it; s_oneway12 closes behind the second,
+	// and s_oneway7 counts the balls a_kick1 kicks out
+	TPinballComponent* s_hole19;
+	TPinballComponent* s_oneway7;
+	TSound* tabb32wave;
+	TSound* tabb39wave;
+	TSound* tabb95wave;
 
 	// A bank of drop targets: its first target's message field keeps those down, and each target spells a letter
 	struct DropBank
@@ -457,8 +466,8 @@ namespace
 	constexpr int PegLegsLootPick = 7;
 
 	// The modes ported so far; whatever would start another one lets the game go on in play
-	constexpr std::array PortedModes{AttackShipState,   BermudaState, StormState,     TavernState,
-									 TreasureHuntState, MutinyState,  SwordFightState};
+	constexpr std::array PortedModes{AttackShipState, BermudaState,    StormState,    TavernState,   TreasureHuntState,
+									 MutinyState,     SwordFightState, LavaBallState, JailbreakState};
 
 	bool ModePorted(int state)
 	{
@@ -590,6 +599,21 @@ namespace
 		return true;
 	}
 
+	float AwardMapPiece(float time);
+
+	// 0x425e30: Lava-Ball's word; with all eleven letters spelled, the word starts over, the banks come up and a map
+	// piece is found
+	bool LavaBallWordSpelled()
+	{
+		if (!AllSet(LettersSpelled(), 0x7ff))
+			return false;
+		LettersOff(true);
+		for (const auto& bank : drop_banks)
+			ResetBank(bank);
+		AwardMapPiece(0.0f);
+		return true;
+	}
+
 	// 0x424700: the jackpot, with its picture for <time> plus 2 s; a negative <time> counts as positive and plays no
 	// sound. Returns how long the picture shows
 	float AwardJackpot(float time)
@@ -654,6 +678,14 @@ namespace
 	{
 		for (auto light : captive_lights)
 			light->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+	}
+
+	// 0x425310 with 1: the captive ball's lights flash out, and its targets count from none again
+	void CaptiveLightsFlashOut()
+	{
+		captive_targets[0]->MessageField = 0;
+		for (auto light : captive_lights)
+			light->Message(MessageCode::TLightFlasherStartTimedThenStayOff, 1.0f);
 	}
 
 	// 0x42aad0: what every mode does as it starts
@@ -867,12 +899,14 @@ namespace
 		tabb94wave->Play(nullptr, "SwordFightBankHit");
 	}
 
-	// 0x426a40, 0x4264f0 and 0x426eb0: a full bank turns the blockers, comes up again and scores more. In play, the
-	// last letter of the word starts the picked mode instead
+	// 0x426a40, 0x4264f0 and 0x426eb0: a full bank turns the blockers, comes up again and scores more. The last letter
+	// of the word starts the picked mode instead in play, and finds a map piece in Lava-Ball
 	void BankHit(const DropBank& bank, const TPinballComponent* caller)
 	{
 		using enum MessageCode;
 		if (GameState() == PlayState && WordSpelled())
+			return;
+		if (GameState() == LavaBallState && LavaBallWordSpelled())
 			return;
 		if (GameState() == AttackShipState && &bank == &drop_banks[1])
 		{
@@ -1318,14 +1352,20 @@ namespace
 		a_spot6->MessageField = 0;
 	}
 
-	// 0x425d50 with 1: v_lite530 to v_lite532 light and flash out, and a_spot6's count starts over
-	void CrewLightsFlashOut()
+	// v_lite530 to v_lite532 light and flash out
+	void CrewLightsFlash()
 	{
 		using enum MessageCode;
 		for (auto light : v_lite530s)
 			light->Message(TLightTurnOn, 0.0f);
 		for (auto light : v_lite530s)
 			light->Message(TLightFlasherStartTimedThenStayOff, 1.0f);
+	}
+
+	// 0x425d50 with 1: v_lite530 to v_lite532 light and flash out, and a_spot6's count starts over
+	void CrewLightsFlashOut()
+	{
+		CrewLightsFlash();
 		a_spot6->MessageField = 0;
 	}
 
@@ -1976,6 +2016,92 @@ namespace
 		}
 	}
 
+	// State 12, 0x42d480: Lava-Ball, three balls: a_kick1 kicks the brig's balls out, and a_sink8 adds as many as
+	// make two more. The drop targets spell the word for a map piece (LavaBallWordSpelled). It ends when a drain
+	// leaves one ball
+	void LavaBallStateControl(MessageCode code)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case EnterState:
+			ModeEnter();
+			a_kick1->Message(TKickbackEnable, 0.0f);
+			s_oneway12->ActiveFlag = 0;
+			if (BrigBalls == 0)
+				a_sink8->Message(TSinkResetTimer, 2.0f);
+			if (BrigBalls <= 1)
+				a_sink8->Message(TSinkResetTimer, 1.0f);
+			Table->MultiballCount += 2;
+			BrigBalls = 0;
+			info_text_box->Clear();
+			tabb32wave->Play(nullptr, "LavaBallStateControl");
+			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_LavaBall), -1.0f);
+			break;
+		case ShowStateText:
+			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_LavaBall), -1.0f);
+			break;
+		case BallDrained:
+			if (Table->MultiballCount != 1)
+				break;
+			ModeLeave();
+			info_text_box->Clear();
+			a_kick1->Message(TKickbackDisable, 0.0f);
+			GameState() = PlayState;
+			CaptiveLightsFlashOut();
+			TableHook(EnterState, nullptr);
+			break;
+		default:
+			break;
+		}
+	}
+
+	// State 13, 0x42d590: Jailbreak, the brig's balls kicked out by a_kick1 for 100,000; with none in the brig, only
+	// the crew's lights flash out. It ends when a drain leaves one ball
+	void JailbreakStateControl(MessageCode code)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case EnterState:
+			if (BrigBalls == 0)
+			{
+				CrewLightsFlashOut();
+				SetState(PlayState);
+				return;
+			}
+			ModeEnter();
+			// PIRATES.EXE sets v_lite551's message field, which nothing reads, and gives the captive ball's lights back
+			captive_lights[0]->MessageField = 0xf;
+			RestoreLights(captive_lights, captive_targets[0]->MessageField);
+			Table->MultiballCount += BrigBalls;
+			BrigBalls = 0;
+			CrewLightsFlash();
+			a_kick1->Message(TKickbackEnable, 0.0f);
+			s_oneway12->ActiveFlag = 0;
+			AddScore(nullptr, 100000);
+			info_text_box->Clear();
+			tabb95wave->Play(nullptr, "JailbreakStateControl");
+			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_JailBreak), -1.0f);
+			break;
+		case ShowStateText:
+			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_JailBreak), -1.0f);
+			break;
+		case BallDrained:
+			if (Table->MultiballCount != 1)
+				break;
+			ModeLeave();
+			info_text_box->Clear();
+			a_kick1->Message(TKickbackDisable, 0.0f);
+			SetState(PlayState);
+			CrewLightsOff();
+			CaptiveLightsFlashOut();
+			break;
+		default:
+			break;
+		}
+	}
+
 	// 0x42d900
 	void StateControl(int state, MessageCode code, const TPinballComponent* caller)
 	{
@@ -2033,10 +2159,16 @@ namespace
 		case SwordFightState:
 			SwordFightStateControl(code, caller);
 			break;
+		case LavaBallState:
+			LavaBallStateControl(code);
+			break;
+		case JailbreakState:
+			JailbreakStateControl(code);
+			break;
 		default:
-			// The other modes' states (up to 13) aren't ported yet, and StartMode doesn't enter them; PIRATES.EXE goes
-			// back to play from any state it doesn't know (0x42d830)
-			if (state < FirstModeState || state > JailbreakState)
+			// Peg Leg's Loot (11) isn't ported yet, and StartMode doesn't enter it; PIRATES.EXE goes back to play from
+			// any state it doesn't know (0x42d830)
+			if (state != LastModeState)
 				SetState(PlayState);
 			break;
 		}
@@ -2935,11 +3067,62 @@ namespace
 		}
 	}
 
-	// a_sink8, 0x42a3d0: a ball in it comes straight out again
+	// a_sink8, 0x42a3d0: a ball in it comes straight out again. PIRATES.EXE also plays tabb55wave as the sink lets a
+	// ball go (0x46) outside Lava-Ball, which this port's TSink doesn't tell the rules
 	void HideawayControl(MessageCode code, TPinballComponent* caller)
 	{
 		if (code == MessageCode::ControlCollision)
 			caller->Message(MessageCode::TSinkResetTimer, 0.0f);
+	}
+
+	// Lava-Ball, Jailbreak and the game's last ball let the brig's balls out themselves, so s_hole19 and s_oneway7
+	// leave them alone
+	bool BrigCounts()
+	{
+		auto state = GameState();
+		return state < LavaBallState || (state > JailbreakState && state != LastBallState);
+	}
+
+	// 0x424210: the ball dropped into the brig leaves play and a new one is served, unless it is the third, which
+	// starts Jailbreak. With two in the brig s_oneway12 closes behind them
+	void LockBall()
+	{
+		Table->MultiballCount = std::max(Table->MultiballCount - 1, 0);
+		BrigBalls++;
+		if (BrigBalls == 2)
+			s_oneway12->ActiveFlag = 1;
+		if (BrigBalls == 3)
+		{
+			StartMode(JailbreakState);
+			return;
+		}
+		tabb39wave->Play(nullptr, "LockBall");
+		s_launcher1->Message(MessageCode::PlungerRelaunchBall, 0.96f);
+	}
+
+	// s_hole19, 0x429040: "In The Brig", and the ball stays there (LockBall)
+	void BrigControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code != MessageCode::ControlBallCaptured || !BrigCounts())
+			return;
+		ScoreBy(caller, 0);
+		info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_InTheBrig), 2.0f);
+		LockBall();
+	}
+
+	// s_oneway7, 0x42a340: a ball out of the brig is back in play; with the brig empty a_kick1 goes off
+	void BrigExitControl(MessageCode code, TPinballComponent*)
+	{
+		if (code != MessageCode::ControlCollision || !BrigCounts())
+			return;
+		if (BrigBalls > 0)
+		{
+			BrigBalls--;
+			Table->MultiballCount++;
+		}
+		if (BrigBalls == 0)
+			a_kick1->Message(MessageCode::TKickbackDisable, 0.0f);
+		BrigBalls = std::max(BrigBalls, 0);
 	}
 
 	// 0x428900: the mugs' picture, their score shown, and the ball out of a_sink8; all three mugs score more and flash
@@ -3384,6 +3567,11 @@ namespace
 		Find(v_lite779, "v_lite779");
 		Find(tabb75wave, "tabb75wave");
 		Find(tabb94wave, "tabb94wave");
+		s_hole19 = Table->find_component("s_hole19");
+		s_oneway7 = Table->find_component("s_oneway7");
+		Find(tabb32wave, "tabb32wave");
+		Find(tabb39wave, "tabb39wave");
+		Find(tabb95wave, "tabb95wave");
 		constexpr std::array windGroups{"left_orbit_light_group",  "right_orbit_light_group", "left_island_light_group",
 										"right_wind_light_group",  "south_wind_light_group",  "west_wind_light_group",
 										"east_wind_2_light_group", "east_wind_1_light_group"};
@@ -3529,6 +3717,7 @@ namespace
 		all.insert(all.end(),
 				   {island_lane_top_light_group, island_lane_bottom_light_group, tabb88wave, s_trip1, s_trip2});
 		all.insert(all.end(), {a_sink4, v_lite568, tabb27wave, tabb70wave});
+		all.insert(all.end(), {s_hole19, s_oneway7, tabb32wave, tabb39wave, tabb95wave});
 		for (const auto& dropBank : drop_banks)
 			all.insert(all.end(), dropBank.Targets.begin(), dropBank.Targets.end());
 		if (std::ranges::find(all, nullptr) != all.end())
@@ -3599,6 +3788,10 @@ namespace
 				Link(*component, WithHook<CrewTargetControl>);
 			else if (component == a_spot4 || component == a_spot5)
 				Link(*component, WithHook<ParrotTargetControl>);
+			else if (component == s_hole19)
+				Link(*component, WithHook<BrigControl>);
+			else if (component == s_oneway7)
+				Link(*component, WithHook<BrigExitControl>);
 			else if (dynamic_cast<TKickout*>(component) || dynamic_cast<TSink*>(component))
 				Link(*component, WithHook<StandInControl>);
 			else
@@ -3606,9 +3799,10 @@ namespace
 		}
 	}
 
+	// 0x42db30: as the engine's, but the balls the brig keeps by s_oneway12 and a_kick1 aren't stuck
 	void UnstuckBall(TBall& ball, int)
 	{
-		TableRules::UnstuckBonusTableBall(*Table, ball);
+		TableRules::UnstuckBonusTableBall(*Table, ball, {s_oneway12, a_kick1});
 	}
 
 	void ClearLinks()

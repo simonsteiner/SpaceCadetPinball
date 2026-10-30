@@ -8697,6 +8697,24 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Skulduggery_InTheBrig,
+		{
+			{ Lang::English, "In The Brig" },
+		}
+	},
+	{
+		Msg::Skulduggery_LavaBall,
+		{
+			{ Lang::English, "Lava-Ball" },
+		}
+	},
+	{
+		Msg::Skulduggery_JailBreak,
+		{
+			{ Lang::English, "Jail Break!" },
+		}
+	},
+	{
 		Msg::Skulduggery_PictureSkillShot,
 		{
 			{ Lang::English, "Skill Shot" },
