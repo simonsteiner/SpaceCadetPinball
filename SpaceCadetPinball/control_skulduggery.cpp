@@ -1047,7 +1047,8 @@ namespace
 		tabb84wave->Play(nullptr, "AwardCoins");
 	}
 
-	// 0x4239d0: an extra ball
+	// 0x4239d0: an extra ball. PIRATES.EXE sets the table's count to 1 rather than adding one, so a second extra ball
+	// before the drain is lost, as there
 	void AwardExtraBall()
 	{
 		tabb00wave->Play(nullptr, "AwardExtraBall");
