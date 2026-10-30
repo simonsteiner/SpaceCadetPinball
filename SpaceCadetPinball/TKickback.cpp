@@ -89,6 +89,10 @@ void TKickback::TimerExpired(int timerId, void* caller)
 	}
 	else
 	{
+		// CADET.EXE's timer after a kick (0x415ce0) always closes the kickback again. An enabled one is closed by the
+		// next collision that arms it, but one the rules switched off (76) would otherwise kick every ball it touches
+		if (kick->KickDisabled)
+			kick->Threshold = 1000000000.0f;
 		kick->SpriteSet(0);
 		kick->Timer = 0;
 		control::handler(MessageCode::ControlTimerExpired, kick);
