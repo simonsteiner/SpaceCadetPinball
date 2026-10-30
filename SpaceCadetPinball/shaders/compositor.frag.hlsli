@@ -23,10 +23,12 @@ cbuffer Context : register(b0, space3)
 [[vk::combinedImageSampler]] Texture2D u_depth : register(t1, space2);
 [[vk::combinedImageSampler]] SamplerState u_depth_sampler : register(s1, space2);
 
+// SDL's vertex shaders name their outputs TEXCOORD0 (colour) and TEXCOORD1 (uv), as SDL_shadercross builds them;
+// Direct3D 12 links the stages by these names, so any other name fails the pipeline
 struct PSInput
 {
-    float4 v_color : COLOR0;
-    float2 v_uv : TEXCOORD0;
+    float4 v_color : TEXCOORD0;
+    float2 v_uv : TEXCOORD1;
     float4 v_position : SV_Position;
 };
 
