@@ -27,18 +27,18 @@
 // Skulduggery's rules, recovered from PIRATES.EXE one feature at a time (Phase F6). Ported so far: the serve, drain
 // and game-over flow, with the ball save, the end-of-ball bonus, the launch's rolling skill shot and the music; the
 // mode framework: the SKULDUGGERY drop targets, the modes' lights and pick, the captive ball's targets and a_spot102;
-// and the modes Attack Ship, Tavern with the magnets and the mugs' sinks, and Treasure Hunt with the buried
-// treasure's sinks and rollovers.
+// and the modes Attack Ship, Bermuda Triangle with the winds' shots and the kickouts, Tavern with the magnets and the
+// mugs' sinks, and Treasure Hunt with the buried treasure's sinks and rollovers.
 // Everything else is still a stand-in that keeps the table playable: kickouts and sinks give back the balls they
 // catch, which only the rules would do otherwise, and a stuck ball is freed as Space Cadet's rules free one.
 //
 // PIRATES.EXE's rules run a state machine, as DRAGON.EXE's do, whose state each player keeps in info_text_box's
 // message field: the engine's control::handler (0x423080) hands every event to one table-wide function (0x42d850),
 // which passes it to the current state's function (0x42d900), and then to the component's own handler. States 1
-// (game over), 2 (play), 3 (launch), 4 (Attack Ship), 7 (Tavern), 8 (Treasure Hunt), 16 (end of ball) and 17 (the
-// game's last ball) are ported; the other modes (5 to 13) come with their features. Addresses below are PIRATES.EXE's.
-// Its message numbers are CADET.EXE's, which differ from this port's above the light codes, so each call uses the
-// port's MessageCode.
+// (game over), 2 (play), 3 (launch), 4 (Attack Ship), 5 (Bermuda Triangle), 7 (Tavern), 8 (Treasure Hunt), 16 (end of
+// ball) and 17 (the game's last ball) are ported; the other modes (6 to 13) come with their features. Addresses below
+// are PIRATES.EXE's. Its message numbers are CADET.EXE's, which differ from this port's above the light codes, so each
+// call uses the port's MessageCode.
 namespace
 {
 	// Codes PIRATES.EXE's rules functions send only among themselves, as DRAGON.EXE's numbers them
@@ -55,6 +55,7 @@ namespace
 	constexpr int LaunchState = 3;
 	constexpr int FirstModeState = 4;
 	constexpr int AttackShipState = 4;
+	constexpr int BermudaState = 5;
 	constexpr int TavernState = 7;
 	constexpr int TreasureHuntState = 8;
 	constexpr int LastModeState = 11;
@@ -159,6 +160,16 @@ namespace
 	TSound* tabb65wave;
 	TSound* tabb83wave;
 	TSound* tabb87wave;
+	// Bermuda Triangle's: its own lights, the kickout it switches on and the winds' sound
+	TLightGroup* bermuda_light_group;
+	TSound* tabb12wave;
+	TSound* tabb66wave;
+	// The winds Bermuda Triangle follows, in its order: each one's light group, the shot that follows it and the light
+	// of that shot's which says it does: the orbits (s_trip3, s_trip8), the ramps (a_ramp8, a_ramp5) and the WINDS
+	// lanes (a_roll2, a_roll6, a_roll8, a_roll9)
+	std::array<TLightGroup*, 8> wind_light_groups;
+	std::array<TPinballComponent*, 8> wind_shots;
+	std::array<TLight*, 8> wind_lights;
 
 	// A bank of drop targets: its first target's message field keeps those down, and each target spells a letter
 	struct DropBank
@@ -265,6 +276,13 @@ namespace
 		ShowPicture(glyphs, time, pb::get_rc_string(words));
 	}
 
+	void ShowBonus(Msg text, int score, float time)
+	{
+		std::array<char, 64> buffer{};
+		snprintf(buffer.data(), buffer.size(), pb::get_rc_string(text), static_cast<long>(score));
+		info_text_box->Display(buffer.data(), time);
+	}
+
 	// 0x424c70: the magnets and their lights off
 	void MagnetsOff()
 	{
@@ -355,7 +373,7 @@ namespace
 	constexpr int PegLegsLootPick = 7;
 
 	// The modes ported so far; whatever would start another one lets the game go on in play
-	constexpr std::array PortedModes{AttackShipState, TavernState, TreasureHuntState};
+	constexpr std::array PortedModes{AttackShipState, BermudaState, TavernState, TreasureHuntState};
 
 	bool ModePorted(int state)
 	{
@@ -445,6 +463,7 @@ namespace
 	};
 	constexpr std::array ModePictures{
 		ModePicture{AttackShipState, "H", 1.0f, Msg::Skulduggery_PictureAttackShip},
+		ModePicture{BermudaState, "J", 2.0f, Msg::Skulduggery_PictureBermuda},
 		ModePicture{TavernState, "333", 2.0f, Msg::Skulduggery_PictureTavern},
 		ModePicture{TreasureHuntState, "I", 2.0f, Msg::Skulduggery_PictureTreasureHunt},
 	};
@@ -641,6 +660,43 @@ namespace
 		return 2.0f;
 	}
 
+	// 0x425080: the winds' lights out. PIRATES.EXE first adds 0 to the score, which only forgets its last scorer (see
+	// ScoreBy)
+	void WindLightsOff()
+	{
+		for (auto group : wind_light_groups)
+			group->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+	}
+
+	// 0x425110: the light group of the wind to follow (ModeAwardStep) flashes, or with <flash> false stays lit; past
+	// the last wind, the first one's
+	void WindLights(bool flash)
+	{
+		using enum MessageCode;
+		if (ModeAwardStep >= static_cast<int>(wind_light_groups.size()))
+			ModeAwardStep = 0;
+		wind_light_groups[ModeAwardStep]->Message(flash ? TLightFlasherStartTimed : TLightResetAndTurnOn, -1.0f);
+	}
+
+	// 0x425230: the wind followed stays lit and the next one flashes; the first four score 125,000 to 1,000,000 and the
+	// fifth the jackpot (ModeFlags counts them)
+	void FollowWind()
+	{
+		static constexpr std::array scores{125000, 250000, 500000, 1000000};
+		WindLights(false);
+		ModeAwardStep++;
+		WindLights(true);
+		if (ModeFlags < static_cast<int>(scores.size()))
+		{
+			ShowBonus(Msg::Skulduggery_Score, AddScoreUnmultiplied(nullptr, scores[ModeFlags]), 2.0f);
+			tabb12wave->Play(nullptr, "FollowWind");
+			ModeFlags++;
+			return;
+		}
+		AwardJackpot(0.0f);
+		ModeFlags = 0;
+	}
+
 	// The Tavern's half of 0x426a40 and 0x426eb0: each target down switches a magnet on, and a full bank awards the
 	// jackpot after the keg (a_drop13 to a_drop15); a_drop10 to a_drop12 score as in play without the blockers
 	void TavernBankHit(const DropBank& bank, const TPinballComponent* caller)
@@ -724,13 +780,6 @@ namespace
 			ScoreBy(caller, 0);
 			bank.HitSound->Play(nullptr, "BankHit");
 		}
-	}
-
-	void ShowBonus(Msg text, int score, float time)
-	{
-		std::array<char, 64> buffer{};
-		snprintf(buffer.data(), buffer.size(), pb::get_rc_string(text), static_cast<long>(score));
-		info_text_box->Display(buffer.data(), time);
 	}
 
 	// State 1, 0x42bfd0
@@ -1142,6 +1191,75 @@ namespace
 		}
 	}
 
+	// The lights of bermuda_light_group that Bermuda Triangle turns, four steps of up to four (0x43d118), and the step
+	// lit (0x43d158), which PIRATES.EXE never resets
+	constexpr std::array<std::array<int, 4>, 4> BermudaSteps{
+		{{0, 4, 8, 12}, {1, 5, 9, -1}, {2, 6, 10, -1}, {3, 7, 11, -1}}};
+	int BermudaStep;
+
+	// State 5, 0x42c070: Bermuda Triangle. The light group of one wind flashes, and the shot whose light flashes
+	// follows it (FollowWind); a_kout1 is on and scores One Million (KickoutControl). It runs for 31.14 s after its
+	// light sweep
+	void BermudaStateControl(MessageCode code, const TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case ControlTimerExpired:
+			if (caller == mode_timer)
+			{
+				TableHook(ModeEnd, nullptr);
+			}
+			else if (caller == light_sweeps)
+			{
+				bermuda_light_group->Message(TLightGroupRestartNotifyTimer, 0.1f);
+				a_kout1->Message(TKickoutEnable, 0.0f);
+				WindLights(true);
+				ModeSweepDone(31.14f);
+			}
+			break;
+		case ControlNotifyTimerExpired:
+			// The next step of bermuda_light_group's lights, every 0.1 s
+			if (caller && caller == bermuda_light_group)
+			{
+				bermuda_light_group->Message(TLightGroupRestartNotifyTimer, 0.1f);
+				for (auto index : BermudaSteps[BermudaStep])
+					bermuda_light_group->Message(TLightGroupTurnOffAtIndex, static_cast<float>(index));
+				BermudaStep = BermudaStep + 1 < static_cast<int>(BermudaSteps.size()) ? BermudaStep + 1 : 0;
+				for (auto index : BermudaSteps[BermudaStep])
+					bermuda_light_group->Message(TLightGroupTurnOnAtIndex, static_cast<float>(index));
+			}
+			break;
+		case EnterState:
+			ModeEnter();
+			AddScore(200000);
+			light_sweeps->Message(TLightSweepsStart, 8.0f);
+			WindLightsOff();
+			PlayTrack(MidiTracks::Track5);
+			tabb66wave->Play(nullptr, "BermudaStateControl");
+			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_BermudaHelp), -1.0f);
+			break;
+		case ShowStateText:
+			ShowTimeLeft(Msg::Skulduggery_Bermuda);
+			break;
+		case ModeEnd:
+			WindLightsOff();
+			bermuda_light_group->Message(TLightGroupRestartNotifyTimer, -1.0f);
+			bermuda_light_group->Message(TLightResetAndTurnOff, 0.0f);
+			a_kout1->Message(TKickoutDisable, 0.0f);
+			ModeLeave();
+			v_lite606->MessageField++;
+			BloceDown();
+			break;
+		case BallDrained:
+			mode_timer->Message(TTimerResetTimer, -1.0f);
+			TableHook(ModeEnd, nullptr);
+			break;
+		default:
+			break;
+		}
+	}
+
 	// State 16, 0x42b820: count the bonus, one text at a time, then serve the next ball or end the game
 	void EndOfBallStateControl(MessageCode code, const TPinballComponent* caller)
 	{
@@ -1346,6 +1464,9 @@ namespace
 			break;
 		case TavernState:
 			TavernStateControl(code, caller);
+			break;
+		case BermudaState:
+			BermudaStateControl(code, caller);
 			break;
 		case TreasureHuntState:
 			TreasureHuntStateControl(code, caller);
@@ -1743,12 +1864,43 @@ namespace
 		return fathom_light_group->Message(MessageCode::TLightGroupGetOnCount, 0.0f) * points * 10000;
 	}
 
-	// a_roll8 and a_roll9, 0x429c30 and 0x429ac0: in Treasure Hunt each one buries the next treasure for Peg Leg's
-	// Loot (0x424b00): coins three times, two special treasures, the bonus, the jackpot and an extra ball, then coins.
-	// Their other states come with the WINDS lanes
-	void BuryRolloverControl(MessageCode code, TPinballComponent*)
+	// A wind's shot in Bermuda Triangle: with its light flashing it follows the wind, else it scores 50,000
+	void WindShot(TPinballComponent* caller)
 	{
-		if (code != MessageCode::ControlCollision || GameState() != TreasureHuntState)
+		auto index = std::ranges::find(wind_shots, caller) - wind_shots.begin();
+		if (wind_lights[index]->FlasherOnFlag)
+		{
+			FollowWind();
+			return;
+		}
+		AddScoreUnmultiplied(caller, 50000);
+		tabb12wave->Play(nullptr, "WindShot");
+	}
+
+	// s_trip3, s_trip8, a_ramp8, a_ramp5, a_roll2 and a_roll6 (0x429210, 0x429400, 0x428b70, 0x428d80, 0x4298f0 and
+	// 0x429da0): the ramps as the ball comes off them, the others as it passes. Their Bermuda Triangle part; the rest
+	// comes with their features
+	void WindShotControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		auto ramp = caller == wind_shots[2] || caller == wind_shots[3];
+		if (code == (ramp ? ControlRampExitToLayer2 : ControlCollision) && GameState() == BermudaState)
+			WindShot(caller);
+	}
+
+	// a_roll8 and a_roll9, 0x429c30 and 0x429ac0: in Bermuda Triangle they are winds' shots, and in Treasure Hunt each
+	// one buries the next treasure for Peg Leg's Loot (0x424b00): coins three times, two special treasures, the bonus,
+	// the jackpot and an extra ball, then coins. Their other states come with the WINDS lanes
+	void BuryRolloverControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code != MessageCode::ControlCollision)
+			return;
+		if (GameState() == BermudaState)
+		{
+			WindShot(caller);
+			return;
+		}
+		if (GameState() != TreasureHuntState)
 			return;
 		using enum Msg;
 		switch (BuryStep++)
@@ -1843,6 +1995,17 @@ namespace
 		magnet_lights[index]->Message(TLightResetAndTurnOff, 2.0f);
 		caller->Message(TMagnetDisable, 0.0f);
 		ShowBonus(Msg::Skulduggery_Score, AddScore(100000), 2.0f);
+	}
+
+	// a_kout1 and a_kout2, 0x42a420: a kickout that is on (a_kout1 in Bermuda Triangle, a_kout2 in Storm) scores One
+	// Million and lets the ball go after 1 s
+	void KickoutControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code != MessageCode::ControlCollision)
+			return;
+		AddScore(1000000);
+		info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_OneMillion), 2.0f);
+		caller->Message(MessageCode::TKickoutRestartTimer, 1.0f);
 	}
 
 	void NoControl(MessageCode, TPinballComponent*)
@@ -2081,6 +2244,21 @@ namespace
 		Find(tabb65wave, "tabb65wave");
 		Find(tabb83wave, "tabb83wave");
 		Find(tabb87wave, "tabb87wave");
+		Find(bermuda_light_group, "bermuda_light_group");
+		Find(tabb12wave, "tabb12wave");
+		Find(tabb66wave, "tabb66wave");
+		constexpr std::array windGroups{"left_orbit_light_group",  "right_orbit_light_group", "left_island_light_group",
+										"right_wind_light_group",  "south_wind_light_group",  "west_wind_light_group",
+										"east_wind_2_light_group", "east_wind_1_light_group"};
+		constexpr std::array windShots{"s_trip3", "s_trip8", "a_ramp8", "a_ramp5",
+									   "a_roll2", "a_roll6", "a_roll8", "a_roll9"};
+		constexpr std::array windLights{600, 608, 603, 611, 622, 623, 619, 616};
+		for (auto index = 0u; index < wind_shots.size(); index++)
+		{
+			Find(wind_light_groups[index], windGroups[index]);
+			wind_shots[index] = Table->find_component(windShots[index]);
+			Find(wind_lights[index], std::format("v_lite{}", windLights[index]).c_str());
+		}
 		auto bank = [](int first, int last, int letter, float blocc, float blocf, TSound* hit, TSound* full)
 		{
 			DropBank result{{}, letter, blocc, blocf, hit, full};
@@ -2149,6 +2327,10 @@ namespace
 		all.insert(all.end(), tavern_sinks.begin(), tavern_sinks.end());
 		all.insert(all.end(), v_lite530s.begin(), v_lite530s.end());
 		all.insert(all.end(), {a_spot6, keg_light_group, tabb00wave, tabb08wave, tabb65wave, tabb83wave, tabb87wave});
+		all.insert(all.end(), {bermuda_light_group, tabb12wave, tabb66wave});
+		all.insert(all.end(), wind_light_groups.begin(), wind_light_groups.end());
+		all.insert(all.end(), wind_shots.begin(), wind_shots.end());
+		all.insert(all.end(), wind_lights.begin(), wind_lights.end());
 		for (const auto& dropBank : drop_banks)
 			all.insert(all.end(), dropBank.Targets.begin(), dropBank.Targets.end());
 		if (std::ranges::find(all, nullptr) != all.end())
@@ -2189,6 +2371,10 @@ namespace
 				Link(*component, WithHook<TavernSinkControl>);
 			else if (std::ranges::find(magnets, component) != magnets.end())
 				Link(*component, WithHook<MagnetControl>);
+			else if (std::ranges::find(wind_shots, component) != wind_shots.end())
+				Link(*component, WithHook<WindShotControl>);
+			else if (component == a_kout1 || component == a_kout2)
+				Link(*component, WithHook<KickoutControl>);
 			else if (dynamic_cast<TKickout*>(component) || dynamic_cast<TSink*>(component))
 				Link(*component, WithHook<StandInControl>);
 			else

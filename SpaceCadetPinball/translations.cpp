@@ -8553,6 +8553,18 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Skulduggery_Bermuda,
+		{
+			{ Lang::English, "Bermuda Triangle\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_BermudaHelp,
+		{
+			{ Lang::English, "Follow the Winds" },
+		}
+	},
+	{
 		Msg::Skulduggery_PictureSkillShot,
 		{
 			{ Lang::English, "Skill Shot" },
@@ -8598,6 +8610,12 @@ const TextArray translations::Translations =
 		Msg::Skulduggery_PictureMultiplier,
 		{
 			{ Lang::English, "%ldx Multiplier" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureBermuda,
+		{
+			{ Lang::English, "Bermuda Triangle" },
 		}
 	}
 };
