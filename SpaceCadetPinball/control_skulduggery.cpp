@@ -30,7 +30,8 @@
 // the modes Attack Ship, Bermuda Triangle with the winds' shots and the kickouts, Storm, Tavern with the magnets and
 // the mugs' sinks, Treasure Hunt with the buried treasure's sinks and rollovers, Mutiny with the bumpers' crew and
 // a_spot6, and Sword Fight with the parrot's targets; and the scoring outside the modes: the last scorer, the winds'
-// shots (the orbits, the ramps and their combos, the WINDS lanes and their letters) and Port O' Call.
+// shots (the orbits, the ramps and their combos, the WINDS lanes and their letters), Port O' Call, the GOLD lanes,
+// the rebounds, a_kick2, the switches of a_bloce and the flippers' turning of the lanes' lights.
 // Everything else is still a stand-in that keeps the table playable: kickouts and sinks give back the balls they
 // catch, which only the rules would do otherwise, and a stuck ball is freed as Space Cadet's rules free one.
 //
@@ -193,6 +194,19 @@ namespace
 	TLightGroup* lane_winds_light_group;
 	TSound* tabb43wave;
 	TSound* tabb44wave;
+	// The GOLD lanes a_roll10 to a_roll12, which light their top lights (island_lane_top_light_group: v_lite538 to
+	// v_lite540), then their bottom ones (island_lane_bottom_light_group: v_lite541 to v_lite543)
+	std::array<TPinballComponent*, 3> gold_rollovers;
+	std::array<TLight*, 3> gold_top_lights;
+	std::array<TLight*, 3> gold_bottom_lights;
+	TLightGroup* island_lane_top_light_group;
+	TLightGroup* island_lane_bottom_light_group;
+	TSound* tabb88wave;
+	// The rebounds a_rebo1 and a_rebo2, and their lights v_lite84 and v_lite85
+	std::array<TPinballComponent*, 2> rebounds;
+	std::array<TLight*, 2> rebound_lights;
+	TPinballComponent* s_trip1;
+	TPinballComponent* s_trip2;
 	// Storm's: its light, the Shipwreck Mystery's light it lights as the ship goes down, and its sounds
 	TLight* v_lite778;
 	TLight* v_lite529;
@@ -588,19 +602,32 @@ namespace
 	// 0x424350: the fathom lights flash and stay on, the multiplier is one more than those lit, and with a <time> of 0
 	// or more its picture shows for <time> plus 2 s. The light group passes the flash to all of them, as CADET.EXE's
 	// does, so this lights them all
+	void ShowFathoms(int lit, float time)
+	{
+		auto index = std::clamp(lit, 0, static_cast<int>(FathomPictures.size()) - 1);
+		std::array<char, 64> words{};
+		snprintf(words.data(), words.size(), pb::get_rc_string(Msg::Skulduggery_PictureMultiplier),
+				 static_cast<long>(index) + 1);
+		ShowPicture(FathomPictures[index], time, words.data());
+	}
+
 	void LightFathoms(float time)
 	{
 		using enum MessageCode;
 		fathom_light_group->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
 		auto lit = fathom_light_group->Message(TLightGroupGetOnCount, 0.0f);
 		if (time >= 0.0f)
-		{
-			auto index = std::clamp(lit, 0, static_cast<int>(FathomPictures.size()) - 1);
-			std::array<char, 64> words{};
-			snprintf(words.data(), words.size(), pb::get_rc_string(Msg::Skulduggery_PictureMultiplier),
-					 static_cast<long>(index) + 1);
-			ShowPicture(FathomPictures[index], time + 2.0f, words.data());
-		}
+			ShowFathoms(lit, time + 2.0f);
+		Table->ScoreMultiplier = lit + 1;
+	}
+
+	// 0x4243d0: one more fathom light, with its picture for <time> plus 2 s, and the multiplier one more than those lit
+	void AddFathom(float time)
+	{
+		using enum MessageCode;
+		fathom_light_group->Message(TLightGroupResetAndTurnOn, 1.0f);
+		auto lit = fathom_light_group->Message(TLightGroupGetOnCount, 0.0f);
+		ShowFathoms(lit, time + 2.0f);
 		Table->ScoreMultiplier = lit + 1;
 	}
 
@@ -2461,6 +2488,122 @@ namespace
 		}
 	}
 
+	// a_roll10, a_roll11 and a_roll12, the GOLD lanes, 0x429fa0, 0x42a060 and 0x42a120: a lane lights its top light,
+	// then its bottom one; with all six lit they flash out for one more fathom and the lane's second score (0x429ef0).
+	// With both of its lights lit a lane flashes them for 2 s
+	void GoldLaneControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		auto index = std::ranges::find(gold_rollovers, caller) - gold_rollovers.begin();
+		auto top = gold_top_lights[index];
+		auto bottom = gold_bottom_lights[index];
+		if (!top->LightOnFlag)
+		{
+			tabb44wave->Play(nullptr, "GoldLaneControl");
+			ScoreBy(caller, 0);
+			top->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			return;
+		}
+		if (!bottom->LightOnFlag)
+		{
+			bottom->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			if (island_lane_top_light_group->Message(TLightGroupGetOnCount, 0.0f) == 3 &&
+				island_lane_bottom_light_group->Message(TLightGroupGetOnCount, 0.0f) == 3)
+			{
+				island_lane_top_light_group->Message(TLightFlasherStartTimedThenStayOff, 1.0f);
+				island_lane_bottom_light_group->Message(TLightFlasherStartTimedThenStayOff, 1.0f);
+				AddFathom(0.0f);
+				tabb88wave->Play(nullptr, "GoldLaneControl");
+				ScoreBy(caller, 1);
+			}
+			else
+			{
+				tabb44wave->Play(nullptr, "GoldLaneControl");
+				ScoreBy(caller, 0);
+			}
+			return;
+		}
+		top->Message(TLightFlasherStartTimed, 2.0f);
+		bottom->Message(TLightFlasherStartTimed, 2.0f);
+		tabb44wave->Play(nullptr, "GoldLaneControl");
+		ScoreBy(caller, 0);
+	}
+
+	// a_rebo1 and a_rebo2, 0x427350 and 0x427380: each lights its light for 0.1 s and scores
+	void ReboundControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code != MessageCode::ControlCollision)
+			return;
+		auto index = std::ranges::find(rebounds, caller) - rebounds.begin();
+		rebound_lights[index]->Message(MessageCode::TLightTurnOnTimed, 0.1f);
+		ScoreBy(caller, 0);
+	}
+
+	// a_kick2, 0x42a2a0: as it kicks, a_blocc, a_bloce and a_blocf come up and a_blocg drops, and v_lite544 flashes
+	// out, which then switches a_kick2 off (LaneKickbackLightControl)
+	void LaneKickbackControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlTimerExpired)
+			return;
+		a_blocc->Message(TAnimatedBlockerSetState, 0.0f);
+		BloceUp();
+		a_blocf->Message(TAnimatedBlockerSetState, 0.0f);
+		a_blocg->Message(TAnimatedBlockerSetState, -1.0f);
+		v_lite544->Message(TLightFlasherStartTimedThenStayOff, 1.0f);
+		ScoreBy(caller, 0);
+	}
+
+	// v_lite544, 0x42a260: once its timer leaves it neither on nor flashing, a_kick2 and s_bwal610 are off
+	void LaneKickbackLightControl(MessageCode code, TPinballComponent*)
+	{
+		if (code != MessageCode::ControlTimerExpired || !LightIdle(*v_lite544))
+			return;
+		a_kick2->ActiveFlag = 0;
+		s_bwal610->ActiveFlag = 0;
+	}
+
+	// s_trip1, 0x429000: the ball passing raises a_bloce
+	void BloceUpControl(MessageCode code, TPinballComponent*)
+	{
+		if (code == MessageCode::ControlCollision)
+			BloceUp();
+	}
+
+	// s_trip2, 0x4290c0: the ball passing lowers a_bloce in play, Lava-Ball and Jailbreak, and raises the ship's bank
+	// in Attack Ship (0x424440)
+	void BloceDownControl(MessageCode code, TPinballComponent*)
+	{
+		if (code != MessageCode::ControlCollision)
+			return;
+		switch (GameState())
+		{
+		case PlayState:
+		case LavaBallState:
+		case JailbreakState:
+			BloceDown();
+			break;
+		case AttackShipState:
+			ResetBank(drop_banks[1]);
+			break;
+		default:
+			break;
+		}
+	}
+
+	// a_flip1 and a_flip2, 0x42a1e0 and 0x42a220: either flipper turns the WINDS and GOLD lanes' lights one step
+	void FlipperControl(MessageCode code, TPinballComponent*)
+	{
+		using enum MessageCode;
+		if (code != TFlipperExtend)
+			return;
+		lane_winds_light_group->Message(TLightGroupStepBackward, 0.0f);
+		island_lane_top_light_group->Message(TLightGroupStepBackward, 0.0f);
+		island_lane_bottom_light_group->Message(TLightGroupStepBackward, 0.0f);
+	}
+
 	// s_trip11, a_roll5, a_roll1 and a_roll3, 0x429630, 0x429790, 0x429840 and 0x4296d0: in play each lights its
 	// letter of WINDS (LaneLetter); without a map piece from it each scores, and in play its letter's picture shows,
 	// a_roll3's in every state. a_roll5 and a_roll1 also light v_lite544 and switch a_kick2 and s_bwal610 on, and
@@ -3037,6 +3180,22 @@ namespace
 		Find(lane_winds_light_group, "lane_winds_light_group");
 		Find(tabb43wave, "tabb43wave");
 		Find(tabb44wave, "tabb44wave");
+		for (auto index = 0u; index < gold_rollovers.size(); index++)
+		{
+			gold_rollovers[index] = Table->find_component(std::format("a_roll{}", 10 + index).c_str());
+			Find(gold_top_lights[index], std::format("v_lite{}", 538 + index).c_str());
+			Find(gold_bottom_lights[index], std::format("v_lite{}", 541 + index).c_str());
+		}
+		Find(island_lane_top_light_group, "island_lane_top_light_group");
+		Find(island_lane_bottom_light_group, "island_lane_bottom_light_group");
+		Find(tabb88wave, "tabb88wave");
+		for (auto index = 0u; index < rebounds.size(); index++)
+		{
+			rebounds[index] = Table->find_component(std::format("a_rebo{}", 1 + index).c_str());
+			Find(rebound_lights[index], std::format("v_lite{}", 84 + index).c_str());
+		}
+		s_trip1 = Table->find_component("s_trip1");
+		s_trip2 = Table->find_component("s_trip2");
 		auto bank = [](int first, int last, int letter, float blocc, float blocf, TSound* hit, TSound* full)
 		{
 			DropBank result{{}, letter, blocc, blocf, hit, full};
@@ -3120,6 +3279,13 @@ namespace
 		all.insert(all.end(), lane_rollovers.begin(), lane_rollovers.end());
 		all.insert(all.end(), lane_lights.begin(), lane_lights.end());
 		all.insert(all.end(), {a_ramp13, tabb41wave, lane_winds_light_group, tabb43wave, tabb44wave});
+		all.insert(all.end(), gold_rollovers.begin(), gold_rollovers.end());
+		all.insert(all.end(), gold_top_lights.begin(), gold_top_lights.end());
+		all.insert(all.end(), gold_bottom_lights.begin(), gold_bottom_lights.end());
+		all.insert(all.end(), rebounds.begin(), rebounds.end());
+		all.insert(all.end(), rebound_lights.begin(), rebound_lights.end());
+		all.insert(all.end(),
+				   {island_lane_top_light_group, island_lane_bottom_light_group, tabb88wave, s_trip1, s_trip2});
 		for (const auto& dropBank : drop_banks)
 			all.insert(all.end(), dropBank.Targets.begin(), dropBank.Targets.end());
 		if (std::ranges::find(all, nullptr) != all.end())
@@ -3166,6 +3332,20 @@ namespace
 				Link(*component, WithHook<LaneControl>);
 			else if (component == a_ramp13)
 				Link(*component, WithHook<PortOCallControl>);
+			else if (std::ranges::find(gold_rollovers, component) != gold_rollovers.end())
+				Link(*component, WithHook<GoldLaneControl>);
+			else if (std::ranges::find(rebounds, component) != rebounds.end())
+				Link(*component, WithHook<ReboundControl>);
+			else if (component == a_kick2)
+				Link(*component, WithHook<LaneKickbackControl>);
+			else if (component == v_lite544)
+				Link(*component, WithHook<LaneKickbackLightControl>);
+			else if (component == s_trip1)
+				Link(*component, WithHook<BloceUpControl>);
+			else if (component == s_trip2)
+				Link(*component, WithHook<BloceDownControl>);
+			else if (component == flippers[0] || component == flippers[1])
+				Link(*component, WithHook<FlipperControl>);
 			else if (component == a_kout1 || component == a_kout2)
 				Link(*component, WithHook<KickoutControl>);
 			else if (std::ranges::find(bumpers, component) != bumpers.end())
