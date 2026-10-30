@@ -85,6 +85,7 @@ namespace
 				  TableView::Skulduggery::PegLegsLootState == LastModeState &&
 				  TableView::Skulduggery::LavaBallState == LavaBallState &&
 				  TableView::Skulduggery::JailbreakState == JailbreakState &&
+				  TableView::Skulduggery::LastBallState == LastBallState &&
 				  TableView::Skulduggery::ModeCount == LastModeState - FirstModeState + 1);
 
 	TPinballTable* Table = nullptr;
