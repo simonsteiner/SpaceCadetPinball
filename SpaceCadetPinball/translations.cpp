@@ -8385,9 +8385,51 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Skulduggery_Score,
+		{
+			{ Lang::English, "%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_AttackShip,
+		{
+			{ Lang::English, "Attack Ship\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_ShipSunk,
+		{
+			{ Lang::English, "Ship Sunk" },
+		}
+	},
+	{
+		Msg::Skulduggery_ShipCaptured,
+		{
+			{ Lang::English, "Ship Captured" },
+		}
+	},
+	{
+		Msg::Skulduggery_AttackShipHelp,
+		{
+			{ Lang::English, "Hit ship to sink.\nWire ramp to capture." },
+		}
+	},
+	{
 		Msg::Skulduggery_PictureSkillShot,
 		{
 			{ Lang::English, "Skill Shot" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureAttackShip,
+		{
+			{ Lang::English, "Attack Ship" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureMultiplier,
+		{
+			{ Lang::English, "%ldx Multiplier" },
 		}
 	}
 };

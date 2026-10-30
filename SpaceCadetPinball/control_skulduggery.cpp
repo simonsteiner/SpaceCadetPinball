@@ -11,6 +11,7 @@
 #include "TKickout.h"
 #include "TLight.h"
 #include "TLightGroup.h"
+#include "TLightSweeps.h"
 #include "TMagnet.h"
 #include "TPinballTable.h"
 #include "TPlunger.h"
@@ -24,16 +25,17 @@
 
 // Skulduggery's rules, recovered from PIRATES.EXE one feature at a time (Phase F6). Ported so far: the serve, drain
 // and game-over flow, with the ball save, the end-of-ball bonus, the launch's rolling skill shot and the music; the
-// mode framework: the SKULDUGGERY drop targets, the modes' lights and pick, the captive ball's targets and a_spot102.
+// mode framework: the SKULDUGGERY drop targets, the modes' lights and pick, the captive ball's targets and a_spot102;
+// and the modes Attack Ship.
 // Everything else is still a stand-in that keeps the table playable: kickouts and sinks give back the balls they
 // catch, which only the rules would do otherwise, and a stuck ball is freed as Space Cadet's rules free one.
 //
 // PIRATES.EXE's rules run a state machine, as DRAGON.EXE's do, whose state each player keeps in info_text_box's
 // message field: the engine's control::handler (0x423080) hands every event to one table-wide function (0x42d850),
 // which passes it to the current state's function (0x42d900), and then to the component's own handler. States 1
-// (game over), 2 (play), 3 (launch), 16 (end of ball) and 17 (the game's last ball) are ported; the modes (4 to 13)
-// come with their features. Addresses below are PIRATES.EXE's. Its message numbers are CADET.EXE's, which differ from
-// this port's above the light codes, so each call uses the port's MessageCode.
+// (game over), 2 (play), 3 (launch), 4 (Attack Ship), 16 (end of ball) and 17 (the game's last ball) are ported; the
+// other modes (5 to 13) come with their features. Addresses below are PIRATES.EXE's. Its message numbers are
+// CADET.EXE's, which differ from this port's above the light codes, so each call uses the port's MessageCode.
 namespace
 {
 	// Codes PIRATES.EXE's rules functions send only among themselves, as DRAGON.EXE's numbers them
@@ -49,6 +51,7 @@ namespace
 	constexpr int PlayState = 2;
 	constexpr int LaunchState = 3;
 	constexpr int FirstModeState = 4;
+	constexpr int AttackShipState = 4;
 	constexpr int LastModeState = 11;
 	constexpr int LavaBallState = 12;
 	constexpr int JailbreakState = 13;
@@ -109,6 +112,20 @@ namespace
 	TSound* tabb23wave;
 	TSound* tabb24wave;
 	TSound* tabb29wave;
+	// Shared by the modes: what they switch off as they start and give back as they end
+	std::array<TLight*, 4> v_lite524s; // v_lite524 to v_lite527; v_lite524's message field keeps those lit
+	TLight* v_lite520;
+	TLight* v_lite521;
+	TLightSweeps* light_sweeps;
+	TSink* a_sink8;
+	// Attack Ship's
+	TLight* v_lite567;
+	TPinballComponent* s_rexit8;
+	TSound* tabb26wave;
+	TSound* tabb40wave;
+	TSound* tabb57wave;
+	TSound* tabb58wave;
+	TSound* tabb85wave;
 
 	// A bank of drop targets: its first target's message field keeps those down, and each target spells a letter
 	struct DropBank
@@ -156,6 +173,8 @@ namespace
 	int TallyTotal;         // 0x435d00
 	int TargetHits;         // 0x435d48, Target Bonus: the popup targets hit this ball
 	int BrigBalls;          // 0x435d3c: the balls the brig holds, which the last ball releases
+	int ModeFlags;          // 0x435cf8: the running mode's own count or flags; Attack Ship counts the ships captured
+	int ModeAwardStep;      // 0x435d04: the next of a mode's awards
 
 	void TableHook(MessageCode code, TPinballComponent* caller);
 	void StateControl(int state, MessageCode code, const TPinballComponent* caller);
@@ -195,9 +214,14 @@ namespace
 	}
 
 	// A picture in the text box's second font, and what it shows in words for Space Cadet 2026's HUD
+	void ShowPicture(const char* glyphs, float time, const char* words)
+	{
+		info_text_box->Display(glyphs, time, false, 1, words);
+	}
+
 	void ShowPicture(const char* glyphs, float time, Msg words)
 	{
-		info_text_box->Display(glyphs, time, false, 1, pb::get_rc_string(words));
+		ShowPicture(glyphs, time, pb::get_rc_string(words));
 	}
 
 	// 0x424c70: the magnets and their lights off
@@ -236,14 +260,25 @@ namespace
 	}
 
 	// The bit fields PIRATES.EXE keeps in message fields
+	unsigned Bit(int bit)
+	{
+		return 1u << static_cast<unsigned>(bit);
+	}
+
 	void SetBit(int& field, int bit)
 	{
-		field = static_cast<int>(static_cast<unsigned>(field) | 1u << static_cast<unsigned>(bit));
+		field = static_cast<int>(static_cast<unsigned>(field) | Bit(bit));
 	}
 
 	bool AllSet(int field, unsigned mask)
 	{
 		return (static_cast<unsigned>(field) & mask) == mask;
+	}
+
+	// 0x423310: <score> for the table; PIRATES.EXE keeps its last scorer as ScoreBy does
+	int AddScore(int score)
+	{
+		return Table->AddScore(score);
 	}
 
 	int& LettersSpelled()
@@ -279,7 +314,7 @@ namespace
 	constexpr int PegLegsLootPick = 7;
 
 	// The modes ported so far; whatever would start another one lets the game go on in play
-	constexpr std::array<int, 0> PortedModes{};
+	constexpr std::array PortedModes{AttackShipState};
 
 	bool ModePorted(int state)
 	{
@@ -360,13 +395,27 @@ namespace
 			light->Message(starting ? TLightFlasherStartTimed : TLightResetAndTurnOn, -1.0f);
 	}
 
-	// 0x423610 and the end of the mode starts (0x423480 to 0x4235f0): v_lite606 flashes while a mode runs (0x423400),
-	// and the mode's state begins. A mode that isn't ported yet doesn't start
+	// The picture a mode shows as it starts, in the text box's second font (0x423480 to 0x4235f0)
+	struct ModePicture
+	{
+		int State;
+		const char* Glyphs;
+		float Time;
+		Msg Words;
+	};
+	constexpr std::array ModePictures{
+		ModePicture{AttackShipState, "H", 1.0f, Msg::Skulduggery_PictureAttackShip},
+	};
+
+	// 0x423610 and the mode starts (0x423480 to 0x4235f0): v_lite606 flashes while a mode runs (0x423400), the mode
+	// shows its picture, and its state begins. A mode that isn't ported yet doesn't start
 	bool StartMode(int state)
 	{
 		if (!ModePorted(state))
 			return false;
 		v_lite606->Message(MessageCode::TLightFlasherStartTimed, -1.0f);
+		if (auto picture = std::ranges::find(ModePictures, state, &ModePicture::State); picture != ModePictures.end())
+			ShowPicture(picture->Glyphs, picture->Time, picture->Words);
 		SetState(state);
 		return true;
 	}
@@ -395,6 +444,137 @@ namespace
 		return true;
 	}
 
+	// 0x424700: the jackpot, with its picture for <time> plus 2 s; a negative <time> counts as positive and plays no
+	// sound. Returns how long the picture shows
+	float AwardJackpot(float time)
+	{
+		if (time < 0.0f)
+			time = -time;
+		else
+			tabb85wave->Play(nullptr, "AwardJackpot");
+		time += 2.0f;
+		ShowPicture("G", time, Msg::Definitive_PictureJackpot);
+		AddScoreUnmultiplied(nullptr, Table->JackpotScore);
+		return time;
+	}
+
+	// The fathom lights' pictures in the second font (0x43aad8), by how many are lit: an anchor and the multiplier
+	constexpr std::array FathomPictures{":", ":=<", ":><", ":?<", ":@<", ":A<", ":B<"};
+
+	// 0x424350: the fathom lights flash and stay on, the multiplier is one more than those lit, and with a <time> of 0
+	// or more its picture shows for <time> plus 2 s. The light group passes the flash to all of them, as CADET.EXE's
+	// does, so this lights them all
+	void LightFathoms(float time)
+	{
+		using enum MessageCode;
+		fathom_light_group->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+		auto lit = fathom_light_group->Message(TLightGroupGetOnCount, 0.0f);
+		if (time >= 0.0f)
+		{
+			auto index = std::clamp(lit, 0, static_cast<int>(FathomPictures.size()) - 1);
+			std::array<char, 64> words{};
+			snprintf(words.data(), words.size(), pb::get_rc_string(Msg::Skulduggery_PictureMultiplier),
+					 static_cast<long>(index) + 1);
+			ShowPicture(FathomPictures[index], time + 2.0f, words.data());
+		}
+		Table->ScoreMultiplier = lit + 1;
+	}
+
+	// 0x423870 and 0x425310 with 0: the lights v_lite524 to v_lite527 and the captive ball's go out as a mode starts
+	void ModeLightsOff()
+	{
+		for (auto light : v_lite524s)
+			light->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+	}
+
+	void CaptiveLightsOff()
+	{
+		for (auto light : captive_lights)
+			light->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+	}
+
+	// 0x42aad0: what every mode does as it starts
+	void ModeEnter()
+	{
+		ModeFlags = 0;
+		ModeAwardStep = 0;
+		ModeLightsOff();
+		LettersOff(false);
+		BloceUp();
+		if (GameState() != LavaBallState)
+			CaptiveLightsOff();
+	}
+
+	// Each light of <lights> on if its bit of <field> is set, else off
+	void RestoreLights(const std::array<TLight*, 4>& lights, int field)
+	{
+		using enum MessageCode;
+		for (auto index = 0u; index < lights.size(); index++)
+			lights[index]->Message(AllSet(field, 1u << index) ? TLightResetAndTurnOn : TLightResetAndTurnOff, 0.0f);
+	}
+
+	// 0x423c90: the letters spelled light again, and their targets go down unless their whole bank is spelled
+	void RestoreLetters()
+	{
+		using enum MessageCode;
+		for (const auto& bank : drop_banks)
+		{
+			BankDown(bank) = 0;
+			auto count = static_cast<int>(bank.Targets.size());
+			auto full = AllSet(LettersSpelled(), (Bit(count) - 1) << static_cast<unsigned>(bank.FirstLetter));
+			for (auto index = 0; index < count; index++)
+			{
+				auto spelled = AllSet(LettersSpelled(), Bit(bank.FirstLetter + index));
+				letter_lights[bank.FirstLetter + index]->Message(spelled ? TLightResetAndTurnOn : TLightResetAndTurnOff,
+																 0.0f);
+				if (spelled && !full)
+				{
+					bank.Targets[index]->Message(TPopupTargetDisable, 0.0f);
+					SetBit(BankDown(bank), index);
+				}
+				else
+				{
+					bank.Targets[index]->Message(TPopupTargetEnable, 0.0f);
+				}
+			}
+		}
+	}
+
+	// 0x42ab40: what every mode does as it ends: the lights it took give back what their fields keep (0x423900,
+	// 0x423c90, 0x4253a0), and the banks come up
+	void ModeLeave()
+	{
+		RestoreLights(v_lite524s, v_lite524s[0]->MessageField);
+		RestoreLetters();
+		RestoreLights(captive_lights, captive_targets[0]->MessageField);
+		ResetBank(drop_banks[1]);
+		ResetBank(drop_banks[0]);
+		ResetBank(drop_banks[2]);
+		v_lite520->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+		v_lite521->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+	}
+
+	// A mode's text with the seconds mode_timer has left, if it runs
+	void ShowTimeLeft(Msg text)
+	{
+		auto msLeft = mode_timer->Message(MessageCode::TTimerGetTimeLeft, 0.0f);
+		if (!msLeft)
+			return;
+		std::array<char, 64> buffer{};
+		snprintf(buffer.data(), buffer.size(), pb::get_rc_string(text), static_cast<long>(msLeft / 1000));
+		info_text_box->Display(buffer.data(), 0.5f);
+	}
+
+	// The light sweep a mode starts with has ended: the ball held in a_sink8 comes out, unless the mode started from
+	// the launch or the drop targets, and the mode's time starts
+	void ModeSweepDone(float time)
+	{
+		if (!Launching)
+			a_sink8->Message(MessageCode::TSinkResetTimer, 0.0f);
+		mode_timer->Message(MessageCode::TTimerResetTimer, time);
+		TableHook(ShowStateText, nullptr);
+	}
+
 	// 0x426a40, 0x4264f0 and 0x426eb0: a full bank turns the blockers, comes up again and scores more. In play, the
 	// last letter of the word starts the picked mode instead
 	void BankHit(const DropBank& bank, const TPinballComponent* caller)
@@ -402,6 +582,23 @@ namespace
 		using enum MessageCode;
 		if (GameState() == PlayState && WordSpelled())
 			return;
+		if (GameState() == AttackShipState && &bank == &drop_banks[1])
+		{
+			// Attack Ship's ship (0x4264f0): a full bank sinks it for the jackpot, and "Ship Sunk" follows the picture
+			if (AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1))
+			{
+				ResetBank(bank);
+				auto time = AwardJackpot(0.0f);
+				fathom_light_group->Message(TLightGroupRestartNotifyTimer, time);
+				AddScore(25000);
+			}
+			else
+			{
+				tabb22wave->Play(nullptr, "BankHit");
+				AddScore(10000);
+			}
+			return;
+		}
 		if (AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1))
 		{
 			a_blocc->Message(TAnimatedBlockerSetState, bank.BloccState);
@@ -488,6 +685,64 @@ namespace
 			// 0x423460: v_lite606 off, then play
 			v_lite606->Message(TLightResetAndTurnOff, 0.0f);
 			SetState(PlayState);
+		}
+	}
+
+	// State 4, 0x42ad70: Attack Ship. The ship's bank (a_drop5 to a_drop9) sinks it for the jackpot, and the wire
+	// ramp's exit (s_rexit8) captures it, which lights the fathoms and raises the multiplier. It runs for 29.38 s after
+	// its light sweep
+	void AttackShipStateControl(MessageCode code, const TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case ControlTimerExpired:
+			if (caller == mode_timer)
+				TableHook(ModeEnd, nullptr);
+			else if (caller == light_sweeps)
+				ModeSweepDone(29.38f);
+			break;
+		case ControlNotifyTimerExpired:
+			// The jackpot's picture is over
+			if (caller == fathom_light_group)
+			{
+				info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_ShipSunk), 2.0f);
+				tabb26wave->Play(nullptr, "AttackShipStateControl");
+			}
+			break;
+		case EnterState:
+			ModeEnter();
+			ModeFlags = 1;
+			light_sweeps->Message(TLightSweepsStart, 0.0f);
+			ResetBank(drop_banks[1]);
+			a_blocc->Message(TAnimatedBlockerSetState, -1.0f);
+			BloceUp();
+			a_blocf->Message(TAnimatedBlockerSetState, 0.0f);
+			a_blocg->Message(TAnimatedBlockerSetState, 0.0f);
+			AddScore(200000);
+			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_AttackShipHelp), -1.0f);
+			for (auto index = 3; index < 8; index++)
+				letter_lights[index]->Message(TLightFlasherStartTimed, -1.0f);
+			v_lite567->Message(TLightFlasherStartTimed, -1.0f);
+			PlayTrack(MidiTracks::Track2);
+			tabb58wave->Play(nullptr, "AttackShipStateControl");
+			break;
+		case ShowStateText:
+			ShowTimeLeft(Msg::Skulduggery_AttackShip);
+			break;
+		case ModeEnd:
+			v_lite567->Message(TLightResetAndTurnOff, 0.0f);
+			ResetBank(drop_banks[1]);
+			ModeLeave();
+			v_lite606->MessageField++;
+			BloceDown();
+			break;
+		case BallDrained:
+			mode_timer->Message(TTimerResetTimer, -1.0f);
+			TableHook(ModeEnd, nullptr);
+			break;
+		default:
+			break;
 		}
 	}
 
@@ -690,9 +945,12 @@ namespace
 		case LastBallState:
 			LastBallStateControl(code);
 			break;
+		case AttackShipState:
+			AttackShipStateControl(code, caller);
+			break;
 		default:
-			// The modes' states (4 to 13) aren't ported yet, and StartMode doesn't enter them; PIRATES.EXE goes back
-			// to play from any state it doesn't know (0x42d830)
+			// The other modes' states (up to 13) aren't ported yet, and StartMode doesn't enter them; PIRATES.EXE goes
+			// back to play from any state it doesn't know (0x42d830)
 			if (state < FirstModeState || state > JailbreakState)
 				SetState(PlayState);
 			break;
@@ -979,6 +1237,24 @@ namespace
 		v_lite607->Message(TLightFlasherStartTimed, 1.0f);
 	}
 
+	// s_rexit8, the wire ramp's exit, 0x429140: its score, shown; in Attack Ship it captures the ship
+	void WireRampExitControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code != MessageCode::ControlRampExitToLayer2)
+			return;
+		if (GameState() != AttackShipState)
+		{
+			ShowBonus(Msg::Skulduggery_Score, ScoreBy(caller, 0), 2.0f);
+			tabb40wave->Play(nullptr, "WireRampExitControl");
+			return;
+		}
+		ResetBank(drop_banks[1]);
+		ModeFlags++;
+		info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_ShipCaptured), 2.0f);
+		LightFathoms(2.0f);
+		tabb57wave->Play(nullptr, "WireRampExitControl");
+	}
+
 	void NoControl(MessageCode, TPinballComponent*)
 	{
 		// Components whose own handler isn't ported yet; WithHook still passes their events to the table
@@ -1166,6 +1442,19 @@ namespace
 		Find(tabb23wave, "tabb23wave");
 		Find(tabb24wave, "tabb24wave");
 		Find(tabb29wave, "tabb29wave");
+		for (auto index = 0u; index < v_lite524s.size(); index++)
+			Find(v_lite524s[index], std::format("v_lite{}", 524 + index).c_str());
+		Find(v_lite520, "v_lite520");
+		Find(v_lite521, "v_lite521");
+		Find(light_sweeps, "light_sweeps");
+		Find(a_sink8, "a_sink8");
+		Find(v_lite567, "v_lite567");
+		Find(s_rexit8, "s_rexit8");
+		Find(tabb26wave, "tabb26wave");
+		Find(tabb40wave, "tabb40wave");
+		Find(tabb57wave, "tabb57wave");
+		Find(tabb58wave, "tabb58wave");
+		Find(tabb85wave, "tabb85wave");
 		auto bank = [](int first, int last, int letter, float blocc, float blocf, TSound* hit, TSound* full)
 		{
 			DropBank result{{}, letter, blocc, blocf, hit, full};
@@ -1223,6 +1512,9 @@ namespace
 		all.insert(all.end(), captive_targets.begin(), captive_targets.end());
 		all.insert(all.end(), {a_spot102, map_piece_light_group, tabb02wave, tabb07wave, tabb19wave, tabb22wave,
 							   tabb23wave, tabb24wave, tabb29wave});
+		all.insert(all.end(), v_lite524s.begin(), v_lite524s.end());
+		all.insert(all.end(), {v_lite520, v_lite521, light_sweeps, a_sink8, v_lite567, s_rexit8, tabb26wave, tabb40wave,
+							   tabb57wave, tabb58wave, tabb85wave});
 		for (const auto& dropBank : drop_banks)
 			all.insert(all.end(), dropBank.Targets.begin(), dropBank.Targets.end());
 		if (std::ranges::find(all, nullptr) != all.end())
@@ -1250,6 +1542,8 @@ namespace
 				Link(*component, WithHook<CaptiveTargetControl>);
 			else if (component == a_spot102)
 				Link(*component, WithHook<ModeTargetControl>);
+			else if (component == s_rexit8)
+				Link(*component, WithHook<WireRampExitControl>);
 			else if (dynamic_cast<TKickout*>(component) || dynamic_cast<TSink*>(component))
 				Link(*component, WithHook<StandInControl>);
 			else
