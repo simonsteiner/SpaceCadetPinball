@@ -25,6 +25,8 @@
 #include "TSound.h"
 #include "TTextBox.h"
 #include "TTimer.h"
+#include "TableView.h"
+#include "timer.h"
 #include "translations.h"
 
 // Skulduggery's rules, recovered from PIRATES.EXE one feature at a time (Phase F6). Ported so far: the serve, drain
@@ -77,6 +79,13 @@ namespace
 	constexpr int JailbreakState = 13;
 	constexpr int EndOfBallState = 16;
 	constexpr int LastBallState = 17;
+	// Space Cadet 2026's HUD and guide tell the states apart by TableView's names for them
+	static_assert(TableView::Skulduggery::PlayState == PlayState &&
+				  TableView::Skulduggery::FirstModeState == FirstModeState &&
+				  TableView::Skulduggery::PegLegsLootState == LastModeState &&
+				  TableView::Skulduggery::LavaBallState == LavaBallState &&
+				  TableView::Skulduggery::JailbreakState == JailbreakState &&
+				  TableView::Skulduggery::ModeCount == LastModeState - FirstModeState + 1);
 
 	TPinballTable* Table = nullptr;
 
@@ -4032,12 +4041,41 @@ namespace
 		Links.clear();
 		Cheats.Clear();
 	}
+
+	// What Space Cadet 2026's HUD shows of the rules' state; it only reads
+	void FillView(TableView& view)
+	{
+		using enum MessageCode;
+		auto& pirates = view.Pirates;
+		pirates = {};
+		if (!info_text_box)
+			return;
+		pirates.State = GameState();
+		if (auto picked = PickedMode(); picked >= 1 && picked <= static_cast<int>(PickedModeStates.size()))
+			pirates.PickedMode = PickedModeStates[picked - 1];
+		if (pirates.State >= FirstModeState && pirates.State <= LastModeState && mode_timer->Timer)
+			pirates.TimeLeft = std::max(timer::time_left(mode_timer->Timer), 0);
+		for (size_t index = 0; index < mode_lights.size(); index++)
+		{
+			if (mode_lights[index]->light_on() && !mode_lights[index]->FlasherOnFlag)
+				pirates.ModeLights |= 1u << static_cast<unsigned>(PickedModeStates[index] - FirstModeState);
+		}
+		pirates.ModesDone = v_lite606->MessageField;
+		pirates.Letters = static_cast<unsigned>(LettersSpelled()) & (Bit(TableView::Skulduggery::LetterCount) - 1);
+		pirates.Jackpot = Table->JackpotScore;
+		pirates.BrigBalls = BrigBalls;
+		pirates.BallsInPlay = Table->MultiballCount;
+		for (auto [group, lit, count] : {std::tuple{coin_light_group, &pirates.Coins, &pirates.CoinLights},
+										 {special_treasure_light_group, &pirates.Treasures, &pirates.TreasureLights},
+										 {map_piece_light_group, &pirates.MapPieces, &pirates.MapPieceLights}})
+		{
+			*lit = group->Message(TLightGroupGetOnCount, 0.0f);
+			*count = group->Message(TLightGroupGetLightCount, 0.0f);
+		}
+	}
 } // namespace
 
 const TableRules control_skulduggery::Rules{
-	MakeLinks,    ClearLinks,
-	TableControl, UnstuckBall,
-	Cheat,        [] { /* PIRATES.EXE has no rank to bump */ },
-	EndScroll,    [](TableView&) { /* the HUD's fields come with the close-out */ },
-	AltBallFrame,
+	MakeLinks, ClearLinks, TableControl, UnstuckBall, Cheat, [] { /* PIRATES.EXE has no rank to bump */ },
+	EndScroll, FillView,   AltBallFrame,
 };

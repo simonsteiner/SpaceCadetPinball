@@ -7815,6 +7815,114 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_Mode,
+		{
+			{ Lang::English, "Mode" },
+		}
+	},
+	{
+		Msg::Definitive_NextMode,
+		{
+			{ Lang::English, "Next mode: %s" },
+		}
+	},
+	{
+		Msg::Definitive_ModesDone,
+		{
+			{ Lang::English, "Modes done: %s" },
+		}
+	},
+	{
+		Msg::Definitive_BallsInPlay,
+		{
+			{ Lang::English, "Balls in play: %s" },
+		}
+	},
+	{
+		Msg::Definitive_Brig,
+		{
+			{ Lang::English, "In the Brig" },
+		}
+	},
+	{
+		Msg::Definitive_Coins,
+		{
+			{ Lang::English, "Coins" },
+		}
+	},
+	{
+		Msg::Definitive_SpecialTreasures,
+		{
+			{ Lang::English, "Special Treasures" },
+		}
+	},
+	{
+		Msg::Definitive_MapPieces,
+		{
+			{ Lang::English, "Map Pieces" },
+		}
+	},
+	{
+		Msg::Definitive_AttackShip,
+		{
+			{ Lang::English, "Attack Ship" },
+		}
+	},
+	{
+		Msg::Definitive_BermudaTriangle,
+		{
+			{ Lang::English, "Bermuda Triangle" },
+		}
+	},
+	{
+		Msg::Definitive_Storm,
+		{
+			{ Lang::English, "Storm" },
+		}
+	},
+	{
+		Msg::Definitive_Tavern,
+		{
+			{ Lang::English, "Tavern" },
+		}
+	},
+	{
+		Msg::Definitive_TreasureHunt,
+		{
+			{ Lang::English, "Treasure Hunt" },
+		}
+	},
+	{
+		Msg::Definitive_Mutiny,
+		{
+			{ Lang::English, "Mutiny" },
+		}
+	},
+	{
+		Msg::Definitive_SwordFight,
+		{
+			{ Lang::English, "Sword Fight" },
+		}
+	},
+	{
+		Msg::Definitive_PegLegsLoot,
+		{
+			{ Lang::English, "Peg Leg's Loot" },
+		}
+	},
+	{
+		Msg::Definitive_LavaBall,
+		{
+			{ Lang::English, "Lava-Ball" },
+		}
+	},
+	{
+		Msg::Definitive_Jailbreak,
+		{
+			{ Lang::English, "Jailbreak" },
+		}
+	},
+	{
 		Msg::FullTilt_Caption,
 		{
 			{ Lang::English, "Full Tilt! - Space Cadet" },

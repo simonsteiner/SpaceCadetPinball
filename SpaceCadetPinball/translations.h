@@ -497,6 +497,26 @@ enum class Msg : int
 	Definitive_AchDragonSlayer,
 	Definitive_AchDragonSlayerText,
 
+	// Space Cadet 2026's HUD on Skulduggery: its labels, and the modes' and multiballs' names by their states, 4 to 13
+	Definitive_Mode,
+	Definitive_NextMode,
+	Definitive_ModesDone,
+	Definitive_BallsInPlay,
+	Definitive_Brig,
+	Definitive_Coins,
+	Definitive_SpecialTreasures,
+	Definitive_MapPieces,
+	Definitive_AttackShip,
+	Definitive_BermudaTriangle,
+	Definitive_Storm,
+	Definitive_Tavern,
+	Definitive_TreasureHunt,
+	Definitive_Mutiny,
+	Definitive_SwordFight,
+	Definitive_PegLegsLoot,
+	Definitive_LavaBall,
+	Definitive_Jailbreak,
+
 	// Full Tilt's CADET.EXE strings, shown instead of 3D Pinball's in Full Tilt mode
 	FullTilt_Caption,
 	FullTilt_About,
