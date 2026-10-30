@@ -81,8 +81,7 @@ namespace
 	// frame, with the flippers dead; that is neither a tilt nor a multiball
 	bool LastBallRelease(const TableView& view)
 	{
-		return view.Kind == TableView::TableKind::Skulduggery &&
-			   view.Pirates.State == TableView::Skulduggery::LastBallState;
+		return view.Kind == TableView::TableKind::Skulduggery && view.Pirates.LastBallRelease;
 	}
 
 	bool Playing(const TableView& view)

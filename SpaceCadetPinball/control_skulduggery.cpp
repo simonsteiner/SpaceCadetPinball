@@ -4061,6 +4061,7 @@ namespace
 		pirates.Jackpot = Table->JackpotScore;
 		pirates.BrigBalls = BrigBalls;
 		pirates.BallsInPlay = Table->MultiballCount;
+		pirates.LastBallRelease = LastBallRelease;
 		for (const auto& [group, lit, count] :
 			 {std::tuple{coin_light_group, &pirates.Coins, &pirates.CoinLights},
 			  {special_treasure_light_group, &pirates.Treasures, &pirates.TreasureLights},
