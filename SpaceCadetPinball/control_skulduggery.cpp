@@ -2359,11 +2359,15 @@ namespace
 		return LaneWindsAward(0.0f);
 	}
 
-	// The picture of a letter of WINDS for 2 s, a large W, I, N, D or S, which Space Cadet 2026's HUD shows as it is
+	// The picture of a letter of WINDS for 2 s, a large W, I, N, D or S, with the letter as words for Space Cadet
+	// 2026's HUD
 	void ShowLaneLetter(int index)
 	{
 		static constexpr std::array pictures{"5", "6", "7", "8", "9"};
-		static constexpr std::array letters{"W", "I", "N", "D", "S"};
+		using enum Msg;
+		static constexpr std::array letters{Skulduggery_PictureLetterW, Skulduggery_PictureLetterI,
+											Skulduggery_PictureLetterN, Skulduggery_PictureLetterD,
+											Skulduggery_PictureLetterS};
 		ShowPicture(pictures[index], 2.0f, letters[index]);
 	}
 
