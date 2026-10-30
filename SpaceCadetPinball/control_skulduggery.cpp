@@ -2469,8 +2469,7 @@ namespace
 			}
 		}
 		auto play = GameState() == PlayState;
-		auto wind = wind_light_groups[index];
-		switch (wind->Message(TLightGroupGetOnCount, 0.0f))
+		switch (auto wind = wind_light_groups[index]; wind->Message(TLightGroupGetOnCount, 0.0f))
 		{
 		case 0:
 			if (play)
@@ -2564,10 +2563,14 @@ namespace
 		if (index == 4)
 		{
 			// a_roll2 sounds only with its letter's picture
-			if (GameState() == PlayState && (time = LaneLetter(3)) == 0.0f)
+			if (GameState() == PlayState)
 			{
-				ShowLaneLetter(3);
-				tabb12wave->Play(nullptr, "WindShotControl");
+				time = LaneLetter(3);
+				if (time == 0.0f)
+				{
+					ShowLaneLetter(3);
+					tabb12wave->Play(nullptr, "WindShotControl");
+				}
 			}
 		}
 		else
