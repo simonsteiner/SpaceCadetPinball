@@ -126,10 +126,11 @@ void DefinitiveStatsScreen::RenderStats(const TableView& view)
 	auto rankName = DefinitiveHud::RankName(bestRank);
 	auto dragon = view.Kind == TableView::TableKind::DragonsKeep;
 	auto skulduggery = view.Kind == TableView::TableKind::Skulduggery;
-	std::vector<std::pair<Msg, std::string>> rows = {
-		{Msg::Definitive_StatGames, Number(DefinitiveStats::Get(Stat::Games))},
-		{Msg::Definitive_StatBestScore, Number(DefinitiveStats::Get(Stat::BestScore))},
-	};
+	// Room for every row up front; growing it made GCC 13 warn wrongly inside libstdc++ (-Wstringop-overflow)
+	std::vector<std::pair<Msg, std::string>> rows;
+	rows.reserve(7);
+	rows.emplace_back(Msg::Definitive_StatGames, Number(DefinitiveStats::Get(Stat::Games)));
+	rows.emplace_back(Msg::Definitive_StatBestScore, Number(DefinitiveStats::Get(Stat::BestScore)));
 	// Dragon's Keep counts quests and dragons slain, and has no rank
 	if (dragon)
 	{
