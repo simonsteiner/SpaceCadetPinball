@@ -276,6 +276,7 @@ No SoundFont ships with the game. Music needs an audio device, so `-noaudio` and
 
 - **No background music:** music is on by default (the original game had it off), but a saved `Music=0` in `imgui_pb.ini` from an earlier run keeps it off. Turn it on with F6 or Options → Music.
 - **Still no music:** the console says which synth plays the music, `Playing music with SoundFont: <path>`, or why none could start. On Linux, install a General MIDI SoundFont or point `SDL_SOUNDFONTS` at one; see [Music](#music).
+- **No music on Windows:** native MIDI couldn't start if the console says `Could not initialize native MIDI, trying a SoundFont.`; the next line, `SDL Error: midiStreamOpen failed (MMRESULT <n>)`, has Windows' reason (2 means no such device, 4 that it's taken). No SoundFont ships with the game, so the music stays off unless `SDL_SOUNDFONTS` names one. Seen in one session on Windows 11 and not since, so starting the game again may be enough.
 - **"Could not create renderer" or a black window:** try `-sw`.
 - **WSL2:** WSLg provides both a display and a PulseAudio device, so the game runs without extra setup and without `-noaudio`.
 - **An `SDL Error:` line in the console:** the main loop prints any pending SDL error, including errors that SDL or SDL_mixer recovered from internally. This line alone is not proof that music is broken.
