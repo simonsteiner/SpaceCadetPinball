@@ -8607,6 +8607,30 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Skulduggery_Mutiny,
+		{
+			{ Lang::English, "Mutiny!\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_MutinyHelp,
+		{
+			{ Lang::English, "Hit Bumpers to supress rebellion" },
+		}
+	},
+	{
+		Msg::Skulduggery_CrewAdded,
+		{
+			{ Lang::English, "Crew Added\nBumpers Now\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_MaxCrew,
+		{
+			{ Lang::English, "Max Crew\nBumpers Now\n%ld" },
+		}
+	},
+	{
 		Msg::Skulduggery_PictureSkillShot,
 		{
 			{ Lang::English, "Skill Shot" },

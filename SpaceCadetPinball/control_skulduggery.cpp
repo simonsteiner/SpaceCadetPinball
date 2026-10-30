@@ -28,7 +28,8 @@
 // and game-over flow, with the ball save, the end-of-ball bonus, the launch's rolling skill shot and the music; the
 // mode framework: the SKULDUGGERY drop targets, the modes' lights and pick, the captive ball's targets and a_spot102;
 // and the modes Attack Ship, Bermuda Triangle with the winds' shots and the kickouts, Storm, Tavern with the magnets
-// and the mugs' sinks, and Treasure Hunt with the buried treasure's sinks and rollovers.
+// and the mugs' sinks, Treasure Hunt with the buried treasure's sinks and rollovers, and Mutiny with the bumpers' crew
+// and a_spot6.
 // Everything else is still a stand-in that keeps the table playable: kickouts and sinks give back the balls they
 // catch, which only the rules would do otherwise, and a stuck ball is freed as Space Cadet's rules free one.
 //
@@ -36,7 +37,8 @@
 // message field: the engine's control::handler (0x423080) hands every event to one table-wide function (0x42d850),
 // which passes it to the current state's function (0x42d900), and then to the component's own handler. States 1
 // (game over), 2 (play), 3 (launch), 4 (Attack Ship), 5 (Bermuda Triangle), 6 (Storm), 7 (Tavern), 8 (Treasure Hunt),
-// 16 (end of ball) and 17 (the game's last ball) are ported; the other modes (9 to 13) come with their features.
+// 9 (Mutiny), 16 (end of ball) and 17 (the game's last ball) are ported; the other modes (10 to 13) come with their
+// features.
 // Addresses below are PIRATES.EXE's. Its message numbers are CADET.EXE's, which differ from this port's above the light
 // codes, so each call uses the port's MessageCode.
 namespace
@@ -59,6 +61,7 @@ namespace
 	constexpr int StormState = 6;
 	constexpr int TavernState = 7;
 	constexpr int TreasureHuntState = 8;
+	constexpr int MutinyState = 9;
 	constexpr int LastModeState = 11;
 	constexpr int LavaBallState = 12;
 	constexpr int JailbreakState = 13;
@@ -176,6 +179,12 @@ namespace
 	TLight* v_lite529;
 	TSound* tabb67wave;
 	TSound* tabb68wave;
+	// Mutiny's: the bumpers, whose crew raises their score; a_bump1's message field counts the hits towards the next
+	// crew and a_bump2's keeps the crew (0 to 6), the index of the bumpers' score
+	std::array<TPinballComponent*, 3> bumpers; // a_bump1 to a_bump3
+	TSound* tabb16wave;
+	TSound* tabb17wave;
+	TSound* tabb61wave;
 
 	// A bank of drop targets: its first target's message field keeps those down, and each target spells a letter
 	struct DropBank
@@ -379,7 +388,8 @@ namespace
 	constexpr int PegLegsLootPick = 7;
 
 	// The modes ported so far; whatever would start another one lets the game go on in play
-	constexpr std::array PortedModes{AttackShipState, BermudaState, StormState, TavernState, TreasureHuntState};
+	constexpr std::array PortedModes{AttackShipState, BermudaState,      StormState,
+									 TavernState,     TreasureHuntState, MutinyState};
 
 	bool ModePorted(int state)
 	{
@@ -1139,6 +1149,34 @@ namespace
 		a_spot6->MessageField = 0;
 	}
 
+	// 0x425d50 with 1: v_lite530 to v_lite532 light and flash out, and a_spot6's count starts over
+	void CrewLightsFlashOut()
+	{
+		using enum MessageCode;
+		for (auto light : v_lite530s)
+			light->Message(TLightTurnOn, 0.0f);
+		for (auto light : v_lite530s)
+			light->Message(TLightFlasherStartTimedThenStayOff, 1.0f);
+		a_spot6->MessageField = 0;
+	}
+
+	int& BumperHits()
+	{
+		return bumpers[0]->MessageField;
+	}
+
+	int& Crew()
+	{
+		return bumpers[1]->MessageField;
+	}
+
+	// 0x425000: the most crew the bumpers can have, with their score shown for <time> plus 2 s
+	void MaxCrew(float time)
+	{
+		Crew() = 6;
+		ShowBonus(Msg::Skulduggery_MaxCrew, bumpers[0]->get_scoring(6), time + 2.0f);
+	}
+
 	// State 7, 0x42b420: Tavern. The mugs (v_lite547, v_lite546, v_lite545) flash one at a time at random, and the
 	// ball in a mug's sink while its light flashes gives a random award (TavernAward). The drop targets switch the
 	// magnets on. It runs for 27.4 s after its light sweep
@@ -1394,6 +1432,47 @@ namespace
 		}
 	}
 
+	// State 9, 0x42ca00: Mutiny. Every bumper scores 25,000, and the tenth the jackpot, after which the count starts
+	// over (BumperControl). It runs for 48.28 s after its light sweep
+	void MutinyStateControl(MessageCode code, const TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case ControlTimerExpired:
+			if (caller == mode_timer)
+				TableHook(ModeEnd, nullptr);
+			else if (caller == light_sweeps)
+				ModeSweepDone(48.28f);
+			break;
+		case EnterState:
+			ModeEnter();
+			AddScore(100000);
+			light_sweeps->Message(TLightSweepsStart, 10.0f);
+			PlayTrack(MidiTracks::Track6);
+			tabb73wave->Play(nullptr, "MutinyStateControl");
+			a_blocc->Message(TAnimatedBlockerSetState, 0.0f);
+			a_blocf->Message(TAnimatedBlockerSetState, 0.0f);
+			a_blocg->Message(TAnimatedBlockerSetState, 0.0f);
+			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_MutinyHelp), -1.0f);
+			break;
+		case ShowStateText:
+			ShowTimeLeft(Msg::Skulduggery_Mutiny);
+			break;
+		case ModeEnd:
+			ModeLeave();
+			v_lite606->MessageField++;
+			BloceDown();
+			break;
+		case BallDrained:
+			mode_timer->Message(TTimerResetTimer, -1.0f);
+			TableHook(ModeEnd, nullptr);
+			break;
+		default:
+			break;
+		}
+	}
+
 	// State 16, 0x42b820: count the bonus, one text at a time, then serve the next ball or end the game
 	void EndOfBallStateControl(MessageCode code, const TPinballComponent* caller)
 	{
@@ -1607,6 +1686,9 @@ namespace
 			break;
 		case TreasureHuntState:
 			TreasureHuntStateControl(code, caller);
+			break;
+		case MutinyState:
+			MutinyStateControl(code, caller);
 			break;
 		default:
 			// The other modes' states (up to 13) aren't ported yet, and StartMode doesn't enter them; PIRATES.EXE goes
@@ -2145,6 +2227,99 @@ namespace
 		caller->Message(MessageCode::TKickoutRestartTimer, 1.0f);
 	}
 
+	// a_bump1 to a_bump3, 0x426390: they score by the crew. In play every twelfth hit adds a crew, up to six, and shows
+	// the bumpers' new score; in Mutiny each one scores 25,000 and the tenth the jackpot
+	void BumperControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code != MessageCode::ControlCollision)
+			return;
+		if (GameState() == PlayState)
+		{
+			if (++BumperHits() == 12)
+			{
+				BumperHits() = 0;
+				if (Crew() < 6)
+				{
+					Crew()++;
+					ShowBonus(Msg::Skulduggery_CrewAdded, caller->get_scoring(Crew()), 2.0f);
+				}
+				tabb17wave->Play(nullptr, "BumperControl");
+			}
+			else
+			{
+				tabb16wave->Play(nullptr, "BumperControl");
+			}
+			ScoreBy(caller, Crew());
+			return;
+		}
+		if (GameState() != MutinyState)
+		{
+			tabb16wave->Play(nullptr, "BumperControl");
+			ScoreBy(caller, Crew());
+			return;
+		}
+		if (++ModeFlags == 10)
+		{
+			ModeFlags = 0;
+			AwardJackpot(0.0f);
+			return;
+		}
+		AddScore(25000);
+		tabb74wave->Play(nullptr, "BumperControl");
+	}
+
+	// a_spot6, 0x4279b0: in play and in Tavern its first two hits light v_lite530 and v_lite531, and the third starts
+	// Jailbreak in play and gives the bumpers the most crew in Tavern
+	void CrewTargetControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		auto& hits = a_spot6->MessageField;
+		if (GameState() == PlayState)
+		{
+			if (hits == 0 || hits == 1)
+			{
+				tabb02wave->Play(nullptr, "CrewTargetControl");
+				ScoreBy(caller, 0);
+				v_lite530s[hits]->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+				hits++;
+				return;
+			}
+			hits = 0;
+			ScoreBy(caller, 0);
+			StartMode(JailbreakState);
+			return;
+		}
+		if (GameState() != TavernState)
+			return;
+		switch (hits)
+		{
+		case 0:
+			tabb02wave->Play(nullptr, "CrewTargetControl");
+			hits = 1;
+			ScoreBy(caller, 0);
+			v_lite530s[0]->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			v_lite530s[1]->Message(TLightResetAndTurnOff, 0.0f);
+			v_lite530s[2]->Message(TLightResetAndTurnOff, 0.0f);
+			break;
+		case 1:
+			tabb02wave->Play(nullptr, "CrewTargetControl");
+			hits = 2;
+			ScoreBy(caller, 0);
+			v_lite530s[0]->Message(TLightResetAndTurnOn, 0.0f);
+			v_lite530s[1]->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			v_lite530s[2]->Message(TLightResetAndTurnOff, 0.0f);
+			break;
+		default:
+			tabb61wave->Play(nullptr, "CrewTargetControl");
+			CrewLightsFlashOut();
+			MaxCrew(0.0f);
+			ScoreBy(caller, 0);
+			break;
+		}
+	}
+
 	void NoControl(MessageCode, TPinballComponent*)
 	{
 		// Components whose own handler isn't ported yet; WithHook still passes their events to the table
@@ -2388,6 +2563,11 @@ namespace
 		Find(v_lite529, "v_lite529");
 		Find(tabb67wave, "tabb67wave");
 		Find(tabb68wave, "tabb68wave");
+		for (auto index = 0u; index < bumpers.size(); index++)
+			bumpers[index] = Table->find_component(std::format("a_bump{}", index + 1).c_str());
+		Find(tabb16wave, "tabb16wave");
+		Find(tabb17wave, "tabb17wave");
+		Find(tabb61wave, "tabb61wave");
 		constexpr std::array windGroups{"left_orbit_light_group",  "right_orbit_light_group", "left_island_light_group",
 										"right_wind_light_group",  "south_wind_light_group",  "west_wind_light_group",
 										"east_wind_2_light_group", "east_wind_1_light_group"};
@@ -2471,6 +2651,8 @@ namespace
 		all.insert(all.end(),
 				   {bermuda_light_group, tabb12wave, tabb66wave, v_lite778, v_lite529, tabb67wave, tabb68wave});
 		all.insert(all.end(), wind_light_groups.begin(), wind_light_groups.end());
+		all.insert(all.end(), bumpers.begin(), bumpers.end());
+		all.insert(all.end(), {tabb16wave, tabb17wave, tabb61wave});
 		all.insert(all.end(), wind_shots.begin(), wind_shots.end());
 		all.insert(all.end(), wind_lights.begin(), wind_lights.end());
 		for (const auto& dropBank : drop_banks)
@@ -2517,6 +2699,10 @@ namespace
 				Link(*component, WithHook<WindShotControl>);
 			else if (component == a_kout1 || component == a_kout2)
 				Link(*component, WithHook<KickoutControl>);
+			else if (std::ranges::find(bumpers, component) != bumpers.end())
+				Link(*component, WithHook<BumperControl>);
+			else if (component == a_spot6)
+				Link(*component, WithHook<CrewTargetControl>);
 			else if (dynamic_cast<TKickout*>(component) || dynamic_cast<TSink*>(component))
 				Link(*component, WithHook<StandInControl>);
 			else

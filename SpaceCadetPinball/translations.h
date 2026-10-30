@@ -634,6 +634,10 @@ enum class Msg : int
 	Skulduggery_StormHelp,
 	Skulduggery_Shipwrecked,
 	Skulduggery_ShipwreckMysteryAvailable,
+	Skulduggery_Mutiny,
+	Skulduggery_MutinyHelp,
+	Skulduggery_CrewAdded,
+	Skulduggery_MaxCrew,
 	// Not PIRATES.EXE's: what the rolling skill shot's pictures show, in words for Space Cadet 2026's HUD
 	Skulduggery_PictureSkillShot,
 	Skulduggery_PictureAttackShip,
