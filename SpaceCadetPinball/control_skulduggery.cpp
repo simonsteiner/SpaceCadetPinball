@@ -330,8 +330,7 @@ namespace
 	// 0x425700: the picked mode's light goes out, and none is picked
 	void ClearPickedMode()
 	{
-		auto picked = PickedMode();
-		if (picked >= 1 && picked <= static_cast<int>(mode_lights.size()))
+		if (auto picked = PickedMode(); picked >= 1 && picked <= static_cast<int>(mode_lights.size()))
 			mode_lights[picked - 1]->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
 		PickedMode() = 0;
 	}
@@ -1220,11 +1219,12 @@ namespace
 			return;
 		if (auto state = GameState(); state == PlayState)
 		{
+			using enum Msg;
 			static constexpr std::array selected{
-				Msg::Skulduggery_AttackModeSelected,     Msg::Skulduggery_TreasureHuntModeSelected,
-				Msg::Skulduggery_TavernModeSelected,     Msg::Skulduggery_BermudaModeSelected,
-				Msg::Skulduggery_StormModeSelected,      Msg::Skulduggery_MutinyModeSelected,
-				Msg::Skulduggery_SwordfightModeSelected, Msg::Skulduggery_PeglegsLootModeSelected,
+				Skulduggery_AttackModeSelected,     Skulduggery_TreasureHuntModeSelected,
+				Skulduggery_TavernModeSelected,     Skulduggery_BermudaModeSelected,
+				Skulduggery_StormModeSelected,      Skulduggery_MutinyModeSelected,
+				Skulduggery_SwordfightModeSelected, Skulduggery_PeglegsLootModeSelected,
 			};
 			info_text_box->Display(pb::get_rc_string(selected[PickMode()]), 2.0f);
 		}
