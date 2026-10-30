@@ -522,8 +522,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			printf("%s\n", message.c_str());
 		return 1;
 	}
-	// A test run of a bonus table, whichever table the player chose; Skulduggery loads only this way until its rules
-	// are done (Phase F6)
+	// A test run of a bonus table, whichever table the player chose
 	auto tableArg = GetArgValue(args, "-table");
 	if (tableArg == "dragon")
 		pb::RequestedTable = Tables::DragonsKeep;
