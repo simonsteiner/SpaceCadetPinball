@@ -8783,7 +8783,37 @@ const TextArray translations::Translations =
 	{
 		Msg::Skulduggery_PictureBuckets,
 		{
-			{ Lang::English, "%ld Buckets Bailed" },
+			{ Lang::English, "Buckets Bailed: %ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureLetterW,
+		{
+			{ Lang::English, "W" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureLetterI,
+		{
+			{ Lang::English, "I" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureLetterN,
+		{
+			{ Lang::English, "N" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureLetterD,
+		{
+			{ Lang::English, "D" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureLetterS,
+		{
+			{ Lang::English, "S" },
 		}
 	},
 	{
