@@ -620,7 +620,7 @@ namespace
 	}
 
 	// 0x424d30: a random magnet whose light is neither on nor flashing, or any once none is, switches on, with its
-	// light and the keg's picture for 2 s. Returns how long the picture shows
+	// light, the keg's next light and the keg's picture for 2 s. Returns how long the picture shows
 	float MagnetOn()
 	{
 		using enum MessageCode;
@@ -639,6 +639,7 @@ namespace
 		auto index = open[std::min(static_cast<int>(RandFloat() * count), count - 1)];
 		magnets[index]->Message(TMagnetEnable, 0.0f);
 		magnet_lights[index]->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+		keg_light_group->Message(TLightGroupResetAndTurnOn, 0.0f);
 		ShowPicture("E", 2.0f, Msg::Skulduggery_PictureKeg);
 		return 2.0f;
 	}
