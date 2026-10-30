@@ -33,8 +33,10 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "DefinitiveUi.h"
 #include "EmbeddedData.h"
 #include "fullscrn.h"
+#include "GroupData.h"
 #include "midi.h"
 #include "options.h"
+#include "partman.h"
 #include "pb.h"
 #include "PostEffect.h"
 #include "Compositor.h"
@@ -255,12 +257,70 @@ constexpr const char* SelectTableShortcut = nullptr;
 constexpr const char* SelectTableShortcut = "Ctrl+T";
 #endif
 
+// A picture for a table without one, as 3D Pinball has none: its playfield, the "table" group's bitmap at the first
+// resolution, coloured with the table's palette and scaled down to fit Full Tilt!'s 120 by 120, made on the player's
+// machine from their own DAT file. Each pixel averages the area of the playfield it covers.
+static SDL_Texture* MakeTablePicture(const TableData& data)
+{
+	constexpr int size = 120;
+	const std::unique_ptr<DatFile> dat{
+		partman::load_records((data.Folder + data.DatFileName).c_str(), data.Table != Tables::SpaceCadet3DPB)};
+	if (!dat)
+		return nullptr;
+	auto palette = reinterpret_cast<ColorRgba*>(dat->field_labeled("background", FieldTypes::Palette));
+	auto groupIndex = dat->record_labeled("table");
+	auto bmp = groupIndex < 0 ? nullptr : dat->Groups[groupIndex]->GetBitmap(0);
+	if (!palette || !bmp || !bmp->IndexedBmpPtr || bmp->BitmapType == BitmapTypes::Spliced || bmp->Width <= 0 ||
+		bmp->Height <= 0)
+		return nullptr;
+
+	// Fit the playfield into the square, centred on black
+	auto scale = std::min(static_cast<float>(size) / bmp->Width, static_cast<float>(size) / bmp->Height);
+	auto width = std::max(1, static_cast<int>(bmp->Width * scale));
+	auto height = std::max(1, static_cast<int>(bmp->Height * scale));
+	auto left = (size - width) / 2, top = (size - height) / 2;
+	std::vector<ColorRgba> pixels(size * size, ColorRgba::Black());
+	for (auto y = 0; y < height; y++)
+	{
+		auto srcY0 = y * bmp->Height / height, srcY1 = std::max(srcY0 + 1, (y + 1) * bmp->Height / height);
+		for (auto x = 0; x < width; x++)
+		{
+			auto srcX0 = x * bmp->Width / width, srcX1 = std::max(srcX0 + 1, (x + 1) * bmp->Width / width);
+			unsigned red = 0, green = 0, blue = 0, count = 0;
+			for (auto srcY = srcY0; srcY < srcY1; srcY++)
+			{
+				// The DAT's bitmaps are stored bottom up
+				auto row = reinterpret_cast<const uint8_t*>(bmp->IndexedBmpPtr) +
+						   static_cast<ptrdiff_t>(bmp->IndexedStride) * (bmp->Height - 1 - srcY);
+				for (auto srcX = srcX0; srcX < srcX1; srcX++)
+				{
+					// The colours the game sets from the palette, 10 to 245; the rest are Windows' own and black
+					auto index = row[srcX];
+					auto color = index >= 10 && index < 246 ? palette[index] : ColorRgba::Black();
+					red += color.GetRed();
+					green += color.GetGreen();
+					blue += color.GetBlue();
+					count++;
+				}
+			}
+			pixels[(top + y) * size + left + x] =
+				ColorRgba{static_cast<uint8_t>(red / count), static_cast<uint8_t>(green / count),
+						  static_cast<uint8_t>(blue / count), 255};
+		}
+	}
+
+	auto picture = SDL_CreateTexture(winmain::Renderer, SDL_PIXELFORMAT_BGRA32, SDL_TEXTUREACCESS_STATIC, size, size);
+	if (picture)
+		SDL_UpdateTexture(picture, nullptr, pixels.data(), size * static_cast<int>(sizeof(ColorRgba)));
+	return picture;
+}
+
 static void LoadTableChoices()
 {
 	for (const auto& data : pb::FoundTables)
 	{
-		// Full Tilt! keeps a 120 by 120 picture of each table next to its DAT, such as DRAGON.BMP; 3D Pinball has none
-		// Looked for first, so a missing picture leaves no SDL error behind
+		// Full Tilt! keeps a 120 by 120 picture of each table next to its DAT, such as DRAGON.BMP; 3D Pinball has none,
+		// so its picture is made from its DAT file. Looked for first, so a missing picture leaves no SDL error behind
 		auto stem = data.DatFileName.substr(0, data.DatFileName.rfind('.'));
 		auto fileName = pb::FindFile(data.Folder, stem + ".BMP");
 		SDL_Texture* picture = nullptr;
@@ -269,6 +329,8 @@ static void LoadTableChoices()
 			picture = SDL_CreateTextureFromSurface(winmain::Renderer, surface);
 			SDL_DestroySurface(surface);
 		}
+		if (!picture)
+			picture = MakeTablePicture(data);
 		TableMenus().Choices.emplace_back(data, picture);
 	}
 }

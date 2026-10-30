@@ -47,6 +47,8 @@ Once the game finds the data of more than one table, it lets the player pick one
 - **Space Cadet 2026:** Table on the title, under Play, names the table loaded. It opens the list of tables, each with the game its data comes from and its best score; choosing another table loads it.
 - **Classic:** Options → Select Table... (Ctrl+T), as in Full Tilt!, pauses the game and shows the tables' pictures side by side. Pick one with the arrow keys or a click and choose Ok, or press Enter or double-click it. The table loaded is greyed out.
 
+Each Full Tilt! table's picture is the BMP file next to its DAT file (`CADET.BMP`, `DRAGON.BMP`, `PIRATES.BMP`). 3D Pinball came without one, so for its Space Cadet, or any table whose picture is missing, the game makes one when it starts: the table's playfield from its own DAT file, scaled down to the same 120 by 120. It is made on the player's machine and never saved.
+
 Loading another table restarts the game in its window and ends a game in progress. The choice is kept for the next start. Each table has its own high scores, stats and table resolution. With the data of only one table, neither list shows. In the web build, add the `DRAGON` and `PIRATE` folders on the start page as well.
 
 ## Build
