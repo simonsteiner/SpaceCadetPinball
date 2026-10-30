@@ -1844,7 +1844,7 @@ namespace
 	// v_lite8, v_lite568 and v_lite567
 	std::vector<TLight*> PegLegsLootLights()
 	{
-		std::vector<TLight*> lights{v_mlights[3]};
+		std::vector lights{v_mlights[3]};
 		lights.insert(lights.end(), letter_lights.begin() + 3, letter_lights.begin() + 8);
 		lights.insert(lights.end(), {v_lite568, v_lite567});
 		return lights;
