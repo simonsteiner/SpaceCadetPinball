@@ -8529,6 +8529,30 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Skulduggery_Tavern,
+		{
+			{ Lang::English, "Tavern\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_TavernHelp,
+		{
+			{ Lang::English, "Hit the Tavern" },
+		}
+	},
+	{
+		Msg::Skulduggery_OneMillion,
+		{
+			{ Lang::English, "One Million" },
+		}
+	},
+	{
+		Msg::Skulduggery_ExtraBall,
+		{
+			{ Lang::English, "Extra Ball" },
+		}
+	},
+	{
 		Msg::Skulduggery_PictureSkillShot,
 		{
 			{ Lang::English, "Skill Shot" },
@@ -8544,6 +8568,30 @@ const TextArray translations::Translations =
 		Msg::Skulduggery_PictureTreasureHunt,
 		{
 			{ Lang::English, "Treasure Hunt" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureTavern,
+		{
+			{ Lang::English, "Tavern" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureKeg,
+		{
+			{ Lang::English, "Keg" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureMapPiece,
+		{
+			{ Lang::English, "Map Piece" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureCoins,
+		{
+			{ Lang::English, "Coins" },
 		}
 	},
 	{

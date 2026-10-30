@@ -27,17 +27,18 @@
 // Skulduggery's rules, recovered from PIRATES.EXE one feature at a time (Phase F6). Ported so far: the serve, drain
 // and game-over flow, with the ball save, the end-of-ball bonus, the launch's rolling skill shot and the music; the
 // mode framework: the SKULDUGGERY drop targets, the modes' lights and pick, the captive ball's targets and a_spot102;
-// and the modes Attack Ship and Treasure Hunt, with the buried treasure's sinks and rollovers.
+// and the modes Attack Ship, Tavern with the magnets and the mugs' sinks, and Treasure Hunt with the buried
+// treasure's sinks and rollovers.
 // Everything else is still a stand-in that keeps the table playable: kickouts and sinks give back the balls they
 // catch, which only the rules would do otherwise, and a stuck ball is freed as Space Cadet's rules free one.
 //
 // PIRATES.EXE's rules run a state machine, as DRAGON.EXE's do, whose state each player keeps in info_text_box's
 // message field: the engine's control::handler (0x423080) hands every event to one table-wide function (0x42d850),
 // which passes it to the current state's function (0x42d900), and then to the component's own handler. States 1
-// (game over), 2 (play), 3 (launch), 4 (Attack Ship), 8 (Treasure Hunt), 16 (end of ball) and 17 (the game's last ball)
-// are ported; the other modes (5 to 13) come with their features. Addresses below are PIRATES.EXE's. Its message
-// numbers are CADET.EXE's, which differ from this port's above the light codes, so each call uses the port's
-// MessageCode.
+// (game over), 2 (play), 3 (launch), 4 (Attack Ship), 7 (Tavern), 8 (Treasure Hunt), 16 (end of ball) and 17 (the
+// game's last ball) are ported; the other modes (5 to 13) come with their features. Addresses below are PIRATES.EXE's.
+// Its message numbers are CADET.EXE's, which differ from this port's above the light codes, so each call uses the
+// port's MessageCode.
 namespace
 {
 	// Codes PIRATES.EXE's rules functions send only among themselves, as DRAGON.EXE's numbers them
@@ -54,6 +55,7 @@ namespace
 	constexpr int LaunchState = 3;
 	constexpr int FirstModeState = 4;
 	constexpr int AttackShipState = 4;
+	constexpr int TavernState = 7;
 	constexpr int TreasureHuntState = 8;
 	constexpr int LastModeState = 11;
 	constexpr int LavaBallState = 12;
@@ -146,6 +148,17 @@ namespace
 	TPinballComponent* a_roll9;
 	TSound* tabb11wave;
 	TSound* tabb59wave;
+	// Tavern's: its three mugs and their sinks, the magnets' keg and the awards the mugs give
+	std::array<TLight*, 3> tavern_lights; // v_lite547, v_lite546, v_lite545; v_lite547's message field keeps those lit
+	std::array<TSink*, 3> tavern_sinks;   // a_sink5, a_sink6, a_sink7
+	std::array<TLight*, 3> v_lite530s;    // v_lite530 to v_lite532
+	TSoloTarget* a_spot6;
+	TLightGroup* keg_light_group;
+	TSound* tabb00wave;
+	TSound* tabb08wave;
+	TSound* tabb65wave;
+	TSound* tabb83wave;
+	TSound* tabb87wave;
 
 	// A bank of drop targets: its first target's message field keeps those down, and each target spells a letter
 	struct DropBank
@@ -342,7 +355,7 @@ namespace
 	constexpr int PegLegsLootPick = 7;
 
 	// The modes ported so far; whatever would start another one lets the game go on in play
-	constexpr std::array PortedModes{AttackShipState, TreasureHuntState};
+	constexpr std::array PortedModes{AttackShipState, TavernState, TreasureHuntState};
 
 	bool ModePorted(int state)
 	{
@@ -432,6 +445,7 @@ namespace
 	};
 	constexpr std::array ModePictures{
 		ModePicture{AttackShipState, "H", 1.0f, Msg::Skulduggery_PictureAttackShip},
+		ModePicture{TavernState, "333", 2.0f, Msg::Skulduggery_PictureTavern},
 		ModePicture{TreasureHuntState, "I", 2.0f, Msg::Skulduggery_PictureTreasureHunt},
 	};
 
@@ -603,6 +617,69 @@ namespace
 		TableHook(ShowStateText, nullptr);
 	}
 
+	// 0x424d30: a random magnet whose light is neither on nor flashing, or any once none is, switches on, with its
+	// light and the keg's picture for 2 s. Returns how long the picture shows
+	float MagnetOn()
+	{
+		using enum MessageCode;
+		std::array<int, 6> open{};
+		int count = 0;
+		for (int index = 0; index < static_cast<int>(magnet_lights.size()); index++)
+		{
+			if (LightIdle(*magnet_lights[index]))
+				open[count++] = index;
+		}
+		if (!count)
+		{
+			for (; count < static_cast<int>(open.size()); count++)
+				open[count] = count;
+		}
+		auto index = open[std::min(static_cast<int>(RandFloat() * count), count - 1)];
+		magnets[index]->Message(TMagnetEnable, 0.0f);
+		magnet_lights[index]->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+		ShowPicture("E", 2.0f, Msg::Skulduggery_PictureKeg);
+		return 2.0f;
+	}
+
+	// The Tavern's half of 0x426a40 and 0x426eb0: each target down switches a magnet on, and a full bank awards the
+	// jackpot after the keg (a_drop13 to a_drop15); a_drop10 to a_drop12 score as in play without the blockers
+	void TavernBankHit(const DropBank& bank, const TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		auto full = AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1);
+		if (&bank == &drop_banks[2])
+		{
+			if (full)
+			{
+				ResetBank(bank);
+				ScoreBy(caller, 1);
+				bank.FullSound->Play(nullptr, "TavernBankHit");
+			}
+			else
+			{
+				bank.HitSound->Play(nullptr, "TavernBankHit");
+				ScoreBy(caller, 0);
+			}
+			return;
+		}
+		if (full)
+		{
+			a_blocc->Message(TAnimatedBlockerSetState, 0.0f);
+			BloceUp();
+			a_blocf->Message(TAnimatedBlockerSetState, 0.0f);
+			a_blocg->Message(TAnimatedBlockerSetState, 0.0f);
+			ResetBank(bank);
+			AwardJackpot(MagnetOn());
+			AddScore(50000);
+		}
+		else
+		{
+			MagnetOn();
+			tabb87wave->Play(nullptr, "TavernBankHit");
+			AddScore(25000);
+		}
+	}
+
 	// 0x426a40, 0x4264f0 and 0x426eb0: a full bank turns the blockers, comes up again and scores more. In play, the
 	// last letter of the word starts the picked mode instead
 	void BankHit(const DropBank& bank, const TPinballComponent* caller)
@@ -625,6 +702,11 @@ namespace
 				tabb22wave->Play(nullptr, "BankHit");
 				AddScore(10000);
 			}
+			return;
+		}
+		if (GameState() == TavernState && &bank != &drop_banks[1])
+		{
+			TavernBankHit(bank, caller);
 			return;
 		}
 		if (AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1))
@@ -931,6 +1013,135 @@ namespace
 		}
 	}
 
+	// 0x423aa0: a map piece, with its picture, and One Million; the last one picks Peg Leg's Loot in play
+	void AwardMapPiece()
+	{
+		using enum MessageCode;
+		map_piece_light_group->Message(TLightGroupResetAndTurnOn, 1.0f);
+		v_lite607->MessageField++;
+		ShowPicture("C", 2.0f, Msg::Skulduggery_PictureMapPiece);
+		info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_OneMillion), 4.0f);
+		AddScore(1000000);
+		tabb83wave->Play(nullptr, "AwardMapPiece");
+		if (map_piece_light_group->Message(TLightGroupGetOnCount, 0.0f) ==
+				map_piece_light_group->Message(TLightGroupGetLightCount, 0.0f) &&
+			GameState() == PlayState)
+			PickMode();
+	}
+
+	// 0x423720: the next coin lights, and the coins lit score (0x43d0c0), with the coins' picture and the score
+	void AwardCoins()
+	{
+		static constexpr std::array scores{0, 50000, 100000, 200000, 400000, 800000, 1600000};
+		coin_light_group->Message(MessageCode::TLightGroupResetAndTurnOn, 1.0f);
+		auto lit = coin_light_group->Message(MessageCode::TLightGroupGetOnCount, 1.0f);
+		auto score = AddScore(scores[std::clamp(lit, 0, static_cast<int>(scores.size()) - 1)]);
+		ShowPicture("D", 2.0f, Msg::Skulduggery_PictureCoins);
+		ShowBonus(Msg::Skulduggery_Score, score, 4.0f);
+		tabb84wave->Play(nullptr, "AwardCoins");
+	}
+
+	// 0x4239d0: an extra ball
+	void AwardExtraBall()
+	{
+		tabb00wave->Play(nullptr, "AwardExtraBall");
+		Table->ExtraBalls = 1;
+		info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_ExtraBall), 2.0f);
+	}
+
+	// 0x424fb0: a map piece, a special treasure, coins or an extra ball, at random
+	void TavernAward()
+	{
+		switch (std::min(static_cast<int>(RandFloat() * 4.0f), 3))
+		{
+		case 0:
+			AwardMapPiece();
+			break;
+		case 1:
+			AwardSpecialTreasure(special_treasure_light_group->MessageField);
+			break;
+		case 2:
+			AwardCoins();
+			break;
+		default:
+			AwardExtraBall();
+			break;
+		}
+	}
+
+	// 0x425d50 with 0: v_lite530 to v_lite532 flash out, and a_spot6's count starts over
+	void CrewLightsOff()
+	{
+		for (auto light : v_lite530s)
+			light->Message(MessageCode::TLightResetAndTurnOff, 1.0f);
+		a_spot6->MessageField = 0;
+	}
+
+	// State 7, 0x42b420: Tavern. The mugs (v_lite547, v_lite546, v_lite545) flash one at a time at random, and the
+	// ball in a mug's sink while its light flashes gives a random award (TavernAward). The drop targets switch the
+	// magnets on. It runs for 27.4 s after its light sweep
+	void TavernStateControl(MessageCode code, const TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case ControlTimerExpired:
+			if (caller == mode_timer)
+			{
+				for (auto light : tavern_lights)
+					light->Message(TLightResetAndTurnOff, 0.0f);
+				TableHook(ModeEnd, nullptr);
+			}
+			else if (caller == light_sweeps)
+			{
+				ModeSweepDone(27.4f);
+				TavernStateControl(ControlTimerExpired, tavern_lights[0]);
+			}
+			else if (std::ranges::find(tavern_lights, caller) != tavern_lights.end())
+			{
+				// The next mug flashes for 0.1 to 0.25 s
+				auto light = tavern_lights[std::min(static_cast<int>(RandFloat() * 3.0f), 2)];
+				auto steps = std::min(static_cast<int>(RandFloat() * 150.0f), 149);
+				light->Message(TLightFlasherStartTimed, static_cast<float>(steps + 100) / 1000.0f);
+			}
+			break;
+		case EnterState:
+			ModeEnter();
+			CrewLightsOff();
+			AddScore(200000);
+			light_sweeps->Message(TLightSweepsStart, 7.0f);
+			PlayTrack(MidiTracks::Track4);
+			tabb65wave->Play(nullptr, "TavernStateControl");
+			ResetBank(drop_banks[0]);
+			for (auto light : tavern_lights)
+				light->Message(TLightResetAndTurnOff, 0.0f);
+			a_spot6->MessageField = 0;
+			for (auto light : v_lite530s)
+				light->Message(TLightResetAndTurnOff, 0.0f);
+			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_TavernHelp), -1.0f);
+			for (auto index = 0; index < 3; index++)
+				letter_lights[index]->Message(TLightFlasherStartTimed, -1.0f);
+			break;
+		case ShowStateText:
+			ShowTimeLeft(Msg::Skulduggery_Tavern);
+			break;
+		case ModeEnd:
+			CrewLightsOff();
+			ResetBank(drop_banks[0]);
+			MagnetsOff();
+			ModeLeave();
+			v_lite606->MessageField++;
+			BloceDown();
+			break;
+		case BallDrained:
+			mode_timer->Message(TTimerResetTimer, -1.0f);
+			TableHook(ModeEnd, nullptr);
+			break;
+		default:
+			break;
+		}
+	}
+
 	// State 16, 0x42b820: count the bonus, one text at a time, then serve the next ball or end the game
 	void EndOfBallStateControl(MessageCode code, const TPinballComponent* caller)
 	{
@@ -1132,6 +1343,9 @@ namespace
 			break;
 		case AttackShipState:
 			AttackShipStateControl(code, caller);
+			break;
+		case TavernState:
+			TavernStateControl(code, caller);
 			break;
 		case TreasureHuntState:
 			TreasureHuntStateControl(code, caller);
@@ -1571,6 +1785,66 @@ namespace
 			caller->Message(MessageCode::TSinkResetTimer, 0.0f);
 	}
 
+	// 0x428900: the mugs' picture, their score shown, and the ball out of a_sink8; all three mugs score more and flash
+	// out
+	void TavernMugs(const TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		static constexpr std::array pictures{"333", "433", "343", "443", "334", "434", "344", "444"};
+		auto& lit = tavern_lights[0]->MessageField;
+		ShowPicture(pictures[static_cast<unsigned>(lit) & 7u], 2.0f, Msg::Skulduggery_PictureTavern);
+		auto all = AllSet(lit, 7);
+		if (all)
+		{
+			for (auto light : tavern_lights)
+				light->Message(TLightFlasherStartTimedThenStayOff, 1.0f);
+			lit = 0;
+		}
+		auto score = ScoreBy(caller, all ? 1 : 0);
+		tabb08wave->Play(nullptr, "TavernMugs");
+		ShowBonus(Msg::Skulduggery_Score, score, 4.0f);
+		a_blocc->Message(TAnimatedBlockerSetState, -1.0f);
+		a_blocf->Message(TAnimatedBlockerSetState, -1.0f);
+		a_blocg->Message(TAnimatedBlockerSetState, -1.0f);
+		a_sink8->Message(TSinkResetTimer, -1.0f);
+	}
+
+	// a_sink5, a_sink6 and a_sink7, the mugs' sinks, 0x428a20 to 0x428b00: each lights its mug; in Tavern, a flashing
+	// mug gives a random award. The ball comes out of a_sink8
+	void TavernSinkControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		auto index = static_cast<int>(std::ranges::find(tavern_sinks, caller) - tavern_sinks.begin());
+		auto light = tavern_lights[index];
+		if (GameState() != TavernState)
+		{
+			SetBit(tavern_lights[0]->MessageField, index);
+			light->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			TavernMugs(caller);
+			return;
+		}
+		if (light->FlasherOnFlag)
+			TavernAward();
+		else
+			tabb08wave->Play(nullptr, "TavernSinkControl");
+		a_sink8->Message(TSinkResetTimer, -1.0f);
+	}
+
+	// s_magnet1 to s_magnet6, 0x42a470 to 0x42a740: a ball through a magnet switches it off and scores 100,000
+	void MagnetControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		auto index = std::ranges::find(magnets, caller) - magnets.begin();
+		tabb87wave->Play(nullptr, "MagnetControl");
+		magnet_lights[index]->Message(TLightResetAndTurnOff, 2.0f);
+		caller->Message(TMagnetDisable, 0.0f);
+		ShowBonus(Msg::Skulduggery_Score, AddScore(100000), 2.0f);
+	}
+
 	void NoControl(MessageCode, TPinballComponent*)
 	{
 		// Components whose own handler isn't ported yet; WithHook still passes their events to the table
@@ -1794,6 +2068,19 @@ namespace
 		Find(a_roll9, "a_roll9");
 		Find(tabb11wave, "tabb11wave");
 		Find(tabb59wave, "tabb59wave");
+		for (auto index = 0u; index < tavern_lights.size(); index++)
+		{
+			Find(tavern_lights[index], std::format("v_lite{}", 547 - index).c_str());
+			Find(tavern_sinks[index], std::format("a_sink{}", 5 + index).c_str());
+			Find(v_lite530s[index], std::format("v_lite{}", 530 + index).c_str());
+		}
+		Find(a_spot6, "a_spot6");
+		Find(keg_light_group, "keg_light_group");
+		Find(tabb00wave, "tabb00wave");
+		Find(tabb08wave, "tabb08wave");
+		Find(tabb65wave, "tabb65wave");
+		Find(tabb83wave, "tabb83wave");
+		Find(tabb87wave, "tabb87wave");
 		auto bank = [](int first, int last, int letter, float blocc, float blocf, TSound* hit, TSound* full)
 		{
 			DropBank result{{}, letter, blocc, blocf, hit, full};
@@ -1858,6 +2145,10 @@ namespace
 		all.insert(all.end(), {v_lite519, left_orbit_light_group, right_orbit_light_group, left_orbit_combo_light_group,
 							   right_orbit_combo_light_group, s_trip3, s_trip8, a_sink14, a_sink15, a_sink17, a_roll8,
 							   a_roll9, tabb11wave, tabb59wave});
+		all.insert(all.end(), tavern_lights.begin(), tavern_lights.end());
+		all.insert(all.end(), tavern_sinks.begin(), tavern_sinks.end());
+		all.insert(all.end(), v_lite530s.begin(), v_lite530s.end());
+		all.insert(all.end(), {a_spot6, keg_light_group, tabb00wave, tabb08wave, tabb65wave, tabb83wave, tabb87wave});
 		for (const auto& dropBank : drop_banks)
 			all.insert(all.end(), dropBank.Targets.begin(), dropBank.Targets.end());
 		if (std::ranges::find(all, nullptr) != all.end())
@@ -1894,6 +2185,10 @@ namespace
 				Link(*component, WithHook<BuryRolloverControl>);
 			else if (component == a_sink8)
 				Link(*component, WithHook<HideawayControl>);
+			else if (std::ranges::find(tavern_sinks, component) != tavern_sinks.end())
+				Link(*component, WithHook<TavernSinkControl>);
+			else if (std::ranges::find(magnets, component) != magnets.end())
+				Link(*component, WithHook<MagnetControl>);
 			else if (dynamic_cast<TKickout*>(component) || dynamic_cast<TSink*>(component))
 				Link(*component, WithHook<StandInControl>);
 			else
