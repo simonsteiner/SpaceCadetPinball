@@ -859,9 +859,7 @@ namespace
 		switch (code)
 		{
 		case ControlTimerExpired:
-			if (caller == mode_timer)
-				TableHook(ModeEnd, nullptr);
-			else if (caller == light_sweeps)
+			if (caller == light_sweeps)
 				ModeSweepDone(29.38f);
 			break;
 		case ControlNotifyTimerExpired:
@@ -895,13 +893,6 @@ namespace
 		case ModeEnd:
 			v_lite567->Message(TLightResetAndTurnOff, 0.0f);
 			ResetBank(drop_banks[1]);
-			ModeLeave();
-			v_lite606->MessageField++;
-			BloceDown();
-			break;
-		case BallDrained:
-			mode_timer->Message(TTimerResetTimer, -1.0f);
-			TableHook(ModeEnd, nullptr);
 			break;
 		default:
 			break;
@@ -1008,9 +999,7 @@ namespace
 		switch (code)
 		{
 		case ControlTimerExpired:
-			if (caller == mode_timer)
-				TableHook(ModeEnd, nullptr);
-			else if (caller == light_sweeps)
+			if (caller == light_sweeps)
 				ModeSweepDone(30.68f);
 			break;
 		case ControlCollision:
@@ -1047,18 +1036,11 @@ namespace
 			TreasureXsOff();
 			a_sink9->ActiveFlag = 0;
 			a_sink12->ActiveFlag = 0;
-			ModeLeave();
-			v_lite606->MessageField++;
-			BloceDown();
 			v_lite519->Message(TLightResetAndTurnOff, 0.0f);
 			s_trip3->ActiveFlag = 1;
 			s_trip8->ActiveFlag = 1;
 			LightFirst(left_orbit_light_group, s_trip3->MessageField);
 			LightFirst(right_orbit_light_group, s_trip8->MessageField);
-			break;
-		case BallDrained:
-			mode_timer->Message(TTimerResetTimer, -1.0f);
-			TableHook(ModeEnd, nullptr);
 			break;
 		default:
 			break;
@@ -1140,9 +1122,10 @@ namespace
 		case ControlTimerExpired:
 			if (caller == mode_timer)
 			{
+				// The mugs go out before the mode ends (ModeStateControl). A drain ends it without this, as 0x42b420
+				// does: a mug still flashing goes out when its flash ends, and its timer no longer reaches Tavern
 				for (auto light : tavern_lights)
 					light->Message(TLightResetAndTurnOff, 0.0f);
-				TableHook(ModeEnd, nullptr);
 			}
 			else if (caller == light_sweeps)
 			{
@@ -1184,15 +1167,6 @@ namespace
 			CrewLightsOff();
 			ResetBank(drop_banks[0]);
 			MagnetsOff();
-			ModeLeave();
-			v_lite606->MessageField++;
-			BloceDown();
-			break;
-		case BallDrained:
-			// Unlike the timer's end, this leaves the mugs as they are, as 0x42b420 does: a mug still flashing goes
-			// out when its flash ends, and its timer no longer reaches Tavern
-			mode_timer->Message(TTimerResetTimer, -1.0f);
-			TableHook(ModeEnd, nullptr);
 			break;
 		default:
 			break;
@@ -1214,11 +1188,7 @@ namespace
 		switch (code)
 		{
 		case ControlTimerExpired:
-			if (caller == mode_timer)
-			{
-				TableHook(ModeEnd, nullptr);
-			}
-			else if (caller == light_sweeps)
+			if (caller == light_sweeps)
 			{
 				bermuda_light_group->Message(TLightGroupRestartNotifyTimer, 0.1f);
 				a_kout1->Message(TKickoutEnable, 0.0f);
@@ -1255,13 +1225,6 @@ namespace
 			bermuda_light_group->Message(TLightGroupRestartNotifyTimer, -1.0f);
 			bermuda_light_group->Message(TLightResetAndTurnOff, 0.0f);
 			a_kout1->Message(TKickoutDisable, 0.0f);
-			ModeLeave();
-			v_lite606->MessageField++;
-			BloceDown();
-			break;
-		case BallDrained:
-			mode_timer->Message(TTimerResetTimer, -1.0f);
-			TableHook(ModeEnd, nullptr);
 			break;
 		default:
 			break;
@@ -1432,6 +1395,33 @@ namespace
 	}
 
 	// 0x42d900
+	// What every mode's state does alike (0x42ad70 to 0x42cfc0), after the mode's own function: its timer or a drain
+	// ends the mode, and its end leaves the mode (0x42ab40), counts one more mode played (v_lite606) and puts a_bloce
+	// down. PIRATES.EXE's Treasure Hunt and Peg Leg's Loot do the rest of their cleanup after this; it touches none of
+	// the same lights, so here it comes first
+	void ModeStateControl(MessageCode code, const TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case ControlTimerExpired:
+			if (caller == mode_timer)
+				TableHook(ModeEnd, nullptr);
+			break;
+		case ModeEnd:
+			ModeLeave();
+			v_lite606->MessageField++;
+			BloceDown();
+			break;
+		case BallDrained:
+			mode_timer->Message(TTimerResetTimer, -1.0f);
+			TableHook(ModeEnd, nullptr);
+			break;
+		default:
+			break;
+		}
+	}
+
 	void StateControl(int state, MessageCode code, const TPinballComponent* caller)
 	{
 		// Every state clears the mode picked, play picks one, and a mode's light flashes while it runs. As a mode
@@ -1486,6 +1476,8 @@ namespace
 				SetState(PlayState);
 			break;
 		}
+		if (state >= FirstModeState && state <= LastModeState)
+			ModeStateControl(code, caller);
 	}
 
 	// 0x42d850: every component's events reach it before the component's own handler
