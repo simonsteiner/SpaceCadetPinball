@@ -58,6 +58,19 @@ One pull request each, with a checkpoint after each that stops for review, as in
 
 G0 comes first; G2 to G4 then need nothing else and can run in any order, and G1 can come at any time. G5 is the bulk of the work. The F6 follow-ups in the Space Cadet 2026 plan come first, so the builds tested have them.
 
+## Found so far
+
+What the test builds have turned up, and what became of it.
+
+- **Direct3D 12: Space Cadet 2026 drew a black table on Windows** (found 2026-10-30 with G0's exe). SDL's GPU renderer uses vertex shaders built with SDL_shadercross, whose outputs are named `TEXCOORD0` (colour) and `TEXCOORD1` (uv); the game's pixel shaders read `COLOR0` and `TEXCOORD0`. Direct3D 12 links the stages by these names, so every pipeline with one of the game's shaders failed with `E_INVALIDARG`: the compositor's glow, compose and ball passes and both post-processing effects, with `Could not create graphics pipeline state` in the console every frame. Vulkan links by location and Metal has its own source, so Linux never showed it. Fixed by #155, which also adds the rule to `AGENTS.md`.
+- **Native MIDI failed on Windows once** (2026-10-30). In the G0 runs `midiStreamOpen` failed for every table, so there was no music. Later on the same machine it always opened: through the MIDI mapper, with fresh settings, with two instances, and with the same exe. So the cause was the machine's state at the time, perhaps the Windows MIDI Service that Windows 11 26200 runs. The console didn't say why; #156 adds Windows' `MMRESULT` and a troubleshooting entry. Without native MIDI, Windows has no SoundFont to fall back on; whether a test build should ship one is open.
+- **SDL's GPU debug mode asserts after every window resize** (`SDL_RENDER_GPU_DEBUG=1`: `Viewport size exceeds current render target dimensions`, then the same for the scissor). That is SDL's GPU renderer, in 3.4.18 and on its `main` as of 2026-10-30. It draws into a backbuffer of its own and resizes it only when it presents, while its viewport follows the window at once, so the frame after a resize is drawn with a viewport larger than the backbuffer. The game resizes its window once at startup, while it is still hidden (800×556 to 1200×832 at 150 % scaling), and a resize by hand does the same. Without debug mode nothing checks it, and at most one frame per resize can come out cropped or stretched; there is nothing for the game to change. It isn't reported to SDL; SDL #16577 is a different case, a depth-only pass.
+
+Diagnosing Direct3D 12 on the Windows host: the debug layer isn't there (it needs Windows' Graphics Tools), and the Agility SDK's own layer loads its runtime but reports `Validation layers not found`. What worked instead:
+
+- a copy of SDL's source with an `SDL_Log` in `D3D12_CreateGraphicsPipeline`, passed to CMake with `-DFETCHCONTENT_SOURCE_DIR_SDL3=<copy>`, shows which pipeline fails, and the DXIL's size tells which shader that is;
+- `dxc -dumpbin` shows a shader's signature; compare with the bytes SDL ships in its `*.dxil.h`, not with SDL's HLSL compiled again, since shadercross renames the semantics.
+
 ## Checklist for each device
 
 - The test build finds each table without any files copied: 3D Pinball's Space Cadet, Full Tilt!'s Space Cadet, Dragon's Keep and Skulduggery, switched from the Table screen and back. Once per platform, a build without data: the first-run screen (desktop) or the import (web, Android) with the player's own files.
