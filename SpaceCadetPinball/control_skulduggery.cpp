@@ -58,18 +58,38 @@ namespace
 	TPlunger* s_launcher1;
 	TTextBox* info_text_box;
 	TTimer* mode_timer;
-	TLight *v_lite504, *v_lite505, *v_lite544, *v_lite569, *v_lite570, *v_lite606, *v_lite607;
+	TLight* v_lite504;
+	TLight* v_lite505;
+	TLight* v_lite544;
+	TLight* v_lite569;
+	TLight* v_lite570;
+	TLight* v_lite606;
+	TLight* v_lite607;
 	std::array<TLight*, 6> magnet_lights; // v_lite560 to v_lite565
 	std::array<TLight*, 6> v_mlights;     // v_mlite44, v_mlite107, v_mlite106, v_mlite51, v_mlite110, v_mlite104
-	TLightGroup *coin_light_group, *special_treasure_light_group, *fathom_light_group;
+	TLightGroup* coin_light_group;
+	TLightGroup* special_treasure_light_group;
+	TLightGroup* fathom_light_group;
 	std::array<TFlipper*, 4> flippers; // a_flip1 to a_flip4
 	std::array<TMagnet*, 6> magnets;   // s_magnet1 to s_magnet6
-	TAnimatedBlocker *a_cannon, *a_blocc, *a_bloce, *a_blocf, *a_blocg;
-	TKickback *a_kick1, *a_kick2;
-	TKickout *a_kout1, *a_kout2;
-	TSink *a_sink9, *a_sink12;
-	TPinballComponent *s_oneway3, *s_oneway12, *s_bwal610;
-	TSound *tabb42wave, *tabb73wave, *tabb74wave, *tabb84wave;
+	TAnimatedBlocker* a_cannon;
+	TAnimatedBlocker* a_blocc;
+	TAnimatedBlocker* a_bloce;
+	TAnimatedBlocker* a_blocf;
+	TAnimatedBlocker* a_blocg;
+	TKickback* a_kick1;
+	TKickback* a_kick2;
+	TKickout* a_kout1;
+	TKickout* a_kout2;
+	TSink* a_sink9;
+	TSink* a_sink12;
+	TPinballComponent* s_oneway3;
+	TPinballComponent* s_oneway12;
+	TPinballComponent* s_bwal610;
+	TSound* tabb42wave;
+	TSound* tabb73wave;
+	TSound* tabb74wave;
+	TSound* tabb84wave;
 
 	template <typename T> void Find(T*& component, const char* name)
 	{
@@ -106,7 +126,7 @@ namespace
 	int BrigBalls;          // 0x435d3c: the balls the brig holds, which the last ball releases
 
 	void TableHook(MessageCode code, TPinballComponent* caller);
-	void StateControl(int state, MessageCode code, TPinballComponent* caller);
+	void StateControl(int state, MessageCode code, const TPinballComponent* caller);
 
 	void PlayTrack(MidiTracks track)
 	{
@@ -151,38 +171,41 @@ namespace
 	// 0x424c70: the magnets and their lights off
 	void MagnetsOff()
 	{
+		using enum MessageCode;
 		for (auto magnet : magnets)
-			magnet->Message(MessageCode::TMagnetDisable, 0.0f);
+			magnet->Message(TMagnetDisable, 0.0f);
 		for (auto light : magnet_lights)
-			light->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+			light->Message(TLightResetAndTurnOff, 0.0f);
 	}
 
 	// a_bloce down, with v_lite504 off and v_lite505 on
 	void BloceDown()
 	{
-		a_bloce->Message(MessageCode::TAnimatedBlockerSetState, 0.0f);
-		v_lite504->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
-		v_lite505->Message(MessageCode::TLightResetAndTurnOn, 0.0f);
+		using enum MessageCode;
+		a_bloce->Message(TAnimatedBlockerSetState, 0.0f);
+		v_lite504->Message(TLightResetAndTurnOff, 0.0f);
+		v_lite505->Message(TLightResetAndTurnOn, 0.0f);
 	}
 
 	void ShowBonus(Msg text, int score, float time)
 	{
-		char buffer[64];
-		snprintf(buffer, sizeof buffer, pb::get_rc_string(text), static_cast<long>(score));
-		info_text_box->Display(buffer, time);
+		std::array<char, 64> buffer{};
+		snprintf(buffer.data(), buffer.size(), pb::get_rc_string(text), static_cast<long>(score));
+		info_text_box->Display(buffer.data(), time);
 	}
 
 	// State 1, 0x42bfd0
 	void GameOverStateControl(MessageCode code)
 	{
+		using enum MessageCode;
 		if (code != EnterState)
 			return;
-		Table->Message(MessageCode::GameOver, 0.0f);
+		Table->Message(GameOver, 0.0f);
 		PlayTrack(MidiTracks::Track7);
 		if (pb::chk_highscore())
 		{
 			tabb73wave->Play(nullptr, "GameOverStateControl");
-			Table->LightGroup->Message(MessageCode::TLightFlasherStartTimedThenStayOff, 3.0f);
+			Table->LightGroup->Message(TLightFlasherStartTimedThenStayOff, 3.0f);
 			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_HighScore), -1.0f);
 		}
 	}
@@ -211,14 +234,15 @@ namespace
 	// until then the launch ends in play
 	void LaunchStateControl(MessageCode code, const TPinballComponent* caller)
 	{
+		using enum MessageCode;
 		if (code == EnterState)
 		{
 			Launching = true;
 			TargetHits = 0;
-			a_blocc->Message(MessageCode::TAnimatedBlockerSetState, -1.0f);
+			a_blocc->Message(TAnimatedBlockerSetState, -1.0f);
 			BloceDown();
-			a_blocf->Message(MessageCode::TAnimatedBlockerSetState, 0.0f);
-			a_blocg->Message(MessageCode::TAnimatedBlockerSetState, -1.0f);
+			a_blocf->Message(TAnimatedBlockerSetState, 0.0f);
+			a_blocg->Message(TAnimatedBlockerSetState, -1.0f);
 		}
 		else if (code == ShowStateText)
 		{
@@ -226,11 +250,11 @@ namespace
 			award = award + 1 == static_cast<int>(SkillShotPictures.size()) ? 0 : award + 1;
 			ShowPicture(SkillShotPictures[award], 0.2f, Msg::Skulduggery_PictureSkillShot);
 		}
-		else if (code == MessageCode::ControlCollision && caller == s_oneway3)
+		else if (code == ControlCollision && caller == s_oneway3)
 		{
 			info_text_box->Clear();
 			// 0x423460: v_lite606 off, then play
-			v_lite606->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+			v_lite606->Message(TLightResetAndTurnOff, 0.0f);
 			SetState(PlayState);
 		}
 	}
@@ -238,13 +262,14 @@ namespace
 	// State 16, 0x42b820: count the bonus, one text at a time, then serve the next ball or end the game
 	void EndOfBallStateControl(MessageCode code, const TPinballComponent* caller)
 	{
+		using enum MessageCode;
 		switch (code)
 		{
 		case SkipBonusText: // count the rest without showing it
 			TallyQuiet = true;
 			info_text_box->Clear();
 			break;
-		case MessageCode::ControlTimerExpired:
+		case ControlTimerExpired:
 			// mode_timer: the bonus took too long; count the rest at once. PIRATES.EXE's step 8 is past them all
 			if (!caller || caller != mode_timer)
 				return;
@@ -255,7 +280,7 @@ namespace
 			TallyQuiet = false;
 			TallyStep = 0;
 			TallyTotal = 0;
-			mode_timer->Message(MessageCode::TTimerResetTimer, 30.0f);
+			mode_timer->Message(TTimerResetTimer, 30.0f);
 			if (Table->TiltLockFlag && !LastBallRelease)
 				TallyStep = 6;
 			info_text_box->Clear();
@@ -315,7 +340,7 @@ namespace
 				// A lit v_lite570 keeps this ball's bonus for the next one
 				if (v_lite570->light_on())
 				{
-					v_lite570->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+					v_lite570->Message(TLightResetAndTurnOff, 0.0f);
 					ShipsHold() = TallyTotal;
 				}
 				else
@@ -338,33 +363,33 @@ namespace
 				if (LastBallRelease && Table->MultiballCount)
 					return;
 				LastBallRelease = false;
-				mode_timer->Message(MessageCode::TTimerResetTimer, -1.0f);
+				mode_timer->Message(TTimerResetTimer, -1.0f);
 				if (Table->ExtraBalls)
 				{
 					Table->ExtraBalls--;
 					static constexpr std::array shootAgain{Msg::STRING198, Msg::STRING199, Msg::STRING200,
 														   Msg::STRING201};
 					info_text_box->Display(pb::get_rc_string(shootAgain[std::min(Table->CurrentPlayer, 3)]), -1.0f);
-					Table->Message(MessageCode::ClearTiltLock, 0.0f);
-					s_launcher1->Message(MessageCode::PlungerStartFeedTimer, 0.96f);
+					Table->Message(ClearTiltLock, 0.0f);
+					s_launcher1->Message(PlungerStartFeedTimer, 0.96f);
 				}
 				else
 				{
 					Table->ChangeBallCount(Table->BallCount - 1);
 					if (Table->CurrentPlayer + 1 == Table->PlayerCount && !Table->BallCount)
 					{
-						Table->LightGroup->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+						Table->LightGroup->Message(TLightResetAndTurnOff, 0.0f);
 						SetState(GameOverState);
-						Table->LightGroup->Message(MessageCode::TLightFtResetOverride, 0.0f);
+						Table->LightGroup->Message(TLightFtResetOverride, 0.0f);
 						return;
 					}
-					Table->Message(MessageCode::ClearTiltLock, 0.0f);
-					drain->Message(MessageCode::SetTiltLock, 0.0f);
-					Table->Message(MessageCode::SwitchToNextPlayer, 0.0f);
-					s_launcher1->Message(MessageCode::PlungerStartFeedTimer, 0.96f);
+					Table->Message(ClearTiltLock, 0.0f);
+					drain->Message(SetTiltLock, 0.0f);
+					Table->Message(SwitchToNextPlayer, 0.0f);
+					s_launcher1->Message(PlungerStartFeedTimer, 0.96f);
 				}
 				SetState(LaunchState);
-				Table->LightGroup->Message(MessageCode::TLightFtResetOverride, 0.0f);
+				Table->LightGroup->Message(TLightFtResetOverride, 0.0f);
 				return;
 			}
 		}
@@ -374,16 +399,17 @@ namespace
 	// the bonus is counted
 	void LastBallStateControl(MessageCode code)
 	{
+		using enum MessageCode;
 		if (code == EnterState)
 		{
 			s_bwal610->ActiveFlag = 0;
 			a_kick2->ActiveFlag = 0;
-			a_kick1->Message(MessageCode::TKickbackEnable, 0.0f);
+			a_kick1->Message(TKickbackEnable, 0.0f);
 			s_oneway12->ActiveFlag = 0;
 			for (auto magnet : magnets)
-				magnet->Message(MessageCode::TMagnetDisable, 0.0f);
-			a_kout1->Message(MessageCode::TKickoutDisable, 0.0f);
-			a_kout2->Message(MessageCode::TKickoutDisable, 0.0f);
+				magnet->Message(TMagnetDisable, 0.0f);
+			a_kout1->Message(TKickoutDisable, 0.0f);
+			a_kout2->Message(TKickoutDisable, 0.0f);
 			if (BrigBalls > 0)
 			{
 				Table->MultiballCount += BrigBalls;
@@ -392,12 +418,12 @@ namespace
 		}
 		else if (code == BallDrained && Table->MultiballCount == 1)
 		{
-			a_kick1->Message(MessageCode::TKickbackDisable, 0.0f);
+			a_kick1->Message(TKickbackDisable, 0.0f);
 		}
 	}
 
 	// 0x42d900
-	void StateControl(int state, MessageCode code, TPinballComponent* caller)
+	void StateControl(int state, MessageCode code, const TPinballComponent* caller)
 	{
 		// The modes' lights and the next mode's pick (0x4255a0, 0x425850) come with the modes; a mode's end adds
 		// 750,000 to the jackpot
@@ -589,21 +615,22 @@ namespace
 	// v_lite569, the ball save's light, 0x426080
 	void BallSaveControl(MessageCode code, TPinballComponent*)
 	{
-		if (code != MessageCode::ControlTimerExpired)
+		using enum MessageCode;
+		if (code != ControlTimerExpired)
 			return;
 		switch (BallSaveStep)
 		{
 		case 3:
 			BallSaveStep = 2;
-			v_lite569->Message(MessageCode::TLightTurnOnTimed, 10.0f);
+			v_lite569->Message(TLightTurnOnTimed, 10.0f);
 			break;
 		case 2:
 			BallSaveStep = 1;
-			v_lite569->Message(MessageCode::TLightFlasherStartTimed, 5.0f);
+			v_lite569->Message(TLightFlasherStartTimed, 5.0f);
 			break;
 		case 1:
 			BallSaveStep = 0;
-			v_lite569->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+			v_lite569->Message(TLightResetAndTurnOff, 0.0f);
 			break;
 		default:
 			break;
@@ -620,14 +647,15 @@ namespace
 	// Stand-ins until the features that own them are ported
 	void StandInControl(MessageCode code, TPinballComponent* caller)
 	{
-		if (code != MessageCode::ControlCollision)
+		using enum MessageCode;
+		if (code != ControlCollision)
 			return;
 		if (dynamic_cast<TMagnet*>(caller))
 			return;
 		if (auto kickout = dynamic_cast<TKickout*>(caller))
-			kickout->Message(MessageCode::TKickoutRestartTimer, kickout->TimerTime1);
+			kickout->Message(TKickoutRestartTimer, kickout->TimerTime1);
 		else if (auto sink = dynamic_cast<TSink*>(caller))
-			sink->Message(MessageCode::TSinkResetTimer, sink->TimerTime);
+			sink->Message(TSinkResetTimer, sink->TimerTime);
 	}
 
 	void NoControl(MessageCode, TPinballComponent*)
@@ -700,25 +728,26 @@ namespace
 	// deque keeps each link where it is as more are added, since the components point to them
 	std::deque<component_control> Links;
 
-	void Link(TPinballComponent* component, void (&handler)(MessageCode, TPinballComponent*))
+	void Link(TPinballComponent& component, void (&handler)(MessageCode, TPinballComponent*))
 	{
 		static const std::vector<int> none;
-		auto scores = component->GroupName ? ComponentScores.find(component->GroupName) : ComponentScores.end();
+		auto scores = component.GroupName ? ComponentScores.find(component.GroupName) : ComponentScores.end();
 		auto& list = scores != ComponentScores.end() ? scores->second : none;
-		component->Control = &Links.emplace_back(handler, static_cast<unsigned>(list.size()), list.data());
+		component.Control = &Links.emplace_back(handler, static_cast<unsigned>(list.size()), list.data());
 	}
 
 	// The table's own events (0x4230c0)
 	void TableControl(MessageCode code)
 	{
+		using enum MessageCode;
 		if (!Table || !info_text_box)
 			return;
 		switch (code)
 		{
-		case MessageCode::SetTiltLock:
+		case SetTiltLock:
 			SetState(LastBallState);
 			break;
-		case MessageCode::NewGame:
+		case NewGame:
 			// PIRATES.EXE also resets the modes' and the skill shot's state here (0x435d10 to 0x435d28), ported with
 			// them
 			Table->JackpotScore = 1000000;
@@ -727,18 +756,18 @@ namespace
 			LastBallRelease = false;
 			ClearBuriedLights = false;
 			for (auto light : v_mlights)
-				light->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+				light->Message(TLightResetAndTurnOff, 0.0f);
 			a_sink9->ActiveFlag = 0;
 			a_sink12->ActiveFlag = 0;
 			PlayTrack(MidiTracks::Track1);
 			BrigBalls = 0;
 			a_kick2->ActiveFlag = 0;
 			s_bwal610->ActiveFlag = 0;
-			a_kick1->Message(MessageCode::TKickbackDisable, 0.0f);
-			a_kout1->Message(MessageCode::TKickoutDisable, 0.0f);
-			a_kout2->Message(MessageCode::TKickoutDisable, 0.0f);
+			a_kick1->Message(TKickbackDisable, 0.0f);
+			a_kout1->Message(TKickoutDisable, 0.0f);
+			a_kout2->Message(TKickoutDisable, 0.0f);
 			// 0x423440: v_lite606 off and the launch, then the new game's state until the first ball
-			v_lite606->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+			v_lite606->Message(TLightResetAndTurnOff, 0.0f);
 			SetState(LaunchState);
 			GameState() = NewGameState;
 			break;
@@ -839,17 +868,17 @@ namespace
 		for (auto component : table->ComponentList)
 		{
 			if (component == drain)
-				Link(component, WithHook<DrainControl>);
+				Link(*component, WithHook<DrainControl>);
 			else if (component == s_launcher1)
-				Link(component, WithHook<LauncherControl>);
+				Link(*component, WithHook<LauncherControl>);
 			else if (component == v_lite569)
-				Link(component, WithHook<BallSaveControl>);
+				Link(*component, WithHook<BallSaveControl>);
 			else if (component == s_oneway3)
-				Link(component, WithHook<LaneExitControl>);
+				Link(*component, WithHook<LaneExitControl>);
 			else if (dynamic_cast<TKickout*>(component) || dynamic_cast<TSink*>(component))
-				Link(component, WithHook<StandInControl>);
+				Link(*component, WithHook<StandInControl>);
 			else
-				Link(component, WithHook<NoControl>);
+				Link(*component, WithHook<NoControl>);
 		}
 	}
 

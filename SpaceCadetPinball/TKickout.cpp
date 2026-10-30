@@ -76,19 +76,8 @@ int TKickout::Message(MessageCode code, float value)
 			ActiveFlag = 1;
 		break;
 	case MessageCode::TKickoutDisable:
-		// CADET.EXE's: off, and a ball it holds goes out at once
-		if (!pb::BonusTable())
-			break;
-		ActiveFlag = 0;
-		if (BallCaputeredFlag)
-		{
-			if (Timer)
-				timer::kill(Timer);
-			TimerExpired(0, this);
-			if (Timer)
-				timer::kill(Timer);
-			Timer = 0;
-		}
+		if (pb::BonusTable())
+			TurnOff();
 		break;
 	case MessageCode::TKickoutRestartTimer:
 		if (BallCaputeredFlag)
@@ -117,6 +106,20 @@ int TKickout::Message(MessageCode code, float value)
 	}
 
 	return 0;
+}
+
+void TKickout::TurnOff()
+{
+	// CADET.EXE's TKickoutDisable: off, and a ball it holds goes out at once
+	ActiveFlag = 0;
+	if (!BallCaputeredFlag)
+		return;
+	if (Timer)
+		timer::kill(Timer);
+	TimerExpired(0, this);
+	if (Timer)
+		timer::kill(Timer);
+	Timer = 0;
 }
 
 void TKickout::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
