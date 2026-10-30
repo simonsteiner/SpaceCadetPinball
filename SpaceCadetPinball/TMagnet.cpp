@@ -45,6 +45,9 @@ void TMagnet::Collision(TBall* ball, vector2* nextPosition, vector2* direction, 
 	ball->not_again(edge);
 
 	BallCaputeredFlag = 1;
+	// A second collision within TimerTime2 overwrites Timer without killing the first timer, so the older one turns
+	// the field back on early and only the newer one can be killed; PIRATES.EXE does the same (0x4165a0 doesn't
+	// kill, 0x4166c0 kills only the latest)
 	Timer = timer::set(TimerTime2, this, FieldOffTimerExpired);
 	control::handler(MessageCode::ControlCollision, this);
 }
