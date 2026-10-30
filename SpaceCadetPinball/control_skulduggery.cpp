@@ -5,6 +5,7 @@
 #include "midi.h"
 #include "pb.h"
 #include "TAnimatedBlocker.h"
+#include "TDemo.h"
 #include "TDrain.h"
 #include "TFlipper.h"
 #include "TKickback.h"
@@ -23,6 +24,7 @@
 #include "TSound.h"
 #include "TTextBox.h"
 #include "TTimer.h"
+#include "timer.h"
 #include "translations.h"
 
 // Skulduggery's rules, recovered from PIRATES.EXE one feature at a time (Phase F6). Ported so far: the serve, drain
@@ -34,7 +36,8 @@
 // shots (the orbits, the ramps and their combos, the WINDS lanes and their letters), Port O' Call, the GOLD lanes,
 // the rebounds, a_kick2, the switches of a_bloce, the flippers' turning of the lanes' lights, Secret Hideaway, the
 // Shipwreck Mystery's sinks and the ship's hold; the skill shot's awards with the random award; the brig with its
-// multiballs, Lava-Ball and Jailbreak; and the final mode, Peg Leg's Loot.
+// multiballs, Lava-Ball and Jailbreak; the final mode, Peg Leg's Loot; and the cheats, with the quotes and the idle
+// credits.
 // Everything else is still a stand-in that keeps the table playable: kickouts and sinks give back the balls they
 // catch, which only the rules would do otherwise, and a stuck ball is freed as Space Cadet's rules free one.
 //
@@ -3539,6 +3542,14 @@ namespace
 		case SetTiltLock:
 			SetState(LastBallState);
 			break;
+		case LeftFlipperInputPressed:
+		case RightFlipperInputPressed:
+			// 0x42a830, before the cheats: a flipper key skips the bonus texts while the brig's balls come out at the
+			// game's end. PIRATES.EXE checks its flipper keys; any input bound to a flipper does here, and the demo's
+			// flippers don't
+			if (!(Table->Demo && Table->Demo->ActiveFlag) && GameState() == EndOfBallState && LastBallRelease)
+				TableHook(SkipBonusText, nullptr);
+			break;
 		case NewGame:
 			// PIRATES.EXE also resets the modes' and the skill shot's state here (0x435d10 to 0x435d28), ported with
 			// them
@@ -3946,23 +3957,261 @@ namespace
 		TableRules::UnstuckBonusTableBall(*Table, ball, {s_oneway12, a_kick1});
 	}
 
+	// The developers' quotes QUOTE shows (0x43cfe8) and the credits a minute without a key shows (0x43cc30, the same
+	// as DRAGON.EXE's), one text up to each '~'
+	constexpr const char* QuotesText =
+		"Hey, is that a screen saver?~Guess what I'm gonna do APS...~"
+		"Noodle, Noodle, Noodle...~She may already be a glue bottle~Noodle...~"
+		"Family Entertainmant~Nope. No Cows.~Oh I'm sorry.~Did I break your concentration?~";
+	constexpr const char* CreditsText =
+		"Full Tilt! was created by Cinematronics~for Maxis.~Cinematronics Team:~"
+		"Programming\nMichael Sandige\nJohn Taylor~Art\nJohn Frantz Jr.\nRyan Medeiros~Design\nKevin Gliner~"
+		"Sound Effects\nMatt Ridgeway~Donald S. Griffin~Design Consultant\nMark Sprenger~Music\nMatt Ridgeway~"
+		"Producer\nKevin Gliner~Voices\nMike McGeary\nWilliam Rice~Grand Poobah\nDavid Stafford~"
+		"Special Thanks\nPaula Sandige\nAlex St. John~Brad Silverberg\nJeff Camp~Danny Thorpe\nGreg Hospelhorn~"
+		"Maxis Team:~Producer\nJohn Csicsery~Product Manager\nLarry Lee~Lead Tester\nMichael Gilmartin~"
+		"QA Manager\nAlan Barton~Additional Testing\nJoe Longworth\nScott Shicoff~Owen Nelson\nJohn \"Jussi\" Ylinen~"
+		"John Landes\nMarc Meyer~Cathy Castro\nKeith Meyer~Additional Art\nOcean Quigley~"
+		"Rick Macaraeg\nCharlie Aquilina~Art Director\nSharon Barr~Install Program\nKevin O'Hare~Intro Music~"
+		"Brian Conrad~John Csicsery~Special Thanks\nSam Poole\nJoe Scirica~Jeff Braun\nBob Derber\nAshley Csicsery~"
+		"Tom Forge\nWill \"Burr\" Wright~";
+
+	// The cheats' state, which PIRATES.EXE keeps for the whole session
+	int CheatKey;           // 0x43d110: the last key of the cheat being typed, 0 for none
+	int CheatTyped;         // 0x43d114: which one, 1 1MAX, 2 NMAX, 3 FMAX, 4 GMAX, 5 QUOTE
+	int HiddenTestStep;     // 0x439154: how much of "hidden<Tab>test" is typed, which the engine checks (0x411f50)
+	bool AltBall;           // 0x439140, GMAX: balls made from now on take their frames' second bitmap
+	bool QuotesShown;       // 0x43cfe4: QUOTE was typed; the next key ends the scroller
+	int ScrollTimer;        // 0x43cfe0
+	const char* ScrollNext; // 0x435cfc: the scroller's next text, nullptr after the last
+	std::string Typed;      // the last keys, for the "credits" pb::frame types after a minute without a key
+
+	void ScrollTimerExpired(int, void*);
+
+	// 0x422a90: the scroller shows the next of the quotes or the credits over info_text_box for 2 s; after the last
+	// and an empty one, or with <restart>, it starts over
+	void Scroll(bool restart)
+	{
+		if (ScrollTimer)
+			timer::kill(ScrollTimer);
+		ScrollTimer = 0;
+		if (restart || !ScrollNext)
+			ScrollNext = QuotesShown ? QuotesText : CreditsText;
+
+		std::string_view rest{ScrollNext};
+		auto text = rest.substr(0, rest.find('~'));
+		ScrollNext = text.size() < rest.size() ? ScrollNext + text.size() + 1 : nullptr;
+		info_text_box->DisplayOverlay(std::string{text}.c_str());
+		ScrollTimer = timer::set(2.0f, nullptr, ScrollTimerExpired);
+	}
+
+	void ScrollTimerExpired(int, void*)
+	{
+		ScrollTimer = 0;
+		Scroll(false);
+	}
+
+	// 0x422b60 and the text box's 0x41e0e0: the scroller stops and the messages show again
+	void EndScroll()
+	{
+		if (!info_text_box)
+			return;
+		if (ScrollTimer)
+			timer::kill(ScrollTimer);
+		ScrollTimer = 0;
+		info_text_box->EndOverlay();
+	}
+
+	// 0x411f50: "hidden<Tab>test" turns cheat mode on for good; PIRATES.EXE takes no space in place of the Tab
+	void HiddenTest(int key)
+	{
+		auto& step = HiddenTestStep;
+		switch (key)
+		{
+		case 'H':
+			step = step == 0 ? 1 : 0;
+			break;
+		case 'I':
+			step = step == 1 ? 2 : 0;
+			break;
+		case 'D':
+			step = step == 2 || step == 3 ? step + 1 : 0;
+			break;
+		case 'E':
+			step = step == 4 || step == 8 ? step + 1 : 0;
+			break;
+		case 'N':
+			step = step == 5 ? 6 : 0;
+			break;
+		case '\t':
+			step = step == 6 ? 7 : 0;
+			break;
+		case 'S':
+			step = step == 9 ? 10 : 0;
+			break;
+		case 'T':
+			step = step == 7 || step == 10 ? step + 1 : 0;
+			if (step == 11)
+			{
+				pb::cheat_mode = true;
+				Table->CheatsUsed = 1;
+			}
+			break;
+		default:
+			step = 0;
+			break;
+		}
+	}
+
+	// Whether <key> is the next of a cheat's keys; a first key also picks the cheat
+	bool CheatKeyFits(int key)
+	{
+		switch (key)
+		{
+		case '1':
+		case 'N':
+		case 'F':
+		case 'G':
+		case 'Q':
+			if (CheatKey)
+				return false;
+			// 1 1MAX, 2 NMAX, 3 FMAX, 4 GMAX, 5 QUOTE
+			CheatTyped = static_cast<int>(std::string_view{"1NFGQ"}.find(static_cast<char>(key))) + 1;
+			return true;
+		case 'M':
+			return CheatKey == '1' || CheatKey == 'N' || CheatKey == 'F' || CheatKey == 'G';
+		case 'A':
+			return CheatKey == 'M';
+		case 'U':
+			return CheatKey == 'Q';
+		case 'O':
+			return CheatKey == 'U';
+		case 'T':
+			return CheatKey == 'O';
+		default:
+			return false;
+		}
+	}
+
+	// 0x42a7d0: 1MAX's extra ball, with its text for <time> if more than 0
+	void CheatExtraBall(float time)
+	{
+		Table->ExtraBalls = 1;
+		tabb00wave->Play(nullptr, "CheatExtraBall");
+		if (time > 0.0f)
+			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_ExtraBall), time);
+	}
+
+	// 0x42a830, on every key in a game: 1MAX gives an extra ball, NMAX starts the picked mode in play, GMAX switches
+	// the look of balls made from then on, QUOTE shows the developers' quotes, and FMAX does nothing. A key that isn't
+	// the next of the cheat being typed ends it, except an X or an E, which PIRATES.EXE then ignores; so does the X of
+	// FMAX
+	void Cheat(int key)
+	{
+		if (!info_text_box)
+			return;
+		// PIRATES.EXE gets Windows' key codes, whose letters are capitals and which SDL's keys without a character
+		// don't match
+		if (static_cast<unsigned>(key) & SDLK_SCANCODE_MASK)
+			key = 0;
+		else if (key >= 'a' && key <= 'z')
+			key -= 'a' - 'A';
+
+		if (QuotesShown)
+		{
+			QuotesShown = false;
+			EndScroll();
+		}
+
+		auto ended = true;
+		if (CheatKeyFits(key))
+		{
+			CheatKey = key;
+			ended = false;
+		}
+		else if ((key == 'X' && CheatKey != 'A') || (key == 'E' && CheatKey != 'T'))
+		{
+			ended = false;
+		}
+		else if (key == 'X')
+		{
+			switch (CheatTyped)
+			{
+			case 1:
+				CheatExtraBall(2.0f);
+				Table->CheatsUsed = 1;
+				break;
+			case 2:
+				if (GameState() == PlayState)
+				{
+					Launching = true;
+					StartPickedMode();
+					Table->CheatsUsed = 1;
+				}
+				break;
+			case 4:
+				AltBall = !AltBall;
+				break;
+			default:
+				ended = false;
+				break;
+			}
+		}
+		else if (key == 'E')
+		{
+			QuotesShown = true;
+			Scroll(true);
+		}
+		if (ended)
+			CheatKey = 0;
+		if (!CheatKey)
+			CheatTyped = 0;
+
+		HiddenTest(key);
+
+		// The idle credits come this way, as Space Cadet's rules take them (0x68)
+		Typed.push_back(static_cast<char>(key));
+		if (Typed.size() > 7)
+			Typed.erase(0, 1);
+		if (Typed == "CREDITS")
+		{
+			QuotesShown = false;
+			Scroll(true);
+			pb::CreditsActive = true;
+		}
+	}
+
+	// 0x402740, the ball's constructor: with GMAX on, each frame takes its second bitmap; a frame without one turns
+	// GMAX off, and it and the frames after it take their first
+	bool AltBallFrame(bool available)
+	{
+		if (!available)
+			AltBall = false;
+		return AltBall;
+	}
+
 	void ClearLinks()
 	{
 		Table = nullptr;
 		info_text_box = nullptr;
 		LastScorer = nullptr;
 		Links.clear();
+		// PIRATES.EXE keeps the cheats' state for its session, which a restart into a recording begins anew
+		CheatKey = 0;
+		CheatTyped = 0;
+		HiddenTestStep = 0;
+		AltBall = false;
+		QuotesShown = false;
+		ScrollTimer = 0;
+		ScrollNext = nullptr;
+		Typed.clear();
 	}
 } // namespace
 
 const TableRules control_skulduggery::Rules{
-	MakeLinks,
-	ClearLinks,
-	TableControl,
-	UnstuckBall,
-	[](int) { /* the cheats come with their own pull request */ },
-	[] { /* PIRATES.EXE has no rank to bump */ },
-	[] { /* no credits to end without the cheats */ },
-	[](TableView&) { /* the HUD's fields come with the close-out */ },
-	[](bool) { return false; },
+	MakeLinks,    ClearLinks,
+	TableControl, UnstuckBall,
+	Cheat,        [] { /* PIRATES.EXE has no rank to bump */ },
+	EndScroll,    [](TableView&) { /* the HUD's fields come with the close-out */ },
+	AltBallFrame,
 };

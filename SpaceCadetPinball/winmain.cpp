@@ -1536,6 +1536,21 @@ void winmain::RenderUi()
 					pb::PushCheat("quote");
 				ImGui::EndMenu();
 			}
+			else if (pb::Table == Tables::Skulduggery && ImGui::BeginMenu("Cheats"))
+			{
+				// PIRATES.EXE's, which takes the same "hidden test" as DRAGON.EXE; gmax is its smiley ball
+				if (ImGui::MenuItem("hidden test", nullptr, pb::cheat_mode))
+					pb::PushCheat("hidden\ttest");
+				if (ImGui::MenuItem("1max"))
+					pb::PushCheat("1max");
+				if (ImGui::MenuItem("nmax"))
+					pb::PushCheat("nmax");
+				if (ImGui::MenuItem("gmax"))
+					pb::PushCheat("gmax");
+				if (ImGui::MenuItem("quote"))
+					pb::PushCheat("quote");
+				ImGui::EndMenu();
+			}
 			else if (!pb::BonusTable() && ImGui::BeginMenu("Cheats"))
 			{
 				if (ImGui::MenuItem("hidden test", nullptr, pb::cheat_mode))
