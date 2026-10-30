@@ -338,16 +338,20 @@ if(SCP_BUNDLED_DATA AND NOT EMSCRIPTEN)
     endif()
     set(SCP_BUNDLED_ARCHIVE ${CMAKE_CURRENT_BINARY_DIR}/generated/BundledData.tar)
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/generated)
-    # A fixed time, so the same data makes the same archive and its hash names the same folder
     execute_process(COMMAND ${CMAKE_COMMAND} -E tar cf ${SCP_BUNDLED_ARCHIVE} --format=gnutar --mtime=2000-01-01
                             -- ${SCP_BUNDLED_FILES}
             WORKING_DIRECTORY ${SCP_BUNDLED_DATA}
             COMMAND_ERROR_IS_FATAL ANY
             )
+    # The folder it unpacks into is named after each file's name and content, not the archive, whose headers also
+    # hold the owner and mode of whoever packed it; so the same data names the same folder from any toolchain
+    set(SCP_BUNDLED_CONTENTS "")
     foreach(file IN LISTS SCP_BUNDLED_FILES)
         set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${SCP_BUNDLED_DATA}/${file})
+        file(SHA256 ${SCP_BUNDLED_DATA}/${file} SCP_BUNDLED_FILE_HASH)
+        string(APPEND SCP_BUNDLED_CONTENTS "${SCP_BUNDLED_FILE_HASH} ${file}\n")
     endforeach()
-    file(SHA256 ${SCP_BUNDLED_ARCHIVE} SCP_BUNDLED_HASH)
+    string(SHA256 SCP_BUNDLED_HASH "${SCP_BUNDLED_CONTENTS}")
     string(SUBSTRING ${SCP_BUNDLED_HASH} 0 16 SCP_BUNDLED_HASH)
     set(SCP_BUNDLED_RC ${CMAKE_CURRENT_BINARY_DIR}/generated/BundledData.rc)
     file(CONFIGURE OUTPUT ${SCP_BUNDLED_RC} CONTENT "BUNDLEDDATA RCDATA \"${SCP_BUNDLED_ARCHIVE}\"\n")
