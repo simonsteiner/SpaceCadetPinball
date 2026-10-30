@@ -16,10 +16,11 @@ Full Tilt! Pinball also has Dragon's Keep and Skulduggery, two more tables the g
 The game searches these folders in order, for each table on its own, and uses the first data file it finds:
 
 1. the Game Data Folder, when one was chosen in Space Cadet 2026 (`Game Data Folder` in `imgui_pb.ini`)
-2. the current working directory
-3. the folder containing the executable
-4. the user preferences folder (`SDL_GetPrefPath`, for example `~/.local/share/SpaceCadetPinball/` on Linux)
-5. Linux and macOS only: `/usr/local/share/SpaceCadetPinball/`, then `/usr/share/SpaceCadetPinball/`
+2. a test build's own data, which only test builds have ([deployment.md](deployment.md#test-builds))
+3. the current working directory
+4. the folder containing the executable
+5. the user preferences folder (`SDL_GetPrefPath`, for example `~/.local/share/SpaceCadetPinball/` on Linux)
+6. Linux and macOS only: `/usr/local/share/SpaceCadetPinball/`, then `/usr/share/SpaceCadetPinball/`
 
 For Space Cadet it tries `CADET.DAT`, then `PINBALL.DAT`, then `DEMO.DAT` in each folder, in upper case and then lower case; the "Prefer 3DPB Data" menu option swaps the first two. Full Tilt!'s Dragon's Keep is `DRAGON.DAT`, and its Skulduggery `PIRATES.DAT`. A table's sounds and music go with its data file: 3D Pinball's next to `PINBALL.DAT`, Full Tilt!'s in the `SOUND` folder next to its `.DAT`. The tables' file names don't clash, so `DRAGON.DAT`, `PIRATES.DAT` and their `SOUND` folders can go into the same folder as Space Cadet's data.
 
