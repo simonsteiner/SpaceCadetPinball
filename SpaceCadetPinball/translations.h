@@ -517,6 +517,27 @@ enum class Msg : int
 	Definitive_LavaBall,
 	Definitive_Jailbreak,
 
+	// Space Cadet 2026's Mission Guide on Skulduggery; the modes' rows are by their states, 4 to 13
+	Definitive_GuideModes,
+	Definitive_GuideBrig,
+	Definitive_GuideSkulduggeryModes,
+	Definitive_GuideSkulduggeryJackpot,
+	Definitive_GuideSkillShotTitle,
+	Definitive_GuideSkillShot,
+	Definitive_GuideBonusTitle,
+	Definitive_GuideSkulduggeryBonus,
+	Definitive_GuideAttackShip,
+	Definitive_GuideBermudaTriangle,
+	Definitive_GuideStorm,
+	Definitive_GuideTavern,
+	Definitive_GuideTreasureHunt,
+	Definitive_GuideMutiny,
+	Definitive_GuideSwordFight,
+	Definitive_GuidePegLegsLoot,
+	Definitive_GuideLavaBall,
+	Definitive_GuideJailbreak,
+	Definitive_GuideBrigText,
+
 	// Full Tilt's CADET.EXE strings, shown instead of 3D Pinball's in Full Tilt mode
 	FullTilt_Caption,
 	FullTilt_About,
