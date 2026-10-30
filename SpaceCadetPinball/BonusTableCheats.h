@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 
 class TPinballTable;
 class TTextBox;
@@ -17,7 +18,7 @@ public:
 	// With <endQuotesOnce> the first key after QUOTE ends the scroller, as in PIRATES.EXE; without it every key does
 	// until the credits next show, as in DRAGON.EXE
 	BonusTableCheats(std::initializer_list<std::string_view> words, const char* quotes, bool endQuotesOnce,
-					 bool (*fire)(int cheat));
+					 std::function<bool(int cheat)> fire);
 
 	// A key pressed in a game: an SDL keycode, or a character of a cheat the menu, the idle credits or a recording
 	// types
@@ -38,7 +39,7 @@ private:
 	std::vector<std::string_view> Words;
 	const char* Quotes;
 	bool EndQuotesOnce;
-	bool (*Fire)(int cheat);
+	std::function<bool(int cheat)> Fire;
 
 	int CheatKey{};            // the last key of the cheat being typed, 0 for none
 	int CheatTyped{};          // which one, numbered as Words
