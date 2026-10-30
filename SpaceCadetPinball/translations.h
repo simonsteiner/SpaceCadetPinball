@@ -660,6 +660,11 @@ enum class Msg : int
 	Skulduggery_PictureMultiplier,
 	Skulduggery_PictureBermuda,
 	Skulduggery_PictureBuckets,
+	Skulduggery_PictureLetterW,
+	Skulduggery_PictureLetterI,
+	Skulduggery_PictureLetterN,
+	Skulduggery_PictureLetterD,
+	Skulduggery_PictureLetterS,
 
 	Max,
 };
