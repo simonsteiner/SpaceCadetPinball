@@ -250,7 +250,7 @@ build_web() {
 		name=${entry% *}
 		hash=${entry#* }
 		if [ ! -f "$build/soundfont/$name" ] || ! echo "$hash  $build/soundfont/$name" | sha256sum -c --status; then
-			curl -sSfL -o "$build/soundfont/$name" "$soundfont_base/$name"
+			curl -sSfL --proto =https --proto-redir =https -o "$build/soundfont/$name" "$soundfont_base/$name"
 			echo "$hash  $build/soundfont/$name" | sha256sum -c --quiet
 		fi
 		cp "$build/soundfont/$name" "$out/$name"
