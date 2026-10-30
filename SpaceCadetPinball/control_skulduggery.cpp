@@ -11,6 +11,7 @@
 #include "TKickout.h"
 #include "TLight.h"
 #include "TLightGroup.h"
+#include "TLightRollover.h"
 #include "TLightSweeps.h"
 #include "TMagnet.h"
 #include "TPinballTable.h"
@@ -26,16 +27,17 @@
 // Skulduggery's rules, recovered from PIRATES.EXE one feature at a time (Phase F6). Ported so far: the serve, drain
 // and game-over flow, with the ball save, the end-of-ball bonus, the launch's rolling skill shot and the music; the
 // mode framework: the SKULDUGGERY drop targets, the modes' lights and pick, the captive ball's targets and a_spot102;
-// and the modes Attack Ship.
+// and the modes Attack Ship and Treasure Hunt, with the buried treasure's sinks and rollovers.
 // Everything else is still a stand-in that keeps the table playable: kickouts and sinks give back the balls they
 // catch, which only the rules would do otherwise, and a stuck ball is freed as Space Cadet's rules free one.
 //
 // PIRATES.EXE's rules run a state machine, as DRAGON.EXE's do, whose state each player keeps in info_text_box's
 // message field: the engine's control::handler (0x423080) hands every event to one table-wide function (0x42d850),
 // which passes it to the current state's function (0x42d900), and then to the component's own handler. States 1
-// (game over), 2 (play), 3 (launch), 4 (Attack Ship), 16 (end of ball) and 17 (the game's last ball) are ported; the
-// other modes (5 to 13) come with their features. Addresses below are PIRATES.EXE's. Its message numbers are
-// CADET.EXE's, which differ from this port's above the light codes, so each call uses the port's MessageCode.
+// (game over), 2 (play), 3 (launch), 4 (Attack Ship), 8 (Treasure Hunt), 16 (end of ball) and 17 (the game's last ball)
+// are ported; the other modes (5 to 13) come with their features. Addresses below are PIRATES.EXE's. Its message
+// numbers are CADET.EXE's, which differ from this port's above the light codes, so each call uses the port's
+// MessageCode.
 namespace
 {
 	// Codes PIRATES.EXE's rules functions send only among themselves, as DRAGON.EXE's numbers them
@@ -52,6 +54,7 @@ namespace
 	constexpr int LaunchState = 3;
 	constexpr int FirstModeState = 4;
 	constexpr int AttackShipState = 4;
+	constexpr int TreasureHuntState = 8;
 	constexpr int LastModeState = 11;
 	constexpr int LavaBallState = 12;
 	constexpr int JailbreakState = 13;
@@ -126,6 +129,23 @@ namespace
 	TSound* tabb57wave;
 	TSound* tabb58wave;
 	TSound* tabb85wave;
+	// Treasure Hunt's: the X lights and the sinks they mark, the orbits it takes over, the special treasures it finds
+	// and the rollovers that bury treasure for Peg Leg's Loot
+	TLight* v_lite519;
+	TLightGroup* left_orbit_light_group;
+	TLightGroup* right_orbit_light_group;
+	TLightGroup* left_orbit_combo_light_group;
+	TLightGroup* right_orbit_combo_light_group;
+	TPinballComponent* s_trip3;
+	TPinballComponent* s_trip8;
+	std::array<TLight*, 6> treasure_lights; // v_lite571 to v_lite576, special_treasure_light_group's
+	TSink* a_sink14;
+	TSink* a_sink15;
+	TSink* a_sink17;
+	TPinballComponent* a_roll8;
+	TPinballComponent* a_roll9;
+	TSound* tabb11wave;
+	TSound* tabb59wave;
 
 	// A bank of drop targets: its first target's message field keeps those down, and each target spells a letter
 	struct DropBank
@@ -175,6 +195,14 @@ namespace
 	int BrigBalls;          // 0x435d3c: the balls the brig holds, which the last ball releases
 	int ModeFlags;          // 0x435cf8: the running mode's own count or flags; Attack Ship counts the ships captured
 	int ModeAwardStep;      // 0x435d04: the next of a mode's awards
+	// What Treasure Hunt's rollovers bury for Peg Leg's Loot to dig up (0x435d10 to 0x435d28)
+	int BuryStep;
+	int CoinsBuried;
+	int TreasureBuried1;
+	int TreasureBuried2;
+	int BonusBuried;
+	int JackpotBuried;
+	bool ExtraBallBuried;
 
 	void TableHook(MessageCode code, TPinballComponent* caller);
 	void StateControl(int state, MessageCode code, const TPinballComponent* caller);
@@ -314,7 +342,7 @@ namespace
 	constexpr int PegLegsLootPick = 7;
 
 	// The modes ported so far; whatever would start another one lets the game go on in play
-	constexpr std::array PortedModes{AttackShipState};
+	constexpr std::array PortedModes{AttackShipState, TreasureHuntState};
 
 	bool ModePorted(int state)
 	{
@@ -404,6 +432,7 @@ namespace
 	};
 	constexpr std::array ModePictures{
 		ModePicture{AttackShipState, "H", 1.0f, Msg::Skulduggery_PictureAttackShip},
+		ModePicture{TreasureHuntState, "I", 2.0f, Msg::Skulduggery_PictureTreasureHunt},
 	};
 
 	// 0x423610 and the mode starts (0x423480 to 0x4235f0): v_lite606 flashes while a mode runs (0x423400), the mode
@@ -745,6 +774,163 @@ namespace
 		}
 	}
 
+	// 0x424500: the X lights out
+	void TreasureXsOff()
+	{
+		for (auto light : v_mlights)
+			light->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+	}
+
+	// 0x424580: the next X flashes, with the lights of the sink it marks; Returns the light sweep that points to it
+	int NextTreasureX()
+	{
+		using enum MessageCode;
+		a_sink9->ActiveFlag = 1;
+		a_sink12->ActiveFlag = 1;
+		switch (ModeAwardStep++)
+		{
+		case 0:
+			v_mlights[4]->Message(TLightFlasherStartTimed, -1.0f);
+			left_orbit_light_group->Message(TLightFlasherStartTimed, -1.0f);
+			return 5;
+		case 1:
+			v_mlights[1]->Message(TLightFlasherStartTimed, -1.0f);
+			v_lite524s[1]->Message(TLightFlasherStartTimed, -1.0f);
+			v_lite520->Message(TLightFlasherStartTimed, -1.0f);
+			return 2;
+		case 2:
+			v_mlights[5]->Message(TLightFlasherStartTimed, -1.0f);
+			right_orbit_light_group->Message(TLightFlasherStartTimed, -1.0f);
+			return 6;
+		case 3:
+			v_mlights[2]->Message(TLightFlasherStartTimed, -1.0f);
+			v_lite524s[2]->Message(TLightFlasherStartTimed, -1.0f);
+			v_lite521->Message(TLightFlasherStartTimed, -1.0f);
+			return 3;
+		default:
+			ModeAwardStep = 0;
+			v_mlights[0]->Message(TLightFlasherStartTimed, -1.0f);
+			v_lite524s[0]->Message(TLightFlasherStartTimed, -1.0f);
+			v_lite519->Message(TLightFlasherStartTimed, -1.0f);
+			return 1;
+		}
+	}
+
+	// 0x424780: special treasure <index>, its light and its score, with its name for <time> plus 2 s. The random
+	// award's flag that shortens it to 1.625 s (0x43abac) comes with that award
+	void AwardSpecialTreasure(int index)
+	{
+		using enum Msg;
+		struct Treasure
+		{
+			Msg Name;
+			int Score;
+		};
+		static constexpr std::array treasures{
+			Treasure{Skulduggery_GoldIngots, 100000},       Treasure{Skulduggery_SilverChalice, 250000},
+			Treasure{Skulduggery_SignetRing, 500000},       Treasure{Skulduggery_FrantzRuby, 750000},
+			Treasure{Skulduggery_ShapirosSceptre, 1000000}, Treasure{Skulduggery_CrownOfSandige, 1500000},
+		};
+		special_treasure_light_group->MessageField++;
+		index = std::clamp(index, 0, static_cast<int>(treasures.size()) - 1);
+		treasure_lights[index]->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
+		AddScore(treasures[index].Score);
+		info_text_box->Display(pb::get_rc_string(treasures[index].Name), 2.0f);
+		tabb84wave->Play(nullptr, "AwardSpecialTreasure");
+	}
+
+	// 0x4236a0: the ball a sink caught comes out of a_sink8 in play, else out of a_sink14, a_sink15 or a_sink17 at
+	// random
+	void SinkKick()
+	{
+		if (GameState() == PlayState)
+		{
+			a_sink8->Message(MessageCode::TSinkResetTimer, -1.0f);
+			return;
+		}
+		static const std::array sinks{&a_sink17, &a_sink15, &a_sink14};
+		auto index = std::min(static_cast<int>(RandFloat() * 3.0f), 2);
+		(*sinks[index])->Message(MessageCode::TSinkResetTimer, -1.0f);
+	}
+
+	// Each lit light of <group> goes out, and then, as CADET.EXE's 0x31 does, its first <count> plus one light up;
+	// this port's TLightGroupToggleSplitIndex skips a <count> of all the lights, which CADET.EXE lights in full
+	void LightFirst(TLightGroup* group, int count)
+	{
+		using enum MessageCode;
+		group->Message(TLightTurnOff, 0.0f);
+		auto lights = group->Message(TLightGroupGetLightCount, 0.0f);
+		if (count >= lights)
+			group->Message(TLightResetAndTurnOn, 0.0f);
+		else
+			group->Message(TLightGroupToggleSplitIndex, static_cast<float>(count));
+	}
+
+	// State 8, 0x42b090: Treasure Hunt. An X flashes by one of five sinks (NextTreasureX); the ball in that sink finds
+	// a special treasure, or the jackpot at a_sink17, and the next X flashes. It runs for 30.68 s after its light sweep
+	void TreasureHuntStateControl(MessageCode code, const TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case ControlTimerExpired:
+			if (caller == mode_timer)
+				TableHook(ModeEnd, nullptr);
+			else if (caller == light_sweeps)
+				ModeSweepDone(30.68f);
+			break;
+		case ControlCollision:
+			if (dynamic_cast<const TLightRollover*>(caller))
+				AddJackpot(20000);
+			break;
+		case EnterState:
+			ModeEnter();
+			a_blocc->Message(TAnimatedBlockerSetState, -1.0f);
+			a_blocf->Message(TAnimatedBlockerSetState, -1.0f);
+			a_blocg->Message(TAnimatedBlockerSetState, -1.0f);
+			AddScore(300000);
+			TreasureXsOff();
+			s_trip3->ActiveFlag = 0;
+			s_trip8->ActiveFlag = 0;
+			// The orbits' lights wait for the mode's end
+			s_trip3->MessageField = left_orbit_light_group->Message(TLightGroupGetOnCount, 0.0f);
+			s_trip8->MessageField = right_orbit_light_group->Message(TLightGroupGetOnCount, 0.0f);
+			left_orbit_light_group->Message(TLightResetAndTurnOff, 0.0f);
+			right_orbit_light_group->Message(TLightResetAndTurnOff, 0.0f);
+			left_orbit_combo_light_group->Message(TLightResetAndTurnOff, 0.0f);
+			right_orbit_combo_light_group->Message(TLightResetAndTurnOff, 0.0f);
+			v_lite520->Message(TLightResetAndTurnOff, 0.0f);
+			v_lite521->Message(TLightResetAndTurnOff, 0.0f);
+			light_sweeps->Message(TLightSweepsStart, static_cast<float>(NextTreasureX()));
+			PlayTrack(MidiTracks::Track3);
+			tabb59wave->Play(nullptr, "TreasureHuntStateControl");
+			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_TreasureHuntHelp), -1.0f);
+			break;
+		case ShowStateText:
+			ShowTimeLeft(Msg::Skulduggery_TreasureHunt);
+			break;
+		case ModeEnd:
+			TreasureXsOff();
+			a_sink9->ActiveFlag = 0;
+			a_sink12->ActiveFlag = 0;
+			ModeLeave();
+			v_lite606->MessageField++;
+			BloceDown();
+			v_lite519->Message(TLightResetAndTurnOff, 0.0f);
+			s_trip3->ActiveFlag = 1;
+			s_trip8->ActiveFlag = 1;
+			LightFirst(left_orbit_light_group, s_trip3->MessageField);
+			LightFirst(right_orbit_light_group, s_trip8->MessageField);
+			break;
+		case BallDrained:
+			mode_timer->Message(TTimerResetTimer, -1.0f);
+			TableHook(ModeEnd, nullptr);
+			break;
+		default:
+			break;
+		}
+	}
+
 	// State 16, 0x42b820: count the bonus, one text at a time, then serve the next ball or end the game
 	void EndOfBallStateControl(MessageCode code, const TPinballComponent* caller)
 	{
@@ -946,6 +1132,9 @@ namespace
 			break;
 		case AttackShipState:
 			AttackShipStateControl(code, caller);
+			break;
+		case TreasureHuntState:
+			TreasureHuntStateControl(code, caller);
 			break;
 		default:
 			// The other modes' states (up to 13) aren't ported yet, and StartMode doesn't enter them; PIRATES.EXE goes
@@ -1255,6 +1444,133 @@ namespace
 		tabb57wave->Play(nullptr, "WireRampExitControl");
 	}
 
+	// A sink an X marks in Treasure Hunt: its X, the orbit or the light that goes out with the X, and the light that
+	// flashes as the ball leaves. The components are found at MakeLinks, so the entries point to where they're kept
+	struct TreasureSink
+	{
+		TSink* const* Sink;
+		TLight* const* X;
+		TLightGroup* const* Orbit;
+		TLight* const* Marker;
+		TLight* const* Flash;
+	};
+	// a_sink9 (0x428700), a_sink12 (0x428800), a_sink14 (0x428120), a_sink15 (0x427e50) and a_sink17 (0x427b90)
+	const std::array TreasureSinks{
+		TreasureSink{&a_sink9, &v_mlights[4], &left_orbit_light_group, nullptr, nullptr},
+		TreasureSink{&a_sink12, &v_mlights[5], &right_orbit_light_group, nullptr, nullptr},
+		TreasureSink{&a_sink14, &v_mlights[2], nullptr, &v_lite524s[2], &v_lite521},
+		TreasureSink{&a_sink15, &v_mlights[1], nullptr, &v_lite524s[1], &v_lite520},
+		TreasureSink{&a_sink17, &v_mlights[0], nullptr, &v_lite524s[0], &v_lite519},
+	};
+
+	// The sinks' Treasure Hunt part. In other states they still give their balls back, until their features come
+	void TreasureSinkControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		if (GameState() != TreasureHuntState)
+		{
+			StandInControl(code, caller);
+			return;
+		}
+		auto sink = std::ranges::find(TreasureSinks, caller, [](const TreasureSink& entry) { return *entry.Sink; });
+		auto x = *sink->X;
+		if (!x->FlasherOnFlag)
+		{
+			ShowBonus(Msg::Skulduggery_SecretHideaway, ScoreBy(caller, 0), 2.0f);
+			tabb11wave->Play(nullptr, "TreasureSinkControl");
+			SinkKick();
+		}
+		else
+		{
+			x->Message(TLightResetAndTurnOn, 0.0f);
+			if (sink->Orbit)
+				(*sink->Orbit)->Message(TLightResetAndTurnOff, 0.0f);
+			if (sink->Marker)
+				(*sink->Marker)->Message(TLightResetAndTurnOff, 0.0f);
+			if (sink->Flash)
+				(*sink->Flash)->Message(TLightResetAndTurnOff, 0.0f);
+			if (caller == a_sink17)
+				AwardJackpot(0.0f);
+			else
+				AwardSpecialTreasure(special_treasure_light_group->MessageField);
+			NextTreasureX();
+			a_sink8->Message(TSinkResetTimer, -1.0f);
+		}
+		if (sink->Flash)
+			(*sink->Flash)->Message(TLightFlasherStartTimed, 2.0f);
+	}
+
+	// 0x423830 and 0x424950: what is buried, with its name for 2 s
+	void ShowBuried(Msg text)
+	{
+		info_text_box->Display(pb::get_rc_string(text), 2.0f);
+	}
+
+	// 0x424950: the next special treasure not found is buried in <slot>, and its light flashes
+	void BuryTreasure(int& slot)
+	{
+		using enum Msg;
+		static constexpr std::array buried{Skulduggery_GoldIngotsBuried,      Skulduggery_SilverChaliceBuried,
+										   Skulduggery_SignetRingBuried,      Skulduggery_FrantzRubyBuried,
+										   Skulduggery_ShapirosSceptreBuried, Skulduggery_CrownOfSandigeBuried};
+		slot = special_treasure_light_group->Message(MessageCode::TLightGroupGetOnCount, 0.0f);
+		auto index = std::clamp(slot, 0, static_cast<int>(buried.size()) - 1);
+		treasure_lights[index]->Message(MessageCode::TLightFlasherStartTimed, 1.0f);
+		ShowBuried(buried[index]);
+		tabb84wave->Play(nullptr, "BuryTreasure");
+	}
+
+	// 0x424aa0: the bonus buried, from the special treasures, map pieces, modes and targets, times the fathoms lit
+	int BuriedBonus()
+	{
+		auto points = (special_treasure_light_group->MessageField * 2 + v_lite607->MessageField) * 25 +
+					  v_lite606->MessageField * 20 + TargetHits;
+		return fathom_light_group->Message(MessageCode::TLightGroupGetOnCount, 0.0f) * points * 10000;
+	}
+
+	// a_roll8 and a_roll9, 0x429c30 and 0x429ac0: in Treasure Hunt each one buries the next treasure for Peg Leg's
+	// Loot (0x424b00): coins three times, two special treasures, the bonus, the jackpot and an extra ball, then coins.
+	// Their other states come with the WINDS lanes
+	void BuryRolloverControl(MessageCode code, TPinballComponent*)
+	{
+		if (code != MessageCode::ControlCollision || GameState() != TreasureHuntState)
+			return;
+		switch (BuryStep++)
+		{
+		case 3:
+			BuryTreasure(TreasureBuried1);
+			break;
+		case 4:
+			BuryTreasure(TreasureBuried2);
+			break;
+		case 5:
+			ShowBuried(Msg::Skulduggery_BonusBuried);
+			BonusBuried = BuriedBonus();
+			break;
+		case 6:
+			ShowBuried(Msg::Skulduggery_JackpotBuried);
+			JackpotBuried = Table->JackpotScore;
+			break;
+		case 7:
+			ShowBuried(Msg::Skulduggery_ExtraBallBuried);
+			ExtraBallBuried = true;
+			break;
+		default:
+			ShowBuried(Msg::Skulduggery_CoinsBuried);
+			CoinsBuried++;
+			break;
+		}
+	}
+
+	// a_sink8, 0x42a3d0: a ball in it comes straight out again
+	void HideawayControl(MessageCode code, TPinballComponent* caller)
+	{
+		if (code == MessageCode::ControlCollision)
+			caller->Message(MessageCode::TSinkResetTimer, 0.0f);
+	}
+
 	void NoControl(MessageCode, TPinballComponent*)
 	{
 		// Components whose own handler isn't ported yet; WithHook still passes their events to the table
@@ -1349,6 +1665,13 @@ namespace
 			// them
 			Table->JackpotScore = 1000000;
 			BallSaveStep = 0;
+			BuryStep = 0;
+			CoinsBuried = 1;
+			TreasureBuried1 = -1;
+			TreasureBuried2 = -1;
+			BonusBuried = 0;
+			JackpotBuried = 0;
+			ExtraBallBuried = false;
 			s_oneway12->ActiveFlag = 0;
 			LastBallRelease = false;
 			ClearBuriedLights = false;
@@ -1455,6 +1778,22 @@ namespace
 		Find(tabb57wave, "tabb57wave");
 		Find(tabb58wave, "tabb58wave");
 		Find(tabb85wave, "tabb85wave");
+		Find(v_lite519, "v_lite519");
+		Find(left_orbit_light_group, "left_orbit_light_group");
+		Find(right_orbit_light_group, "right_orbit_light_group");
+		Find(left_orbit_combo_light_group, "left_orbit_combo_light_group");
+		Find(right_orbit_combo_light_group, "right_orbit_combo_light_group");
+		Find(s_trip3, "s_trip3");
+		Find(s_trip8, "s_trip8");
+		for (auto index = 0u; index < treasure_lights.size(); index++)
+			Find(treasure_lights[index], std::format("v_lite{}", 571 + index).c_str());
+		Find(a_sink14, "a_sink14");
+		Find(a_sink15, "a_sink15");
+		Find(a_sink17, "a_sink17");
+		Find(a_roll8, "a_roll8");
+		Find(a_roll9, "a_roll9");
+		Find(tabb11wave, "tabb11wave");
+		Find(tabb59wave, "tabb59wave");
 		auto bank = [](int first, int last, int letter, float blocc, float blocf, TSound* hit, TSound* full)
 		{
 			DropBank result{{}, letter, blocc, blocf, hit, full};
@@ -1515,6 +1854,10 @@ namespace
 		all.insert(all.end(), v_lite524s.begin(), v_lite524s.end());
 		all.insert(all.end(), {v_lite520, v_lite521, light_sweeps, a_sink8, v_lite567, s_rexit8, tabb26wave, tabb40wave,
 							   tabb57wave, tabb58wave, tabb85wave});
+		all.insert(all.end(), treasure_lights.begin(), treasure_lights.end());
+		all.insert(all.end(), {v_lite519, left_orbit_light_group, right_orbit_light_group, left_orbit_combo_light_group,
+							   right_orbit_combo_light_group, s_trip3, s_trip8, a_sink14, a_sink15, a_sink17, a_roll8,
+							   a_roll9, tabb11wave, tabb59wave});
 		for (const auto& dropBank : drop_banks)
 			all.insert(all.end(), dropBank.Targets.begin(), dropBank.Targets.end());
 		if (std::ranges::find(all, nullptr) != all.end())
@@ -1544,6 +1887,13 @@ namespace
 				Link(*component, WithHook<ModeTargetControl>);
 			else if (component == s_rexit8)
 				Link(*component, WithHook<WireRampExitControl>);
+			else if (std::ranges::find(TreasureSinks, component,
+									   [](const TreasureSink& entry) { return *entry.Sink; }) != TreasureSinks.end())
+				Link(*component, WithHook<TreasureSinkControl>);
+			else if (component == a_roll8 || component == a_roll9)
+				Link(*component, WithHook<BuryRolloverControl>);
+			else if (component == a_sink8)
+				Link(*component, WithHook<HideawayControl>);
 			else if (dynamic_cast<TKickout*>(component) || dynamic_cast<TSink*>(component))
 				Link(*component, WithHook<StandInControl>);
 			else

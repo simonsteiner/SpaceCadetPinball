@@ -8415,6 +8415,120 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Skulduggery_TreasureHunt,
+		{
+			{ Lang::English, "Treasure Hunt\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_TreasureHuntHelp,
+		{
+			{ Lang::English, "Hit the X to find treasure" },
+		}
+	},
+	{
+		Msg::Skulduggery_SecretHideaway,
+		{
+			{ Lang::English, "Secret Hideaway\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_GoldIngots,
+		{
+			{ Lang::English, "Gold Ingots" },
+		}
+	},
+	{
+		Msg::Skulduggery_SilverChalice,
+		{
+			{ Lang::English, "Silver Chalice" },
+		}
+	},
+	{
+		Msg::Skulduggery_SignetRing,
+		{
+			{ Lang::English, "Signet Ring" },
+		}
+	},
+	{
+		Msg::Skulduggery_FrantzRuby,
+		{
+			{ Lang::English, "The Frantz Ruby" },
+		}
+	},
+	{
+		Msg::Skulduggery_ShapirosSceptre,
+		{
+			{ Lang::English, "Shapiro's Sceptre" },
+		}
+	},
+	{
+		Msg::Skulduggery_CrownOfSandige,
+		{
+			{ Lang::English, "Crown of Sandige" },
+		}
+	},
+	{
+		Msg::Skulduggery_GoldIngotsBuried,
+		{
+			{ Lang::English, "Gold Ingots\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_SilverChaliceBuried,
+		{
+			{ Lang::English, "Silver Chalice\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_SignetRingBuried,
+		{
+			{ Lang::English, "Signet Ring\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_FrantzRubyBuried,
+		{
+			{ Lang::English, "The Frantz Ruby\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_ShapirosSceptreBuried,
+		{
+			{ Lang::English, "Shapiro's Sceptre\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_CrownOfSandigeBuried,
+		{
+			{ Lang::English, "Crown of Sandige\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_CoinsBuried,
+		{
+			{ Lang::English, "Coins\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_BonusBuried,
+		{
+			{ Lang::English, "Bonus\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_JackpotBuried,
+		{
+			{ Lang::English, "Jackpot\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_ExtraBallBuried,
+		{
+			{ Lang::English, "Extra Ball\nBuried" },
+		}
+	},
+	{
 		Msg::Skulduggery_PictureSkillShot,
 		{
 			{ Lang::English, "Skill Shot" },
@@ -8424,6 +8538,12 @@ const TextArray translations::Translations =
 		Msg::Skulduggery_PictureAttackShip,
 		{
 			{ Lang::English, "Attack Ship" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureTreasureHunt,
+		{
+			{ Lang::English, "Treasure Hunt" },
 		}
 	},
 	{
