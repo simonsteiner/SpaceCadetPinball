@@ -136,16 +136,7 @@ void TTextBox::Display(const char* text, float time, bool lowPriority, int fontI
 	auto clearsQueue = pb::Table == Tables::Skulduggery && time == -1.0f;
 	if (IsRepeat(text, fontIndex) && !(clearsQueue && PreviousMessage->Time != -1.0f))
 	{
-		PreviousMessage->Refresh(time);
-		if (PreviousMessage == CurrentMessage)
-		{
-			if (Timer && Timer != -1)
-				timer::kill(Timer);
-			if (time == -1.0f)
-				Timer = -1;
-			else
-				Timer = timer::set(time, this, TimerExpired);
-		}
+		RefreshRepeat(time);
 	}
 	else
 	{
@@ -168,6 +159,19 @@ void TTextBox::Display(const char* text, float time, bool lowPriority, int fontI
 			delete message;
 		}
 	}
+}
+
+void TTextBox::RefreshRepeat(float time)
+{
+	PreviousMessage->Refresh(time);
+	if (PreviousMessage != CurrentMessage)
+		return;
+	if (Timer && Timer != -1)
+		timer::kill(Timer);
+	if (time == -1.0f)
+		Timer = -1;
+	else
+		Timer = timer::set(time, this, TimerExpired);
 }
 
 void TTextBox::DrawImGui()

@@ -50,4 +50,6 @@ private:
 	const score_msg_font_type* MessageFont(const TTextBoxMessage* message) const;
 	// The text is the last queued message's, in the same font, while a message shows
 	bool IsRepeat(const char* text, int fontIndex) const;
+	// The repeated last message takes <time>, and its timer starts again if it shows
+	void RefreshRepeat(float time);
 };
