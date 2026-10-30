@@ -638,6 +638,13 @@ namespace
 		TableHook(ShowStateText, nullptr);
 	}
 
+	// The running mode ends before its time: mode_timer stops, and the mode's end runs
+	void EndModeEarly()
+	{
+		mode_timer->Message(MessageCode::TTimerResetTimer, -1.0f);
+		TableHook(ModeEnd, nullptr);
+	}
+
 	// 0x424d30: a random magnet whose light is neither on nor flashing, or any once none is, switches on, with its
 	// light, the keg's next light and the keg's picture for 2 s. Returns how long the picture shows
 	float MagnetOn()
@@ -1394,7 +1401,6 @@ namespace
 		}
 	}
 
-	// 0x42d900
 	// What every mode's state does alike (0x42ad70 to 0x42cfc0), after the mode's own function: its timer or a drain
 	// ends the mode, and its end leaves the mode (0x42ab40), counts one more mode played (v_lite606) and puts a_bloce
 	// down. PIRATES.EXE's Treasure Hunt and Peg Leg's Loot do the rest of their cleanup after this; it touches none of
@@ -1414,14 +1420,14 @@ namespace
 			BloceDown();
 			break;
 		case BallDrained:
-			mode_timer->Message(TTimerResetTimer, -1.0f);
-			TableHook(ModeEnd, nullptr);
+			EndModeEarly();
 			break;
 		default:
 			break;
 		}
 	}
 
+	// 0x42d900
 	void StateControl(int state, MessageCode code, const TPinballComponent* caller)
 	{
 		// Every state clears the mode picked, play picks one, and a mode's light flashes while it runs. As a mode
