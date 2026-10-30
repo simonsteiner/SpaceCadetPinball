@@ -70,7 +70,12 @@ class winmain
 	using TimePoint = std::chrono::time_point<Clock>;
 
 public:
+#ifdef SCP_BUILD_COMMIT
+	// A test build names the commit it was made from (tools/make-test-build.sh)
+	static constexpr const char* Version = "2.1.1 DEV, test build " SCP_BUILD_COMMIT;
+#else
 	static constexpr const char* Version = "2.1.1 DEV";
+#endif
 	static bool single_step;
 	static SDL_Window* MainWindow;
 	static SDL_Renderer* Renderer;

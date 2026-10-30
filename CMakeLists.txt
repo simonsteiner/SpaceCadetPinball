@@ -23,6 +23,9 @@ endif()
 option(SCP_VENDORED_SDL "Build SDL3 and SDL3_mixer from pinned sources instead of using installed packages" ${SCP_VENDORED_SDL_DEFAULT})
 option(SCP_WARNINGS "Compile the game with extra warnings (-Wall -Wextra, or /W4 with MSVC) and treat them as errors" OFF)
 option(SCP_SANITIZERS "Build the game with AddressSanitizer and UndefinedBehaviorSanitizer (GCC and Clang)" OFF)
+# Set only by tools/make-test-build.sh, for test builds that are never published (docs/deployment.md)
+set(SCP_BUNDLED_DATA "" CACHE PATH "A folder of game data, in the layout the game searches, to build into a Windows test build")
+set(SCP_BUILD_COMMIT "" CACHE STRING "The commit a test build was made from, shown with the version")
 
 # Link mingw libs static
 if(MINGW)
@@ -93,6 +96,8 @@ endif()
 set(SOURCE_FILES
         SpaceCadetPinball/BonusTableCheats.cpp
         SpaceCadetPinball/BonusTableCheats.h
+        SpaceCadetPinball/BundledData.cpp
+        SpaceCadetPinball/BundledData.h
         SpaceCadetPinball/control.cpp
         SpaceCadetPinball/control.h
         SpaceCadetPinball/control_dragon.cpp
@@ -319,6 +324,37 @@ if(WIN32)
     list(APPEND SOURCE_FILES SpaceCadetPinball/SpaceCadetPinball.rc)
 endif(WIN32)
 
+# A test build's game data goes into the executable as a tar archive, which BundledData.cpp unpacks at the first start.
+# It is packed at configure time; changing a file in the folder configures again.
+if(SCP_BUNDLED_DATA)
+    if(NOT WIN32)
+        message(FATAL_ERROR "SCP_BUNDLED_DATA is for Windows builds")
+    endif()
+    file(GLOB_RECURSE SCP_BUNDLED_FILES LIST_DIRECTORIES false RELATIVE ${SCP_BUNDLED_DATA} ${SCP_BUNDLED_DATA}/*)
+    list(SORT SCP_BUNDLED_FILES)
+    if(NOT SCP_BUNDLED_FILES)
+        message(FATAL_ERROR "SCP_BUNDLED_DATA has no files: ${SCP_BUNDLED_DATA}")
+    endif()
+    set(SCP_BUNDLED_ARCHIVE ${CMAKE_CURRENT_BINARY_DIR}/generated/BundledData.tar)
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/generated)
+    # A fixed time, so the same data makes the same archive and its hash names the same folder
+    execute_process(COMMAND ${CMAKE_COMMAND} -E tar cf ${SCP_BUNDLED_ARCHIVE} --format=gnutar --mtime=2000-01-01
+                            -- ${SCP_BUNDLED_FILES}
+            WORKING_DIRECTORY ${SCP_BUNDLED_DATA}
+            COMMAND_ERROR_IS_FATAL ANY
+            )
+    foreach(file IN LISTS SCP_BUNDLED_FILES)
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${SCP_BUNDLED_DATA}/${file})
+    endforeach()
+    file(SHA256 ${SCP_BUNDLED_ARCHIVE} SCP_BUNDLED_HASH)
+    string(SUBSTRING ${SCP_BUNDLED_HASH} 0 16 SCP_BUNDLED_HASH)
+    set(SCP_BUNDLED_RC ${CMAKE_CURRENT_BINARY_DIR}/generated/BundledData.rc)
+    file(CONFIGURE OUTPUT ${SCP_BUNDLED_RC} CONTENT "BUNDLEDDATA RCDATA \"${SCP_BUNDLED_ARCHIVE}\"\n")
+    set_source_files_properties(${SCP_BUNDLED_RC} PROPERTIES LANGUAGE RC OBJECT_DEPENDS ${SCP_BUNDLED_ARCHIVE})
+    list(APPEND SOURCE_FILES ${SCP_BUNDLED_RC})
+    message(STATUS "Bundled game data: ${SCP_BUNDLED_DATA}, ${SCP_BUNDLED_HASH}")
+endif()
+
 add_library(imgui STATIC ${IMGUI_SOURCE_FILES})
 target_link_libraries(imgui PUBLIC ${SDL_LIBRARIES})
 
@@ -369,6 +405,13 @@ target_precompile_headers(SpaceCadetPinball
         )
 
 target_link_libraries(SpaceCadetPinball imgui ${SDL_LIBRARIES})
+
+if(SCP_BUNDLED_DATA)
+    target_compile_definitions(SpaceCadetPinball PRIVATE SCP_BUNDLED_DATA_HASH="${SCP_BUNDLED_HASH}")
+endif()
+if(SCP_BUILD_COMMIT)
+    target_compile_definitions(SpaceCadetPinball PRIVATE SCP_BUILD_COMMIT="${SCP_BUILD_COMMIT}")
+endif()
 
 # Read sources as UTF-8 and keep string literals in UTF-8; MSVC otherwise uses the system code page
 if(MSVC)
