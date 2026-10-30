@@ -297,6 +297,10 @@ build_macos() {
 	cmake --fresh -S "$src" --preset macos -B "$dir" "${cmake_args[@]}"
 	cmake --build "$dir" --parallel "$(sysctl -n hw.ncpu)"
 	version=$(sed -n "s/^sw_version='\(.*\)'$/\1/p" "$src/build-mac-app.sh")
+	if [ -z "$version" ]; then
+		echo "No sw_version='...' line in build-mac-app.sh" >&2
+		exit 1
+	fi
 	if [ -d "$app" ]; then
 		rm -rf -- "${app:?}"
 	fi
@@ -317,7 +321,8 @@ case $platform in
 		build_macos
 		echo "Test build $describe: $out/SpaceCadetPinball-$commit-mac.dmg"
 		echo "Copy the app from it to the Mac and start it; the first start asks once, as for any app without a" \
-			"Developer ID (Open from the context menu). Never upload it."
+			"Developer ID (System Settings > Privacy & Security > Open Anyway, the context menu's Open before" \
+			"macOS 15, or xattr -d com.apple.quarantine on the app). Never upload it."
 		;;
 	web)
 		build_web
