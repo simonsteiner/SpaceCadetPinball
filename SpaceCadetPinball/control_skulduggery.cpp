@@ -1998,6 +1998,10 @@ namespace
 			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_LavaBall), -1.0f);
 			break;
 		case BallDrained:
+			// A ball still falling from s_hole19 to a_kick1 counts as the one left, so it stays in the brig with
+			// a_kick1 off and BrigBalls at 0, and UnstuckBall leaves it there; only a tilt frees it. PIRATES.EXE does
+			// the same: 0x42d480 and 0x42d590 end the mode here, 0x429040 and 0x42a340 ignore the brig in states 12
+			// and 13, and 0x42db30 skips a ball by a_kick1
 			if (Table->MultiballCount != 1)
 				break;
 			ModeLeave();
@@ -2044,6 +2048,7 @@ namespace
 			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_JailBreak), -1.0f);
 			break;
 		case BallDrained:
+			// As in Lava-Ball, a ball still falling to a_kick1 stays in the brig, as in PIRATES.EXE
 			if (Table->MultiballCount != 1)
 				break;
 			ModeLeave();
