@@ -31,7 +31,7 @@
 #include "translations.h"
 
 #include <filesystem>
-#include <print>
+#include <format>
 
 TPinballTable* pb::MainTable = nullptr;
 DatFile* pb::record_table = nullptr;
@@ -336,7 +336,10 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 			return;
 		// The player's choice stays saved, for when its data is back
 		chosen = FoundTables.begin();
-		std::print("No data for the table {}, loading {}\n", options::Options.Table.V, TableKey(chosen->Table));
+		// std::format with fputs, not std::print, which MinGW's GCC 13 lacks
+		auto line =
+			std::format("No data for the table {}, loading {}\n", options::Options.Table.V, TableKey(chosen->Table));
+		fputs(line.c_str(), stdout);
 	}
 
 	BasePath = chosen->Folder;
@@ -344,7 +347,7 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 	Table = chosen->Table;
 	FullTiltMode = Table != Tables::SpaceCadet3DPB;
 	FullTiltDemoMode = Table == Tables::FullTiltDemo;
-	std::print("Loading game from: {}\n", make_path_name(DatFileName));
+	fputs(std::format("Loading game from: {}\n", make_path_name(DatFileName)).c_str(), stdout);
 }
 
 void pb::SelectTable(Tables table)
