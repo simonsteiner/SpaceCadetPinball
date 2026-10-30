@@ -208,7 +208,7 @@ bool NativeMidi_Init(void)
     const MMRESULT merr = midiStreamOpen(&MidiStream,&MidiDevice,(DWORD)1,(DWORD_PTR)MidiProc,(DWORD_PTR)0,CALLBACK_FUNCTION);
 
     if (merr != MMSYSERR_NOERROR) {
-        return false;
+        return SDL_SetError("midiStreamOpen failed (MMRESULT %u)", (unsigned)merr);
     }
 
     midiStreamClose(MidiStream);
