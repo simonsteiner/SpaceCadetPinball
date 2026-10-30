@@ -1417,9 +1417,7 @@ namespace
 		switch (code)
 		{
 		case ControlTimerExpired:
-			if (caller == mode_timer)
-				TableHook(ModeEnd, nullptr);
-			else if (caller == light_sweeps)
+			if (caller == light_sweeps)
 				ModeSweepDone(48.28f);
 			break;
 		case EnterState:
@@ -1435,15 +1433,6 @@ namespace
 			break;
 		case ShowStateText:
 			ShowTimeLeft(Msg::Skulduggery_Mutiny);
-			break;
-		case ModeEnd:
-			ModeLeave();
-			v_lite606->MessageField++;
-			BloceDown();
-			break;
-		case BallDrained:
-			mode_timer->Message(TTimerResetTimer, -1.0f);
-			TableHook(ModeEnd, nullptr);
 			break;
 		default:
 			break;
