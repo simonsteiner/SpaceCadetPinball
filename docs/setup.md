@@ -264,7 +264,7 @@ No SoundFont ships with the game. Music needs an audio device, so `-noaudio` and
 | `-replay <file>` | play a replay back headless, check every frame, and exit; status 1 if play differs. It loads the table the replay recorded, whichever table was chosen |
 | `-edition classic` or `-edition definitive` | start in that edition and save it, like the Tab switch; playback runs Classic unless this says otherwise, and saves nothing |
 | `-table dragon` | load Full Tilt!'s Dragon's Keep (`DRAGON.DAT`) for this run, whichever table was chosen, without changing the choice; for test runs |
-| `-table skulduggery` | load Full Tilt!'s Skulduggery (`PIRATES.DAT`) the same way; until its rules are done, only this flag or a recording of it loads it, and the table list doesn't show it |
+| `-table skulduggery` | load Full Tilt!'s Skulduggery (`PIRATES.DAT`) the same way; until its rules are done, only this flag or a recording of it loads it, and the table list shows it only when one of them did |
 
 ## Troubleshooting
 

@@ -171,7 +171,9 @@ namespace
 		return info_text_box->MessageField;
 	}
 
-	// drain's message field, the Ship's Hold: the bonus a lit v_lite570 carries to the next ball, also per player
+	// drain's message field, the Ship's Hold: the bonus a lit v_lite570 carries to the next ball, also per player.
+	// The drain's Reset, which a ball save and a drain during multiball send, clears it for every player, as Full
+	// Tilt's TDrain does (0x418770 calls 0x413550 in CADET.EXE and PIRATES.EXE)
 	int& ShipsHold()
 	{
 		return drain->MessageField;
@@ -186,13 +188,13 @@ namespace
 	int BallSaveStep;       // 0x435d90: 3 lit until the ball leaves the lane, 2 lit 10 s, 1 flashing 5 s, 0 off
 	int DrainStep;          // 0x435d08: what the drain's timer does next
 	bool LastBallRelease;   // 0x43aba8: the game's last ball drained, and the flippers are dead until the bonus ends
-	bool ClearBuriedLights; // 0x43abb0: set when Peg Leg's Loot ends; the next drain turns its lights off
-	bool Launching;         // 0x435d30: set from the launch until play starts
+	bool ClearBuriedLights; // 0x43abb0: set when Peg Leg's Loot ends (#140); the next drain turns its lights off
+	bool Launching;         // 0x435d30: set from the launch until play starts; the modes read it (#128)
 	bool TallyQuiet;        // 0x435d34: count the bonus without showing it
 	int TallyStep;          // 0x435d38
 	int TallyTotal;         // 0x435d00
 	int TargetHits;         // 0x435d48, Target Bonus: the popup targets hit this ball
-	int BrigBalls;          // 0x435d3c: the balls the brig holds, which the last ball releases
+	int BrigBalls;          // 0x435d3c: the balls the brig holds (#139), which the last ball releases
 	int ModeFlags;          // 0x435cf8: the running mode's own count or flags; Attack Ship counts the ships captured
 	int ModeAwardStep;      // 0x435d04: the next of a mode's awards
 	// What Treasure Hunt's rollovers bury for Peg Leg's Loot to dig up (0x435d10 to 0x435d28)
@@ -1202,7 +1204,8 @@ namespace
 		}
 		if (v_lite569->light_on())
 		{
-			// Ball save: the drain's own timer serves the same ball again
+			// Ball save: the drain's own timer serves the same ball again. Its Reset clears every player's Ship's Hold,
+			// as PIRATES.EXE's 0x402 does
 			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_ShootAgain), 2.0f);
 			DrainStep = 3;
 			drain->Message(Reset, 0.0f);
