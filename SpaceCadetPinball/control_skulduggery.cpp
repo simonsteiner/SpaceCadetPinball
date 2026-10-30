@@ -178,7 +178,6 @@ namespace
 	std::array<TSink*, 3> tavern_sinks;   // a_sink5, a_sink6, a_sink7
 	std::array<TLight*, 3> v_lite530s;    // v_lite530 to v_lite532
 	TSoloTarget* a_spot6;
-	TLightGroup* keg_light_group;
 	TSound* tabb00wave;
 	TSound* tabb08wave;
 	TSound* tabb65wave;
@@ -788,7 +787,8 @@ namespace
 	}
 
 	// 0x424d30: a random magnet whose light is neither on nor flashing, or any once none is, switches on, with its
-	// light, the keg's next light and the keg's picture for 2 s. Returns how long the picture shows
+	// light and the keg's picture for 2 s. Returns how long the picture shows. PIRATES.EXE also asks keg_light_group
+	// for its lit lights' count (0x29) and leaves it unused, so that group isn't ported
 	float MagnetOn()
 	{
 		using enum MessageCode;
@@ -807,7 +807,6 @@ namespace
 		auto index = open[std::min(static_cast<int>(RandFloat() * count), count - 1)];
 		magnets[index]->Message(TMagnetEnable, 0.0f);
 		magnet_lights[index]->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
-		keg_light_group->Message(TLightGroupResetAndTurnOn, 0.0f);
 		ShowPicture("E", 2.0f, Msg::Skulduggery_PictureKeg);
 		return 2.0f;
 	}
@@ -3700,7 +3699,6 @@ namespace
 			Find(v_lite530s[index], std::format("v_lite{}", 530 + index).c_str());
 		}
 		Find(a_spot6, "a_spot6");
-		Find(keg_light_group, "keg_light_group");
 		Find(tabb00wave, "tabb00wave");
 		Find(tabb08wave, "tabb08wave");
 		Find(tabb65wave, "tabb65wave");
@@ -3852,7 +3850,7 @@ namespace
 		all.insert(all.end(), tavern_lights.begin(), tavern_lights.end());
 		all.insert(all.end(), tavern_sinks.begin(), tavern_sinks.end());
 		all.insert(all.end(), v_lite530s.begin(), v_lite530s.end());
-		all.insert(all.end(), {a_spot6, keg_light_group, tabb00wave, tabb08wave, tabb65wave, tabb83wave, tabb87wave});
+		all.insert(all.end(), {a_spot6, tabb00wave, tabb08wave, tabb65wave, tabb83wave, tabb87wave});
 		all.insert(all.end(),
 				   {bermuda_light_group, tabb12wave, tabb66wave, v_lite778, v_lite529, tabb67wave, tabb68wave});
 		all.insert(all.end(), wind_light_groups.begin(), wind_light_groups.end());
