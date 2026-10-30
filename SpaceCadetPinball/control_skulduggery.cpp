@@ -1289,8 +1289,8 @@ namespace
 		case ControlTimerExpired:
 			if (caller == mode_timer)
 			{
+				// Before the mode ends (ModeStateControl)
 				v_lite778->Message(TLightResetAndTurnOff, -1.0f);
-				TableHook(ModeEnd, nullptr);
 			}
 			else if (caller == light_sweeps)
 			{
@@ -1323,7 +1323,7 @@ namespace
 			else if (caller == a_sink14 || caller == a_sink15 || caller == a_sink17)
 			{
 				info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_Shipwrecked), 2.0f);
-				StormStateControl(BallDrained, caller);
+				EndModeEarly();
 				ShipwreckMysteryAvailable(2.0f);
 			}
 			break;
@@ -1365,13 +1365,6 @@ namespace
 		case ModeEnd:
 			v_lite778->Message(TLightResetAndTurnOff, 0.0f);
 			a_kout2->Message(TKickoutDisable, 0.0f);
-			ModeLeave();
-			v_lite606->MessageField++;
-			BloceDown();
-			break;
-		case BallDrained:
-			mode_timer->Message(TTimerResetTimer, -1.0f);
-			TableHook(ModeEnd, nullptr);
 			break;
 		default:
 			break;
