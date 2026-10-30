@@ -33,8 +33,8 @@
 // a_spot6, and Sword Fight with the parrot's targets; and the scoring outside the modes: the last scorer, the winds'
 // shots (the orbits, the ramps and their combos, the WINDS lanes and their letters), Port O' Call, the GOLD lanes,
 // the rebounds, a_kick2, the switches of a_bloce, the flippers' turning of the lanes' lights, Secret Hideaway, the
-// Shipwreck Mystery's sinks and the ship's hold; the skill shot's awards with the random award; and the brig with
-// its multiballs, Lava-Ball and Jailbreak.
+// Shipwreck Mystery's sinks and the ship's hold; the skill shot's awards with the random award; the brig with its
+// multiballs, Lava-Ball and Jailbreak; and the final mode, Peg Leg's Loot.
 // Everything else is still a stand-in that keeps the table playable: kickouts and sinks give back the balls they
 // catch, which only the rules would do otherwise, and a stuck ball is freed as Space Cadet's rules free one.
 //
@@ -42,8 +42,8 @@
 // message field: the engine's control::handler (0x423080) hands every event to one table-wide function (0x42d850),
 // which passes it to the current state's function (0x42d900), and then to the component's own handler. States 1
 // (game over), 2 (play), 3 (launch), 4 (Attack Ship), 5 (Bermuda Triangle), 6 (Storm), 7 (Tavern), 8 (Treasure Hunt),
-// 9 (Mutiny), 10 (Sword Fight), 12 (Lava-Ball), 13 (Jailbreak), 16 (end of ball) and 17 (the game's last ball) are
-// ported; Peg Leg's Loot (11) comes with its feature.
+// 9 (Mutiny), 10 (Sword Fight), 11 (Peg Leg's Loot), 12 (Lava-Ball), 13 (Jailbreak), 16 (end of ball) and 17 (the
+// game's last ball) are ported.
 // Addresses below are PIRATES.EXE's. Its message numbers are CADET.EXE's, which differ from this port's above the light
 // codes, so each call uses the port's MessageCode.
 namespace
@@ -144,7 +144,7 @@ namespace
 	TSound* tabb58wave;
 	TSound* tabb85wave;
 	// Treasure Hunt's: the X lights and the sinks they mark, the orbits it takes over, the special treasures it finds
-	// and the rollovers that bury treasure for Peg Leg's Loot
+	// and the rollovers that bury treasure
 	TLight* v_lite519;
 	TLightGroup* left_orbit_light_group;
 	TLightGroup* right_orbit_light_group;
@@ -241,6 +241,9 @@ namespace
 	TSound* tabb32wave;
 	TSound* tabb39wave;
 	TSound* tabb95wave;
+	// Peg Leg's Loot's
+	TSound* tabb28wave;
+	TSound* tabb99wave;
 
 	// A bank of drop targets: its first target's message field keeps those down, and each target spells a letter
 	struct DropBank
@@ -293,7 +296,7 @@ namespace
 	const TPinballComponent* LastScorer; // 0x435d44: the component that scored last, if any
 	bool
 		ShortTexts; // 0x43abac: set while the buried treasure is dug up, which shortens the coins' and treasures' texts
-	// What Treasure Hunt's rollovers bury for Peg Leg's Loot to dig up (0x435d10 to 0x435d28)
+	// What Treasure Hunt's rollovers bury for the random award to dig up (0x435d10 to 0x435d28)
 	int BuryStep;
 	int CoinsBuried;
 	int TreasureBuried1;
@@ -465,15 +468,6 @@ namespace
 	constexpr std::array PickedModeStates{4, 8, 7, 5, 6, 9, 10, 11};
 	constexpr int PegLegsLootPick = 7;
 
-	// The modes ported so far; whatever would start another one lets the game go on in play
-	constexpr std::array PortedModes{AttackShipState, BermudaState,    StormState,    TavernState,   TreasureHuntState,
-									 MutinyState,     SwordFightState, LavaBallState, JailbreakState};
-
-	bool ModePorted(int state)
-	{
-		return std::ranges::find(PortedModes, state) != PortedModes.end();
-	}
-
 	// mode_timer's message field keeps the picked mode, from 1, or 0 when none is picked
 	int& PickedMode()
 	{
@@ -563,25 +557,20 @@ namespace
 	};
 
 	// 0x423610 and the mode starts (0x423480 to 0x4235f0): v_lite606 flashes while a mode runs (0x423400), the mode
-	// shows its picture, and its state begins. A mode that isn't ported yet doesn't start
-	bool StartMode(int state)
+	// shows its picture, and its state begins
+	void StartMode(int state)
 	{
-		if (!ModePorted(state))
-			return false;
 		v_lite606->Message(MessageCode::TLightFlasherStartTimed, -1.0f);
 		if (auto picture = std::ranges::find(ModePictures, state, &ModePicture::State); picture != ModePictures.end())
 			ShowPicture(picture->Glyphs, picture->Time, picture->Words);
 		SetState(state);
-		return true;
 	}
 
-	// 0x425a50: the picked mode starts
-	bool StartPickedMode()
+	// 0x425a50: the picked mode starts, if one is picked
+	void StartPickedMode()
 	{
-		auto picked = PickedMode();
-		if (picked < 1 || picked > static_cast<int>(PickedModeStates.size()))
-			return false;
-		return StartMode(PickedModeStates[picked - 1]);
+		if (auto picked = PickedMode(); picked >= 1 && picked <= static_cast<int>(PickedModeStates.size()))
+			StartMode(PickedModeStates[picked - 1]);
 	}
 
 	// 0x425de0: with all eleven letters spelled, the word starts over, the banks come up and the picked mode starts
@@ -593,9 +582,7 @@ namespace
 		LettersOff(true);
 		for (const auto& bank : drop_banks)
 			ResetBank(bank);
-		// Not PIRATES.EXE's: a mode that isn't ported yet leaves the game in play, as if the launch were over
-		if (!StartPickedMode())
-			Launching = false;
+		StartPickedMode();
 		return true;
 	}
 
@@ -1853,6 +1840,140 @@ namespace
 		}
 	}
 
+	// The ship's X, the letters and lights by the ship's hold that Peg Leg's Loot flashes: v_mlite51, v_lite4 to
+	// v_lite8, v_lite568 and v_lite567
+	std::vector<TLight*> PegLegsLootLights()
+	{
+		std::vector<TLight*> lights{v_mlights[3]};
+		lights.insert(lights.end(), letter_lights.begin() + 3, letter_lights.begin() + 8);
+		lights.insert(lights.end(), {v_lite568, v_lite567});
+		return lights;
+	}
+
+	// 0x42ce80: the X by the ship's hold flashes with the ship's letters, v_lite568 (which keeps whether it was lit)
+	// and v_lite567; a_sink9 and a_sink12 switch on, and the orbits go off with their lights blanked
+	void PegLegsLootEnter()
+	{
+		using enum MessageCode;
+		TreasureXsOff();
+		a_sink9->ActiveFlag = 1;
+		a_sink12->ActiveFlag = 1;
+		s_trip3->ActiveFlag = 0;
+		s_trip8->ActiveFlag = 0;
+		v_lite568->MessageField = LightIdle(*v_lite568) ? 0 : 1;
+		left_orbit_light_group->Message(TLightFtTmpOverrideOff, 0.0f);
+		right_orbit_light_group->Message(TLightFtTmpOverrideOff, 0.0f);
+		for (auto light : PegLegsLootLights())
+			light->Message(TLightFlasherStartTimed, -1.0f);
+		light_sweeps->Message(TLightSweepsStart, 4.0f);
+		v_lite520->Message(TLightResetAndTurnOff, 0.0f);
+		v_lite521->Message(TLightResetAndTurnOff, 0.0f);
+	}
+
+	// Peg Leg's Loot's pictures in the second font (0x43ab18), one every 0.25 s once the X is hit
+	constexpr std::array PegLegsLootPictures{"L", "M", "N", "O", "P", "Q", "R", "S"};
+
+	// Peg Leg's Loot's text, step by step (ModeFlags): its time left until the X is hit (step 1), then its pictures,
+	// then the loot: 500,000 for each coin and special treasure lit and One Million for each map piece and mode
+	// played, after the fathoms, the bumpers' most crew and the jackpot. Then the mode ends and Lava-Ball starts
+	void PegLegsLootText()
+	{
+		using enum MessageCode;
+		if (ModeFlags == 0)
+		{
+			ShowTimeLeft(Msg::Skulduggery_PegLegsLoot);
+			return;
+		}
+		if (ModeFlags == 1)
+		{
+			mode_timer->Message(TTimerResetTimer, -1.0f);
+			tabb28wave->Play(nullptr, "PegLegsLootText");
+		}
+		if (ModeFlags <= static_cast<int>(PegLegsLootPictures.size()))
+		{
+			ShowPicture(PegLegsLootPictures[ModeFlags - 1], 0.25f, Msg::Skulduggery_PicturePegLegsLoot);
+			ModeFlags++;
+			return;
+		}
+		if (ModeFlags == static_cast<int>(PegLegsLootPictures.size()) + 1)
+		{
+			auto coins = coin_light_group->Message(TLightGroupGetOnCount, 0.0f);
+			auto treasures = special_treasure_light_group->Message(TLightGroupGetOnCount, 0.0f);
+			auto maps = map_piece_light_group->Message(TLightGroupGetOnCount, 0.0f);
+			auto modes = v_lite606->MessageField;
+			LightFathoms(-1.0f);
+			MaxCrew(-1.0f);
+			AwardJackpot(0.0f);
+			auto score = AddScore(nullptr, (coins + treasures) * 500000 + (maps + modes) * 1000000);
+			ShowBonus(Msg::Skulduggery_Score, score, 4.0f);
+			ModeFlags++;
+			return;
+		}
+		TableHook(ModeEnd, nullptr);
+		a_sink8->Message(TSinkResetTimer, 0.0f);
+		StartMode(LavaBallState);
+	}
+
+	// State 11, 0x42cfc0: Peg Leg's Loot, the final mode, which all the map pieces pick. The ball in the ship's hold
+	// while its X flashes finds the loot (ShipsHoldControl, PegLegsLootText); each other sink finds the next special
+	// treasure, and each light rollover adds 50,000 to the jackpot. It runs for 30.68 s after its light sweep
+	void PegLegsLootStateControl(MessageCode code, const TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case ControlTimerExpired:
+			if (caller == mode_timer)
+				TableHook(ModeEnd, nullptr);
+			else if (caller == light_sweeps)
+				ModeSweepDone(30.68f);
+			break;
+		case ControlCollision:
+			if (dynamic_cast<const TLightRollover*>(caller))
+				AddJackpot(50000);
+			break;
+		case EnterState:
+			ModeEnter();
+			AddScore(nullptr, 1000000);
+			PegLegsLootEnter();
+			PlayTrack(MidiTracks::Track3);
+			tabb99wave->Play(nullptr, "PegLegsLootStateControl");
+			info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_PegLegsLootHelp), -1.0f);
+			break;
+		case ShowStateText:
+			PegLegsLootText();
+			break;
+		case ModeEnd:
+			TreasureXsOff();
+			a_sink9->ActiveFlag = 0;
+			a_sink12->ActiveFlag = 0;
+			ModeLeave();
+			v_lite606->MessageField++;
+			BloceDown();
+			s_trip3->ActiveFlag = 1;
+			s_trip8->ActiveFlag = 1;
+			left_orbit_light_group->Message(TLightFtResetOverride, 0.0f);
+			right_orbit_light_group->Message(TLightFtResetOverride, 0.0f);
+			left_orbit_combo_light_group->Message(TLightResetAndTurnOff, 0.0f);
+			right_orbit_combo_light_group->Message(TLightResetAndTurnOff, 0.0f);
+			v_lite568->Message(v_lite568->MessageField ? TLightResetAndTurnOn : TLightResetAndTurnOff, 0.0f);
+			v_lite567->Message(TLightResetAndTurnOff, 0.0f);
+			map_piece_light_group->Message(TLightTurnOff, 0.0f);
+			map_piece_light_group->Message(TLightFlasherStartTimedThenStayOff, 1.0f);
+			// The modes' lights go out, but for Sword Fight's and Peg Leg's Loot's own
+			for (auto index = 0; index < 6; index++)
+				mode_lights[index]->Message(TLightResetAndTurnOff, 0.0f);
+			ClearBuriedLights = true;
+			break;
+		case BallDrained:
+			mode_timer->Message(TTimerResetTimer, -1.0f);
+			TableHook(ModeEnd, nullptr);
+			break;
+		default:
+			break;
+		}
+	}
+
 	// State 16, 0x42b820: count the bonus, one text at a time, then serve the next ball or end the game
 	void EndOfBallStateControl(MessageCode code, const TPinballComponent* caller)
 	{
@@ -2165,11 +2286,12 @@ namespace
 		case JailbreakState:
 			JailbreakStateControl(code);
 			break;
+		case LastModeState:
+			PegLegsLootStateControl(code, caller);
+			break;
 		default:
-			// Peg Leg's Loot (11) isn't ported yet, and StartMode doesn't enter it; PIRATES.EXE goes back to play from
-			// any state it doesn't know (0x42d830)
-			if (state != LastModeState)
-				SetState(PlayState);
+			// PIRATES.EXE goes back to play from any state it doesn't know (0x42d830)
+			SetState(PlayState);
 			break;
 		}
 	}
@@ -2541,7 +2663,7 @@ namespace
 	// let their ball out of the other one. a_sink14, a_sink15 and a_sink17 are Secret Hideaway: in play each also
 	// lights its light of v_lite524 to v_lite527, which all lit give coins (LitLanesCoins); in Bermuda Triangle they
 	// make the Shipwreck Mystery available, and in Storm they only let the ball go, though a ball in them ends Storm
-	// before their handler runs. Peg Leg's Loot (state 11) has its own branches, which come with it
+	// before their handler runs. In Peg Leg's Loot all five find the next special treasure (0x424930)
 	void TreasureSinkControl(MessageCode code, TPinballComponent* caller)
 	{
 		using enum MessageCode;
@@ -2551,6 +2673,14 @@ namespace
 		if (GameState() == TreasureHuntState)
 		{
 			TreasureHuntSink(std::to_address(sink), caller);
+			return;
+		}
+		if (GameState() == LastModeState)
+		{
+			AwardSpecialTreasure(special_treasure_light_group->MessageField, 0.0f);
+			SinkKick();
+			if (sink->Flash)
+				(*sink->Flash)->Message(TLightFlasherStartTimed, 2.0f);
 			return;
 		}
 		if (!sink->Flash)
@@ -2598,8 +2728,8 @@ namespace
 
 	// a_sink4, the ship's hold, 0x4283f0: in play and most modes its score shows, the blockers drop and the ball comes
 	// out of a_sink8, or with v_lite568 lit (which only Peg Leg's Loot lights) an extra ball. In Attack Ship the whole
-	// ship goes down for the jackpot (0x4244a0), and in Mutiny it lights the Ship's Hold (v_lite570). Peg Leg's Loot's
-	// branch comes with it
+	// ship goes down for the jackpot (0x4244a0), and in Mutiny it lights the Ship's Hold (v_lite570). In Peg Leg's Loot
+	// the ball stays while the loot is counted (PegLegsLootText), and the X and the lights by the hold go out
 	void ShipsHoldControl(MessageCode code, TPinballComponent* caller)
 	{
 		using enum MessageCode;
@@ -2616,6 +2746,15 @@ namespace
 				ModeFlags++;
 				fathom_light_group->Message(TLightGroupRestartNotifyTimer, AwardJackpot(0.0f));
 				a_sink8->Message(TSinkResetTimer, -1.0f);
+				break;
+			}
+		case LastModeState:
+			{
+				v_mlights[3]->Message(TLightResetAndTurnOn, 0.0f);
+				auto lights = PegLegsLootLights();
+				std::for_each(lights.begin() + 1, lights.end(),
+							  [](TLight* light) { light->Message(TLightResetAndTurnOff, 0.0f); });
+				ModeFlags = 1;
 				break;
 			}
 		case MutinyState:
@@ -3022,8 +3161,8 @@ namespace
 	}
 
 	// a_roll8 and a_roll9, 0x429c30 and 0x429ac0: in Bermuda Triangle they are winds' shots, and in Treasure Hunt each
-	// one buries the next treasure for Peg Leg's Loot (0x424b00): coins three times, two special treasures, the bonus,
-	// the jackpot and an extra ball, then coins. Else they score as the east winds' lanes (Easterly)
+	// one buries the next treasure for the random award to dig up (0x424b00): coins three times, two special treasures,
+	// the bonus, the jackpot and an extra ball, then coins. Else they score as the east winds' lanes (Easterly)
 	void BuryRolloverControl(MessageCode code, TPinballComponent* caller)
 	{
 		if (code != MessageCode::ControlCollision)
@@ -3572,6 +3711,8 @@ namespace
 		Find(tabb32wave, "tabb32wave");
 		Find(tabb39wave, "tabb39wave");
 		Find(tabb95wave, "tabb95wave");
+		Find(tabb28wave, "tabb28wave");
+		Find(tabb99wave, "tabb99wave");
 		constexpr std::array windGroups{"left_orbit_light_group",  "right_orbit_light_group", "left_island_light_group",
 										"right_wind_light_group",  "south_wind_light_group",  "west_wind_light_group",
 										"east_wind_2_light_group", "east_wind_1_light_group"};
@@ -3717,7 +3858,7 @@ namespace
 		all.insert(all.end(),
 				   {island_lane_top_light_group, island_lane_bottom_light_group, tabb88wave, s_trip1, s_trip2});
 		all.insert(all.end(), {a_sink4, v_lite568, tabb27wave, tabb70wave});
-		all.insert(all.end(), {s_hole19, s_oneway7, tabb32wave, tabb39wave, tabb95wave});
+		all.insert(all.end(), {s_hole19, s_oneway7, tabb32wave, tabb39wave, tabb95wave, tabb28wave, tabb99wave});
 		for (const auto& dropBank : drop_banks)
 			all.insert(all.end(), dropBank.Targets.begin(), dropBank.Targets.end());
 		if (std::ranges::find(all, nullptr) != all.end())

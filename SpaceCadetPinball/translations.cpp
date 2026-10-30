@@ -8715,6 +8715,18 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Skulduggery_PegLegsLoot,
+		{
+			{ Lang::English, "Pegleg's Loot\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_PegLegsLootHelp,
+		{
+			{ Lang::English, "Hit X to find Peg Leg's Loot" },
+		}
+	},
+	{
 		Msg::Skulduggery_PictureSkillShot,
 		{
 			{ Lang::English, "Skill Shot" },
@@ -8772,6 +8784,12 @@ const TextArray translations::Translations =
 		Msg::Skulduggery_PictureBuckets,
 		{
 			{ Lang::English, "%ld Buckets Bailed" },
+		}
+	},
+	{
+		Msg::Skulduggery_PicturePegLegsLoot,
+		{
+			{ Lang::English, "Peg Leg's Loot" },
 		}
 	}
 };
