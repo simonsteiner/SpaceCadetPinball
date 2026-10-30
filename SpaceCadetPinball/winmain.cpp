@@ -121,6 +121,19 @@ std::map<SDL_JoystickID, std::set<int>> winmain::GamepadHeld{};
 std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> winmain::TouchBindings{};
 Uint64 winmain::EditionHintEnd = 0;
 
+// Skulduggery's Cheats menu: PIRATES.EXE's cheats, whose "hidden test" takes a Tab as DRAGON.EXE's does, and whose
+// gmax switches the balls to their second bitmap, as DRAGON.EXE's PB does
+static void SkulduggeryCheatsMenu()
+{
+	if (ImGui::MenuItem("hidden test", nullptr, pb::cheat_mode))
+		pb::PushCheat("hidden\ttest");
+	for (auto cheat : {"1max", "nmax", "gmax", "quote"})
+	{
+		if (ImGui::MenuItem(cheat))
+			pb::PushCheat(cheat);
+	}
+}
+
 // Splits the command line at spaces and tabs; double quotes keep an argument with spaces together
 static std::vector<std::string> SplitArgs(LPCSTR cmdLine)
 {
@@ -1538,17 +1551,7 @@ void winmain::RenderUi()
 			}
 			else if (pb::Table == Tables::Skulduggery && ImGui::BeginMenu("Cheats"))
 			{
-				// PIRATES.EXE's, which takes the same "hidden test" as DRAGON.EXE; gmax is its smiley ball
-				if (ImGui::MenuItem("hidden test", nullptr, pb::cheat_mode))
-					pb::PushCheat("hidden\ttest");
-				if (ImGui::MenuItem("1max"))
-					pb::PushCheat("1max");
-				if (ImGui::MenuItem("nmax"))
-					pb::PushCheat("nmax");
-				if (ImGui::MenuItem("gmax"))
-					pb::PushCheat("gmax");
-				if (ImGui::MenuItem("quote"))
-					pb::PushCheat("quote");
+				SkulduggeryCheatsMenu();
 				ImGui::EndMenu();
 			}
 			else if (!pb::BonusTable() && ImGui::BeginMenu("Cheats"))
