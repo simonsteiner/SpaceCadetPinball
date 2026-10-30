@@ -17,24 +17,21 @@ The test builds carry the game data, so a device needs nothing but the build (G0
 
 ## Decisions
 
-Each comes with a recommendation; none is decided yet.
-
 Decided 2026-10-30:
 
 - **Test builds carry the game data:** one exe for Windows, one DMG for macOS, one APK for Android and one folder for the web, each with all four data sets in it (G0).
 - **Windows's exe has the data inside,** not beside it in a folder.
 - **The Mac builds its own DMG,** with a script run on it through T3 (`simons-macbook-pro14`); the source comes from Git and the data over the local network.
-- **The builds stay on the devices,** so there is no release for them, and decision 2 below is answered.
+- **The builds stay on the devices,** so there is no release for them and nothing to hand them out with.
 
-Still open:
+Still open, each with a recommendation:
 
 1. **Whether CI builds again.** The test builds don't need it, since G0 makes them on this machine and the Mac. But GitHub Actions has been off on the fork since about 2026-10-25, so nothing since #61 was built for Windows, macOS or the web by CI, and Pages still serves the build of 2026-10-21.
    - **Recommended: turn Actions back on** (a repository setting only the owner can change). `Build` then checks every preset on each pull request again, Pages redeploys the web build, and `ReleaseBuilds.yml` can later make release builds without game data.
    - Otherwise every check stays local, as the hooks and the replays already are.
-2. **How the builds reach the devices:** answered by G0, by hand.
-3. **Signing.** **Recommended: none for testing.** The DMG is ad-hoc signed, so macOS asks once (Open from the context menu, or `xattr -d com.apple.quarantine`); a Developer ID and notarisation wait for a release. The APK is signed with a debug key and sideloaded. Windows SmartScreen warns for an unsigned exe.
-4. **What the builds call themselves.** Today `winmain::Version` says `2.1.1 DEV`. **Recommended:** keep it, and let each test build print its commit (`git describe`) in the About box and its startup line, so a report names the build it came from. The version for a release is decided with the release.
-5. **Android's scope.** **Recommended:** arm64 phones and tablets only, the oldest Android version SDL3 supports, both orientations (portrait uses E1's layout), and the game data brought in as the web build does: a file picker copies the chosen files into the app's private storage, where nothing else can read them, and Settings can remove them again. Which Android version the device runs decides whether that is enough; please name it.
+2. **Signing.** **Recommended: none for testing.** The DMG is ad-hoc signed, so macOS asks once (Open from the context menu, or `xattr -d com.apple.quarantine`); a Developer ID and notarisation wait for a release. The APK is signed with a debug key and sideloaded. Windows SmartScreen warns for an unsigned exe.
+3. **What the builds call themselves.** Today `winmain::Version` says `2.1.1 DEV`. **Recommended:** keep it, and let each test build print its commit (`git describe`) in the About box and its startup line, so a report names the build it came from. The version for a release is decided with the release.
+4. **Android's scope.** **Recommended:** arm64 phones and tablets only, the oldest Android version SDL3 supports, both orientations (portrait uses E1's layout), and the game data brought in as the web build does: a file picker copies the chosen files into the app's private storage, where nothing else can read them, and Settings can remove them again. Which Android version the device runs decides whether that is enough; please name it.
 
 ## Steps
 
@@ -46,13 +43,13 @@ One pull request each, with a checkpoint after each that stops for review, as in
    - **macOS:** no option needed; the script copies the layout into the app's `Contents/Resources`, which `SDL_GetBasePath` returns and the game already searches, and runs `build-mac-app.sh`'s steps, ad-hoc signing the app after the data is in. It runs on the Mac.
    - **Android:** with G5, the layout goes into the APK's assets and is copied into the app's storage at the first start.
    Each build prints its commit at startup and in the About box. Done when each build starts on a machine without game data and finds all four tables.
-2. **G1: builds from CI** (if decision 1 turns Actions on). Check that `Build` and `Pages` run green on `main`; add Windows, web and, after G5, Android jobs to `ReleaseBuilds.yml` beside macOS, pinned by commit SHA as the existing steps are, each running `tools/check-no-game-data.sh` on what it uploads. Without Actions, G1 is a short `docs/deployment.md` section on making the four builds by hand.
+2. **G1: builds from CI** (if decision 1 turns Actions on). Check that `Build` and `Pages` run green on `main`; add Windows, web and, after G5, Android jobs to `ReleaseBuilds.yml` beside macOS, pinned by commit SHA as the existing steps are, each running `tools/check-no-game-data.sh` on the folder it packs before packing it, since the script matches file names and can't see inside a zip, DMG or APK. Without Actions, G1 is a short `docs/deployment.md` section on making the four builds by hand.
 3. **G2: web.** Check G0's web folder in a desktop browser and on the phone: all four tables without loading files, then loading the player's own files in a build without them, saving across a reload (follow-ups item 2), touch, a gamepad, and the Definitive features the web build has.
 4. **G3: Windows.** G0's exe on the Windows device: the compositor's lighting, glow and shaded ball on Direct3D 12, the post-processing switch from CRT to Smooth Edges and back during a game (follow-ups item 3), multiball with the compositor on, native MIDI, the folder dialog of the first-run screen, a gamepad.
 5. **G4: macOS.** G0's DMG on the Mac: the same list on Metal, which runs the hand-written `.msl` shaders for the first time, on the Mac's own architecture of the universal binary.
 6. **G5: Android.** Starts with a spike that builds an APK and loads a table, and sizes the rest; then one pull request per piece:
    - a Gradle project in `Platform/Android/` from SDL3's `android-project` template, building the game through CMake with the vendored SDL, and an `android` preset or script;
-   - the game data: G0's in the test APK, and the player's own as decision 5 settles it; `pb::FindTables` then finds the tables in the app's storage as it does in a data folder;
+   - the game data: G0's in the test APK, and the player's own as decision 4 settles it; `pb::FindTables` then finds the tables in the app's storage as it does in a data folder;
    - the lifecycle: pause on going to the background, and save the settings and high scores then, since Android may end the process without a quit; the back button as Escape; the display cutout through `SDL_GetWindowSafeArea`; full screen;
    - music: there is no native MIDI, so TinySoundFont plays it with the MIT `FluidR3Mono_GM.sf3` the web build already downloads and checks, packed into the APK;
    - rendering: the compositor on SDL's GPU renderer where the device has Vulkan, and the plain frame where it hasn't, as on any machine without a GPU renderer.
@@ -63,8 +60,8 @@ G0 comes first; G2 to G4 then need nothing else and can run in any order, and G1
 
 ## Checklist for each device
 
-- The test build finds each table without any files copied: 3D Pinball's Space Cadet, Full Tilt!'s Space Cadet if its data is there, Dragon's Keep and Skulduggery, switched from the Table screen and back. Once per platform, a build without data: the first-run screen (desktop) or the import (web, Android) with the player's own files.
-- A whole game of each table in Space Cadet 2026, with Tab to Classic and back during it; the HUD, the Mission Guide and the pause screen.
+- The test build finds each table without any files copied: 3D Pinball's Space Cadet, Full Tilt!'s Space Cadet, Dragon's Keep and Skulduggery, switched from the Table screen and back. Once per platform, a build without data: the first-run screen (desktop) or the import (web, Android) with the player's own files.
+- A whole game of each table in Space Cadet 2026, switched to Classic and back during it (Tab, or without a keyboard the pause screen's Switch to Classic and Classic's Options → Space Cadet 2026); the HUD, the Mission Guide and the pause screen.
 - Lighting, lamp glow and the shaded ball at the device's resolution, a multiball, and Upscaled Art; the post-processing effects.
 - Portrait (phone upright, a turned monitor) and the screen rotation option where the device has it.
 - Accessibility: text size, the high-contrast HUD, the colour choices, Reduced Motion.
