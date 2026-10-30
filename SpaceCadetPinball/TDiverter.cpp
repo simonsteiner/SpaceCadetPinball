@@ -67,7 +67,7 @@ int TDiverter::Message(MessageCode code, float value)
 		}
 	case std::to_underlying(MessageCode::Reset):
 		KeepMessageFieldPerPlayer(MessageCode::Reset, value);
-		std::ranges::fill(PlayerActiveFlags, 0);
+		std::ranges::fill(PlayerActiveFlags, char{0});
 		SetEnabled(false);
 		break;
 	default:
