@@ -32,7 +32,7 @@
 // a_spot6, and Sword Fight with the parrot's targets; and the scoring outside the modes: the last scorer, the winds'
 // shots (the orbits, the ramps and their combos, the WINDS lanes and their letters), Port O' Call, the GOLD lanes,
 // the rebounds, a_kick2, the switches of a_bloce, the flippers' turning of the lanes' lights, Secret Hideaway, the
-// Shipwreck Mystery's sinks and the ship's hold.
+// Shipwreck Mystery's sinks and the ship's hold; and the skill shot's awards with the random award.
 // Everything else is still a stand-in that keeps the table playable: kickouts and sinks give back the balls they
 // catch, which only the rules would do otherwise, and a stuck ball is freed as Space Cadet's rules free one.
 //
@@ -282,6 +282,8 @@ namespace
 	int ModeFlags;          // 0x435cf8: the running mode's own count or flags; Attack Ship counts the ships captured
 	int ModeAwardStep;      // 0x435d04: the next of a mode's awards
 	const TPinballComponent* LastScorer; // 0x435d44: the component that scored last, if any
+	bool
+		ShortTexts; // 0x43abac: set while the buried treasure is dug up, which shortens the coins' and treasures' texts
 	// What Treasure Hunt's rollovers bury for Peg Leg's Loot to dig up (0x435d10 to 0x435d28)
 	int BuryStep;
 	int CoinsBuried;
@@ -617,14 +619,18 @@ namespace
 		ShowPicture(FathomPictures[index], time, words.data());
 	}
 
-	void LightFathoms(float time)
+	float LightFathoms(float time)
 	{
 		using enum MessageCode;
 		fathom_light_group->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
 		auto lit = fathom_light_group->Message(TLightGroupGetOnCount, 0.0f);
 		if (time >= 0.0f)
-			ShowFathoms(lit, time + 2.0f);
+		{
+			time += 2.0f;
+			ShowFathoms(lit, time);
+		}
 		Table->ScoreMultiplier = lit + 1;
+		return time;
 	}
 
 	// 0x4243d0: one more fathom light, with its picture for <time> plus 2 s, and the multiplier one more than those lit
@@ -954,9 +960,12 @@ namespace
 		"$&(),.2", "\"$&'*,.", "0\"$%(*,", "20\"#&(*", ".20!$&(", ",.2/\"$&", "*,.10\"$", "(*,-20\"", "&(*+.20",
 	};
 
+	float AwardCoins(float time);
+	float RandomAward(float time);
+
 	// State 3, 0x42abf0: the ball was served. The text box turns the skill shot's award every 0.2 s, and the lane's
-	// exit (s_oneway3) awards the one showing. The awards (coins, a mode, a random award) come with their features;
-	// until then the launch ends in play
+	// exit (s_oneway3) awards the one showing: the random award (RandomAward) or coins, then play, or one of five modes
+	// (Bermuda Triangle, Attack Ship, Treasure Hunt, Tavern, Storm)
 	void LaunchStateControl(MessageCode code, const TPinballComponent* caller)
 	{
 		using enum MessageCode;
@@ -977,7 +986,36 @@ namespace
 		}
 		else if (code == ControlCollision && caller == s_oneway3)
 		{
+			auto award = SkillShotAward();
 			info_text_box->Clear();
+			switch (award)
+			{
+			case 0:
+				RandomAward(0.0f);
+				break;
+			case 1:
+			case 2:
+			case 8:
+				AwardCoins(0.0f);
+				break;
+			case 3:
+				StartMode(BermudaState);
+				return;
+			case 4:
+				StartMode(AttackShipState);
+				return;
+			case 5:
+				StartMode(TreasureHuntState);
+				return;
+			case 6:
+				StartMode(TavernState);
+				return;
+			case 7:
+				StartMode(StormState);
+				return;
+			default:
+				return;
+			}
 			// 0x423460: v_lite606 off, then play
 			v_lite606->Message(TLightResetAndTurnOff, 0.0f);
 			SetState(PlayState);
@@ -1084,9 +1122,16 @@ namespace
 		}
 	}
 
-	// 0x424780: special treasure <index>, its light and its score, with its name for <time> plus 2 s. The random
-	// award's flag that shortens it to 1.625 s (0x43abac) comes with that award
-	void AwardSpecialTreasure(int index)
+	// How long the coins' and the treasures' texts show, each: 0.25 s while the buried treasure is dug up, else 2 s
+	float AwardTextTime()
+	{
+		return ShortTexts ? 0.25f : 2.0f;
+	}
+
+	// 0x424780: special treasure <index>, its light and its score, with its name for <time> plus AwardTextTime. An
+	// index past the Shapiro's Sceptre's, -1 included, is the Crown of Sandige, as PIRATES.EXE compares it unsigned.
+	// Returns how long the name shows
+	float AwardSpecialTreasure(int index, float time)
 	{
 		using enum Msg;
 		struct Treasure
@@ -1100,11 +1145,14 @@ namespace
 			Treasure{Skulduggery_ShapirosSceptre, 1000000}, Treasure{Skulduggery_CrownOfSandige, 1500000},
 		};
 		special_treasure_light_group->MessageField++;
-		index = std::clamp(index, 0, static_cast<int>(treasures.size()) - 1);
+		if (index < 0 || index > 4)
+			index = 5;
 		treasure_lights[index]->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
 		AddScore(nullptr, treasures[index].Score);
-		info_text_box->Display(pb::get_rc_string(treasures[index].Name), 2.0f);
+		time += AwardTextTime();
+		info_text_box->Display(pb::get_rc_string(treasures[index].Name), time);
 		tabb84wave->Play(nullptr, "AwardSpecialTreasure");
+		return time;
 	}
 
 	// 0x4236a0: the ball a sink caught comes out of a_sink8 in play, else out of a_sink14, a_sink15 or a_sink17 at
@@ -1217,26 +1265,29 @@ namespace
 		return time + 4.0f;
 	}
 
-	// 0x423720: the next coin lights, and the coins lit score (0x43d0c0), with the coins' picture for <time> plus 2 s
-	// and the score for 2 s more. Returns how long the texts show
+	// 0x423720: the next coin lights, and the coins lit score (0x43d0c0), with the coins' picture for <time> plus
+	// AwardTextTime and the score for as long again. Returns how long the texts show
 	float AwardCoins(float time)
 	{
 		static constexpr std::array scores{0, 50000, 100000, 200000, 400000, 800000, 1600000};
 		coin_light_group->Message(MessageCode::TLightGroupResetAndTurnOn, 1.0f);
 		auto lit = coin_light_group->Message(MessageCode::TLightGroupGetOnCount, 1.0f);
 		auto score = AddScore(nullptr, scores[std::clamp(lit, 0, static_cast<int>(scores.size()) - 1)]);
-		ShowPicture("D", time + 2.0f, Msg::Skulduggery_PictureCoins);
-		ShowBonus(Msg::Skulduggery_Score, score, time + 4.0f);
+		time += AwardTextTime();
+		ShowPicture("D", time, Msg::Skulduggery_PictureCoins);
+		time += AwardTextTime();
+		ShowBonus(Msg::Skulduggery_Score, score, time);
 		tabb84wave->Play(nullptr, "AwardCoins");
-		return time + 4.0f;
+		return time;
 	}
 
-	// 0x4239d0: an extra ball
-	void AwardExtraBall()
+	// 0x4239d0: an extra ball, shown for <time> plus 2 s. Returns how long it shows
+	float AwardExtraBall(float time)
 	{
 		tabb00wave->Play(nullptr, "AwardExtraBall");
 		Table->ExtraBalls = 1;
-		info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_ExtraBall), 2.0f);
+		info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_ExtraBall), time + 2.0f);
+		return time + 2.0f;
 	}
 
 	// 0x424fb0: a map piece, a special treasure, coins or an extra ball, at random
@@ -1248,13 +1299,13 @@ namespace
 			AwardMapPiece(0.0f);
 			break;
 		case 1:
-			AwardSpecialTreasure(special_treasure_light_group->MessageField);
+			AwardSpecialTreasure(special_treasure_light_group->MessageField, 0.0f);
 			break;
 		case 2:
 			AwardCoins(0.0f);
 			break;
 		default:
-			AwardExtraBall();
+			AwardExtraBall(0.0f);
 			break;
 		}
 	}
@@ -1288,11 +1339,80 @@ namespace
 		return bumpers[1]->MessageField;
 	}
 
-	// 0x425000: the most crew the bumpers can have, with their score shown for <time> plus 2 s
-	void MaxCrew(float time)
+	// 0x425000: the most crew the bumpers can have, with their score shown for <time> plus 2 s unless <time> is
+	// negative. Returns how long it shows
+	float MaxCrew(float time)
 	{
 		Crew() = 6;
+		if (time < 0.0f)
+			return time;
 		ShowBonus(Msg::Skulduggery_MaxCrew, bumpers[0]->get_scoring(6), time + 2.0f);
+		return time + 2.0f;
+	}
+
+	// 0x425ab0: Treasure Hunt's buried treasure is dug up, its texts shortened (ShortTexts): the coins buried, the two
+	// special treasures, the bonus and the jackpot without the multiplier, and the extra ball. The second treasure
+	// reads the first's slot, which is cleared by then, so it is always the Crown of Sandige (AwardSpecialTreasure),
+	// as in PIRATES.EXE. Returns how long the texts show past <time>
+	float DigUpTreasure(float time)
+	{
+		ShortTexts = true;
+		BuryStep = 0;
+		for (; CoinsBuried > 0; CoinsBuried--)
+			time = AwardCoins(time);
+		CoinsBuried = 1;
+		if (TreasureBuried1 != -1)
+		{
+			time = AwardSpecialTreasure(TreasureBuried1, time);
+			TreasureBuried1 = -1;
+		}
+		if (TreasureBuried2 != -1)
+		{
+			time = AwardSpecialTreasure(TreasureBuried1, time);
+			TreasureBuried2 = -1;
+		}
+		if (BonusBuried)
+		{
+			time += 2.0f;
+			ShowBonus(Msg::Skulduggery_BonusScore, AddScoreUnmultiplied(nullptr, BonusBuried), time);
+			BonusBuried = 0;
+		}
+		if (JackpotBuried)
+		{
+			time += 2.0f;
+			ShowBonus(Msg::Skulduggery_JackpotScore, AddScoreUnmultiplied(nullptr, JackpotBuried), time);
+			tabb85wave->Play(nullptr, "DigUpTreasure");
+			JackpotBuried = 0;
+		}
+		if (ExtraBallBuried)
+		{
+			// PIRATES.EXE leaves the extra ball's time out of what it returns
+			AwardExtraBall(time);
+			ExtraBallBuried = false;
+		}
+		ShortTexts = false;
+		return time;
+	}
+
+	// 0x425c50: one of six awards at random: the next special treasure, an extra ball, the bumpers' most crew, the
+	// fathoms, a map piece or the buried treasure. Returns how long its texts show past <time>
+	float RandomAward(float time)
+	{
+		switch (std::min(static_cast<int>(RandFloat() * 6.0f), 5))
+		{
+		case 0:
+			return AwardSpecialTreasure(special_treasure_light_group->MessageField, time);
+		case 1:
+			return AwardExtraBall(time);
+		case 2:
+			return MaxCrew(time);
+		case 3:
+			return LightFathoms(time);
+		case 4:
+			return AwardMapPiece(time);
+		default:
+			return DigUpTreasure(time);
+		}
 	}
 
 	// State 7, 0x42b420: Tavern. The mugs (v_lite547, v_lite546, v_lite545) flash one at a time at random, and the
@@ -1597,7 +1717,7 @@ namespace
 		switch (ModeAwardStep++)
 		{
 		case 0:
-			AwardSpecialTreasure(special_treasure_light_group->MessageField);
+			AwardSpecialTreasure(special_treasure_light_group->MessageField, 0.0f);
 			break;
 		case 1:
 			AwardCoins(0.0f);
@@ -1606,7 +1726,7 @@ namespace
 			AwardMapPiece(0.0f);
 			break;
 		default:
-			AwardExtraBall();
+			AwardExtraBall(0.0f);
 			break;
 		}
 	}
@@ -1730,8 +1850,8 @@ namespace
 			return;
 		}
 
-		// Each bonus shows for 2 s; PIRATES.EXE shortens them to 0.25 s while a flag of the random award is set
-		// (0x43abac), which comes with it
+		// Each bonus shows for 2 s. PIRATES.EXE shortens them to 0.25 s while ShortTexts is set, which it is only while
+		// the buried treasure is dug up, so never here
 		constexpr float textTime = 2.0f;
 		while (true)
 		{
@@ -2275,7 +2395,7 @@ namespace
 			if (caller == a_sink17)
 				AwardJackpot(0.0f);
 			else
-				AwardSpecialTreasure(special_treasure_light_group->MessageField);
+				AwardSpecialTreasure(special_treasure_light_group->MessageField, 0.0f);
 			NextTreasureX();
 			a_sink8->Message(TSinkResetTimer, -1.0f);
 		}
@@ -2382,7 +2502,7 @@ namespace
 			if (GameState() == PlayState && !LightIdle(*v_lite568))
 			{
 				v_lite568->Message(TLightResetAndTurnOff, 0.0f);
-				AwardExtraBall();
+				AwardExtraBall(0.0f);
 			}
 			else
 			{
@@ -2719,8 +2839,8 @@ namespace
 
 	// s_trip11, a_roll5, a_roll1 and a_roll3, 0x429630, 0x429790, 0x429840 and 0x4296d0: in play each lights its
 	// letter of WINDS (LaneLetter); without a map piece from it each scores, and in play its letter's picture shows,
-	// a_roll3's in every state. a_roll5 and a_roll1 also light v_lite544 and switch a_kick2 and s_bwal610 on, and
-	// score even after a map piece
+	// a_roll3's in every state, where it also gives the Shipwreck Mystery instead. a_roll5 and a_roll1 also light
+	// v_lite544 and switch a_kick2 and s_bwal610 on, and score even after a map piece
 	void LaneControl(MessageCode code, TPinballComponent* caller)
 	{
 		if (code != MessageCode::ControlCollision)
@@ -2740,8 +2860,13 @@ namespace
 			}
 			break;
 		case 4:
-			// The Shipwreck Mystery (0x425d10), which a lit v_lite529 gives here in every state, comes with the random
-			// award it gives
+			// The Shipwreck Mystery (0x425d10), in every state: a lit v_lite529 flashes out (0x423a80) for the random
+			// award
+			if (time == 0.0f && !LightIdle(*v_lite529))
+			{
+				v_lite529->Message(MessageCode::TLightFlasherStartTimedThenStayOff, 1.0f);
+				time = RandomAward(0.0f);
+			}
 			if (time == 0.0f)
 			{
 				tabb43wave->Play(nullptr, "LaneControl");

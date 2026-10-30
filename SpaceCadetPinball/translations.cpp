@@ -8685,6 +8685,18 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Skulduggery_BonusScore,
+		{
+			{ Lang::English, "Bonus\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_JackpotScore,
+		{
+			{ Lang::English, "Jackpot\n%ld" },
+		}
+	},
+	{
 		Msg::Skulduggery_PictureSkillShot,
 		{
 			{ Lang::English, "Skill Shot" },
