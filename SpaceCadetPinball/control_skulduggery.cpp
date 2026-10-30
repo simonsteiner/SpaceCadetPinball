@@ -3040,6 +3040,7 @@ namespace
 			ScoreBy(caller, Crew());
 			return;
 		}
+		// The tenth hit gives the jackpot instead of the 25,000, as PIRATES.EXE's 0x426390 does
 		if (++ModeFlags == 10)
 		{
 			ModeFlags = 0;
