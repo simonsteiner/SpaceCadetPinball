@@ -89,7 +89,7 @@ enum class MidiTracks
 	Track1,
 	Track2,
 	Track3,
-	// Dragon's Keep has seven, TABC1 to TABC7
+	// Dragon's Keep has seven, TABC1 to TABC7; Skulduggery's seven play its six, TABB1 to TABB6
 	Track4,
 	Track5,
 	Track6,
@@ -137,6 +137,8 @@ private:
 	static bool StartPlayback(MidiSong* song);
 	static void ShutdownBackend();
 	static MidiSong* load_track(std::string fileName);
+	// Dragon's Keep's or Skulduggery's tracks, as their EXEs load them
+	static void load_bonus_table_tracks();
 	static std::vector<uint8_t>* load_track_sub(std::string fileName, bool isMidi);
 	static std::vector<uint8_t>* ReadFile(const std::string& path);
 	static MidiSong* TrackToMidi(MidiTracks track);

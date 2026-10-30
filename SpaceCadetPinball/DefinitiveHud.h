@@ -21,6 +21,9 @@ public:
 	static const char* RankName(int rank);
 	// The name of a Dragon's Keep quest by its state, 4 to 8, or of Slay Dragon, 9; null for another state
 	static const char* QuestName(int state);
+	// The name of a Skulduggery mode by its state, 4 to 11, or of its multiballs, 12 Lava-Ball and 13 Jailbreak; null
+	// for another state
+	static const char* SkulduggeryModeName(int state);
 
 private:
 	static float DrawContents(ImDrawList* drawList, const TableView& view, ImVec2 min, ImVec2 max);

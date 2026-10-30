@@ -91,6 +91,8 @@ endif()
 
 
 set(SOURCE_FILES
+        SpaceCadetPinball/BonusTableCheats.cpp
+        SpaceCadetPinball/BonusTableCheats.h
         SpaceCadetPinball/control.cpp
         SpaceCadetPinball/control.h
         SpaceCadetPinball/control_dragon.cpp
@@ -204,6 +206,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/TLightSweeps.h
         SpaceCadetPinball/TLine.cpp
         SpaceCadetPinball/TLine.h
+        SpaceCadetPinball/TMagnet.cpp
+        SpaceCadetPinball/TMagnet.h
         SpaceCadetPinball/TOneway.cpp
         SpaceCadetPinball/TOneway.h
         SpaceCadetPinball/TPinballComponent.cpp

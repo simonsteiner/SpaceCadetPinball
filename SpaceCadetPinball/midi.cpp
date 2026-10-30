@@ -320,15 +320,9 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 	}
 	SetVolume(volume);
 
-	if (pb::Table == Tables::DragonsKeep)
+	if (pb::BonusTable())
 	{
-		// Its rules pick the track. DRAGON.EXE loads all but TABC3, which no rule plays, so track 3 stays empty
-		track1 = load_track("TABC1");
-		track2 = load_track("TABC2");
-		track4 = load_track("TABC4");
-		track5 = load_track("TABC5");
-		track6 = load_track("TABC6");
-		track7 = load_track("TABC7");
+		load_bonus_table_tracks();
 	}
 	else if (pb::FullTiltMode)
 	{
@@ -399,6 +393,33 @@ void midi::SetVolume(int volume)
 	if (Backend == MidiBackend::Native)
 		NativeMidi_SetVolume(gain);
 #endif
+}
+
+void midi::load_bonus_table_tracks()
+{
+	if (pb::Table == Tables::DragonsKeep)
+	{
+		// Its rules pick the track. DRAGON.EXE loads all but TABC3, which no rule plays, so track 3 stays empty
+		track1 = load_track("TABC1");
+		track2 = load_track("TABC2");
+		track4 = load_track("TABC4");
+		track5 = load_track("TABC5");
+		track6 = load_track("TABC6");
+		track7 = load_track("TABC7");
+		return;
+	}
+
+	// PIRATES.EXE loads TABB1 to TABB6, plays TABB1 for any of them that is missing, and has a seventh track that is
+	// TABB5
+	track1 = load_track("TABB1");
+	std::array tracks{&track2, &track3, &track4, &track5, &track6};
+	for (auto index = 0u; index < tracks.size(); index++)
+	{
+		*tracks[index] = load_track(std::format("TABB{}", index + 2));
+		if (!*tracks[index])
+			*tracks[index] = track1;
+	}
+	track7 = track5;
 }
 
 MidiSong* midi::load_track(std::string fileName)

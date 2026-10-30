@@ -104,6 +104,15 @@ enum class MessageCode
 
 	TKickoutRestartTimer = 55,
 
+	// CADET.EXE's numbers, the bonus tables only: TKickout, TKickback and TMagnet switched on and off. TKickout lets
+	// go of a ball it holds as it goes off; a TKickback that is off doesn't kick
+	TKickoutEnable = 75,
+	TKickoutDisable = 76,
+	TKickbackEnable = 75,
+	TKickbackDisable = 76,
+	TMagnetEnable = 75,
+	TMagnetDisable = 76,
+
 	TSinkUnknown7 = 7,
 	TSinkResetTimer = 56,
 
@@ -140,6 +149,9 @@ enum class MessageCode
 
 	// Dragon's Keep's rules only, DRAGON.EXE's numbers, which its rules send only among themselves
 	DragonSkipBonusText = 1,
+	// The component that scored last no longer is, as another one scores (0x4d); Skulduggery's ramps and orbits end
+	// their combos on it
+	DragonScorerReplaced = 77,
 	DragonEnterState = 79,
 	DragonShowStateText = 80,
 	DragonQuestResume = 81,

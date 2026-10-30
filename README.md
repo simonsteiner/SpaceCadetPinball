@@ -4,7 +4,7 @@
 
 Reverse engineering of `3D Pinball for Windows - Space Cadet`, the pinball game bundled with Windows, as a cross-platform C++ port on SDL3.
 It runs on desktop Windows, Linux and macOS and plays the original data files from either the Windows or the Full Tilt! Pinball release.
-This fork also plays Full Tilt!'s Dragon's Keep from `DRAGON.DAT` ([setup](docs/setup.md#dragons-keep)).
+This fork also plays Full Tilt!'s Dragon's Keep from `DRAGON.DAT` and Skulduggery from `PIRATES.DAT` ([Dragon's Keep](docs/setup.md#dragons-keep), [Skulduggery](docs/setup.md#skulduggery)).
 
 This is [simonsteiner's fork](https://github.com/simonsteiner/SpaceCadetPinball) of [k4zmu2a/SpaceCadetPinball](https://github.com/k4zmu2a/SpaceCadetPinball). Work happens on `main`; `master` tracks upstream. Dated work plans are in [`docs/plan/`](docs/plan/); the newest is current.
 
@@ -74,7 +74,7 @@ Platforms covered by this project: desktop Windows, Linux and macOS.
 * ~~Cross-platform port using SDL2, SDL2_mixer, ImGui~~ (now SDL3 and SDL3_mixer)
 * Full Tilt Cadet features
 * Localization support
-* Maybe: Support for the other two tables - Dragon and Pirate
+* ~~Maybe: Support for the other two tables - Dragon and Pirate~~ (done in this fork: Dragon's Keep and Skulduggery)
 * Maybe: Game data editor
 
 ## On 64-bit bug that killed the game

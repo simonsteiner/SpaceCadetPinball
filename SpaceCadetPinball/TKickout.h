@@ -12,6 +12,7 @@ public:
 	void Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
 	               TEdgeSegment* edge) override;
 	int FieldEffect(TBall* ball, vector2* vecDst) override;
+	void TurnOff();
 
 	static void TimerExpired(int timerId, void* caller);
 	static void ResetTimerExpired(int timerId, void* caller);

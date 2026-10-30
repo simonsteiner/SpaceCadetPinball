@@ -7815,6 +7815,294 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_Mode,
+		{
+			{ Lang::English, "Mode" },
+		}
+	},
+	{
+		Msg::Definitive_NextMode,
+		{
+			{ Lang::English, "Next mode: %s" },
+		}
+	},
+	{
+		Msg::Definitive_ModesDone,
+		{
+			{ Lang::English, "Modes done: %s" },
+		}
+	},
+	{
+		Msg::Definitive_BallsInPlay,
+		{
+			{ Lang::English, "Balls in play: %s" },
+		}
+	},
+	{
+		Msg::Definitive_Brig,
+		{
+			{ Lang::English, "In the Brig" },
+		}
+	},
+	{
+		Msg::Definitive_Coins,
+		{
+			{ Lang::English, "Coins" },
+		}
+	},
+	{
+		Msg::Definitive_SpecialTreasures,
+		{
+			{ Lang::English, "Special Treasures" },
+		}
+	},
+	{
+		Msg::Definitive_MapPieces,
+		{
+			{ Lang::English, "Map Pieces" },
+		}
+	},
+	{
+		Msg::Definitive_AttackShip,
+		{
+			{ Lang::English, "Attack Ship" },
+		}
+	},
+	{
+		Msg::Definitive_BermudaTriangle,
+		{
+			{ Lang::English, "Bermuda Triangle" },
+		}
+	},
+	{
+		Msg::Definitive_Storm,
+		{
+			{ Lang::English, "Storm" },
+		}
+	},
+	{
+		Msg::Definitive_Tavern,
+		{
+			{ Lang::English, "Tavern" },
+		}
+	},
+	{
+		Msg::Definitive_TreasureHunt,
+		{
+			{ Lang::English, "Treasure Hunt" },
+		}
+	},
+	{
+		Msg::Definitive_Mutiny,
+		{
+			{ Lang::English, "Mutiny" },
+		}
+	},
+	{
+		Msg::Definitive_SwordFight,
+		{
+			{ Lang::English, "Sword Fight" },
+		}
+	},
+	{
+		Msg::Definitive_PegLegsLoot,
+		{
+			{ Lang::English, "Peg Leg's Loot" },
+		}
+	},
+	{
+		Msg::Definitive_LavaBall,
+		{
+			{ Lang::English, "Lava-Ball" },
+		}
+	},
+	{
+		Msg::Definitive_Jailbreak,
+		{
+			{ Lang::English, "Jailbreak" },
+		}
+	},
+	{
+		Msg::Definitive_GuideModes,
+		{
+			{ Lang::English, "Modes" },
+		}
+	},
+	{
+		Msg::Definitive_GuideBrig,
+		{
+			{ Lang::English, "The Brig" },
+		}
+	},
+	{
+		Msg::Definitive_GuideSkulduggeryModes,
+		{
+			{ Lang::English, "Eight modes each run against the clock. The mode light that flashes on the wheel is the mode picked next: in play, spell SKULDUGGERY with the eleven drop targets (the tavern's three, the ship's five and the parrot's three) to start it, and the letters start over. The skill shot starts five of the modes too. The captive ball, knocked into the target behind it, picks another mode, or adds 10 seconds to the mode that runs. A mode's clock starts once its lights have swept the table. A mode ends when its time runs out or its ball drains, unless the ball save serves the ball again; either way it is done: its light stays on, 750,000 goes to the jackpot, it counts for the Mode Bonus and the next mode is picked. Once all six map pieces are found, the pick is Peg Leg's Loot." },
+		}
+	},
+	{
+		Msg::Definitive_GuideSkulduggeryJackpot,
+		{
+			{ Lang::English, "The jackpot starts each game at 1,000,000 and stays when it is awarded, growing up to 10,000,000: by 20,000 with every drop target and stationary target hit, by 40,000 with every ball in a sink, and by 750,000 with every mode done. Attack Ship, Treasure Hunt, Tavern, Bermuda Triangle, Storm, Mutiny and Peg Leg's Loot award it, as their rows say, and so does buried treasure when it is dug up." },
+		}
+	},
+	{
+		Msg::Definitive_GuideSkillShotTitle,
+		{
+			{ Lang::English, "Skill Shot" },
+		}
+	},
+	{
+		Msg::Definitive_GuideSkillShot,
+		{
+			{ Lang::English, "While the ball is in the launch lane, the display rolls through nine awards, one every 0.2 seconds, and the ball leaving the lane takes the one showing. Three give coins, five start a mode (Bermuda Triangle, Attack Ship, Treasure Hunt, Tavern or Storm), and the question mark gives the Shipwreck Mystery: the next special treasure, an extra ball, the bumpers' most crew, the fathom lights, a map piece, or the buried treasure dug up. While the Shipwreck Mystery light is lit, the right outlane gives it too. Each coin award lights a coin on the wheel and scores 50,000, doubling with each coin up to 1,600,000 for the sixth." },
+		}
+	},
+	{
+		Msg::Definitive_GuideBonusTitle,
+		{
+			{ Lang::English, "Bonus" },
+		}
+	},
+	{
+		Msg::Definitive_GuideSkulduggeryBonus,
+		{
+			{ Lang::English, "When a ball drains, the bonus counts 10,000 for each drop target hit with it, 200,000 for each mode played in this game, 250,000 for each map piece found and 100,000 for each special treasure, and adds the Ship's Hold. In Mutiny the ship sink lights the Ship's Hold light between the flippers, which keeps this ball's bonus to be paid again with the next. A ball that drains within about 15 seconds of leaving the launch lane is served again." },
+		}
+	},
+	{
+		Msg::Definitive_GuideAttackShip,
+		{
+			{ Lang::English, "Starts from the spelled word or the skill shot, for 200,000. Knock down all five ship targets, or put the ball in the ship sink, to sink the ship for the jackpot; each ship target scores 10,000, and the full bank 25,000 more. The ship wire ramp captures the ship: all six fathom lights, for a 7x multiplier." },
+		}
+	},
+	{
+		Msg::Definitive_GuideBermudaTriangle,
+		{
+			{ Lang::English, "Starts from the spelled word or the skill shot, for 200,000. One wind flashes at a time, in turn the two orbits, the two ramps and the four wind lanes: the shot of the flashing wind follows it and scores 125,000, then 250,000, 500,000 and 1,000,000, and the fifth the jackpot, after which the count starts over. Any other wind's shot scores 50,000. The kickout in the triangle scores One Million, and a ball in a hideaway lights the Shipwreck Mystery." },
+		}
+	},
+	{
+		Msg::Definitive_GuideStorm,
+		{
+			{ Lang::English, "Starts from the spelled word or the skill shot, for 300,000. The wind lights lit as it starts set its strength: up to 5 a Squall, 10,000 a target and the jackpot every eighth; up to 10 a Tropical Storm, 25,000 and every seventh; up to 15 a Monsoon, 50,000 and every sixth; more a Hurricane, 100,000 and every fifth. Every drop target bails a bucket. The west wind lane lights the ball save for 10 seconds, and the kickout the storm opens scores One Million. A ball in a hideaway shipwrecks you: the mode ends and the Shipwreck Mystery lights." },
+		}
+	},
+	{
+		Msg::Definitive_GuideTavern,
+		{
+			{ Lang::English, "Starts from the spelled word or the skill shot, for 200,000. The three tavern window lights flash one at a time, briefly and at random: the ball in a tavern window sink while its light flashes gives a map piece with One Million, the next special treasure, coins or an extra ball. Each tavern target switches a magnet on under a keg light for 25,000, and a ball crossing a magnet that is on switches it off for 100,000. All three tavern targets give the jackpot and 50,000." },
+		}
+	},
+	{
+		Msg::Definitive_GuideTreasureHunt,
+		{
+			{ Lang::English, "Starts from the spelled word or the skill shot, for 300,000. An X flashes by one sink at a time, in a fixed order of five: the ball in that sink finds the next special treasure, 100,000 to 1,500,000, and at the fifth the jackpot; then the next X flashes. A sink without the X is a Secret Hideaway. The two east wind lanes bury coins, two special treasures, the bonus, the jackpot and an extra ball, one at a time, for the Shipwreck Mystery to dig up." },
+		}
+	},
+	{
+		Msg::Definitive_GuideMutiny,
+		{
+			{ Lang::English, "Starts only from the spelled word, for 100,000. Each bumper hit scores 25,000 and every tenth the jackpot. The ship sink lights the Ship's Hold. Out of the mode, every twelfth bumper hit adds a crew, up to six, and each crew raises the bumpers' score, from 1,500 up to 10,500." },
+		}
+	},
+	{
+		Msg::Definitive_GuideSwordFight,
+		{
+			{ Lang::English, "Starts only from the spelled word, for 250,000. Each of the four volcano targets and the three parrot targets scores 30,000. All four volcano targets, or all three parrot targets, give the next award: a special treasure, then coins, then a map piece with One Million, then extra balls." },
+		}
+	},
+	{
+		Msg::Definitive_GuidePegLegsLoot,
+		{
+			{ Lang::English, "The final mode, picked once all six map pieces are found; the spelled word starts it, for 1,000,000. Put the ball in the ship sink, whose X flashes, for the loot: the fathom lights' 7x multiplier, the bumpers' most crew and the jackpot, then 500,000 for each coin and special treasure lit and One Million for each map piece and mode played, at that multiplier. Then the mode ends and Lava-Ball starts. The other five sinks with an X find the next special treasure, and each light rollover adds 50,000 to the jackpot. As it ends, the map pieces go out, and so do the mode lights but Sword Fight's and its own." },
+		}
+	},
+	{
+		Msg::Definitive_GuideLavaBall,
+		{
+			{ Lang::English, "In play, hitting all four volcano targets starts it: the brig's balls are kicked out and more are served to make three. Spelling SKULDUGGERY during it finds a map piece instead of starting a mode. Peg Leg's Loot starts it too as it ends. It ends when one ball is left." },
+		}
+	},
+	{
+		Msg::Definitive_GuideJailbreak,
+		{
+			{ Lang::English, "The brig target's third hit in play, or a third ball in the brig, starts it: the brig's balls are kicked back into play for 100,000. With the brig empty, the brig target's third hit only flashes the crew lights out. It ends when one ball is left." },
+		}
+	},
+	{
+		Msg::Definitive_GuideBrigText,
+		{
+			{ Lang::English, "A ball that drops into the brig's hole shows In The Brig and leaves play, and a new ball is served. The brig keeps up to two balls; the third starts Jailbreak. The brig's balls come back into play in Jailbreak, in Lava-Ball and on the game's last ball." },
+		}
+	},
+	{
+		Msg::Definitive_StatModes,
+		{
+			{ Lang::English, "Modes done" },
+		}
+	},
+	{
+		Msg::Definitive_StatLoots,
+		{
+			{ Lang::English, "Peg Leg's Loot found" },
+		}
+	},
+	{
+		Msg::Definitive_StatEachMode,
+		{
+			{ Lang::English, "Modes done, one by one" },
+		}
+	},
+	{
+		Msg::Definitive_AchFirstMode,
+		{
+			{ Lang::English, "Anchors aweigh" },
+		}
+	},
+	{
+		Msg::Definitive_AchFirstModeText,
+		{
+			{ Lang::English, "Complete a mode" },
+		}
+	},
+	{
+		Msg::Definitive_AchSevenModes,
+		{
+			{ Lang::English, "Scourge of the seas" },
+		}
+	},
+	{
+		Msg::Definitive_AchSevenModesText,
+		{
+			{ Lang::English, "Complete all seven modes before Peg Leg's Loot in one game" },
+		}
+	},
+	{
+		Msg::Definitive_AchEveryMode,
+		{
+			{ Lang::English, "Old salt" },
+		}
+	},
+	{
+		Msg::Definitive_AchEveryModeText,
+		{
+			{ Lang::English, "Complete each of the seven modes before Peg Leg's Loot at least once" },
+		}
+	},
+	{
+		Msg::Definitive_AchPegLegsLoot,
+		{
+			{ Lang::English, "Peg Leg's heir" },
+		}
+	},
+	{
+		Msg::Definitive_AchPegLegsLootText,
+		{
+			{ Lang::English, "Find Peg Leg's Loot" },
+		}
+	},
+	{
 		Msg::FullTilt_Caption,
 		{
 			{ Lang::English, "Full Tilt! - Space Cadet" },
@@ -8274,6 +8562,552 @@ const TextArray translations::Translations =
 		Msg::Dragon_ExtraBallLight,
 		{
 			{ Lang::English, "Extra Ball Light" },
+		}
+	},
+	{
+		Msg::Skulduggery_Caption,
+		{
+			{ Lang::English, "Full Tilt! - Skulduggery" },
+		}
+	},
+	{
+		Msg::Skulduggery_ShootAgain,
+		{
+			{ Lang::English, "Shoot Again" },
+		}
+	},
+	{
+		Msg::Skulduggery_HighScore,
+		{
+			{ Lang::English, "HIGH SCORE" },
+		}
+	},
+	{
+		Msg::Skulduggery_TargetBonus,
+		{
+			{ Lang::English, "Target Bonus\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_ModeBonus,
+		{
+			{ Lang::English, "Mode Bonus\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_MapPieceBonus,
+		{
+			{ Lang::English, "Map Piece Bonus\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_SpecialTreasures,
+		{
+			{ Lang::English, "Special Treasures\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_ShipsHold,
+		{
+			{ Lang::English, "Ship's Hold\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_TotalBonus,
+		{
+			{ Lang::English, "Total Bonus\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_SpellSkulduggery,
+		{
+			{ Lang::English, "Spell Skulduggery to Start Mode" },
+		}
+	},
+	{
+		Msg::Skulduggery_AttackModeSelected,
+		{
+			{ Lang::English, "Attack Mode Selected" },
+		}
+	},
+	{
+		Msg::Skulduggery_TreasureHuntModeSelected,
+		{
+			{ Lang::English, "Treasure Hunt Mode Selected" },
+		}
+	},
+	{
+		Msg::Skulduggery_TavernModeSelected,
+		{
+			{ Lang::English, "Tavern Mode Selected" },
+		}
+	},
+	{
+		Msg::Skulduggery_BermudaModeSelected,
+		{
+			{ Lang::English, "Bermuda Mode Selected" },
+		}
+	},
+	{
+		Msg::Skulduggery_StormModeSelected,
+		{
+			{ Lang::English, "Storm Mode Selected" },
+		}
+	},
+	{
+		Msg::Skulduggery_MutinyModeSelected,
+		{
+			{ Lang::English, "Mutiny Mode Selected" },
+		}
+	},
+	{
+		Msg::Skulduggery_SwordfightModeSelected,
+		{
+			{ Lang::English, "Swordfight Mode Selected" },
+		}
+	},
+	{
+		Msg::Skulduggery_PeglegsLootModeSelected,
+		{
+			{ Lang::English, "Pegleg's Loot Mode Selected" },
+		}
+	},
+	{
+		Msg::Skulduggery_Score,
+		{
+			{ Lang::English, "%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_AttackShip,
+		{
+			{ Lang::English, "Attack Ship\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_ShipSunk,
+		{
+			{ Lang::English, "Ship Sunk" },
+		}
+	},
+	{
+		Msg::Skulduggery_ShipCaptured,
+		{
+			{ Lang::English, "Ship Captured" },
+		}
+	},
+	{
+		Msg::Skulduggery_AttackShipHelp,
+		{
+			{ Lang::English, "Hit ship to sink.\nWire ramp to capture." },
+		}
+	},
+	{
+		Msg::Skulduggery_TreasureHunt,
+		{
+			{ Lang::English, "Treasure Hunt\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_TreasureHuntHelp,
+		{
+			{ Lang::English, "Hit the X to find treasure" },
+		}
+	},
+	{
+		Msg::Skulduggery_SecretHideaway,
+		{
+			{ Lang::English, "Secret Hideaway\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_GoldIngots,
+		{
+			{ Lang::English, "Gold Ingots" },
+		}
+	},
+	{
+		Msg::Skulduggery_SilverChalice,
+		{
+			{ Lang::English, "Silver Chalice" },
+		}
+	},
+	{
+		Msg::Skulduggery_SignetRing,
+		{
+			{ Lang::English, "Signet Ring" },
+		}
+	},
+	{
+		Msg::Skulduggery_FrantzRuby,
+		{
+			{ Lang::English, "The Frantz Ruby" },
+		}
+	},
+	{
+		Msg::Skulduggery_ShapirosSceptre,
+		{
+			{ Lang::English, "Shapiro's Sceptre" },
+		}
+	},
+	{
+		Msg::Skulduggery_CrownOfSandige,
+		{
+			{ Lang::English, "Crown of Sandige" },
+		}
+	},
+	{
+		Msg::Skulduggery_GoldIngotsBuried,
+		{
+			{ Lang::English, "Gold Ingots\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_SilverChaliceBuried,
+		{
+			{ Lang::English, "Silver Chalice\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_SignetRingBuried,
+		{
+			{ Lang::English, "Signet Ring\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_FrantzRubyBuried,
+		{
+			{ Lang::English, "The Frantz Ruby\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_ShapirosSceptreBuried,
+		{
+			{ Lang::English, "Shapiro's Sceptre\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_CrownOfSandigeBuried,
+		{
+			{ Lang::English, "Crown of Sandige\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_CoinsBuried,
+		{
+			{ Lang::English, "Coins\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_BonusBuried,
+		{
+			{ Lang::English, "Bonus\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_JackpotBuried,
+		{
+			{ Lang::English, "Jackpot\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_ExtraBallBuried,
+		{
+			{ Lang::English, "Extra Ball\nBuried" },
+		}
+	},
+	{
+		Msg::Skulduggery_Tavern,
+		{
+			{ Lang::English, "Tavern\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_TavernHelp,
+		{
+			{ Lang::English, "Hit the Tavern" },
+		}
+	},
+	{
+		Msg::Skulduggery_OneMillion,
+		{
+			{ Lang::English, "One Million" },
+		}
+	},
+	{
+		Msg::Skulduggery_ExtraBall,
+		{
+			{ Lang::English, "Extra Ball" },
+		}
+	},
+	{
+		Msg::Skulduggery_Bermuda,
+		{
+			{ Lang::English, "Bermuda Triangle\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_BermudaHelp,
+		{
+			{ Lang::English, "Follow the Winds" },
+		}
+	},
+	{
+		Msg::Skulduggery_Squall,
+		{
+			{ Lang::English, "Squall!\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_TropicalStorm,
+		{
+			{ Lang::English, "Tropical Storm!\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_Monsoon,
+		{
+			{ Lang::English, "Monsoon!\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_Hurricane,
+		{
+			{ Lang::English, "Hurricane!\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_StormHelp,
+		{
+			{ Lang::English, "Hit targets to bail water" },
+		}
+	},
+	{
+		Msg::Skulduggery_Shipwrecked,
+		{
+			{ Lang::English, "Shipwrecked" },
+		}
+	},
+	{
+		Msg::Skulduggery_ShipwreckMysteryAvailable,
+		{
+			{ Lang::English, "Shipwreck Mystery\nAvailable" },
+		}
+	},
+	{
+		Msg::Skulduggery_Mutiny,
+		{
+			{ Lang::English, "Mutiny!\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_MutinyHelp,
+		{
+			{ Lang::English, "Hit Bumpers to supress rebellion" },
+		}
+	},
+	{
+		Msg::Skulduggery_CrewAdded,
+		{
+			{ Lang::English, "Crew Added\nBumpers Now\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_MaxCrew,
+		{
+			{ Lang::English, "Max Crew\nBumpers Now\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_SwordFight,
+		{
+			{ Lang::English, "Sword Fight\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_SwordFightHelp,
+		{
+			{ Lang::English, "Hit Parrot and Volcano targets" },
+		}
+	},
+	{
+		Msg::Skulduggery_TradewindLoop,
+		{
+			{ Lang::English, "Tradewind Loop\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_IslandBreeze,
+		{
+			{ Lang::English, "Island Breeze\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_NorEaster,
+		{
+			{ Lang::English, "Nor'Easter\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_PortOCall,
+		{
+			{ Lang::English, "Port O' Call\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_SouEastern,
+		{
+			{ Lang::English, "Sou'Eastern\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_Westerly,
+		{
+			{ Lang::English, "Westerly\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_Easterly,
+		{
+			{ Lang::English, "Easterly\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_BonusScore,
+		{
+			{ Lang::English, "Bonus\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_JackpotScore,
+		{
+			{ Lang::English, "Jackpot\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_InTheBrig,
+		{
+			{ Lang::English, "In The Brig" },
+		}
+	},
+	{
+		Msg::Skulduggery_LavaBall,
+		{
+			{ Lang::English, "Lava-Ball" },
+		}
+	},
+	{
+		Msg::Skulduggery_JailBreak,
+		{
+			{ Lang::English, "Jail Break!" },
+		}
+	},
+	{
+		Msg::Skulduggery_PegLegsLoot,
+		{
+			{ Lang::English, "Pegleg's Loot\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_PegLegsLootHelp,
+		{
+			{ Lang::English, "Hit X to find Peg Leg's Loot" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureSkillShot,
+		{
+			{ Lang::English, "Skill Shot" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureAttackShip,
+		{
+			{ Lang::English, "Attack Ship" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureTreasureHunt,
+		{
+			{ Lang::English, "Treasure Hunt" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureTavern,
+		{
+			{ Lang::English, "Tavern" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureKeg,
+		{
+			{ Lang::English, "Keg" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureMapPiece,
+		{
+			{ Lang::English, "Map Piece" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureCoins,
+		{
+			{ Lang::English, "Coins" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureMultiplier,
+		{
+			{ Lang::English, "%ldx Multiplier" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureBermuda,
+		{
+			{ Lang::English, "Bermuda Triangle" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureBuckets,
+		{
+			{ Lang::English, "Buckets Bailed: %ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureLetterW,
+		{
+			{ Lang::English, "W" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureLetterI,
+		{
+			{ Lang::English, "I" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureLetterN,
+		{
+			{ Lang::English, "N" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureLetterD,
+		{
+			{ Lang::English, "D" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureLetterS,
+		{
+			{ Lang::English, "S" },
+		}
+	},
+	{
+		Msg::Skulduggery_PicturePegLegsLoot,
+		{
+			{ Lang::English, "Peg Leg's Loot" },
 		}
 	}
 };

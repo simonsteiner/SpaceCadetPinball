@@ -192,6 +192,47 @@ namespace
 			return {SlayDragon, 0};
 		return {Basics, -1};
 	}
+
+	// Skulduggery's tabs, in their order on screen
+	enum class SkulduggeryTab
+	{
+		Basics,
+		Modes,
+		Brig,
+		PegLegsLoot,
+	};
+
+	constexpr auto SkulduggeryTabs = std::to_array({Msg::Definitive_GuideBasics, Msg::Definitive_GuideModes,
+													Msg::Definitive_GuideBrig, Msg::Definitive_PegLegsLoot});
+
+	using Pirates = TableView::Skulduggery;
+
+	// Each mode's time as its text first counts it, in whole seconds, by its state from 4 to 11
+	constexpr auto SkulduggerySeconds = std::to_array({29, 31, 24, 27, 30, 48, 29, 30});
+
+	// The guide's text of a mode or multiball by its state, 4 to 13
+	const char* SkulduggeryGuideText(int state)
+	{
+		return Text(
+			static_cast<Msg>(std::to_underlying(Msg::Definitive_GuideAttackShip) + state - Pirates::FirstModeState));
+	}
+
+	// The tab with what runs, and its row; the basics while nothing does. The brig's tab has the brig, then
+	// Jailbreak and Lava-Ball
+	std::pair<SkulduggeryTab, int> SkulduggeryRunning(const TableView& view)
+	{
+		using enum SkulduggeryTab;
+		auto state = view.Pirates.State;
+		if (state >= Pirates::FirstModeState && state < Pirates::PegLegsLootState)
+			return {Modes, state - Pirates::FirstModeState};
+		if (state == Pirates::PegLegsLootState)
+			return {PegLegsLoot, 0};
+		if (state == Pirates::JailbreakState)
+			return {Brig, 1};
+		if (state == Pirates::LavaBallState)
+			return {Brig, 2};
+		return {Basics, -1};
+	}
 } // namespace
 
 void DefinitiveGuide::Open(const TableView& view)
@@ -199,6 +240,15 @@ void DefinitiveGuide::Open(const TableView& view)
 	if (view.Kind == TableView::TableKind::DragonsKeep)
 	{
 		auto [tab, focus] = DragonRunning(view);
+		Current = std::to_underlying(tab);
+		Focus = focus;
+		FocusFrames = 3;
+		Opened = true;
+		return;
+	}
+	if (view.Kind == TableView::TableKind::Skulduggery)
+	{
+		auto [tab, focus] = SkulduggeryRunning(view);
 		Current = std::to_underlying(tab);
 		Focus = focus;
 		FocusFrames = 3;
@@ -229,10 +279,16 @@ bool DefinitiveGuide::Render(const TableView& view)
 	// The basics, then each pair of ranks by the name of the first
 	auto tabsY = panel.Min.y + panel.Padding + 48 * scale;
 	auto dragon = view.Kind == TableView::TableKind::DragonsKeep;
+	auto skulduggery = view.Kind == TableView::TableKind::Skulduggery;
 	std::vector tabs{Text(Msg::Definitive_GuideBasics)};
 	if (dragon)
 	{
 		for (auto tab : std::span(DragonTabs).subspan(1))
+			tabs.push_back(Text(tab));
+	}
+	else if (skulduggery)
+	{
+		for (auto tab : std::span(SkulduggeryTabs).subspan(1))
 			tabs.push_back(Text(tab));
 	}
 	else
@@ -262,6 +318,8 @@ bool DefinitiveGuide::Render(const TableView& view)
 	auto row = 0;
 	if (dragon)
 		RenderDragon(view, row);
+	else if (skulduggery)
+		RenderSkulduggery(view, row);
 	else if (Current == 0)
 		RenderBasics(view, row);
 	else
@@ -395,6 +453,53 @@ void DefinitiveGuide::RenderDragon(const TableView& view, int& row)
 	case DragonTab::SlayDragon:
 		Paragraph(row, "slay", Text(Definitive_SlayDragon), nullptr, Text(Definitive_GuideSlayDragon),
 				  now(DragonTab::SlayDragon, 0));
+		break;
+	}
+}
+
+void DefinitiveGuide::RenderSkulduggery(const TableView& view, int& row)
+{
+	using enum Msg;
+	auto [runningTab, runningRow] = SkulduggeryRunning(view);
+	auto now = [&](SkulduggeryTab tab, int index)
+	{ return tab == runningTab && index == runningRow ? Text(Definitive_GuideNow) : nullptr; };
+	auto seconds = [](int state)
+	{
+		return Ui::Fill(Text(Definitive_GuideSeconds),
+						std::to_string(SkulduggerySeconds[state - Pirates::FirstModeState]));
+	};
+	switch (static_cast<SkulduggeryTab>(Current))
+	{
+	case SkulduggeryTab::Basics:
+		Paragraph(row, "modes", Text(Definitive_GuideModes), nullptr, Text(Definitive_GuideSkulduggeryModes), nullptr);
+		Paragraph(row, "jackpot", Text(Definitive_Jackpot), nullptr, Text(Definitive_GuideSkulduggeryJackpot), nullptr);
+		Paragraph(row, "skillshot", Text(Definitive_GuideSkillShotTitle), nullptr, Text(Definitive_GuideSkillShot),
+				  nullptr);
+		Paragraph(row, "bonus", Text(Definitive_GuideBonusTitle), nullptr, Text(Definitive_GuideSkulduggeryBonus),
+				  nullptr);
+		break;
+	case SkulduggeryTab::Modes:
+		for (auto state = Pirates::FirstModeState; state < Pirates::PegLegsLootState; state++)
+		{
+			ImGui::PushID(state);
+			Paragraph(row, "mode", DefinitiveHud::SkulduggeryModeName(state), seconds(state).c_str(),
+					  SkulduggeryGuideText(state), now(SkulduggeryTab::Modes, state - Pirates::FirstModeState));
+			ImGui::PopID();
+		}
+		break;
+	case SkulduggeryTab::Brig:
+		{
+			Paragraph(row, "brig", Text(Definitive_GuideBrig), nullptr, Text(Definitive_GuideBrigText), nullptr);
+			auto balls = Ui::Fill(Text(Definitive_GuideBalls), "3");
+			Paragraph(row, "jailbreak", DefinitiveHud::SkulduggeryModeName(Pirates::JailbreakState), nullptr,
+					  SkulduggeryGuideText(Pirates::JailbreakState), now(SkulduggeryTab::Brig, 1));
+			Paragraph(row, "lavaball", DefinitiveHud::SkulduggeryModeName(Pirates::LavaBallState), balls.c_str(),
+					  SkulduggeryGuideText(Pirates::LavaBallState), now(SkulduggeryTab::Brig, 2));
+			break;
+		}
+	case SkulduggeryTab::PegLegsLoot:
+		Paragraph(row, "pegleg", Text(Definitive_PegLegsLoot), seconds(Pirates::PegLegsLootState).c_str(),
+				  SkulduggeryGuideText(Pirates::PegLegsLootState), now(SkulduggeryTab::PegLegsLoot, 0));
 		break;
 	}
 }

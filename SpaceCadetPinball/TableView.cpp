@@ -161,6 +161,11 @@ uint64_t TableView::Hash() const
 					   static_cast<int>(Dragon.QuestLights), Dragon.QuestsDone, Dragon.Jackpot, Dragon.SuperJackpot,
 					   Dragon.Eggs, Dragon.Weapons, static_cast<int>(Dragon.Armor), Dragon.HitsLeft, Dragon.BallSaves})
 		hash.Add(value);
+	for (auto value :
+		 {Pirates.State, Pirates.PickedMode, Pirates.TimeLeft, static_cast<int>(Pirates.ModeLights), Pirates.ModesDone,
+		  static_cast<int>(Pirates.Letters), Pirates.Jackpot, Pirates.BrigBalls, Pirates.BallsInPlay, Pirates.Coins,
+		  Pirates.CoinLights, Pirates.Treasures, Pirates.TreasureLights, Pirates.MapPieces, Pirates.MapPieceLights})
+		hash.Add(value);
 	return hash.Value;
 }
 

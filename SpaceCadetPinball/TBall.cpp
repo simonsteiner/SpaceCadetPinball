@@ -74,7 +74,8 @@ TBall::TBall(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	RenderSprite = new render_sprite(VisualTypes::Ball, nullptr, nullptr, 0, 0, nullptr);
 	RenderSprite->AltBall = altBall;
 	PinballTable->CollisionCompOffset = Radius;
-	Position.Z = Radius;
+	// A ball placed from the DAT (Skulduggery's captive ball) rests at its own height, as in CADET.EXE
+	Position.Z = (HasGroupFlag ? Position.Z : 0.0f) + Radius;
 	GroupIndex = groupIndex;
 }
 
@@ -130,7 +131,8 @@ bool TBall::already_hit(const TEdgeSegment& edge) const
 
 int TBall::Message(MessageCode code, float value)
 {
-	if (code == MessageCode::Reset)
+	// CADET.EXE's Reset leaves a ball placed from the DAT where it is
+	if (code == MessageCode::Reset && !HasGroupFlag)
 	{
 		SpriteSetBall(-1, {0, 0}, 0.0f);
 		Position.X = 0.0;

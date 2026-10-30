@@ -16,4 +16,6 @@ public:
 	float TimerTime2;
 	int Timer;
 	int KickActiveFlag;
+	// CADET.EXE's TKickbackDisable, the bonus tables only: the kickback doesn't arm until TKickbackEnable or Reset
+	bool KickDisabled{};
 };

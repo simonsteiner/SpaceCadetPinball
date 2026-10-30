@@ -302,9 +302,13 @@ build.ninja
 *.[Dd][Aa][Tt]
 *.[Ww][Aa][Vv]
 *.[Mm][Ii][Dd]
+*.[Mm][Dd][Ss]
 *.[Ee][Xx][Ee]
 *.7[Zz]
 [Tt][Aa][Bb][Ll][Ee].[Bb][Mm][Pp]
+[Cc][Aa][Dd][Ee][Tt].[Bb][Mm][Pp]
+[Dd][Rr][Aa][Gg][Oo][Nn].[Bb][Mm][Pp]
+[Pp][Ii][Rr][Aa][Tt][Ee][Ss].[Bb][Mm][Pp]
 [Ww][Aa][Vv][Ee][Mm][Ii][Xx].[Ii][Nn][Ff]
 
 ### lefthook ###

@@ -11,7 +11,8 @@
 #include "timer.h"
 #include "TPinballTable.h"
 
-TPlunger::TPlunger(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, true)
+TPlunger::TPlunger(TPinballTable* table, int groupIndex, bool launcher) :
+	TCollisionComponent(table, groupIndex, true), Launcher(launcher)
 {
 	visualStruct visual{};
 
@@ -24,17 +25,19 @@ TPlunger::TPlunger(TPinballTable* table, int groupIndex) : TCollisionComponent(t
 	HardHitSoundId = visual.Kicker.HardHitSoundId;
 	Threshold = 1000000000.0;
 
-    // FT:MaxPullback = 50; 3DPB: MaxPullback = 100, PullbackIncrement is floored.
-    if (pb::FullTiltMode)
-    {
-        MaxPullback = 50;
-        PullbackIncrement = MaxPullback / (ListBitmap->size() * 8.0f);
-    }
-    else
-    {
-        MaxPullback = 100;
-        PullbackIncrement = std::floor(MaxPullback / (ListBitmap->size() * 8.0f));
-    }
+	// FT:MaxPullback = 50; 3DPB: MaxPullback = 100, PullbackIncrement is floored.
+	// CADET.EXE reads attribute 402 for it, which only Skulduggery's launcher has (100); a launcher pulls nothing.
+	if (pb::FullTiltMode)
+	{
+		auto maxPullback = loader::query_float_attribute(groupIndex, 0, 402);
+		MaxPullback = maxPullback ? *maxPullback : 50.0f;
+		PullbackIncrement = Launcher ? 0.0f : MaxPullback / (ListBitmap->size() * 8.0f);
+	}
+	else
+	{
+		MaxPullback = 100;
+		PullbackIncrement = std::floor(MaxPullback / (ListBitmap->size() * 8.0f));
+	}
 
 	Elasticity = 0.5f;
 	Smoothness = 0.5f;
@@ -87,7 +90,9 @@ int TPlunger::Message(MessageCode code, float value)
 	switch (code)
 	{
 	case MessageCode::PlungerInputPressed:
-		if (CanStartPull())
+		if (CanStartPull() && Launcher)
+			Message(MessageCode::PlungerLaunchBall, 0.0f); // CADET.EXE's launcher launches as Launch Ball does
+		else if (CanStartPull())
 		{
 			CancelReleaseWait();
 			PullbackStartedFlag = true;
@@ -261,6 +266,9 @@ void TPlunger::PullbackTimer(int timerId, void* caller)
 		plunger->Boost = plunger->MaxPullback;
 	}
 
+	// A launcher has no sprites to show the pull with
+	if (!plunger->ListBitmap)
+		return;
 	int index = static_cast<int>(floor(
 		static_cast<float>(plunger->ListBitmap->size() - 1) *
 		(plunger->Boost / plunger->MaxPullback)));
