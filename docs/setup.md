@@ -137,7 +137,7 @@ cmake --preset web
 cmake --build --preset web
 ```
 
-To try it, copy the three files into a folder, rename the page to `index.html`, add `FluidR3Mono_GM.sf3` for music if you like, and serve the folder over HTTP (`python3 -m http.server`); browsers don't run it from a `file:` URL. The page asks for the game data with a file picker, including `PINBALL.EXE` for the message font. The files are kept in the browser's IndexedDB, so they are only asked for once, and are never uploaded; "Forget the game data" removes them. Settings and high scores are kept the same way.
+To try it, copy the three files into a folder, rename the page to `index.html`, add `FluidR3Mono_GM.sf3` for music if you like, and serve the folder over HTTP (`python3 -m http.server`); browsers don't run it from a `file:` URL. The page asks for the game data with a file picker, including `PINBALL.EXE` for the message font. The files are kept in the browser's IndexedDB, so they are only asked for once, and are never uploaded; "Forget the game data" removes them. Settings and high scores are kept the same way. A test build carries the data and skips the picker ([deployment.md](deployment.md#test-builds)).
 
 - The game's loop yields to the browser after every frame (`-sASYNCIFY` and `emscripten_sleep`), so the browser shows the frame and delivers input in between. It runs without threads, because GitHub Pages can't send the headers that threads need.
 - Music plays with TinySoundFont and the SoundFont the player adds with the game files (`.sf2` or `.sf3`), or else the free `FluidR3Mono_GM.sf3` that the page offers to download. It takes about 400 MB of memory once loaded.

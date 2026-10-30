@@ -3,10 +3,12 @@
 # A test build holds Microsoft's files: it stays on this machine and the player's devices, copied over USB or the
 # local network, and is never committed, uploaded, attached to a pull request or made in CI (docs/deployment.md).
 #
-# Usage: tools/make-test-build.sh windows [--msvc]
+# Usage: tools/make-test-build.sh windows [--msvc] | web
 #   windows  one executable with the data inside, unpacked into the preferences folder at its first start.
 #            Cross-compiled with MinGW (the mingw preset; x86_64-w64-mingw32-gcc on PATH), or with --msvc, from
 #            WSL, with the Windows host's Visual Studio in a folder under its %TEMP%.
+#   web      a folder to serve over HTTP: the page, the game, its data preloaded from SpaceCadetPinball.data, and
+#            the MIT SoundFont the published page offers. Needs EMSDK set (tools/install-emsdk.sh).
 #
 # It builds the committed HEAD, from a copy made with git archive, so uncommitted changes are not in the build.
 # The data comes from the workspace's sibling folders; set these to use others, or to an empty value to leave a
@@ -20,7 +22,7 @@
 set -euo pipefail
 
 usage() {
-	echo "Usage: $0 windows [--msvc]" >&2
+	echo "Usage: $0 windows [--msvc] | web" >&2
 	exit 2
 }
 
@@ -34,12 +36,12 @@ shift
 msvc=false
 for arg in "$@"; do
 	case $arg in
-		--msvc) msvc=true ;;
+		--msvc) [ "$platform" = windows ] || usage; msvc=true ;;
 		*) usage ;;
 	esac
 done
 case $platform in
-	windows) ;;
+	windows | web) ;;
 	*) usage ;;
 esac
 
@@ -225,7 +227,44 @@ build_windows_msvc() {
 	cp "$dir/src/bin/Release/SpaceCadetPinball.exe" "$out/SpaceCadetPinball.exe"
 }
 
+# The SoundFont the published page downloads, pinned as in .github/workflows/Pages.yml
+soundfont_base=https://raw.githubusercontent.com/musescore/MuseScore/v2.3.2/share/sound
+soundfont_files=(
+	"FluidR3Mono_GM.sf3 cfcd66d89e8386823400eca64934b14fbea7bf48ba1f00d21189af1262794ec2"
+	"FluidR3Mono_License.md 09926f9451f751408abd65162c99343f840234d2a708584808fd46427633063f"
+)
+
+build_web() {
+	if [ -z "${EMSDK:-}" ]; then
+		echo "Set EMSDK to an Emscripten SDK (tools/install-emsdk.sh)" >&2
+		exit 1
+	fi
+	local dir=$build/web entry name hash
+	cmake -S "$src" --preset web -B "$dir" "-DSCP_BUNDLED_DATA=$layout" "${test_build_args[@]}" "${extra_args[@]}"
+	cmake --build "$dir" --parallel
+	cp "$src/bin/SpaceCadetPinball.html" "$out/index.html"
+	cp "$src/bin/SpaceCadetPinball.js" "$src/bin/SpaceCadetPinball.wasm" "$src/bin/SpaceCadetPinball.data" "$out/"
+	# Downloaded once into the build folder
+	mkdir -p "$build/soundfont"
+	for entry in "${soundfont_files[@]}"; do
+		name=${entry% *}
+		hash=${entry#* }
+		if [ ! -f "$build/soundfont/$name" ] || ! echo "$hash  $build/soundfont/$name" | sha256sum -c --status; then
+			curl -sSfL -o "$build/soundfont/$name" "$soundfont_base/$name"
+			echo "$hash  $build/soundfont/$name" | sha256sum -c --quiet
+		fi
+		cp "$build/soundfont/$name" "$out/$name"
+	done
+}
+
 case $platform in
+	web)
+		build_web
+		echo "Test build $describe: $out/"
+		echo "Serve it over HTTP, since browsers don't run it from file://, for example with" \
+			"python3 -m http.server --directory '$out' 8000, and open http://localhost:8000/." \
+			"For a phone, add --bind with this machine's address on the local network. Never upload it."
+		;;
 	windows)
 		if $msvc; then
 			build_windows_msvc
