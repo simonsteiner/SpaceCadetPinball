@@ -785,7 +785,8 @@ namespace
 	void SwordFightAwardIfDone();
 
 	// Sword Fight's half of 0x426eb0: the full bank lights v_lite9 to v_lite11, comes up again and gives the next
-	// award; each other target scores 30,000
+	// award; each other target scores 30,000. The award clears the bank's bits (0x425550), so every full bank turns
+	// the lights on rather than flashing them, as in PIRATES.EXE, which tests and sets the same 0x70
 	void SwordFightBankHit(const DropBank& bank)
 	{
 		using enum MessageCode;
