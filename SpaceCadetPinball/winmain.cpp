@@ -257,9 +257,10 @@ constexpr const char* SelectTableShortcut = nullptr;
 constexpr const char* SelectTableShortcut = "Ctrl+T";
 #endif
 
-// A picture for a table without one, as 3D Pinball has none: its playfield, the "table" group's bitmap at the first
-// resolution, coloured with the table's palette and scaled down to fit Full Tilt!'s 120 by 120, made on the player's
-// machine from their own DAT file. Each pixel averages the area of the playfield it covers.
+// A picture for a table without one, made on the player's machine from their own DAT file and scaled down to fit
+// Full Tilt!'s 120 by 120, each pixel the average of the area it covers. 3D Pinball's Space Cadet gets the logo from
+// its score panel, in the panel's top box in the background bitmap; any other table its playfield, the
+// "table" group's bitmap. Both at the first resolution, coloured with the table's palette.
 static SDL_Texture* MakeTablePicture(const TableData& data)
 {
 	constexpr int size = 120;
@@ -268,24 +269,35 @@ static SDL_Texture* MakeTablePicture(const TableData& data)
 	if (!dat)
 		return nullptr;
 	auto palette = reinterpret_cast<ColorRgba*>(dat->field_labeled("background", FieldTypes::Palette));
-	auto groupIndex = dat->record_labeled("table");
+	auto logo = data.Table == Tables::SpaceCadet3DPB;
+	auto groupIndex = dat->record_labeled(logo ? "background" : "table");
 	auto bmp = groupIndex < 0 ? nullptr : dat->Groups[groupIndex]->GetBitmap(0);
 	if (!palette || !bmp || !bmp->IndexedBmpPtr || bmp->BitmapType == BitmapTypes::Spliced || bmp->Width <= 0 ||
 		bmp->Height <= 0)
 		return nullptr;
 
-	// Fit the playfield into the square, centred on black
-	auto scale = std::min(static_cast<float>(size) / bmp->Width, static_cast<float>(size) / bmp->Height);
-	auto width = std::max(1, static_cast<int>(bmp->Width * scale));
-	auto height = std::max(1, static_cast<int>(bmp->Height * scale));
+	// The area of the bitmap to show. The logo's box is at 394,20 to 578,183 in the 600 by 416 frame; its bottom rows
+	// hold the ball's label and empty digit box, which the picture leaves out
+	SDL_Rect area{0, 0, bmp->Width, bmp->Height};
+	if (logo)
+	{
+		area = {394 - bmp->XPosition, 20 - bmp->YPosition, 185, 126};
+		if (area.x < 0 || area.y < 0 || area.x + area.w > bmp->Width || area.y + area.h > bmp->Height)
+			return nullptr;
+	}
+
+	// Fit the area into the square, centred on black
+	auto scale = std::min(static_cast<float>(size) / area.w, static_cast<float>(size) / area.h);
+	auto width = std::max(1, static_cast<int>(area.w * scale));
+	auto height = std::max(1, static_cast<int>(area.h * scale));
 	auto left = (size - width) / 2, top = (size - height) / 2;
 	std::vector<ColorRgba> pixels(size * size, ColorRgba::Black());
 	for (auto y = 0; y < height; y++)
 	{
-		auto srcY0 = y * bmp->Height / height, srcY1 = std::max(srcY0 + 1, (y + 1) * bmp->Height / height);
+		auto srcY0 = area.y + y * area.h / height, srcY1 = std::max(srcY0 + 1, area.y + (y + 1) * area.h / height);
 		for (auto x = 0; x < width; x++)
 		{
-			auto srcX0 = x * bmp->Width / width, srcX1 = std::max(srcX0 + 1, (x + 1) * bmp->Width / width);
+			auto srcX0 = area.x + x * area.w / width, srcX1 = std::max(srcX0 + 1, area.x + (x + 1) * area.w / width);
 			unsigned red = 0, green = 0, blue = 0, count = 0;
 			for (auto srcY = srcY0; srcY < srcY1; srcY++)
 			{
