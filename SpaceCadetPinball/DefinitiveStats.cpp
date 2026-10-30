@@ -15,7 +15,7 @@ namespace
 
 	constexpr auto StatKeys =
 		std::to_array<const char*>({"Games", "Missions", "Best Rank", "Balls Saved", "Extra Balls", "Multiballs",
-									"Best Score", "Quests", "Dragons Slain"});
+									"Best Score", "Quests", "Dragons Slain", "Modes", "Loots"});
 	static_assert(std::size(StatKeys) == static_cast<size_t>(Stat::Count));
 
 	// The order is the list's on screen; keys are saved, so they stay as they are
@@ -29,6 +29,11 @@ namespace
 		{"Five Quests", Msg::Definitive_AchFiveQuests, Msg::Definitive_AchFiveQuestsText, DragonsKeep},
 		{"Every Quest", Msg::Definitive_AchEveryQuest, Msg::Definitive_AchEveryQuestText, DragonsKeep},
 		{"Dragon Slayer", Msg::Definitive_AchDragonSlayer, Msg::Definitive_AchDragonSlayerText, DragonsKeep},
+		// Skulduggery's four, chosen by analogy with Dragon's Keep's (2026-10-30), for the user to revise
+		{"First Mode", Msg::Definitive_AchFirstMode, Msg::Definitive_AchFirstModeText, Skulduggery},
+		{"Seven Modes", Msg::Definitive_AchSevenModes, Msg::Definitive_AchSevenModesText, Skulduggery},
+		{"Every Mode", Msg::Definitive_AchEveryMode, Msg::Definitive_AchEveryModeText, Skulduggery},
+		{"Peg Legs Loot", Msg::Definitive_AchPegLegsLoot, Msg::Definitive_AchPegLegsLootText, Skulduggery},
 		{"Ensign", Msg::Definitive_AchEnsign, Msg::Definitive_AchEnsignText, SpaceCadet},
 		{"Captain", Msg::Definitive_AchCaptain, Msg::Definitive_AchCaptainText, SpaceCadet},
 		{"Commodore", Msg::Definitive_AchCommodore, Msg::Definitive_AchCommodoreText, SpaceCadet},
@@ -51,6 +56,8 @@ namespace
 		std::array<int, 4> Missions;
 		// Dragon's Keep's quests done, by player
 		std::array<int, 4> Quests;
+		// Skulduggery's modes done, by player, one bit each from bit 0 for state 4
+		std::array<unsigned, 4> Modes;
 		// Each player's billions: the table counts them apart from the score, which drops by a billion as one passes
 		std::array<long long, 4> Billions;
 	};
@@ -63,6 +70,9 @@ namespace
 
 	int ActiveBalls(const TableView& view)
 	{
+		// Skulduggery's captive ball is always in play, so its rules count the others
+		if (view.Kind == TableView::TableKind::Skulduggery)
+			return view.Pirates.BallsInPlay;
 		return static_cast<int>(
 			std::count_if(view.Balls.begin(), view.Balls.end(), [](const auto& ball) { return ball.Active; }));
 	}
@@ -87,6 +97,11 @@ std::string DefinitiveStats::Key(const char* name)
 std::string DefinitiveStats::QuestKey(int quest)
 {
 	return Key(std::format("Quest {}", quest).c_str());
+}
+
+std::string DefinitiveStats::ModeKey(int mode)
+{
+	return Key(std::format("Mode {}", mode).c_str());
 }
 
 int DefinitiveStats::Read(const std::string& key)
@@ -141,7 +156,7 @@ void DefinitiveStats::Update(const TableView& view)
 	auto zeroed = std::ranges::all_of(view.Scores, [](int score) { return score == 0; });
 	auto restarted = zeroed && std::ranges::any_of(Previous.Scores, [](int score) { return score != 0; });
 	if (playing && (!wasPlaying || restarted))
-		Current = Game{true, false, {}, {}, {}};
+		Current = Game{true, false, {}, {}, {}, {}};
 	if (view.CheatsUsed)
 		Current.Active = false;
 
@@ -159,6 +174,8 @@ void DefinitiveStats::Update(const TableView& view)
 		// Dragon's Keep's view has no mission (-1) or rank (0), so Space Cadet's counting below finds none there
 		if (view.Kind == TableView::TableKind::DragonsKeep)
 			UpdateDragon(view, player, samePlayer);
+		else if (view.Kind == TableView::TableKind::Skulduggery)
+			UpdateSkulduggery(view, player, samePlayer);
 		// A mission ends finished when it lit lamps of the progress ring, or a new rank, which clears them; a mission
 		// that runs out of fuel or ends with the ball does neither. Time Warp's way back (state 24) ends through the
 		// kickout instead, which costs a rank. On a drain the next player's lamps come in, so only the same player's
@@ -194,10 +211,12 @@ void DefinitiveStats::Update(const TableView& view)
 			}
 		}
 
-		// The drain sends the ball back with Replay Ball or Re-Deploy in the info box
+		// The drain sends the ball back with Replay Ball or Re-Deploy in the info box, on Skulduggery with Shoot Again
 		if (view.Kind != TableView::TableKind::DragonsKeep && view.InfoMessages != Previous.InfoMessages &&
 			(view.InfoText == translations::GetTranslation(Msg::STRING196) ||
-			 view.InfoText == translations::GetTranslation(Msg::STRING197)))
+			 view.InfoText == translations::GetTranslation(Msg::STRING197) ||
+			 (view.Kind == TableView::TableKind::Skulduggery &&
+			  view.InfoText == translations::GetTranslation(Msg::Skulduggery_ShootAgain))))
 		{
 			Add(Key("Balls Saved"), 1);
 			Unlock("Ball Saved");
@@ -215,7 +234,12 @@ void DefinitiveStats::Update(const TableView& view)
 			Unlock("Multiball");
 		}
 
-		Current.Tilted |= view.Tilted;
+		// The bonus tables' rules lock the table once the game's last ball has drained, to kill the flippers while the
+		// balls they hold come out; only a lock that comes on with a ball still in play is a tilt there
+		if (view.Kind == TableView::TableKind::SpaceCadet)
+			Current.Tilted |= view.Tilted;
+		else
+			Current.Tilted |= view.Tilted && !Previous.Tilted && ActiveBalls(view) > 0;
 		auto current = PlayerOf(view);
 		auto score = Current.Billions[current] * 1'000'000'000 + view.Scores[current];
 		constexpr std::pair<long long, const char*> Scores[] = {
@@ -285,6 +309,39 @@ void DefinitiveStats::UpdateDragon(const TableView& view, int player, bool sameP
 	}
 }
 
+void DefinitiveStats::UpdateSkulduggery(const TableView& view, int player, bool samePlayer)
+{
+	// The rules count a mode done as it ends, whatever was shot, and the one that ended ran before. On a drain the
+	// next player's count comes in, so only the same player's counts.
+	using Pirates = TableView::Skulduggery;
+	const auto& pirates = view.Pirates;
+	const auto& before = Previous.Pirates;
+	if (pirates.ModesDone > before.ModesDone && samePlayer && before.State >= Pirates::FirstModeState &&
+		before.State <= Pirates::PegLegsLootState)
+	{
+		Add(Key("Modes"), 1);
+		Add(ModeKey(before.State), 1);
+		Unlock("First Mode");
+		// The seven modes the pick goes through before Peg Leg's Loot
+		constexpr auto Seven = (1u << static_cast<unsigned>(Pirates::PegLegsLootState - Pirates::FirstModeState)) - 1;
+		Current.Modes[player] |= 1u << static_cast<unsigned>(before.State - Pirates::FirstModeState);
+		if ((Current.Modes[player] & Seven) == Seven)
+			Unlock("Seven Modes");
+		auto every = true;
+		for (auto each = Pirates::FirstModeState; each < Pirates::PegLegsLootState; each++)
+			every &= ModesDone(each) > 0;
+		if (every)
+			Unlock("Every Mode");
+		// The ball in the ship sink finds the loot, and Lava-Ball starts as the mode ends; its time running out or
+		// its ball draining goes back to play
+		if (before.State == Pirates::PegLegsLootState && pirates.State == Pirates::LavaBallState)
+		{
+			Add(Key("Loots"), 1);
+			Unlock("Peg Legs Loot");
+		}
+	}
+}
+
 void DefinitiveStats::Reset()
 {
 	Previous = TableView{};
@@ -307,6 +364,11 @@ int DefinitiveStats::QuestsDone(int quest)
 	return Read(QuestKey(quest));
 }
 
+int DefinitiveStats::ModesDone(int mode)
+{
+	return Read(ModeKey(mode));
+}
+
 std::span<const DefinitiveStats::Achievement> DefinitiveStats::Achievements()
 {
 	return AchievementList;
@@ -320,6 +382,8 @@ bool DefinitiveStats::Offered(const Achievement& achievement, const TableView& v
 		return view.Kind == TableView::TableKind::SpaceCadet;
 	case Offer::DragonsKeep:
 		return view.Kind == TableView::TableKind::DragonsKeep;
+	case Offer::Skulduggery:
+		return view.Kind == TableView::TableKind::Skulduggery;
 	default:
 		return true;
 	}
@@ -352,6 +416,8 @@ void DefinitiveStats::Clear()
 		options::RemoveSetting(Key(("Mission " + std::to_string(mission)).c_str()));
 	for (auto quest = TableView::DragonsKeep::FirstQuestState; quest <= TableView::DragonsKeep::LastQuestState; quest++)
 		options::RemoveSetting(QuestKey(quest));
+	for (auto mode = TableView::Skulduggery::FirstModeState; mode <= TableView::Skulduggery::PegLegsLootState; mode++)
+		options::RemoveSetting(ModeKey(mode));
 	for (const auto& achievement : AchievementList)
 		options::RemoveSetting(Key((std::string{"Achievement."} + achievement.Key).c_str()));
 	Waiting.clear();

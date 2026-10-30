@@ -538,6 +538,19 @@ enum class Msg : int
 	Definitive_GuideJailbreak,
 	Definitive_GuideBrigText,
 
+	// Space Cadet 2026's stats and achievements on Skulduggery
+	Definitive_StatModes,
+	Definitive_StatLoots,
+	Definitive_StatEachMode,
+	Definitive_AchFirstMode,
+	Definitive_AchFirstModeText,
+	Definitive_AchSevenModes,
+	Definitive_AchSevenModesText,
+	Definitive_AchEveryMode,
+	Definitive_AchEveryModeText,
+	Definitive_AchPegLegsLoot,
+	Definitive_AchPegLegsLootText,
+
 	// Full Tilt's CADET.EXE strings, shown instead of 3D Pinball's in Full Tilt mode
 	FullTilt_Caption,
 	FullTilt_About,

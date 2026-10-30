@@ -8037,6 +8037,72 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_StatModes,
+		{
+			{ Lang::English, "Modes done" },
+		}
+	},
+	{
+		Msg::Definitive_StatLoots,
+		{
+			{ Lang::English, "Peg Leg's Loot found" },
+		}
+	},
+	{
+		Msg::Definitive_StatEachMode,
+		{
+			{ Lang::English, "Modes done, one by one" },
+		}
+	},
+	{
+		Msg::Definitive_AchFirstMode,
+		{
+			{ Lang::English, "Anchors aweigh" },
+		}
+	},
+	{
+		Msg::Definitive_AchFirstModeText,
+		{
+			{ Lang::English, "Complete a mode" },
+		}
+	},
+	{
+		Msg::Definitive_AchSevenModes,
+		{
+			{ Lang::English, "Scourge of the seas" },
+		}
+	},
+	{
+		Msg::Definitive_AchSevenModesText,
+		{
+			{ Lang::English, "Complete all seven modes before Peg Leg's Loot in one game" },
+		}
+	},
+	{
+		Msg::Definitive_AchEveryMode,
+		{
+			{ Lang::English, "Old salt" },
+		}
+	},
+	{
+		Msg::Definitive_AchEveryModeText,
+		{
+			{ Lang::English, "Complete each of the seven modes before Peg Leg's Loot at least once" },
+		}
+	},
+	{
+		Msg::Definitive_AchPegLegsLoot,
+		{
+			{ Lang::English, "Peg Leg's heir" },
+		}
+	},
+	{
+		Msg::Definitive_AchPegLegsLootText,
+		{
+			{ Lang::English, "Find Peg Leg's Loot" },
+		}
+	},
+	{
 		Msg::FullTilt_Caption,
 		{
 			{ Lang::English, "Full Tilt! - Space Cadet" },
