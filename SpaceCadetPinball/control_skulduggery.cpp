@@ -368,6 +368,12 @@ namespace
 		return bank.Targets.front()->MessageField;
 	}
 
+	// Every target of the bank is down
+	bool BankFull(const DropBank& bank)
+	{
+		return AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1);
+	}
+
 	// 0x424f70, 0x424440 and 0x4252d0: the bank's targets come up again
 	void ResetBank(const DropBank& bank)
 	{
@@ -718,7 +724,7 @@ namespace
 	void TavernBankHit(const DropBank& bank, const TPinballComponent* caller)
 	{
 		using enum MessageCode;
-		auto full = AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1);
+		auto full = BankFull(bank);
 		if (&bank == &drop_banks[2])
 		{
 			if (full)
@@ -762,7 +768,7 @@ namespace
 		if (GameState() == AttackShipState && &bank == &drop_banks[1])
 		{
 			// Attack Ship's ship (0x4264f0): a full bank sinks it for the jackpot, and "Ship Sunk" follows the picture
-			if (AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1))
+			if (BankFull(bank))
 			{
 				ResetBank(bank);
 				auto time = AwardJackpot(0.0f);
@@ -784,11 +790,11 @@ namespace
 		if (GameState() == StormState)
 		{
 			// Storm scores the targets itself; a full bank only comes up again
-			if (AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1))
+			if (BankFull(bank))
 				ResetBank(bank);
 			return;
 		}
-		if (AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1))
+		if (BankFull(bank))
 		{
 			a_blocc->Message(TAnimatedBlockerSetState, bank.BloccState);
 			BloceUp();
