@@ -8337,6 +8337,54 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Skulduggery_AttackModeSelected,
+		{
+			{ Lang::English, "Attack Mode Selected" },
+		}
+	},
+	{
+		Msg::Skulduggery_TreasureHuntModeSelected,
+		{
+			{ Lang::English, "Treasure Hunt Mode Selected" },
+		}
+	},
+	{
+		Msg::Skulduggery_TavernModeSelected,
+		{
+			{ Lang::English, "Tavern Mode Selected" },
+		}
+	},
+	{
+		Msg::Skulduggery_BermudaModeSelected,
+		{
+			{ Lang::English, "Bermuda Mode Selected" },
+		}
+	},
+	{
+		Msg::Skulduggery_StormModeSelected,
+		{
+			{ Lang::English, "Storm Mode Selected" },
+		}
+	},
+	{
+		Msg::Skulduggery_MutinyModeSelected,
+		{
+			{ Lang::English, "Mutiny Mode Selected" },
+		}
+	},
+	{
+		Msg::Skulduggery_SwordfightModeSelected,
+		{
+			{ Lang::English, "Swordfight Mode Selected" },
+		}
+	},
+	{
+		Msg::Skulduggery_PeglegsLootModeSelected,
+		{
+			{ Lang::English, "Pegleg's Loot Mode Selected" },
+		}
+	},
+	{
 		Msg::Skulduggery_PictureSkillShot,
 		{
 			{ Lang::English, "Skill Shot" },

@@ -23,7 +23,8 @@
 #include "translations.h"
 
 // Skulduggery's rules, recovered from PIRATES.EXE one feature at a time (Phase F6). Ported so far: the serve, drain
-// and game-over flow, with the ball save, the end-of-ball bonus, the launch's rolling skill shot and the music.
+// and game-over flow, with the ball save, the end-of-ball bonus, the launch's rolling skill shot and the music; the
+// mode framework: the SKULDUGGERY drop targets, the modes' lights and pick, the captive ball's targets and a_spot102.
 // Everything else is still a stand-in that keeps the table playable: kickouts and sinks give back the balls they
 // catch, which only the rules would do otherwise, and a stuck ball is freed as Space Cadet's rules free one.
 //
@@ -49,6 +50,8 @@ namespace
 	constexpr int LaunchState = 3;
 	constexpr int FirstModeState = 4;
 	constexpr int LastModeState = 11;
+	constexpr int LavaBallState = 12;
+	constexpr int JailbreakState = 13;
 	constexpr int EndOfBallState = 16;
 	constexpr int LastBallState = 17;
 
@@ -90,6 +93,35 @@ namespace
 	TSound* tabb73wave;
 	TSound* tabb74wave;
 	TSound* tabb84wave;
+	// The mode framework's: the SKULDUGGERY letters and the three banks of drop targets that spell them, the modes'
+	// lights, the captive ball's targets and a_spot102, which picks the next mode
+	std::array<TLight*, 11> letter_lights; // v_lite1 to v_lite11; v_lite1's message field keeps the letters spelled
+	std::array<TLight*, 8> mode_lights;    // v_lite552 to v_lite559, in PickedModeStates' order
+	std::array<TLight*, 4> captive_lights; // v_lite551, v_lite550, v_lite549 and v_lite548
+	// a_spot11, a_spot8, a_spot9 and a_spot10; a_spot11's message field keeps those hit
+	std::array<TSoloTarget*, 4> captive_targets;
+	TSoloTarget* a_spot102;
+	TLightGroup* map_piece_light_group;
+	TSound* tabb02wave;
+	TSound* tabb07wave;
+	TSound* tabb19wave;
+	TSound* tabb22wave;
+	TSound* tabb23wave;
+	TSound* tabb24wave;
+	TSound* tabb29wave;
+
+	// A bank of drop targets: its first target's message field keeps those down, and each target spells a letter
+	struct DropBank
+	{
+		std::vector<TPopupTarget*> Targets;
+		int FirstLetter;  // the letter its first target spells
+		float BloccState; // where a full bank turns a_blocc and a_blocf
+		float BlocfState;
+		TSound* HitSound;
+		TSound* FullSound;
+	};
+	// a_drop13 to a_drop15 (0x426a40), a_drop5 to a_drop9 (0x4264f0) and a_drop10 to a_drop12 (0x426eb0)
+	std::array<DropBank, 3> drop_banks;
 
 	template <typename T> void Find(T*& component, const char* name)
 	{
@@ -185,6 +217,206 @@ namespace
 		a_bloce->Message(TAnimatedBlockerSetState, 0.0f);
 		v_lite504->Message(TLightResetAndTurnOff, 0.0f);
 		v_lite505->Message(TLightResetAndTurnOn, 0.0f);
+	}
+
+	// a_bloce up, with v_lite504 on and v_lite505 off
+	void BloceUp()
+	{
+		using enum MessageCode;
+		a_bloce->Message(TAnimatedBlockerSetState, 1.0f);
+		v_lite504->Message(TLightResetAndTurnOn, 0.0f);
+		v_lite505->Message(TLightResetAndTurnOff, 0.0f);
+	}
+
+	// 0x4232c0: the scorer's own score at <index>. PIRATES.EXE first tells the previous scorer's rules that it no
+	// longer is (0x4d), which no ported handler takes yet, so the last scorer (0x435d44) isn't kept
+	int ScoreBy(const TPinballComponent* scorer, int index)
+	{
+		return Table->AddScore(scorer->get_scoring(index));
+	}
+
+	// The bit fields PIRATES.EXE keeps in message fields
+	void SetBit(int& field, int bit)
+	{
+		field = static_cast<int>(static_cast<unsigned>(field) | 1u << static_cast<unsigned>(bit));
+	}
+
+	bool AllSet(int field, unsigned mask)
+	{
+		return (static_cast<unsigned>(field) & mask) == mask;
+	}
+
+	int& LettersSpelled()
+	{
+		return letter_lights[0]->MessageField;
+	}
+
+	// 0x423b70: with <flash>, the letters flash for 1 s and go out, and the word starts over; else they only go out
+	void LettersOff(bool flash)
+	{
+		using enum MessageCode;
+		if (flash)
+			LettersSpelled() = 0;
+		for (auto light : letter_lights)
+			light->Message(flash ? TLightFlasherStartTimedThenStayOff : TLightResetAndTurnOff, flash ? 1.0f : 0.0f);
+	}
+
+	int& BankDown(const DropBank& bank)
+	{
+		return bank.Targets.front()->MessageField;
+	}
+
+	// 0x424f70, 0x424440 and 0x4252d0: the bank's targets come up again
+	void ResetBank(const DropBank& bank)
+	{
+		BankDown(bank) = 0;
+		for (auto target : bank.Targets)
+			target->Message(MessageCode::TPopupTargetEnable, 0.0f);
+	}
+
+	// The mode each of mode_timer's picks starts, from 1 (0x43d0f0)
+	constexpr std::array PickedModeStates{4, 8, 7, 5, 6, 9, 10, 11};
+	constexpr int PegLegsLootPick = 7;
+
+	// The modes ported so far; whatever would start another one lets the game go on in play
+	constexpr std::array<int, 0> PortedModes{};
+
+	bool ModePorted(int state)
+	{
+		return std::ranges::find(PortedModes, state) != PortedModes.end();
+	}
+
+	// mode_timer's message field keeps the picked mode, from 1, or 0 when none is picked
+	int& PickedMode()
+	{
+		return mode_timer->MessageField;
+	}
+
+	// 0x425700: the picked mode's light goes out, and none is picked
+	void ClearPickedMode()
+	{
+		auto picked = PickedMode();
+		if (picked >= 1 && picked <= static_cast<int>(mode_lights.size()))
+			mode_lights[picked - 1]->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
+		PickedMode() = 0;
+	}
+
+	bool LightIdle(const TLight& light)
+	{
+		return !light.LightOnFlag && !light.ToggledOnFlag && !light.FlasherOnFlag;
+	}
+
+	// 0x425850: a random mode whose light is neither on nor flashing is picked, and its light flashes; once all the
+	// map pieces are found, Peg Leg's Loot. Returns the pick's index in PickedModeStates
+	int PickMode()
+	{
+		using enum MessageCode;
+		int pick = PegLegsLootPick;
+		if (map_piece_light_group->Message(TLightGroupGetOnCount, 0.0f) !=
+			map_piece_light_group->Message(TLightGroupGetLightCount, 0.0f))
+		{
+			std::array<int, PegLegsLootPick> open{};
+			int count = 0;
+			for (int index = 0; index < PegLegsLootPick; index++)
+			{
+				if (LightIdle(*mode_lights[index]))
+					open[count++] = index;
+			}
+			if (count)
+			{
+				pick = open[std::min(static_cast<int>(RandFloat() * count), count - 1)];
+			}
+			else
+			{
+				// None left: the one flashing stays picked
+				for (int index = 0; index < static_cast<int>(mode_lights.size()); index++)
+				{
+					if (mode_lights[index]->FlasherOnFlag)
+						return index;
+				}
+			}
+		}
+		// 0x4256d0
+		ClearPickedMode();
+		mode_lights[pick]->Message(TLightFlasherStartTimed, -1.0f);
+		PickedMode() = pick + 1;
+		return pick;
+	}
+
+	TLight* ModeLight(int state)
+	{
+		auto pick = std::ranges::find(PickedModeStates, state);
+		return pick != PickedModeStates.end() ? mode_lights[pick - PickedModeStates.begin()] : nullptr;
+	}
+
+	// 0x4255a0: as a mode starts its light flashes, and as it ends the light stays on; play picks the next mode
+	void ModeLights(int state, bool starting)
+	{
+		using enum MessageCode;
+		ClearPickedMode();
+		if (state == PlayState)
+			PickMode();
+		else if (auto light = ModeLight(state))
+			light->Message(starting ? TLightFlasherStartTimed : TLightResetAndTurnOn, -1.0f);
+	}
+
+	// 0x423610 and the end of the mode starts (0x423480 to 0x4235f0): v_lite606 flashes while a mode runs (0x423400),
+	// and the mode's state begins. A mode that isn't ported yet doesn't start
+	bool StartMode(int state)
+	{
+		if (!ModePorted(state))
+			return false;
+		v_lite606->Message(MessageCode::TLightFlasherStartTimed, -1.0f);
+		SetState(state);
+		return true;
+	}
+
+	// 0x425a50: the picked mode starts
+	bool StartPickedMode()
+	{
+		auto picked = PickedMode();
+		if (picked < 1 || picked > static_cast<int>(PickedModeStates.size()))
+			return false;
+		return StartMode(PickedModeStates[picked - 1]);
+	}
+
+	// 0x425de0: with all eleven letters spelled, the word starts over, the banks come up and the picked mode starts
+	bool WordSpelled()
+	{
+		if (!AllSet(LettersSpelled(), 0x7ff))
+			return false;
+		Launching = true;
+		LettersOff(true);
+		for (const auto& bank : drop_banks)
+			ResetBank(bank);
+		// Not PIRATES.EXE's: a mode that isn't ported yet leaves the game in play, as if the launch were over
+		if (!StartPickedMode())
+			Launching = false;
+		return true;
+	}
+
+	// 0x426a40, 0x4264f0 and 0x426eb0: a full bank turns the blockers, comes up again and scores more. In play, the
+	// last letter of the word starts the picked mode instead
+	void BankHit(const DropBank& bank, const TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (GameState() == PlayState && WordSpelled())
+			return;
+		if (AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1))
+		{
+			a_blocc->Message(TAnimatedBlockerSetState, bank.BloccState);
+			BloceUp();
+			a_blocf->Message(TAnimatedBlockerSetState, bank.BlocfState);
+			a_blocg->Message(TAnimatedBlockerSetState, 0.0f);
+			ResetBank(bank);
+			ScoreBy(caller, 1);
+			bank.FullSound->Play(nullptr, "BankHit");
+		}
+		else
+		{
+			ScoreBy(caller, 0);
+			bank.HitSound->Play(nullptr, "BankHit");
+		}
 	}
 
 	void ShowBonus(Msg text, int score, float time)
@@ -425,10 +657,19 @@ namespace
 	// 0x42d900
 	void StateControl(int state, MessageCode code, const TPinballComponent* caller)
 	{
-		// The modes' lights and the next mode's pick (0x4255a0, 0x425850) come with the modes; a mode's end adds
-		// 750,000 to the jackpot
-		if (code == ModeEnd && state >= FirstModeState && state <= LastModeState)
-			AddJackpot(750000);
+		// Every state clears the mode picked, play picks one, and a mode's light flashes while it runs. As a mode
+		// ends its light stays on, it adds 750,000 to the jackpot, and the next mode is picked
+		if (code == EnterState)
+		{
+			ModeLights(state, true);
+		}
+		else if (code == ModeEnd)
+		{
+			if (state >= FirstModeState && state <= LastModeState)
+				AddJackpot(750000);
+			ModeLights(state, false);
+			PickMode();
+		}
 
 		switch (state)
 		{
@@ -450,9 +691,9 @@ namespace
 			LastBallStateControl(code);
 			break;
 		default:
-			// The modes' states (4 to 13) aren't ported yet; PIRATES.EXE goes back to play from any state it doesn't
-			// know (0x42d830)
-			if (state < FirstModeState || state > 13)
+			// The modes' states (4 to 13) aren't ported yet, and StartMode doesn't enter them; PIRATES.EXE goes back
+			// to play from any state it doesn't know (0x42d830)
+			if (state < FirstModeState || state > JailbreakState)
 				SetState(PlayState);
 			break;
 		}
@@ -658,6 +899,86 @@ namespace
 			sink->Message(TSinkResetTimer, sink->TimerTime);
 	}
 
+	// The drop targets, 0x4268b0 to 0x427300: each one down counts for its bank, and in play and Lava-Ball it spells
+	// its letter
+	void DropTargetControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		for (const auto& bank : drop_banks)
+		{
+			auto target = std::ranges::find(bank.Targets, caller);
+			if (target == bank.Targets.end())
+				continue;
+			auto index = static_cast<int>(target - bank.Targets.begin());
+			SetBit(BankDown(bank), index);
+			if (GameState() == PlayState || GameState() == LavaBallState)
+			{
+				auto letter = bank.FirstLetter + index;
+				SetBit(LettersSpelled(), letter);
+				letter_lights[letter]->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			}
+			BankHit(bank, caller);
+			return;
+		}
+	}
+
+	// a_spot11, a_spot8, a_spot9 and a_spot10, the captive ball's targets, 0x427580 to 0x4277f0: in play each one
+	// lights its light, and all four score more and start Lava-Ball (0x427540). Sword Fight's use of them comes with it
+	void CaptiveTargetControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		auto target = std::ranges::find(captive_targets, caller);
+		if (target == captive_targets.end())
+			return;
+		tabb23wave->Play(nullptr, "CaptiveTargetControl");
+		if (GameState() != PlayState)
+		{
+			ScoreBy(caller, 0);
+			return;
+		}
+		auto index = static_cast<int>(target - captive_targets.begin());
+		auto& hit = captive_targets[0]->MessageField;
+		SetBit(hit, index);
+		captive_lights[index]->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+		if (!AllSet(hit, 0xf))
+		{
+			ScoreBy(caller, 0);
+			return;
+		}
+		hit = 0;
+		ScoreBy(caller, 1);
+		StartMode(LavaBallState);
+	}
+
+	// a_spot102, 0x4273b0: in play it picks the next mode and names it; during a mode it adds 10 s to its time
+	void ModeTargetControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		if (auto state = GameState(); state == PlayState)
+		{
+			static constexpr std::array selected{
+				Msg::Skulduggery_AttackModeSelected,     Msg::Skulduggery_TreasureHuntModeSelected,
+				Msg::Skulduggery_TavernModeSelected,     Msg::Skulduggery_BermudaModeSelected,
+				Msg::Skulduggery_StormModeSelected,      Msg::Skulduggery_MutinyModeSelected,
+				Msg::Skulduggery_SwordfightModeSelected, Msg::Skulduggery_PeglegsLootModeSelected,
+			};
+			info_text_box->Display(pb::get_rc_string(selected[PickMode()]), 2.0f);
+		}
+		else if (state >= FirstModeState && state <= LastModeState)
+		{
+			if (auto msLeft = mode_timer->Message(TTimerGetTimeLeft, 0.0f); msLeft > 0)
+				mode_timer->Message(TTimerResetTimer, static_cast<float>(msLeft) / 1000.0f + 10.0f);
+		}
+		ScoreBy(caller, 0);
+		v_lite607->Message(TLightFlasherStartTimed, 1.0f);
+	}
+
 	void NoControl(MessageCode, TPinballComponent*)
 	{
 		// Components whose own handler isn't ported yet; WithHook still passes their events to the table
@@ -776,6 +1097,12 @@ namespace
 		}
 	}
 
+	bool IsDropTarget(const TPinballComponent* component)
+	{
+		return std::ranges::any_of(drop_banks, [component](const DropBank& bank)
+								   { return std::ranges::find(bank.Targets, component) != bank.Targets.end(); });
+	}
+
 	void MakeLinks(TPinballTable* table)
 	{
 		Table = table;
@@ -821,6 +1148,38 @@ namespace
 		Find(tabb73wave, "tabb73wave");
 		Find(tabb74wave, "tabb74wave");
 		Find(tabb84wave, "tabb84wave");
+		for (auto index = 0u; index < letter_lights.size(); index++)
+			Find(letter_lights[index], std::format("v_lite{}", index + 1).c_str());
+		for (auto index = 0u; index < mode_lights.size(); index++)
+			Find(mode_lights[index], std::format("v_lite{}", 552 + index).c_str());
+		for (auto index = 0u; index < captive_lights.size(); index++)
+			Find(captive_lights[index], std::format("v_lite{}", 551 - index).c_str());
+		constexpr std::array captives{"a_spot11", "a_spot8", "a_spot9", "a_spot10"};
+		for (auto index = 0u; index < captive_targets.size(); index++)
+			Find(captive_targets[index], captives[index]);
+		Find(a_spot102, "a_spot102");
+		Find(map_piece_light_group, "map_piece_light_group");
+		Find(tabb02wave, "tabb02wave");
+		Find(tabb07wave, "tabb07wave");
+		Find(tabb19wave, "tabb19wave");
+		Find(tabb22wave, "tabb22wave");
+		Find(tabb23wave, "tabb23wave");
+		Find(tabb24wave, "tabb24wave");
+		Find(tabb29wave, "tabb29wave");
+		auto bank = [](int first, int last, int letter, float blocc, float blocf, TSound* hit, TSound* full)
+		{
+			DropBank result{{}, letter, blocc, blocf, hit, full};
+			for (auto index = first; index <= last; index++)
+			{
+				TPopupTarget* target;
+				Find(target, std::format("a_drop{}", index).c_str());
+				result.Targets.push_back(target);
+			}
+			return result;
+		};
+		drop_banks = {bank(13, 15, 0, 0.0f, 0.0f, tabb02wave, tabb29wave),
+					  bank(5, 9, 3, 0.0f, -1.0f, tabb22wave, tabb24wave),
+					  bank(10, 12, 8, -1.0f, 0.0f, tabb07wave, tabb19wave)};
 
 		std::vector<const void*> all{drain,
 									 s_launcher1,
@@ -858,6 +1217,14 @@ namespace
 		all.insert(all.end(), v_mlights.begin(), v_mlights.end());
 		all.insert(all.end(), flippers.begin(), flippers.end());
 		all.insert(all.end(), magnets.begin(), magnets.end());
+		all.insert(all.end(), letter_lights.begin(), letter_lights.end());
+		all.insert(all.end(), mode_lights.begin(), mode_lights.end());
+		all.insert(all.end(), captive_lights.begin(), captive_lights.end());
+		all.insert(all.end(), captive_targets.begin(), captive_targets.end());
+		all.insert(all.end(), {a_spot102, map_piece_light_group, tabb02wave, tabb07wave, tabb19wave, tabb22wave,
+							   tabb23wave, tabb24wave, tabb29wave});
+		for (const auto& dropBank : drop_banks)
+			all.insert(all.end(), dropBank.Targets.begin(), dropBank.Targets.end());
 		if (std::ranges::find(all, nullptr) != all.end())
 		{
 			// Not Skulduggery's DAT as PIRATES.EXE knows it; leave the table without rules
@@ -877,6 +1244,12 @@ namespace
 				Link(*component, WithHook<BallSaveControl>);
 			else if (component == s_oneway3)
 				Link(*component, WithHook<LaneExitControl>);
+			else if (IsDropTarget(component))
+				Link(*component, WithHook<DropTargetControl>);
+			else if (std::ranges::find(captive_targets, component) != captive_targets.end())
+				Link(*component, WithHook<CaptiveTargetControl>);
+			else if (component == a_spot102)
+				Link(*component, WithHook<ModeTargetControl>);
 			else if (dynamic_cast<TKickout*>(component) || dynamic_cast<TSink*>(component))
 				Link(*component, WithHook<StandInControl>);
 			else

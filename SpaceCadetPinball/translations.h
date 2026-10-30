@@ -589,6 +589,14 @@ enum class Msg : int
 	Skulduggery_ShipsHold,
 	Skulduggery_TotalBonus,
 	Skulduggery_SpellSkulduggery,
+	Skulduggery_AttackModeSelected,
+	Skulduggery_TreasureHuntModeSelected,
+	Skulduggery_TavernModeSelected,
+	Skulduggery_BermudaModeSelected,
+	Skulduggery_StormModeSelected,
+	Skulduggery_MutinyModeSelected,
+	Skulduggery_SwordfightModeSelected,
+	Skulduggery_PeglegsLootModeSelected,
 	// Not PIRATES.EXE's: what the rolling skill shot's pictures show, in words for Space Cadet 2026's HUD
 	Skulduggery_PictureSkillShot,
 
