@@ -788,7 +788,7 @@ namespace
 	void SwordFightBankHit(const DropBank& bank)
 	{
 		using enum MessageCode;
-		if (AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1))
+		if (BankFull(bank))
 		{
 			auto lit = (static_cast<unsigned>(ModeFlags) & VolcanoBits) == 0;
 			if (lit)
