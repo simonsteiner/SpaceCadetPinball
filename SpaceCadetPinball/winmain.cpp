@@ -121,13 +121,13 @@ std::map<SDL_JoystickID, std::set<int>> winmain::GamepadHeld{};
 std::map<std::pair<SDL_TouchID, SDL_FingerID>, GameBindings> winmain::TouchBindings{};
 Uint64 winmain::EditionHintEnd = 0;
 
-// Skulduggery's Cheats menu: PIRATES.EXE's cheats, whose "hidden test" takes a Tab as DRAGON.EXE's does, and whose
-// gmax switches the balls to their second bitmap, as DRAGON.EXE's PB does
-static void SkulduggeryCheatsMenu()
+// A bonus table's Cheats menu: its <cheats>, and "hidden test", which DRAGON.EXE and PIRATES.EXE take with a Tab and
+// which turns cheat mode only on
+static void BonusTableCheatsMenu(std::initializer_list<const char*> cheats)
 {
 	if (ImGui::MenuItem("hidden test", nullptr, pb::cheat_mode))
 		pb::PushCheat("hidden\ttest");
-	for (auto cheat : {"1max", "nmax", "gmax", "quote"})
+	for (auto cheat : cheats)
 	{
 		if (ImGui::MenuItem(cheat))
 			pb::PushCheat(cheat);
@@ -1538,20 +1538,13 @@ void winmain::RenderUi()
 			}
 			if (pb::Table == Tables::DragonsKeep && ImGui::BeginMenu("Cheats"))
 			{
-				// DRAGON.EXE's, which takes a Tab in "hidden test" and turns cheat mode only on
-				if (ImGui::MenuItem("hidden test", nullptr, pb::cheat_mode))
-					pb::PushCheat("hidden\ttest");
-				if (ImGui::MenuItem("1max"))
-					pb::PushCheat("1max");
-				if (ImGui::MenuItem("nmax"))
-					pb::PushCheat("nmax");
-				if (ImGui::MenuItem("quote"))
-					pb::PushCheat("quote");
+				BonusTableCheatsMenu({"1max", "nmax", "quote"});
 				ImGui::EndMenu();
 			}
 			else if (pb::Table == Tables::Skulduggery && ImGui::BeginMenu("Cheats"))
 			{
-				SkulduggeryCheatsMenu();
+				// gmax switches the balls to their second bitmap, as Dragon's Keep's PB does
+				BonusTableCheatsMenu({"1max", "nmax", "gmax", "quote"});
 				ImGui::EndMenu();
 			}
 			else if (!pb::BonusTable() && ImGui::BeginMenu("Cheats"))
