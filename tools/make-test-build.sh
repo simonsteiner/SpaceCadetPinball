@@ -3,12 +3,14 @@
 # A test build holds Microsoft's files: it stays on this machine and the player's devices, copied over USB or the
 # local network, and is never committed, uploaded, attached to a pull request or made in CI (docs/deployment.md).
 #
-# Usage: tools/make-test-build.sh windows [--msvc] | web
+# Usage: tools/make-test-build.sh windows [--msvc] | web | macos
 #   windows  one executable with the data inside, unpacked into the preferences folder at its first start.
 #            Cross-compiled with MinGW (the mingw preset; x86_64-w64-mingw32-gcc on PATH), or with --msvc, from
 #            WSL, with the Windows host's Visual Studio in a folder under its %TEMP%.
 #   web      a folder to serve over HTTP: the page, the game, its data preloaded from SpaceCadetPinball.data, and
 #            the MIT SoundFont the published page offers. Needs EMSDK set (tools/install-emsdk.sh).
+#   macos    a DMG with the app, built on a Mac with the macos preset; the data goes into the app's
+#            Contents/Resources, which the game searches as the executable's folder, and the app is ad-hoc signed.
 #
 # It builds the committed HEAD, from a copy made with git archive, so uncommitted changes are not in the build.
 # The data comes from the workspace's sibling folders; set these to use others, or to an empty value to leave a
@@ -19,10 +21,11 @@
 #   SCP_DATA_SKULDUGGERY  Full Tilt!'s Skulduggery (PIRATES.DAT)         default ../gamedata-skulduggery
 # The build goes to $SCP_TESTBUILDS/<commit>/<platform>/ and is built in $SCP_TESTBUILDS/build/; SCP_TESTBUILDS
 # defaults to ../testbuilds, and neither may be inside a Git repository. SCP_CMAKE_ARGS adds configure arguments.
+# It runs with macOS's bash 3.2 and BSD tools as well as on Linux.
 set -euo pipefail
 
 usage() {
-	echo "Usage: $0 windows [--msvc] | web" >&2
+	echo "Usage: $0 windows [--msvc] | web | macos" >&2
 	exit 2
 }
 
@@ -42,20 +45,33 @@ for arg in "$@"; do
 done
 case $platform in
 	windows | web) ;;
+	macos)
+		if [ "$(uname -s)" != Darwin ]; then
+			echo "The macos test build is made on a Mac" >&2
+			exit 1
+		fi
+		;;
 	*) usage ;;
 esac
 
 repo=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 # The main checkout too, when this is one of its worktrees
-main_repo=$(cd "$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)/.." && pwd)
-workspace=$(cd "$repo/.." && pwd)
+main_repo=$(cd "$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)/.." && pwd -P)
+repo=$(cd "$repo" && pwd -P)
+workspace=$(cd "$repo/.." && pwd -P)
 commit=$(git -C "$repo" rev-parse --short=10 HEAD)
 describe=$(git -C "$repo" describe --always --tags HEAD)
 if [ -n "$(git -C "$repo" status --porcelain --untracked-files=no)" ]; then
 	echo "Warning: uncommitted changes are not in the build; it is made from HEAD ($describe)." >&2
 fi
 
-testbuilds=$(realpath -m "${SCP_TESTBUILDS:-$workspace/testbuilds}")
+# Made absolute through its parent, which has to exist, since macOS has no realpath -m
+testbuilds=${SCP_TESTBUILDS:-$workspace/testbuilds}
+if ! parent=$(cd "$(dirname "$testbuilds")" 2>/dev/null && pwd -P); then
+	echo "No folder $(dirname "$testbuilds") for SCP_TESTBUILDS" >&2
+	exit 1
+fi
+testbuilds=$parent/$(basename "$testbuilds")
 out=$testbuilds/$commit/$platform
 build=$testbuilds/build
 # Neither may end up where git could pick it up
@@ -76,6 +92,10 @@ for dir in "$out" "$build"; do
 		exit 1
 	fi
 done
+
+upper() {
+	printf '%s' "$1" | tr '[:lower:]' '[:upper:]'
+}
 
 # The file in a folder whose name matches, in any letter case; fails when there is none
 find_file() {
@@ -113,13 +133,13 @@ add_table() {
 	find "$sound_data" -maxdepth 1 -type f -iname '*.wav' -print0 | while IFS= read -r -d '' file; do
 		name=$(basename "$file")
 		if grep -qaiF -- "$name" "$dat_path"; then
-			cp "$file" "$sound_dest/${name^^}"
+			cp "$file" "$sound_dest/$(upper "$name")"
 		fi
 	done
 	for track in "$@"; do
 		if file=$(find_file "$sound_data" "$track.MID") || file=$(find_file "$sound_data" "$track.MDS"); then
 			name=$(basename "$file")
-			cp "$file" "$sound_dest/${name^^}"
+			cp "$file" "$sound_dest/$(upper "$name")"
 		else
 			echo "Warning: no music $track in $sound_data" >&2
 		fi
@@ -166,7 +186,7 @@ if [ ${#tables[@]} -eq 0 ]; then
 	exit 1
 fi
 names=$(printf '%s, ' "${tables[@]}")
-echo "Game data: $(find "$layout" -type f | wc -l) files, $(du -sh "$layout" | cut -f1), for ${names%, }"
+echo "Game data: $(find "$layout" -type f | wc -l | tr -d ' ') files, $(du -sh "$layout" | cut -f1), for ${names%, }"
 
 # The committed source, outside the repository, so its bin/ is too
 src=$build/src
@@ -176,9 +196,9 @@ fi
 mkdir -p "$src"
 git -C "$repo" archive --format=tar HEAD | tar -x -C "$src"
 
+# The configure arguments every test build gets, and SCP_CMAKE_ARGS's, split into words
 # shellcheck disable=SC2206 # SCP_CMAKE_ARGS is a list of words
-extra_args=(${SCP_CMAKE_ARGS:-})
-test_build_args=("-DSCP_BUILD_COMMIT=$describe")
+cmake_args=("-DSCP_BUILD_COMMIT=$describe" ${SCP_CMAKE_ARGS:-})
 
 build_windows_mingw() {
 	if ! command -v x86_64-w64-mingw32-gcc >/dev/null; then
@@ -186,7 +206,7 @@ build_windows_mingw() {
 		exit 1
 	fi
 	local dir=$build/windows-mingw
-	cmake -S "$src" --preset mingw -B "$dir" "-DSCP_BUNDLED_DATA=$layout" "${test_build_args[@]}" "${extra_args[@]}"
+	cmake -S "$src" --preset mingw -B "$dir" "-DSCP_BUNDLED_DATA=$layout" "${cmake_args[@]}"
 	cmake --build "$dir" --parallel
 	cp "$src/bin/SpaceCadetPinball.exe" "$out/SpaceCadetPinball.exe"
 }
@@ -221,7 +241,7 @@ build_windows_msvc() {
 	cmake_exe="$vs\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe"
 	printf '%s\r\n' "@echo off" \
 		"\"$cmake_exe\" -S \"$win_dir/src\" -B \"$win_dir/build\" -A x64 -DCMAKE_WIN32_EXECUTABLE=ON -DSCP_VENDORED_SDL=ON ^" \
-		"  \"-DSCP_BUNDLED_DATA=$win_dir/layout\" \"-DSCP_BUILD_COMMIT=$describe\" ${extra_args[*]} || exit /b 1" \
+		"  \"-DSCP_BUNDLED_DATA=$win_dir/layout\" \"-DSCP_BUILD_COMMIT=$describe\" ${SCP_CMAKE_ARGS:-} || exit /b 1" \
 		"\"$cmake_exe\" --build \"$win_dir/build\" --config Release --parallel || exit /b 1" >"$dir/build.cmd"
 	(cd /mnt/c && cmd.exe /c "$(wslpath -w "$dir/build.cmd")")
 	cp "$dir/src/bin/Release/SpaceCadetPinball.exe" "$out/SpaceCadetPinball.exe"
@@ -234,13 +254,22 @@ soundfont_files=(
 	"FluidR3Mono_License.md 09926f9451f751408abd65162c99343f840234d2a708584808fd46427633063f"
 )
 
+# macOS has shasum but not always sha256sum
+sha256() {
+	if command -v sha256sum >/dev/null; then
+		sha256sum "$1"
+	else
+		shasum -a 256 "$1"
+	fi | cut -d ' ' -f 1
+}
+
 build_web() {
 	if [ -z "${EMSDK:-}" ]; then
 		echo "Set EMSDK to an Emscripten SDK (tools/install-emsdk.sh)" >&2
 		exit 1
 	fi
 	local dir=$build/web entry name hash
-	cmake -S "$src" --preset web -B "$dir" "-DSCP_BUNDLED_DATA=$layout" "${test_build_args[@]}" "${extra_args[@]}"
+	cmake -S "$src" --preset web -B "$dir" "-DSCP_BUNDLED_DATA=$layout" "${cmake_args[@]}"
 	cmake --build "$dir" --parallel
 	cp "$src/bin/SpaceCadetPinball.html" "$out/index.html"
 	cp "$src/bin/SpaceCadetPinball.js" "$src/bin/SpaceCadetPinball.wasm" "$src/bin/SpaceCadetPinball.data" "$out/"
@@ -249,15 +278,46 @@ build_web() {
 	for entry in "${soundfont_files[@]}"; do
 		name=${entry% *}
 		hash=${entry#* }
-		if [ ! -f "$build/soundfont/$name" ] || ! echo "$hash  $build/soundfont/$name" | sha256sum -c --status; then
+		if [ ! -f "$build/soundfont/$name" ] || [ "$(sha256 "$build/soundfont/$name")" != "$hash" ]; then
 			curl -sSfL -o "$build/soundfont/$name" "$soundfont_base/$name"
-			echo "$hash  $build/soundfont/$name" | sha256sum -c --quiet
+			if [ "$(sha256 "$build/soundfont/$name")" != "$hash" ]; then
+				echo "$name doesn't match its pinned SHA-256" >&2
+				exit 1
+			fi
 		fi
 		cp "$build/soundfont/$name" "$out/$name"
 	done
 }
 
+# On the Mac: the app as build-mac-app.sh makes it, with the data in Contents/Resources, which SDL_GetBasePath returns
+# for an app, signed ad hoc after the data is in, so macOS asks only once (docs/deployment.md)
+build_macos() {
+	local dir=$build/macos app=$build/SpaceCadetPinball.app version dmg
+	cmake -S "$src" --preset macos -B "$dir" "${cmake_args[@]}"
+	cmake --build "$dir" --parallel "$(sysctl -n hw.ncpu)"
+	version=$(sed -n "s/^sw_version='\(.*\)'$/\1/p" "$src/build-mac-app.sh")
+	if [ -d "$app" ]; then
+		rm -rf -- "${app:?}"
+	fi
+	mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+	sed "s/CHANGEME_SW_VERSION/$version/" "$src/Platform/macOS/Info.plist" >"$app/Contents/Info.plist"
+	cp "$src/Platform/macOS/SpaceCadetPinball.icns" "$app/Contents/Resources/"
+	cp "$src/bin/SpaceCadetPinball" "$app/Contents/MacOS/"
+	printf 'APPL????' >"$app/Contents/PkgInfo"
+	cp -R "$layout/." "$app/Contents/Resources/"
+	codesign --force --sign - "$app"
+	codesign --verify --strict "$app"
+	dmg=$out/SpaceCadetPinball-$commit-mac.dmg
+	hdiutil create -fs HFS+ -srcfolder "$app" -volname "SpaceCadetPinball test build" -ov "$dmg"
+}
+
 case $platform in
+	macos)
+		build_macos
+		echo "Test build $describe: $out/SpaceCadetPinball-$commit-mac.dmg"
+		echo "Copy the app from it to the Mac and start it; the first start asks once, as for any app without a" \
+			"Developer ID (Open from the context menu). Never upload it."
+		;;
 	web)
 		build_web
 		echo "Test build $describe: $out/"
