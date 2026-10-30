@@ -607,9 +607,7 @@ namespace
 	// The fathom lights' pictures in the second font (0x43aad8), by how many are lit: an anchor and the multiplier
 	constexpr std::array FathomPictures{":", ":=<", ":><", ":?<", ":@<", ":A<", ":B<"};
 
-	// 0x424350: the fathom lights flash and stay on, the multiplier is one more than those lit, and with a <time> of 0
-	// or more its picture shows for <time> plus 2 s. The light group passes the flash to all of them, as CADET.EXE's
-	// does, so this lights them all
+	// The fathom lights' picture for <lit> lights, the multiplier one more, for <time>
 	void ShowFathoms(int lit, float time)
 	{
 		auto index = std::clamp(lit, 0, static_cast<int>(FathomPictures.size()) - 1);
@@ -619,6 +617,9 @@ namespace
 		ShowPicture(FathomPictures[index], time, words.data());
 	}
 
+	// 0x424350: the fathom lights flash and stay on, the multiplier is one more than those lit, and with a <time> of 0
+	// or more its picture shows for <time> plus 2 s. The light group passes the flash to all of them, as CADET.EXE's
+	// does, so this lights them all
 	void LightFathoms(float time)
 	{
 		using enum MessageCode;
