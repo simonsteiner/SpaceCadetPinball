@@ -8565,6 +8565,48 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Skulduggery_Squall,
+		{
+			{ Lang::English, "Squall!\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_TropicalStorm,
+		{
+			{ Lang::English, "Tropical Storm!\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_Monsoon,
+		{
+			{ Lang::English, "Monsoon!\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_Hurricane,
+		{
+			{ Lang::English, "Hurricane!\n%ld" },
+		}
+	},
+	{
+		Msg::Skulduggery_StormHelp,
+		{
+			{ Lang::English, "Hit targets to bail water" },
+		}
+	},
+	{
+		Msg::Skulduggery_Shipwrecked,
+		{
+			{ Lang::English, "Shipwrecked" },
+		}
+	},
+	{
+		Msg::Skulduggery_ShipwreckMysteryAvailable,
+		{
+			{ Lang::English, "Shipwreck Mystery\nAvailable" },
+		}
+	},
+	{
 		Msg::Skulduggery_PictureSkillShot,
 		{
 			{ Lang::English, "Skill Shot" },
@@ -8616,6 +8658,12 @@ const TextArray translations::Translations =
 		Msg::Skulduggery_PictureBermuda,
 		{
 			{ Lang::English, "Bermuda Triangle" },
+		}
+	},
+	{
+		Msg::Skulduggery_PictureBuckets,
+		{
+			{ Lang::English, "%ld Buckets Bailed" },
 		}
 	}
 };

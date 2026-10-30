@@ -27,18 +27,18 @@
 // Skulduggery's rules, recovered from PIRATES.EXE one feature at a time (Phase F6). Ported so far: the serve, drain
 // and game-over flow, with the ball save, the end-of-ball bonus, the launch's rolling skill shot and the music; the
 // mode framework: the SKULDUGGERY drop targets, the modes' lights and pick, the captive ball's targets and a_spot102;
-// and the modes Attack Ship, Bermuda Triangle with the winds' shots and the kickouts, Tavern with the magnets and the
-// mugs' sinks, and Treasure Hunt with the buried treasure's sinks and rollovers.
+// and the modes Attack Ship, Bermuda Triangle with the winds' shots and the kickouts, Storm, Tavern with the magnets
+// and the mugs' sinks, and Treasure Hunt with the buried treasure's sinks and rollovers.
 // Everything else is still a stand-in that keeps the table playable: kickouts and sinks give back the balls they
 // catch, which only the rules would do otherwise, and a stuck ball is freed as Space Cadet's rules free one.
 //
 // PIRATES.EXE's rules run a state machine, as DRAGON.EXE's do, whose state each player keeps in info_text_box's
 // message field: the engine's control::handler (0x423080) hands every event to one table-wide function (0x42d850),
 // which passes it to the current state's function (0x42d900), and then to the component's own handler. States 1
-// (game over), 2 (play), 3 (launch), 4 (Attack Ship), 5 (Bermuda Triangle), 7 (Tavern), 8 (Treasure Hunt), 16 (end of
-// ball) and 17 (the game's last ball) are ported; the other modes (6 to 13) come with their features. Addresses below
-// are PIRATES.EXE's. Its message numbers are CADET.EXE's, which differ from this port's above the light codes, so each
-// call uses the port's MessageCode.
+// (game over), 2 (play), 3 (launch), 4 (Attack Ship), 5 (Bermuda Triangle), 6 (Storm), 7 (Tavern), 8 (Treasure Hunt),
+// 16 (end of ball) and 17 (the game's last ball) are ported; the other modes (9 to 13) come with their features.
+// Addresses below are PIRATES.EXE's. Its message numbers are CADET.EXE's, which differ from this port's above the light
+// codes, so each call uses the port's MessageCode.
 namespace
 {
 	// Codes PIRATES.EXE's rules functions send only among themselves, as DRAGON.EXE's numbers them
@@ -56,6 +56,7 @@ namespace
 	constexpr int FirstModeState = 4;
 	constexpr int AttackShipState = 4;
 	constexpr int BermudaState = 5;
+	constexpr int StormState = 6;
 	constexpr int TavernState = 7;
 	constexpr int TreasureHuntState = 8;
 	constexpr int LastModeState = 11;
@@ -170,6 +171,11 @@ namespace
 	std::array<TLightGroup*, 8> wind_light_groups;
 	std::array<TPinballComponent*, 8> wind_shots;
 	std::array<TLight*, 8> wind_lights;
+	// Storm's: its light, the Shipwreck Mystery's light it lights as the ship goes down, and its sounds
+	TLight* v_lite778;
+	TLight* v_lite529;
+	TSound* tabb67wave;
+	TSound* tabb68wave;
 
 	// A bank of drop targets: its first target's message field keeps those down, and each target spells a letter
 	struct DropBank
@@ -373,7 +379,7 @@ namespace
 	constexpr int PegLegsLootPick = 7;
 
 	// The modes ported so far; whatever would start another one lets the game go on in play
-	constexpr std::array PortedModes{AttackShipState, BermudaState, TavernState, TreasureHuntState};
+	constexpr std::array PortedModes{AttackShipState, BermudaState, StormState, TavernState, TreasureHuntState};
 
 	bool ModePorted(int state)
 	{
@@ -763,6 +769,13 @@ namespace
 		if (GameState() == TavernState && &bank != &drop_banks[1])
 		{
 			TavernBankHit(bank, caller);
+			return;
+		}
+		if (GameState() == StormState)
+		{
+			// Storm scores the targets itself; a full bank only comes up again
+			if (AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1))
+				ResetBank(bank);
 			return;
 		}
 		if (AllSet(BankDown(bank), (1u << bank.Targets.size()) - 1))
@@ -1260,6 +1273,127 @@ namespace
 		}
 	}
 
+	// Storm's strength, from the winds' lights lit as it starts: how many popup targets bail the water for the jackpot
+	// (0x435d40), what each scores before (0x435d2c), and its name with the seconds left (0x435d50)
+	struct StormStrength
+	{
+		int Targets;
+		int Score;
+		Msg Text;
+	};
+	StormStrength Storm;
+
+	// The buckets of water bailed, in the text box's second font (0x43ab28)
+	constexpr std::array<const char*, 8> BucketPictures{"", "K", "KK", "KKK", "KKKK", "KKKKK", "KKKKKK", "KKKKKKK"};
+
+	// 0x423a30: "Shipwreck Mystery Available" for <time> plus 2 s, and v_lite529 lights
+	void ShipwreckMysteryAvailable(float time)
+	{
+		info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_ShipwreckMysteryAvailable), time + 2.0f);
+		v_lite529->Message(MessageCode::TLightFlasherStartTimedThenStayOn, 1.0f);
+	}
+
+	// State 6, 0x42c430: Storm. Every popup target bails water and scores, and the last one the storm asks for awards
+	// the jackpot and starts over; the more winds lit as it starts, the fewer targets and the more each scores. A ball
+	// in a_sink14, a_sink15 or a_sink17 is shipwrecked, which ends the mode; a_roll6 gives the ball save 10 s more, and
+	// a_kout2 is on. It runs for 24.14 s after its light sweep
+	void StormStateControl(MessageCode code, const TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		switch (code)
+		{
+		case ControlTimerExpired:
+			if (caller == mode_timer)
+			{
+				v_lite778->Message(TLightResetAndTurnOff, -1.0f);
+				TableHook(ModeEnd, nullptr);
+			}
+			else if (caller == light_sweeps)
+			{
+				ModeSweepDone(24.14f);
+			}
+			break;
+		case ControlCollision:
+			if (dynamic_cast<const TPopupTarget*>(caller))
+			{
+				if (++ModeFlags == Storm.Targets)
+				{
+					AwardJackpot(0.0f);
+					ModeFlags = 0;
+					break;
+				}
+				tabb68wave->Play(nullptr, "StormStateControl");
+				AddScore(Storm.Score);
+				auto buckets = std::clamp(ModeFlags, 0, static_cast<int>(BucketPictures.size()) - 1);
+				std::array<char, 64> words{};
+				snprintf(words.data(), words.size(), pb::get_rc_string(Msg::Skulduggery_PictureBuckets),
+						 static_cast<long>(buckets));
+				ShowPicture(BucketPictures[buckets], 2.0f, words.data());
+			}
+			else if (caller == wind_shots[5])
+			{
+				// a_roll6: the ball save's light on for 10 s
+				BallSaveStep = 2;
+				v_lite569->Message(TLightTurnOnTimed, 10.0f);
+			}
+			else if (caller == a_sink14 || caller == a_sink15 || caller == a_sink17)
+			{
+				info_text_box->Display(pb::get_rc_string(Msg::Skulduggery_Shipwrecked), 2.0f);
+				StormStateControl(BallDrained, caller);
+				ShipwreckMysteryAvailable(2.0f);
+			}
+			break;
+		case EnterState:
+			{
+				ModeEnter();
+				AddScore(300000);
+				light_sweeps->Message(TLightSweepsStart, 9.0f);
+				PlayTrack(MidiTracks::Track6);
+				tabb67wave->Play(nullptr, "StormStateControl");
+				a_blocc->Message(TAnimatedBlockerSetState, 0.0f);
+				a_blocf->Message(TAnimatedBlockerSetState, -1.0f);
+				a_blocg->Message(TAnimatedBlockerSetState, 0.0f);
+				ResetBank(drop_banks[0]);
+				ResetBank(drop_banks[1]);
+				ResetBank(drop_banks[2]);
+				v_lite778->Message(TLightFlasherStartTimed, -1.0f);
+				a_kout2->Message(TKickoutEnable, 0.0f);
+				for (auto light : letter_lights)
+					light->Message(TLightFlasherStartTimed, -1.0f);
+				auto winds = 0;
+				for (auto group : wind_light_groups)
+					winds += group->Message(TLightGroupGetOnCount, 0.0f);
+				using enum Msg;
+				if (winds <= 5)
+					Storm = {8, 10000, Skulduggery_Squall};
+				else if (winds <= 10)
+					Storm = {7, 25000, Skulduggery_TropicalStorm};
+				else if (winds <= 15)
+					Storm = {6, 50000, Skulduggery_Monsoon};
+				else
+					Storm = {5, 100000, Skulduggery_Hurricane};
+				info_text_box->Display(pb::get_rc_string(Skulduggery_StormHelp), -1.0f);
+				break;
+			}
+		case ShowStateText:
+			ShowTimeLeft(Storm.Text);
+			break;
+		case ModeEnd:
+			v_lite778->Message(TLightResetAndTurnOff, 0.0f);
+			a_kout2->Message(TKickoutDisable, 0.0f);
+			ModeLeave();
+			v_lite606->MessageField++;
+			BloceDown();
+			break;
+		case BallDrained:
+			mode_timer->Message(TTimerResetTimer, -1.0f);
+			TableHook(ModeEnd, nullptr);
+			break;
+		default:
+			break;
+		}
+	}
+
 	// State 16, 0x42b820: count the bonus, one text at a time, then serve the next ball or end the game
 	void EndOfBallStateControl(MessageCode code, const TPinballComponent* caller)
 	{
@@ -1467,6 +1601,9 @@ namespace
 			break;
 		case BermudaState:
 			BermudaStateControl(code, caller);
+			break;
+		case StormState:
+			StormStateControl(code, caller);
 			break;
 		case TreasureHuntState:
 			TreasureHuntStateControl(code, caller);
@@ -2247,6 +2384,10 @@ namespace
 		Find(bermuda_light_group, "bermuda_light_group");
 		Find(tabb12wave, "tabb12wave");
 		Find(tabb66wave, "tabb66wave");
+		Find(v_lite778, "v_lite778");
+		Find(v_lite529, "v_lite529");
+		Find(tabb67wave, "tabb67wave");
+		Find(tabb68wave, "tabb68wave");
 		constexpr std::array windGroups{"left_orbit_light_group",  "right_orbit_light_group", "left_island_light_group",
 										"right_wind_light_group",  "south_wind_light_group",  "west_wind_light_group",
 										"east_wind_2_light_group", "east_wind_1_light_group"};
@@ -2327,7 +2468,8 @@ namespace
 		all.insert(all.end(), tavern_sinks.begin(), tavern_sinks.end());
 		all.insert(all.end(), v_lite530s.begin(), v_lite530s.end());
 		all.insert(all.end(), {a_spot6, keg_light_group, tabb00wave, tabb08wave, tabb65wave, tabb83wave, tabb87wave});
-		all.insert(all.end(), {bermuda_light_group, tabb12wave, tabb66wave});
+		all.insert(all.end(),
+				   {bermuda_light_group, tabb12wave, tabb66wave, v_lite778, v_lite529, tabb67wave, tabb68wave});
 		all.insert(all.end(), wind_light_groups.begin(), wind_light_groups.end());
 		all.insert(all.end(), wind_shots.begin(), wind_shots.end());
 		all.insert(all.end(), wind_lights.begin(), wind_lights.end());
