@@ -113,9 +113,12 @@ struct TableView
 		// The balls in play, more than one in a multiball
 		int BallsInPlay;
 		// The coins, special treasures and map pieces lit, and how many lights each has
-		int Coins, CoinLights;
-		int Treasures, TreasureLights;
-		int MapPieces, MapPieceLights;
+		int Coins;
+		int CoinLights;
+		int Treasures;
+		int TreasureLights;
+		int MapPieces;
+		int MapPieceLights;
 	};
 
 	struct Light
