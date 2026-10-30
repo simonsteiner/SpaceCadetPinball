@@ -31,7 +31,8 @@
 // the mugs' sinks, Treasure Hunt with the buried treasure's sinks and rollovers, Mutiny with the bumpers' crew and
 // a_spot6, and Sword Fight with the parrot's targets; and the scoring outside the modes: the last scorer, the winds'
 // shots (the orbits, the ramps and their combos, the WINDS lanes and their letters), Port O' Call, the GOLD lanes,
-// the rebounds, a_kick2, the switches of a_bloce and the flippers' turning of the lanes' lights.
+// the rebounds, a_kick2, the switches of a_bloce, the flippers' turning of the lanes' lights, Secret Hideaway, the
+// Shipwreck Mystery's sinks and the ship's hold.
 // Everything else is still a stand-in that keeps the table playable: kickouts and sinks give back the balls they
 // catch, which only the rules would do otherwise, and a stuck ball is freed as Space Cadet's rules free one.
 //
@@ -207,6 +208,11 @@ namespace
 	std::array<TLight*, 2> rebound_lights;
 	TPinballComponent* s_trip1;
 	TPinballComponent* s_trip2;
+	// The ship's hold a_sink4, with v_lite568, which gives an extra ball there
+	TSink* a_sink4;
+	TLight* v_lite568;
+	TSound* tabb27wave;
+	TSound* tabb70wave;
 	// Storm's: its light, the Shipwreck Mystery's light it lights as the ship goes down, and its sounds
 	TLight* v_lite778;
 	TLight* v_lite529;
@@ -1211,16 +1217,18 @@ namespace
 		return time + 4.0f;
 	}
 
-	// 0x423720: the next coin lights, and the coins lit score (0x43d0c0), with the coins' picture and the score
-	void AwardCoins()
+	// 0x423720: the next coin lights, and the coins lit score (0x43d0c0), with the coins' picture for <time> plus 2 s
+	// and the score for 2 s more. Returns how long the texts show
+	float AwardCoins(float time)
 	{
 		static constexpr std::array scores{0, 50000, 100000, 200000, 400000, 800000, 1600000};
 		coin_light_group->Message(MessageCode::TLightGroupResetAndTurnOn, 1.0f);
 		auto lit = coin_light_group->Message(MessageCode::TLightGroupGetOnCount, 1.0f);
 		auto score = AddScore(nullptr, scores[std::clamp(lit, 0, static_cast<int>(scores.size()) - 1)]);
-		ShowPicture("D", 2.0f, Msg::Skulduggery_PictureCoins);
-		ShowBonus(Msg::Skulduggery_Score, score, 4.0f);
+		ShowPicture("D", time + 2.0f, Msg::Skulduggery_PictureCoins);
+		ShowBonus(Msg::Skulduggery_Score, score, time + 4.0f);
 		tabb84wave->Play(nullptr, "AwardCoins");
+		return time + 4.0f;
 	}
 
 	// 0x4239d0: an extra ball
@@ -1243,7 +1251,7 @@ namespace
 			AwardSpecialTreasure(special_treasure_light_group->MessageField);
 			break;
 		case 2:
-			AwardCoins();
+			AwardCoins(0.0f);
 			break;
 		default:
 			AwardExtraBall();
@@ -1592,7 +1600,7 @@ namespace
 			AwardSpecialTreasure(special_treasure_light_group->MessageField);
 			break;
 		case 1:
-			AwardCoins();
+			AwardCoins(0.0f);
 			break;
 		case 2:
 			AwardMapPiece(0.0f);
@@ -2245,18 +2253,10 @@ namespace
 		TreasureSink{&a_sink17, &v_mlights[0], nullptr, &v_lite524s[0], &v_lite519},
 	};
 
-	// The sinks' Treasure Hunt part. In other states they still give their balls back, until their features come
-	void TreasureSinkControl(MessageCode code, TPinballComponent* caller)
+	// The sinks in Treasure Hunt: the ball in the sink the X marks finds treasure, else Secret Hideaway
+	void TreasureHuntSink(const TreasureSink* sink, TPinballComponent* caller)
 	{
 		using enum MessageCode;
-		if (code != ControlCollision)
-			return;
-		if (GameState() != TreasureHuntState)
-		{
-			StandInControl(code, caller);
-			return;
-		}
-		auto sink = std::ranges::find(TreasureSinks, caller, [](const TreasureSink& entry) { return *entry.Sink; });
 		if (auto x = *sink->X; !x->FlasherOnFlag)
 		{
 			ShowBonus(Msg::Skulduggery_SecretHideaway, ScoreBy(caller, 0), 2.0f);
@@ -2281,6 +2281,116 @@ namespace
 		}
 		if (sink->Flash)
 			(*sink->Flash)->Message(TLightFlasherStartTimed, 2.0f);
+	}
+
+	void LitLanesCoins(float time);
+
+	// The sinks Treasure Hunt marks. a_sink9 and a_sink12, which only Treasure Hunt switches on, go off outside it and
+	// let their ball out of the other one. a_sink14, a_sink15 and a_sink17 are Secret Hideaway: in play each also
+	// lights its light of v_lite524 to v_lite527, which all lit give coins (LitLanesCoins); in Bermuda Triangle they
+	// make the Shipwreck Mystery available, and in Storm they only let the ball go, though a ball in them ends Storm
+	// before their handler runs. Peg Leg's Loot (state 11) has its own branches, which come with it
+	void TreasureSinkControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		auto sink = std::ranges::find(TreasureSinks, caller, [](const TreasureSink& entry) { return *entry.Sink; });
+		if (GameState() == TreasureHuntState)
+		{
+			TreasureHuntSink(&*sink, caller);
+			return;
+		}
+		if (!sink->Flash)
+		{
+			caller->ActiveFlag = 0;
+			(caller == a_sink9 ? a_sink12 : a_sink9)->Message(TSinkResetTimer, 0.0f);
+			return;
+		}
+		auto flash = *sink->Flash;
+		switch (GameState())
+		{
+		case PlayState:
+			{
+				// a_sink17 doesn't light its flasher first
+				if (caller != a_sink17)
+					flash->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+				ShowBonus(Msg::Skulduggery_SecretHideaway, ScoreBy(caller, 0), 2.0f);
+				auto marker = *sink->Marker;
+				marker->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+				SetBit(v_lite524s[0]->MessageField,
+					   static_cast<int>(std::ranges::find(v_lite524s, marker) - v_lite524s.begin()));
+				LitLanesCoins(2.0f);
+				tabb11wave->Play(nullptr, "TreasureSinkControl");
+				SinkKick();
+				break;
+			}
+		case BermudaState:
+			ScoreBy(caller, 0);
+			tabb70wave->Play(nullptr, "TreasureSinkControl");
+			ShipwreckMysteryAvailable(0.0f);
+			SinkKick();
+			break;
+		case StormState:
+			SinkKick();
+			tabb11wave->Play(nullptr, "TreasureSinkControl");
+			break;
+		default:
+			ShowBonus(Msg::Skulduggery_SecretHideaway, ScoreBy(caller, 0), 2.0f);
+			tabb11wave->Play(nullptr, "TreasureSinkControl");
+			SinkKick();
+			break;
+		}
+		flash->Message(TLightFlasherStartTimed, 2.0f);
+	}
+
+	// a_sink4, the ship's hold, 0x4283f0: in play and most modes its score shows, the blockers drop and the ball comes
+	// out of a_sink8, or with v_lite568 lit (which only Peg Leg's Loot lights) an extra ball. In Attack Ship the whole
+	// ship goes down for the jackpot (0x4244a0), and in Mutiny it lights the Ship's Hold (v_lite570). Peg Leg's Loot's
+	// branch comes with it
+	void ShipsHoldControl(MessageCode code, TPinballComponent* caller)
+	{
+		using enum MessageCode;
+		if (code != ControlCollision)
+			return;
+		switch (GameState())
+		{
+		case AttackShipState:
+			{
+				const auto& ship = drop_banks[1];
+				BankDown(ship) = 0x1f;
+				for (auto target : ship.Targets)
+					target->Message(TPopupTargetDisable, 0.0f);
+				ModeFlags++;
+				fathom_light_group->Message(TLightGroupRestartNotifyTimer, AwardJackpot(0.0f));
+				a_sink8->Message(TSinkResetTimer, -1.0f);
+				break;
+			}
+		case MutinyState:
+			tabb27wave->Play(nullptr, "ShipsHoldControl");
+			v_lite570->Message(TLightResetAndTurnOn, 0.0f);
+			v_lite567->Message(TLightFlasherStartTimed, 1.0f);
+			a_sink8->Message(TSinkResetTimer, -1.0f);
+			break;
+		default:
+			a_blocf->Message(TAnimatedBlockerSetState, 0.0f);
+			v_lite567->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
+			a_blocc->Message(TAnimatedBlockerSetState, -1.0f);
+			a_blocf->Message(TAnimatedBlockerSetState, -1.0f);
+			a_blocg->Message(TAnimatedBlockerSetState, -1.0f);
+			a_sink8->Message(TSinkResetTimer, -1.0f);
+			if (GameState() == PlayState && !LightIdle(*v_lite568))
+			{
+				v_lite568->Message(TLightResetAndTurnOff, 0.0f);
+				AwardExtraBall();
+			}
+			else
+			{
+				ShowBonus(Msg::Skulduggery_Score, ScoreBy(caller, 0), 2.0f);
+			}
+			tabb27wave->Play(nullptr, "ShipsHoldControl");
+			break;
+		}
 	}
 
 	// 0x423830 and 0x424950: what is buried, with its name for 2 s
@@ -2412,15 +2522,15 @@ namespace
 	}
 
 	// 0x4239a0: with v_lite524 to v_lite527 all lit (v_lite524's message field), they flash out (0x423870 with 1) and
-	// coins follow
-	void LitLanesCoins()
+	// coins follow, their texts from <time> on
+	void LitLanesCoins(float time)
 	{
 		if (!AllSet(v_lite524s[0]->MessageField, 0xf))
 			return;
 		v_lite524s[0]->MessageField = 0;
 		for (auto light : v_lite524s)
 			light->Message(MessageCode::TLightFlasherStartTimedThenStayOff, 1.0f);
-		AwardCoins();
+		AwardCoins(time);
 	}
 
 	// s_trip3, s_trip8, a_ramp8, a_ramp5, a_roll2 and a_roll6 (0x429210, 0x429400, 0x428b70, 0x428d80, 0x4298f0 and
@@ -2466,7 +2576,7 @@ namespace
 			{
 				v_lite524s[3]->Message(TLightFlasherStartTimedThenStayOn, 1.0f);
 				SetBit(v_lite524s[0]->MessageField, 3);
-				LitLanesCoins();
+				LitLanesCoins(0.0f);
 			}
 			tabb12wave->Play(nullptr, "WindShotControl");
 		}
@@ -3196,6 +3306,10 @@ namespace
 		}
 		s_trip1 = Table->find_component("s_trip1");
 		s_trip2 = Table->find_component("s_trip2");
+		Find(a_sink4, "a_sink4");
+		Find(v_lite568, "v_lite568");
+		Find(tabb27wave, "tabb27wave");
+		Find(tabb70wave, "tabb70wave");
 		auto bank = [](int first, int last, int letter, float blocc, float blocf, TSound* hit, TSound* full)
 		{
 			DropBank result{{}, letter, blocc, blocf, hit, full};
@@ -3286,6 +3400,7 @@ namespace
 		all.insert(all.end(), rebound_lights.begin(), rebound_lights.end());
 		all.insert(all.end(),
 				   {island_lane_top_light_group, island_lane_bottom_light_group, tabb88wave, s_trip1, s_trip2});
+		all.insert(all.end(), {a_sink4, v_lite568, tabb27wave, tabb70wave});
 		for (const auto& dropBank : drop_banks)
 			all.insert(all.end(), dropBank.Targets.begin(), dropBank.Targets.end());
 		if (std::ranges::find(all, nullptr) != all.end())
@@ -3346,6 +3461,8 @@ namespace
 				Link(*component, WithHook<BloceDownControl>);
 			else if (component == flippers[0] || component == flippers[1])
 				Link(*component, WithHook<FlipperControl>);
+			else if (component == a_sink4)
+				Link(*component, WithHook<ShipsHoldControl>);
 			else if (component == a_kout1 || component == a_kout2)
 				Link(*component, WithHook<KickoutControl>);
 			else if (std::ranges::find(bumpers, component) != bumpers.end())
