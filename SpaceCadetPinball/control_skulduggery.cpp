@@ -1689,8 +1689,7 @@ namespace
 			return;
 		}
 		auto sink = std::ranges::find(TreasureSinks, caller, [](const TreasureSink& entry) { return *entry.Sink; });
-		auto x = *sink->X;
-		if (!x->FlasherOnFlag)
+		if (auto x = *sink->X; !x->FlasherOnFlag)
 		{
 			ShowBonus(Msg::Skulduggery_SecretHideaway, ScoreBy(caller, 0), 2.0f);
 			tabb11wave->Play(nullptr, "TreasureSinkControl");
@@ -1751,6 +1750,7 @@ namespace
 	{
 		if (code != MessageCode::ControlCollision || GameState() != TreasureHuntState)
 			return;
+		using enum Msg;
 		switch (BuryStep++)
 		{
 		case 3:
@@ -1760,19 +1760,19 @@ namespace
 			BuryTreasure(TreasureBuried2);
 			break;
 		case 5:
-			ShowBuried(Msg::Skulduggery_BonusBuried);
+			ShowBuried(Skulduggery_BonusBuried);
 			BonusBuried = BuriedBonus();
 			break;
 		case 6:
-			ShowBuried(Msg::Skulduggery_JackpotBuried);
+			ShowBuried(Skulduggery_JackpotBuried);
 			JackpotBuried = Table->JackpotScore;
 			break;
 		case 7:
-			ShowBuried(Msg::Skulduggery_ExtraBallBuried);
+			ShowBuried(Skulduggery_ExtraBallBuried);
 			ExtraBallBuried = true;
 			break;
 		default:
-			ShowBuried(Msg::Skulduggery_CoinsBuried);
+			ShowBuried(Skulduggery_CoinsBuried);
 			CoinsBuried++;
 			break;
 		}
