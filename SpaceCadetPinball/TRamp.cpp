@@ -12,6 +12,20 @@
 #include "TTableLayer.h"
 
 
+void TRamp::SetPlanes(const float* attribute, int length)
+{
+	// The planes are copied out of the attribute's floats, as the table lays them out
+	constexpr int planeFloats = sizeof(ramp_plane_type) / sizeof(float);
+	static_assert(std::is_trivially_copyable_v<ramp_plane_type> && sizeof(ramp_plane_type) % sizeof(float) == 0);
+	auto count = attribute ? loader::whole_number(*attribute) : 0;
+	count = std::clamp(count, 0, std::max(0, (length - 1) / planeFloats));
+	Planes.resize(count);
+	if (count > 0)
+		std::memcpy(Planes.data(), attribute + 1, Planes.size() * sizeof(ramp_plane_type));
+	RampPlaneCount = count;
+	RampPlane = count > 0 ? Planes.data() : nullptr;
+}
+
 TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, false)
 {
 	visualStruct visual{};
@@ -28,10 +42,7 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	// The planes' count, then the planes; a damaged table's count can't run past the attribute
 	int planesLength;
 	auto floatArr3Plane = loader::query_float_array(groupIndex, 0, 1300, &planesLength);
-	constexpr int planeFloats = sizeof(ramp_plane_type) / sizeof(float);
-	RampPlaneCount = floatArr3Plane ? loader::whole_number(*floatArr3Plane) : 0;
-	RampPlaneCount = std::clamp(RampPlaneCount, 0, std::max(0, (planesLength - 1) / planeFloats));
-	RampPlane = floatArr3Plane ? reinterpret_cast<ramp_plane_type*>(floatArr3Plane + 1) : nullptr;
+	SetPlanes(floatArr3Plane, planesLength);
 
 	// Full Tilt's bonus tables leave out some of the three walls, which CADET.EXE then doesn't build; their members
 	// keep the defaults from TRamp.h
