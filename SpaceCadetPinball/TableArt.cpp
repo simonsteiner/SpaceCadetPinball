@@ -43,7 +43,7 @@ namespace
 			return image;
 		}
 
-		// The average colour of the area from x0,y0 up to x1,y1, which are left out
+		// The average colour of the area from x0,y0 up to x1,y1, which are left out; black when that is empty
 		ColorRgba Average(int x0, int y0, int x1, int y1) const
 		{
 			unsigned red = 0;
@@ -59,6 +59,8 @@ namespace
 					blue += color.GetBlue();
 					count++;
 				}
+			if (count == 0)
+				return ColorRgba::Black();
 			return ColorRgba{static_cast<uint8_t>(red / count), static_cast<uint8_t>(green / count),
 							 static_cast<uint8_t>(blue / count), 255};
 		}
