@@ -33,7 +33,7 @@ TEdgeSegment* TEdgeSegment::install_wall(float* floatArr, int length, TCollision
 	if (!(typeValue >= 0.0f && typeValue <= static_cast<float>(length)))
 		return nullptr;
 
-	wall_type wallType = static_cast<wall_type>(static_cast<int>(typeValue));
+	auto wallType = static_cast<wall_type>(static_cast<int>(typeValue));
 	auto needed = wallType == wall_type::Circle ? 4
 				  : wallType == wall_type::Line ? 5
 												: 2 * static_cast<int>(wallType) + 1;
