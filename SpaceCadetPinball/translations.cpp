@@ -6591,6 +6591,18 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_PanelArt,
+		{
+			{ Lang::English, "Panel art" },
+		}
+	},
+	{
+		Msg::Definitive_PanelArtNote,
+		{
+			{ Lang::English, "The art of the table's own score panel, at the top of the HUD" },
+		}
+	},
+	{
 		Msg::Definitive_Colours,
 		{
 			{ Lang::English, "Colours" },

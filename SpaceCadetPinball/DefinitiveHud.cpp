@@ -31,9 +31,12 @@ namespace
 	constexpr float LampGap = 8;
 	constexpr float MessageHeight = 92;
 	// The header with the table's panel art: at most this share of the card's height, and left out below this height
-	// at scale 1
+	// at scale 1. The contents shrink to at most this share of their size to keep the header this high, so it still
+	// reads as a title; with less room the header shrinks first.
 	constexpr float HeaderShare = 0.25f;
 	constexpr float HeaderMinHeight = 48;
+	constexpr float HeaderFloor = 110;
+	constexpr float ContentsShrink = 0.9f;
 	// Room for 999,999,999, as the table's own score field has
 	constexpr size_t ScorePlaces = 11;
 	// The band under the table in a window taller than wide: no wider than this at scale 1, and its two columns side
@@ -655,15 +658,27 @@ void DefinitiveHud::Render(const TableView& view, SDL_FRect board, SDL_FRect pan
 	auto stacked = panel.y >= board.y + board.h - 1;
 	ImVec2 room = stacked ? ImVec2{viewport->Size.x, bottom - panel.y} : ImVec2{right - panel.x, viewport->Size.y};
 	auto scale = std::min({screenScale, room.x / (PanelWidth + Margin * 2), room.y / (needed + Margin)});
+
+	// The table's own panel art at the top, unless the player turned it off; the high-contrast HUD keeps its text on
+	// plain black. The contents give up a little of their size to keep it from becoming a thumbnail.
+	ImVec2 artSize{};
+	auto withArt = art && options::Options.PanelArt && !Theme::HighContrast() &&
+				   SDL_GetTextureSize(art, &artSize.x, &artSize.y) && artSize.x > 0 && artSize.y > 0;
+	if (withArt)
+	{
+		auto height = stacked ? panel.h : viewport->Size.y;
+		auto floorScale = height / (needed + Gap + HeaderFloor + Margin * 2);
+		if (floorScale < scale && floorScale >= scale * ContentsShrink)
+			scale = floorScale;
+	}
 	Ui::SetScale(scale);
 
-	// The table's own panel art at the top, as wide as the contents and as high as its shape makes it, within a share
-	// of the card. The card grows into the window's margin for it; where that leaves too little room, the header
-	// shrinks, and below a minimum it is left out. The high-contrast HUD keeps its text on plain black.
+	// As wide as the contents and as high as its shape makes it, within a share of the card. The card grows into the
+	// window's margin for it; where that leaves too little room, the header shrinks, and below a minimum it is left
+	// out.
 	auto card = std::max(stacked ? panel.h - Margin * 2 * scale : board.h, needed * scale);
 	auto header = 0.0f;
-	ImVec2 artSize{};
-	if (art && !Theme::HighContrast() && SDL_GetTextureSize(art, &artSize.x, &artSize.y) && artSize.x > 0)
+	if (withArt)
 	{
 		auto tallest = stacked ? card : viewport->Size.y - Margin * 2 * scale;
 		header = std::min({(PanelWidth - Padding * 2) * scale * artSize.y / artSize.x, card * HeaderShare,

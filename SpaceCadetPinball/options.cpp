@@ -193,6 +193,7 @@ optionsStruct options::Options
 	{"Lighting", true},
 	{"Lamp Glow", true},
 	{"Shaded Ball", true},
+	{"Panel Art", true},
 	{"Reduced Motion", false},
 	{"Screen Rotation", 0},
 	{"Text Size", 100},
