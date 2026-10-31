@@ -1663,11 +1663,13 @@ static bool FrontEndPassesShortcut(const SDL_Event& event)
 		default:
 			break;
 		}
+		// Full Tilt!'s Ctrl+T, which opens the list of tables when there is a choice, from every screen: Settings,
+		// Stats, Recordings and the Guide have the keyboard without counting as focused. Not while a binding is being
+		// chosen or a dialog asks.
+		if (event.key.key == SDLK_T && (event.key.mod & SDL_KMOD_CTRL) && TableMenus().Choices.size() > 1)
+			return !DefinitiveFrontEnd::WaitsForBinding() && !ImGui::GetTopMostPopupModal();
 		if (!DefinitiveFrontEnd::PassesShortcut(event.key.key == SDLK_ESCAPE))
 			return false;
-		// Full Tilt!'s Ctrl+T, which opens the list of tables when there is a choice
-		if (event.key.key == SDLK_T && (event.key.mod & SDL_KMOD_CTRL) && TableMenus().Choices.size() > 1)
-			return true;
 		input = {InputTypes::Keyboard, event.key.scancode};
 		break;
 	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
@@ -1825,7 +1827,8 @@ int winmain::event_handler(const SDL_Event* event)
 		{
 			if (options::GetEdition() == Editions::Classic)
 				ShowTableDialog();
-			else if ((pb::game_mode == GameModes::InGame && !DemoActive) || DefinitiveFrontEnd::ScreenOpen())
+			else if (!DefinitiveFrontEnd::WaitsForBinding() && !ImGui::GetTopMostPopupModal() &&
+					 ((pb::game_mode == GameModes::InGame && !DemoActive) || DefinitiveFrontEnd::ScreenOpen()))
 				DefinitiveFrontEnd::ShowTables();
 			break;
 		}
