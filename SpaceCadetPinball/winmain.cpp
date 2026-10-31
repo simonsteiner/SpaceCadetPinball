@@ -261,6 +261,46 @@ constexpr const char* SelectTableShortcut = "Ctrl+T";
 // Full Tilt!'s 120 by 120, each pixel the average of the area it covers. 3D Pinball's Space Cadet gets the logo from
 // its score panel, in the panel's top box in the background bitmap; any other table its playfield, the
 // "table" group's bitmap. Both at the first resolution, coloured with the table's palette.
+// The table's palette, copied out of the "background" group; none when the field is missing or too short
+static std::optional<std::array<ColorRgba, 256>> ReadPalette(DatFile& dat)
+{
+	std::array<ColorRgba, 256> palette{};
+	auto groupIndex = dat.record_labeled("background");
+	auto field = groupIndex < 0 ? nullptr : dat.field(groupIndex, FieldTypes::Palette);
+	if (!field || dat.field_size(groupIndex, FieldTypes::Palette) < static_cast<int>(sizeof(palette)))
+		return std::nullopt;
+	std::memcpy(palette.data(), field, sizeof(palette));
+	return palette;
+}
+
+// The average colour of the bitmap from x0,y0 up to x1,y1, which are left out
+static ColorRgba AverageColor(const gdrv_bitmap8& bmp, const std::array<ColorRgba, 256>& palette, int x0, int y0,
+							  int x1, int y1)
+{
+	unsigned red = 0;
+	unsigned green = 0;
+	unsigned blue = 0;
+	unsigned count = 0;
+	for (auto y = y0; y < y1; y++)
+	{
+		// The DAT's bitmaps are stored bottom up
+		auto row = reinterpret_cast<const uint8_t*>(bmp.IndexedBmpPtr) +
+				   static_cast<ptrdiff_t>(bmp.IndexedStride) * (bmp.Height - 1 - y);
+		for (auto x = x0; x < x1; x++)
+		{
+			// The colours the game sets from the palette, 10 to 245; the rest are Windows' own and black
+			auto index = row[x];
+			auto color = index >= 10 && index < 246 ? palette[index] : ColorRgba::Black();
+			red += color.GetRed();
+			green += color.GetGreen();
+			blue += color.GetBlue();
+			count++;
+		}
+	}
+	return ColorRgba{static_cast<uint8_t>(red / count), static_cast<uint8_t>(green / count),
+					 static_cast<uint8_t>(blue / count), 255};
+}
+
 static SDL_Texture* MakeTablePicture(const TableData& data)
 {
 	constexpr int size = 120;
@@ -268,7 +308,7 @@ static SDL_Texture* MakeTablePicture(const TableData& data)
 		partman::load_records((data.Folder + data.DatFileName).c_str(), data.Table != Tables::SpaceCadet3DPB, false)};
 	if (!dat)
 		return nullptr;
-	auto palette = reinterpret_cast<ColorRgba*>(dat->field_labeled("background", FieldTypes::Palette));
+	auto palette = ReadPalette(*dat);
 	auto logo = data.Table == Tables::SpaceCadet3DPB;
 	auto groupIndex = dat->record_labeled(logo ? "background" : "table");
 	auto bmp = groupIndex < 0 ? nullptr : dat->Groups[groupIndex]->GetBitmap(0);
@@ -290,34 +330,18 @@ static SDL_Texture* MakeTablePicture(const TableData& data)
 	auto scale = std::min(static_cast<float>(size) / area.w, static_cast<float>(size) / area.h);
 	auto width = std::max(1, static_cast<int>(area.w * scale));
 	auto height = std::max(1, static_cast<int>(area.h * scale));
-	auto left = (size - width) / 2, top = (size - height) / 2;
+	auto left = (size - width) / 2;
+	auto top = (size - height) / 2;
 	std::vector<ColorRgba> pixels(size * size, ColorRgba::Black());
 	for (auto y = 0; y < height; y++)
 	{
-		auto srcY0 = area.y + y * area.h / height, srcY1 = std::max(srcY0 + 1, area.y + (y + 1) * area.h / height);
+		auto srcY0 = area.y + y * area.h / height;
+		auto srcY1 = std::max(srcY0 + 1, area.y + (y + 1) * area.h / height);
 		for (auto x = 0; x < width; x++)
 		{
-			auto srcX0 = area.x + x * area.w / width, srcX1 = std::max(srcX0 + 1, area.x + (x + 1) * area.w / width);
-			unsigned red = 0, green = 0, blue = 0, count = 0;
-			for (auto srcY = srcY0; srcY < srcY1; srcY++)
-			{
-				// The DAT's bitmaps are stored bottom up
-				auto row = reinterpret_cast<const uint8_t*>(bmp->IndexedBmpPtr) +
-						   static_cast<ptrdiff_t>(bmp->IndexedStride) * (bmp->Height - 1 - srcY);
-				for (auto srcX = srcX0; srcX < srcX1; srcX++)
-				{
-					// The colours the game sets from the palette, 10 to 245; the rest are Windows' own and black
-					auto index = row[srcX];
-					auto color = index >= 10 && index < 246 ? palette[index] : ColorRgba::Black();
-					red += color.GetRed();
-					green += color.GetGreen();
-					blue += color.GetBlue();
-					count++;
-				}
-			}
-			pixels[(top + y) * size + left + x] =
-				ColorRgba{static_cast<uint8_t>(red / count), static_cast<uint8_t>(green / count),
-						  static_cast<uint8_t>(blue / count), 255};
+			auto srcX0 = area.x + x * area.w / width;
+			auto srcX1 = std::max(srcX0 + 1, area.x + (x + 1) * area.w / width);
+			pixels[(top + y) * size + left + x] = AverageColor(*bmp, *palette, srcX0, srcY0, srcX1, srcY1);
 		}
 	}
 
