@@ -190,7 +190,7 @@ Image TableArt::Picture(const TableData& data)
 {
 	constexpr int size = 120;
 	const std::unique_ptr<DatFile> dat{
-		partman::load_records((data.Folder + data.DatFileName).c_str(), data.Table != Tables::SpaceCadet3DPB)};
+		partman::load_records((data.Folder + data.DatFileName).c_str(), data.Table != Tables::SpaceCadet3DPB, false)};
 	if (!dat)
 		return {};
 	// The logo's box is at 394,20 to 578,183 in the 600 by 416 frame; its bottom rows hold the ball's label and empty
