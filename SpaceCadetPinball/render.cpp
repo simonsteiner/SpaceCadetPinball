@@ -83,7 +83,8 @@ render_sprite::render_sprite(VisualTypes visualType, gdrv_bitmap8* bmp, zmap_hea
 	}
 	DirtyRectPrev = BmpRect;
 
-	if (!ZMap && VisualType != VisualTypes::Ball)
+	// A sprite without a bitmap draws nothing and needs no zMap
+	if (!ZMap && Bmp && VisualType != VisualTypes::Ball)
 	{
 		assertm(false, "Background zMap should not be used");
 		ZMap = render::background_zmap;
