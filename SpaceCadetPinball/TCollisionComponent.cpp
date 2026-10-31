@@ -26,8 +26,9 @@ TCollisionComponent::TCollisionComponent(TPinballTable* table, int groupIndex, b
 		if (createWall)
 		{
 			float offset = table->CollisionCompOffset;
-			float* floatArr = loader::query_float_attribute(groupIndex, 0, 600);
-			TEdgeSegment::install_wall(floatArr, this, &ActiveFlag, visual.CollisionGroup, offset, 0);
+			int length;
+			float* floatArr = loader::query_float_array(groupIndex, 0, 600, &length);
+			TEdgeSegment::install_wall(floatArr, length, this, &ActiveFlag, visual.CollisionGroup, offset, 0);
 		}
 	}
 

@@ -16,9 +16,10 @@ TAnimatedBlocker::TAnimatedBlocker(TPinballTable* table, int groupIndex) : TColl
 	assertm(stateCount <= MaxStates, "TAnimatedBlocker: too many states");
 	for (int state = 0; state < std::min<int>(stateCount, MaxStates); state++)
 	{
-		auto wall = loader::query_float_attribute(groupIndex, state, 600);
+		int length;
+		auto wall = loader::query_float_array(groupIndex, state, 600, &length);
 		if (wall)
-			TEdgeSegment::install_wall(wall, this, &StateActive[state], visual.CollisionGroup,
+			TEdgeSegment::install_wall(wall, length, this, &StateActive[state], visual.CollisionGroup,
 									   table->CollisionCompOffset, 0);
 	}
 	OnSoundIndex = visual.SoundIndex4;

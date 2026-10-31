@@ -28,6 +28,6 @@ public:
 	virtual void place_in_grid(RectF* aabb) = 0;
 	virtual float FindCollisionDistance(const ray_type& ray) = 0;
 
-	static TEdgeSegment* install_wall(float* floatArr, TCollisionComponent* collComp, char* activeFlagPtr,
-	                                  unsigned int collisionGroup, float offset, size_t wallValue);
+	static TEdgeSegment* install_wall(float* floatArr, int length, TCollisionComponent* collComp, char* activeFlagPtr,
+									  unsigned int collisionGroup, float offset, size_t wallValue);
 };

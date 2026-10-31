@@ -40,20 +40,22 @@ TDemo::TDemo(TPinballTable* table, int groupIndex)
 		UnFlipTimerTime2 = 0.1f;
 	}
 	loader::query_visual(groupIndex, 0, &visual);
-	auto v5 = loader::query_float_attribute(groupIndex, 0, 1400);
-	Edge1 = TEdgeSegment::install_wall(v5, this, &ActiveFlag, visual.CollisionGroup, 0.0, 1400);
+	int length;
+	auto v5 = loader::query_float_array(groupIndex, 0, 1400, &length);
+	Edge1 = TEdgeSegment::install_wall(v5, length, this, &ActiveFlag, visual.CollisionGroup, 0.0, 1400);
 
-	auto v6 = loader::query_float_attribute(groupIndex, 0, 1401);
-	TEdgeSegment::install_wall(v6, this, &ActiveFlag, visual.CollisionGroup, 0.0, 1401);
+	auto v6 = loader::query_float_array(groupIndex, 0, 1401, &length);
+	TEdgeSegment::install_wall(v6, length, this, &ActiveFlag, visual.CollisionGroup, 0.0, 1401);
 
-	auto v7 = loader::query_float_attribute(groupIndex, 0, 1402);
-	Edge2 = TEdgeSegment::install_wall(v7, this, &ActiveFlag, visual.CollisionGroup, 0.0, 1402);
+	auto v7 = loader::query_float_array(groupIndex, 0, 1402, &length);
+	Edge2 = TEdgeSegment::install_wall(v7, length, this, &ActiveFlag, visual.CollisionGroup, 0.0, 1402);
 
-	auto v8 = loader::query_float_attribute(groupIndex, 0, 1403);
-	TEdgeSegment::install_wall(v8, this, &ActiveFlag, visual.CollisionGroup, 0.0, 1403);
+	auto v8 = loader::query_float_array(groupIndex, 0, 1403, &length);
+	TEdgeSegment::install_wall(v8, length, this, &ActiveFlag, visual.CollisionGroup, 0.0, 1403);
 
-	auto v9 = loader::query_float_attribute(groupIndex, 0, 1404);
-	Edge3 = TEdgeSegment::install_wall(v9, this, &ActiveFlag, visual.CollisionGroup, table->CollisionCompOffset, 1404);
+	auto v9 = loader::query_float_array(groupIndex, 0, 1404, &length);
+	Edge3 = TEdgeSegment::install_wall(v9, length, this, &ActiveFlag, visual.CollisionGroup, table->CollisionCompOffset,
+									   1404);
 }
 
 int TDemo::Message(MessageCode code, float value)

@@ -47,7 +47,7 @@ THole::THole(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 
 	// CollisionMask difference: 3DPB - value given as is, FT: mask = 1 << value
 	if (pb::FullTiltMode)
-		CollisionMask = 1 << CollisionMask;
+		CollisionMask = loader::collision_group_bit(static_cast<float>(CollisionMask));
 
 	Circle.RadiusSq = visual.FloatArr[2] * visual.FloatArr[2];
 	circle.RadiusSq = Circle.RadiusSq;
