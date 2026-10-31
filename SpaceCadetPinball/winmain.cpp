@@ -308,7 +308,9 @@ static SDL_Texture* PanelArtTexture()
 		return art.Texture;
 	if (art.Factor != factor)
 	{
-		SDL_DestroyTexture(art.Upscaled);
+		// SDL reports null as an invalid texture, which the main loop would print
+		if (art.Upscaled)
+			SDL_DestroyTexture(art.Upscaled);
 		art.Upscaled = TableArt::Texture(winmain::Renderer, TableArt::Magnify(art.Art, factor));
 		art.Factor = factor;
 	}
@@ -326,8 +328,9 @@ static void LoadPanelArt()
 static void FreePanelArt()
 {
 	auto& art = PanelArt();
-	SDL_DestroyTexture(art.Texture);
-	SDL_DestroyTexture(art.Upscaled);
+	for (auto texture : {art.Texture, art.Upscaled})
+		if (texture)
+			SDL_DestroyTexture(texture);
 	art = {};
 }
 
