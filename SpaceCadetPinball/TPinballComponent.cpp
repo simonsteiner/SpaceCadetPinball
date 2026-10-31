@@ -157,6 +157,10 @@ void TPinballComponent::SpriteSet(int index) const
 		zMap = spriteData.ZMap;
 		xPos = bmp->XPosition - PinballTable->XOffset;
 		yPos = bmp->YPosition - PinballTable->YOffset;
+		// A damaged table's bitmap can lose its zMap (GroupData::SetBitmap), and the frame can't be drawn without
+		// one; the state then shows nothing
+		if (!zMap)
+			bmp = nullptr;
 	}
 	else
 	{
