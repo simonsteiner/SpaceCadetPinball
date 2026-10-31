@@ -257,10 +257,6 @@ constexpr const char* SelectTableShortcut = nullptr;
 constexpr const char* SelectTableShortcut = "Ctrl+T";
 #endif
 
-// A picture for a table without one, made on the player's machine from their own DAT file and scaled down to fit
-// Full Tilt!'s 120 by 120, each pixel the average of the area it covers. 3D Pinball's Space Cadet gets the logo from
-// its score panel, in the panel's top box in the background bitmap; any other table its playfield, the
-// "table" group's bitmap. Both at the first resolution, coloured with the table's palette.
 // The table's palette, copied out of the "background" group; none when the field is missing or too short
 static std::optional<std::array<ColorRgba, 256>> ReadPalette(DatFile& dat)
 {
@@ -301,6 +297,10 @@ static ColorRgba AverageColor(const gdrv_bitmap8& bmp, const std::array<ColorRgb
 					 static_cast<uint8_t>(blue / count), 255};
 }
 
+// A picture for a table without one, made on the player's machine from their own DAT file and scaled down to fit
+// Full Tilt!'s 120 by 120, each pixel the average of the area it covers. 3D Pinball's Space Cadet gets the logo from
+// its score panel, in the panel's top box in the background bitmap; any other table its playfield, the
+// "table" group's bitmap. Both at the first resolution, coloured with the table's palette.
 static SDL_Texture* MakeTablePicture(const TableData& data)
 {
 	constexpr int size = 120;
