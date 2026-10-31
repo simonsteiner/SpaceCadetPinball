@@ -33,10 +33,8 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "DefinitiveUi.h"
 #include "EmbeddedData.h"
 #include "fullscrn.h"
-#include "GroupData.h"
 #include "midi.h"
 #include "options.h"
-#include "partman.h"
 #include "pb.h"
 #include "PostEffect.h"
 #include "Compositor.h"
@@ -44,6 +42,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "render.h"
 #include "replay.h"
 #include "Sound.h"
+#include "TableArt.h"
 #include "TableView.h"
 #include "translations.h"
 #include "font_selection.h"
@@ -257,76 +256,6 @@ constexpr const char* SelectTableShortcut = nullptr;
 constexpr const char* SelectTableShortcut = "Ctrl+T";
 #endif
 
-// A picture for a table without one, made on the player's machine from their own DAT file and scaled down to fit
-// Full Tilt!'s 120 by 120, each pixel the average of the area it covers. 3D Pinball's Space Cadet gets the logo from
-// its score panel, in the panel's top box in the background bitmap; any other table its playfield, the
-// "table" group's bitmap. Both at the first resolution, coloured with the table's palette.
-static SDL_Texture* MakeTablePicture(const TableData& data)
-{
-	constexpr int size = 120;
-	const std::unique_ptr<DatFile> dat{
-		partman::load_records((data.Folder + data.DatFileName).c_str(), data.Table != Tables::SpaceCadet3DPB)};
-	if (!dat)
-		return nullptr;
-	auto palette = reinterpret_cast<ColorRgba*>(dat->field_labeled("background", FieldTypes::Palette));
-	auto logo = data.Table == Tables::SpaceCadet3DPB;
-	auto groupIndex = dat->record_labeled(logo ? "background" : "table");
-	auto bmp = groupIndex < 0 ? nullptr : dat->Groups[groupIndex]->GetBitmap(0);
-	if (!palette || !bmp || !bmp->IndexedBmpPtr || bmp->BitmapType == BitmapTypes::Spliced || bmp->Width <= 0 ||
-		bmp->Height <= 0)
-		return nullptr;
-
-	// The area of the bitmap to show. The logo's box is at 394,20 to 578,183 in the 600 by 416 frame; its bottom rows
-	// hold the ball's label and empty digit box, which the picture leaves out
-	SDL_Rect area{0, 0, bmp->Width, bmp->Height};
-	if (logo)
-	{
-		area = {394 - bmp->XPosition, 20 - bmp->YPosition, 185, 126};
-		if (area.x < 0 || area.y < 0 || area.x + area.w > bmp->Width || area.y + area.h > bmp->Height)
-			return nullptr;
-	}
-
-	// Fit the area into the square, centred on black
-	auto scale = std::min(static_cast<float>(size) / area.w, static_cast<float>(size) / area.h);
-	auto width = std::max(1, static_cast<int>(area.w * scale));
-	auto height = std::max(1, static_cast<int>(area.h * scale));
-	auto left = (size - width) / 2, top = (size - height) / 2;
-	std::vector<ColorRgba> pixels(size * size, ColorRgba::Black());
-	for (auto y = 0; y < height; y++)
-	{
-		auto srcY0 = area.y + y * area.h / height, srcY1 = std::max(srcY0 + 1, area.y + (y + 1) * area.h / height);
-		for (auto x = 0; x < width; x++)
-		{
-			auto srcX0 = area.x + x * area.w / width, srcX1 = std::max(srcX0 + 1, area.x + (x + 1) * area.w / width);
-			unsigned red = 0, green = 0, blue = 0, count = 0;
-			for (auto srcY = srcY0; srcY < srcY1; srcY++)
-			{
-				// The DAT's bitmaps are stored bottom up
-				auto row = reinterpret_cast<const uint8_t*>(bmp->IndexedBmpPtr) +
-						   static_cast<ptrdiff_t>(bmp->IndexedStride) * (bmp->Height - 1 - srcY);
-				for (auto srcX = srcX0; srcX < srcX1; srcX++)
-				{
-					// The colours the game sets from the palette, 10 to 245; the rest are Windows' own and black
-					auto index = row[srcX];
-					auto color = index >= 10 && index < 246 ? palette[index] : ColorRgba::Black();
-					red += color.GetRed();
-					green += color.GetGreen();
-					blue += color.GetBlue();
-					count++;
-				}
-			}
-			pixels[(top + y) * size + left + x] =
-				ColorRgba{static_cast<uint8_t>(red / count), static_cast<uint8_t>(green / count),
-						  static_cast<uint8_t>(blue / count), 255};
-		}
-	}
-
-	auto picture = SDL_CreateTexture(winmain::Renderer, SDL_PIXELFORMAT_BGRA32, SDL_TEXTUREACCESS_STATIC, size, size);
-	if (picture)
-		SDL_UpdateTexture(picture, nullptr, pixels.data(), size * static_cast<int>(sizeof(ColorRgba)));
-	return picture;
-}
-
 static void LoadTableChoices()
 {
 	for (const auto& data : pb::FoundTables)
@@ -342,7 +271,7 @@ static void LoadTableChoices()
 			SDL_DestroySurface(surface);
 		}
 		if (!picture)
-			picture = MakeTablePicture(data);
+			picture = TableArt::Texture(winmain::Renderer, TableArt::Picture(data));
 		TableMenus().Choices.emplace_back(data, picture);
 	}
 }
@@ -352,6 +281,54 @@ static void FreeTableChoices()
 	for (const auto& choice : TableMenus().Choices)
 		SDL_DestroyTexture(choice.Picture);
 	TableMenus().Choices.clear();
+}
+
+// The art at the top of the loaded table's score panel, for Space Cadet 2026's HUD, and a copy enlarged as Upscaled
+// Art enlarges the table
+struct PanelArtState
+{
+	TableArt::Image Art;
+	SDL_Texture* Texture = nullptr;
+	SDL_Texture* Upscaled = nullptr;
+	int Factor = 0;
+};
+
+static PanelArtState& PanelArt()
+{
+	static PanelArtState state;
+	return state;
+}
+
+// The texture for the Upscaled Art in use, enlarged with its upscaler the first time it is asked for
+static SDL_Texture* PanelArtTexture()
+{
+	auto& art = PanelArt();
+	auto factor = Upscale::Factor();
+	if (factor < Upscale::MinFactor || art.Art.Empty())
+		return art.Texture;
+	if (art.Factor != factor)
+	{
+		SDL_DestroyTexture(art.Upscaled);
+		art.Upscaled = TableArt::Texture(winmain::Renderer, TableArt::Magnify(art.Art, factor));
+		art.Factor = factor;
+	}
+	return art.Upscaled ? art.Upscaled : art.Texture;
+}
+
+static void LoadPanelArt()
+{
+	auto& art = PanelArt();
+	art.Art = TableArt::PanelArt(pb::Table, *pb::record_table);
+	art.Texture = TableArt::Texture(winmain::Renderer, art.Art);
+	PanelArtTexture();
+}
+
+static void FreePanelArt()
+{
+	auto& art = PanelArt();
+	SDL_DestroyTexture(art.Texture);
+	SDL_DestroyTexture(art.Upscaled);
+	art = {};
 }
 
 // Classic's Select Table, as Full Tilt!'s Ctrl+T: it pauses the game, which stays paused if nothing is picked
@@ -416,6 +393,7 @@ static DefinitiveHost MakeDefinitiveHost()
 	};
 	host.ClearRecords = [] { high_score::clear_table(); };
 	host.TableList = TableList;
+	host.PanelArt = PanelArtTexture;
 	host.SelectTable = [](size_t index)
 	{
 		if (index < TableMenus().Choices.size())
@@ -868,6 +846,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		fullscrn::init();
 		render::SetUpscale(Options.UpscaledArt ? Options.UpscaleFactor.V : 0);
+		LoadPanelArt();
 
 		pb::reset_table();
 		pb::firsttime_setup();
@@ -938,6 +917,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			options::uninit();
 		midi::music_shutdown();
 		Sound::Close();
+		FreePanelArt();
 		pb::uninit();
 		FreeTableChoices();
 		DefinitiveEdition::Reset();

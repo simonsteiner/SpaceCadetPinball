@@ -3,15 +3,16 @@
 struct TableView;
 
 // Space Cadet 2026's score panel, drawn in place of the table's own: the score and ball, every player's score, the
-// mission and what it needs next, the rank, and the messages of the table's two text boxes. Everything on it comes
-// from the view.
+// mission and what it needs next, the rank, and the messages of the table's two text boxes, under a header with the
+// table's own panel art. Everything on it comes from the view, and the art from the host as a texture.
 class DefinitiveHud
 {
 public:
 	// Draws the panel under every window, where the table's panel is and in the window's margin beyond it: beside the
 	// table as tall as it is, or under it in the stacked layout. The rectangles are in window coordinates.
-	// In a band, the panel is the band under the table in a window taller than wide.
-	static void Render(const TableView& view, SDL_FRect board, SDL_FRect panel, bool band);
+	// In a band, the panel is the band under the table in a window taller than wide. The art, the table's own panel
+	// art or null, heads the panel where there is room, but not in a band or in high contrast.
+	static void Render(const TableView& view, SDL_FRect board, SDL_FRect panel, bool band, SDL_Texture* art);
 	// The mission a state of the view's Mission runs, from 2 for Target Practice to 18 for Maelstrom, or 0 while none
 	// runs
 	static int MissionOf(int state);

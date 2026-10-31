@@ -150,6 +150,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/RecordingViewer.h
         SpaceCadetPinball/Rumble.cpp
         SpaceCadetPinball/Rumble.h
+        SpaceCadetPinball/TableArt.cpp
+        SpaceCadetPinball/TableArt.h
         SpaceCadetPinball/Upscale.cpp
         SpaceCadetPinball/Upscale.h
         SpaceCadetPinball/score.cpp
