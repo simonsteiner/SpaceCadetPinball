@@ -31,6 +31,7 @@ std::string DefinitiveFrontEnd::EntryName;
 std::vector<std::string> DefinitiveFrontEnd::NewRecords;
 float DefinitiveFrontEnd::CreditsScroll = 0;
 size_t DefinitiveFrontEnd::ConfirmTable = SIZE_MAX;
+bool DefinitiveFrontEnd::FocusConfirmTable = false;
 
 namespace
 {
@@ -41,9 +42,6 @@ namespace
 	{
 		return translations::GetTranslation(id);
 	}
-
-	// The rows below the table chosen took the focus request in that frame; the question asks again
-	bool FocusConfirmTable = false;
 
 	// A line of the credits, a heading or not
 	struct CreditLine
@@ -89,16 +87,17 @@ void DefinitiveFrontEnd::ShowSettings(bool controls)
 
 void DefinitiveFrontEnd::ShowTables()
 {
+	using enum Screen;
 	if (!Host.TableList || Host.TableList().size() < 2)
 		return;
 	// No screen shows in a game in play
-	auto fromPause = Current == Screen::None || FromPause();
+	auto fromPause = Current == None || FromPause();
 	if (!fromPause && !UnderTitle())
 		return;
-	if (fromPause && Current != Screen::Tables)
+	if (fromPause && Current != Tables)
 		ShowPause();
-	TablesFrom = fromPause ? Screen::Pause : Screen::Title;
-	Open(Screen::Tables);
+	TablesFrom = fromPause ? Pause : Title;
+	Open(Tables);
 }
 
 void DefinitiveFrontEnd::ShowViewer()
@@ -139,10 +138,9 @@ bool DefinitiveFrontEnd::FromPause()
 
 bool DefinitiveFrontEnd::UnderTitle()
 {
-	return Current == Screen::Title || Current == Screen::Records || Current == Screen::Credits ||
-		   Current == Screen::Stats || Current == Screen::Recordings ||
-		   (Current == Screen::Tables && TablesFrom != Screen::Pause) ||
-		   (Current == Screen::Settings && SettingsFrom != Screen::Pause);
+	using enum Screen;
+	return Current == Title || Current == Records || Current == Credits || Current == Stats || Current == Recordings ||
+		   (Current == Tables && TablesFrom != Pause) || (Current == Settings && SettingsFrom != Pause);
 }
 
 // Opens and closes the screens as a game starts, pauses and ends, and runs the demo behind the title
@@ -555,30 +553,54 @@ void DefinitiveFrontEnd::RenderTables()
 	ImGui::BeginGroup();
 	ImGui::PushItemWidth(innerWidth);
 	// Each table with the game its data comes from and its best score; choosing another restarts the game with it
-	SDL_Texture* picture = nullptr;
-	if (confirming)
+	auto picture = confirming ? RenderConfirmTable(tables) : RenderTableRows(tables);
+	ImGui::PopItemWidth();
+	ImGui::EndGroup();
+
+	// The focused table's picture, framed as the score panel is
+	if (picture)
 	{
-		picture = tables[ConfirmTable].Picture;
-		if (FocusConfirmTable)
-			Ui::FocusNextRow();
-		FocusConfirmTable = false;
-		auto cancelled = Ui::MenuRow("cancel", Text(Msg::GenericCancel)) || BackPressed();
-		if (Ui::MenuRow("confirm", Text(Msg::GenericOk), true))
-		{
-			// As Restart does, the game resumes before it goes
-			if (Host.Resume)
-				Host.Resume();
-			if (Host.SelectTable)
-				Host.SelectTable(ConfirmTable);
-			cancelled = true;
-		}
-		if (cancelled)
-		{
-			ConfirmTable = SIZE_MAX;
-			Ui::FocusNextRow();
-		}
+		ImVec2 min{origin.x + 16 * scale, ImGui::GetItemRectMax().y + 24 * scale};
+		ImVec2 max{min.x + pictureSize * scale, min.y + pictureSize * scale};
+		drawList->AddImage(reinterpret_cast<ImTextureID>(picture), min, max);
+		drawList->AddRect(ImVec2{min.x - 1, min.y - 1}, ImVec2{max.x + 1, max.y + 1}, Theme::Chrome600, 2 * scale);
 	}
-	for (size_t i = 0; i < tables.size() && !confirming; i++)
+
+	Ui::DrawHints(drawList, ImVec2{origin.x + 16 * scale, viewport->Pos.y + viewport->Size.y - 50 * scale},
+				  {{Ui::Action::Choose, Text(Msg::Definitive_Choose)},
+				   {Ui::Action::Select, Text(Msg::Definitive_Select)},
+				   {Ui::Action::Back, Text(Msg::Definitive_Back)}});
+	EndColumn();
+}
+
+SDL_Texture* DefinitiveFrontEnd::RenderConfirmTable(const std::vector<DefinitiveHost::TableChoice>& tables)
+{
+	auto picture = tables[ConfirmTable].Picture;
+	if (FocusConfirmTable)
+		Ui::FocusNextRow();
+	FocusConfirmTable = false;
+	auto cancelled = Ui::MenuRow("cancel", Text(Msg::GenericCancel)) || BackPressed();
+	if (Ui::MenuRow("confirm", Text(Msg::GenericOk), true))
+	{
+		// As Restart does, the game resumes before it goes
+		if (Host.Resume)
+			Host.Resume();
+		if (Host.SelectTable)
+			Host.SelectTable(ConfirmTable);
+		cancelled = true;
+	}
+	if (cancelled)
+	{
+		ConfirmTable = SIZE_MAX;
+		Ui::FocusNextRow();
+	}
+	return picture;
+}
+
+SDL_Texture* DefinitiveFrontEnd::RenderTableRows(const std::vector<DefinitiveHost::TableChoice>& tables)
+{
+	SDL_Texture* picture = nullptr;
+	for (size_t i = 0; i < tables.size(); i++)
 	{
 		const auto& table = tables[i];
 		auto note = table.Source;
@@ -601,25 +623,9 @@ void DefinitiveFrontEnd::RenderTables()
 		else if (chosen && Host.SelectTable)
 			Host.SelectTable(i);
 	}
-	if (!confirming && (Ui::MenuRow("back", Text(Msg::Definitive_Back)) || BackPressed()))
+	if (Ui::MenuRow("back", Text(Msg::Definitive_Back)) || BackPressed())
 		Open(TablesFrom);
-	ImGui::PopItemWidth();
-	ImGui::EndGroup();
-
-	// The focused table's picture, framed as the score panel is
-	if (picture)
-	{
-		ImVec2 min{origin.x + 16 * scale, ImGui::GetItemRectMax().y + 24 * scale};
-		ImVec2 max{min.x + pictureSize * scale, min.y + pictureSize * scale};
-		drawList->AddImage(reinterpret_cast<ImTextureID>(picture), min, max);
-		drawList->AddRect(ImVec2{min.x - 1, min.y - 1}, ImVec2{max.x + 1, max.y + 1}, Theme::Chrome600, 2 * scale);
-	}
-
-	Ui::DrawHints(drawList, ImVec2{origin.x + 16 * scale, viewport->Pos.y + viewport->Size.y - 50 * scale},
-				  {{Ui::Action::Choose, Text(Msg::Definitive_Choose)},
-				   {Ui::Action::Select, Text(Msg::Definitive_Select)},
-				   {Ui::Action::Back, Text(Msg::Definitive_Back)}});
-	EndColumn();
+	return picture;
 }
 
 void DefinitiveFrontEnd::RenderCredits()

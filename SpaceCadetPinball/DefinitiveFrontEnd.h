@@ -190,11 +190,15 @@ private:
 	};
 
 	static DefinitiveHost Host;
-	static Screen Current, SettingsFrom, TablesFrom;
+	static Screen Current, SettingsFrom;
+	// Where Back leads from the list of tables: the pause screen or the title
+	static Screen TablesFrom;
 	static bool Opened, ConfirmClear, SummaryShown, Focused;
 	static float CreditsScroll;
 	// The table chosen from a game in play, which asks before ending it; SIZE_MAX while not asking
 	static size_t ConfirmTable;
+	// The rows below the table chosen took the focus request in that frame; the question asks again
+	static bool FocusConfirmTable;
 	// The high score whose name is being entered, its place, the name so far, and the default names, one per player, of
 	// the scores that made the table
 	static DefinitiveHost::Record Entry;
@@ -211,6 +215,10 @@ private:
 	static void RenderTitle(const TableView& view);
 	static void RenderRecords();
 	static void RenderTables();
+	// The question before a game in play ends for another table, and the picture of that table
+	static SDL_Texture* RenderConfirmTable(const std::vector<DefinitiveHost::TableChoice>& tables);
+	// A row for each table and one to go back, and the picture of the table focused
+	static SDL_Texture* RenderTableRows(const std::vector<DefinitiveHost::TableChoice>& tables);
 	static void RenderCredits();
 	// In DefinitiveInGame.cpp
 	static void RenderPause(const TableView& view);

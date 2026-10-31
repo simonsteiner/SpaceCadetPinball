@@ -140,7 +140,8 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 	// Rows grow with the Text Size option
 	auto changeTable = Host.TableList && Host.TableList().size() > 1;
 	auto row = Ui::RowHeight() + 2;
-	auto rowsHeight = ConfirmRestart || ConfirmQuit ? 32 + 2 * row : (changeTable ? 7 : 6) * row + 12;
+	auto rows = changeTable ? 7 : 6;
+	auto rowsHeight = ConfirmRestart || ConfirmQuit ? 32 + 2 * row : rows * row + 12;
 	auto min = BeginCentred("##DefinitivePause", ImVec2{420, 24 + 40 + 24 + 16 + rowsHeight + 24 + 44});
 	auto scale = Ui::Scale();
 	auto drawList = ImGui::GetWindowDrawList();
