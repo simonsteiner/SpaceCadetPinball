@@ -101,7 +101,9 @@ private:
 	zmap_header_type* ZMaps[3]{};
 	bool NeedsSort = false;
 
-	static void SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, gdrv_bitmap8& bmp, zmap_header_type& zMap);
+	// srcSize is the size of the runs the spliced bitmap holds
+	static void SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, size_t srcSize, gdrv_bitmap8& bmp,
+								   zmap_header_type& zMap);
 
 	void SetBitmap(gdrv_bitmap8* bmp);
 	void SetZMap(zmap_header_type* zMap);

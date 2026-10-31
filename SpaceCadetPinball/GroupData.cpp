@@ -4,6 +4,7 @@
 
 #include "fullscrn.h"
 #include "gdrv.h"
+#include "partman.h"
 #include "pb.h"
 #include "PeResource.h"
 #include "zdrv.h"
@@ -48,7 +49,9 @@ void GroupData::AddEntry(EntryData* entry)
 				// Get rid of spliced bitmap early on, to simplify render pipeline
 				auto bmp = new gdrv_bitmap8(srcBmp->Width, srcBmp->Height, true);
 				auto zMap = new zmap_header_type(srcBmp->Width, srcBmp->Height, srcBmp->Width);
-				SplitSplicedBitmap(*srcBmp, *bmp, *zMap);
+				// The runs fill the field after the bitmap's header
+				SplitSplicedBitmap(*srcBmp, static_cast<size_t>(entry->FieldSize) - sizeof(dat8BitBmpHeader), *bmp,
+								   *zMap);
 
 				NeedsSort = true;
 				addEntry = false;
@@ -104,7 +107,8 @@ zmap_header_type* GroupData::GetZMap(int resolution) const
 	return ZMaps[resolution];
 }
 
-void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, gdrv_bitmap8& bmp, zmap_header_type& zMap)
+void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, size_t srcSize, gdrv_bitmap8& bmp,
+								   zmap_header_type& zMap)
 {
 	assertm(srcBmp.BitmapType == BitmapTypes::Spliced, "GroupData: wrong bitmap type");
 
@@ -121,11 +125,19 @@ void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, gdrv_bitmap8& bmp
 	// One sprite of DRAGON.DAT, marked for 640 by 480, skips rows as if laid out for 800 by 600 and runs past its
 	// end; its pixels outside the bitmap are dropped instead of written past it
 	auto end = std::min(bmp.Stride * bmp.Height, zMap.Stride * zMap.Height);
-	// The data packs 16-bit values between single bytes, so the values are read wherever they fall
+	// The data packs 16-bit values between single bytes, so the values are read wherever they fall. Damaged data that
+	// runs past the field's end stops the runs there, as their end marker does.
 	auto src = srcBmp.IndexedBmpPtr;
-	auto read16 = [&src]
+	auto srcEnd = src + srcSize;
+	auto ended = false;
+	auto read16 = [&src, srcEnd, &ended]
 	{
-		uint16_t value;
+		uint16_t value = 0xffff;
+		if (srcEnd - src < static_cast<ptrdiff_t>(sizeof value))
+		{
+			ended = true;
+			return value;
+		}
 		std::memcpy(&value, src, sizeof value);
 		src += sizeof value;
 		return value;
@@ -133,21 +145,28 @@ void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, gdrv_bitmap8& bmp
 	for (int dstInd = 0;;)
 	{
 		auto stride = static_cast<int16_t>(read16());
-		if (stride < 0)
+		if (stride < 0 || ended)
 			break;
 
 		// Stride is in terms of dst stride, hardcoded to match vScreen width in current resolution
 		if (stride > bmp.Width)
 		{
 			stride = static_cast<int16_t>(stride + bmp.Width - tableWidth);
-			assertm(stride >= 0, "Spliced bitmap: negative computed stride");
+			// Only damaged data steps backwards; its runs stop there
+			if (stride < 0)
+				break;
 		}
 
 		dstInd += stride;
-		for (auto count = read16(); count; count--)
+		for (auto count = read16(); count && !ended; count--)
 		{
 			auto depth = read16();
-			if (dstInd < end)
+			if (ended || src >= srcEnd)
+			{
+				ended = true;
+				break;
+			}
+			if (dstInd >= 0 && dstInd < end)
 			{
 				bmp.IndexedBmpPtr[dstInd] = *src;
 				zMap.ZPtr1[dstInd] = depth;

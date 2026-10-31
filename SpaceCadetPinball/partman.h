@@ -2,6 +2,7 @@
 
 struct zmap_header_type;
 struct gdrv_bitmap8;
+enum class FieldTypes : int16_t;
 
 
 enum class bmp8Flags : unsigned char
@@ -62,6 +63,11 @@ public:
 	static class DatFile* load_records(LPCSTR lpFileName, bool fullTiltMode);
 private:
 	static short _field_size[];
+
+	// Whether a field's size fits its type; a damaged file has sizes that would overrun what is made from them
+	static bool ValidFieldSize(FieldTypes type, size_t size);
+	// Whether an 8-bit bitmap's header fits its field and describes a bitmap the game can hold
+	static bool ValidBitmapHeader(const dat8BitBmpHeader& header, size_t fieldSize);
 
 	// Sets failed when the file ends early
 	static void Read(FILE* file, void* buffer, size_t size, bool& failed)
