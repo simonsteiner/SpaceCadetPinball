@@ -63,12 +63,15 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 		auto groupData = new GroupData(groupIndex);
 		groupData->ReserveEntries(entryCount);
 
-		for (auto entryIndex = 0; !abort && entryIndex < entryCount; ++entryIndex)
+		for (auto entryIndex = 0; entryIndex < entryCount; ++entryIndex)
 		{
-			if (auto entryData = ReadEntry(fileHandle, fullTiltMode))
-				groupData->AddEntry(entryData);
-			else
+			auto entryData = ReadEntry(fileHandle, fullTiltMode);
+			if (!entryData)
+			{
 				abort = true;
+				break;
+			}
+			groupData->AddEntry(entryData);
 		}
 
 		datFile->Groups.push_back(groupData);

@@ -161,18 +161,16 @@ void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, size_t srcSize, g
 		while (count > 0 && !ended)
 		{
 			auto depth = read16();
-			if (ended || src >= srcEnd)
-			{
-				ended = true;
+			// The colour index after the depth has to be within the field too
+			ended = ended || src >= srcEnd;
+			if (ended)
 				return;
-			}
 			if (dstInd >= 0 && dstInd < end)
 			{
 				bmp.IndexedBmpPtr[dstInd] = *src;
 				zMap.ZPtr1[dstInd] = depth;
 				zMap.Holes[dstInd] = 0;
 			}
-
 			src++;
 			dstInd++;
 			count--;

@@ -33,7 +33,7 @@ int TEdgeSegment::wall_length(wall_type wallType)
 	}
 }
 
-TEdgeSegment* TEdgeSegment::install_wall(float* floatArr, int length, TCollisionComponent* collComp,
+TEdgeSegment* TEdgeSegment::install_wall(const float* floatArr, int length, TCollisionComponent* collComp,
 										 char* activeFlagPtr, unsigned int collisionGroup, float offset,
 										 size_t wallValue)
 {

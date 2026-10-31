@@ -229,7 +229,8 @@ int16_t* loader::query_iattribute(int groupIndex, int firstValue, int* arraySize
 
 	for (auto skipIndex = 0;; ++skipIndex)
 	{
-		auto shortArr = reinterpret_cast<int16_t*>(loader_table->field_nth(groupIndex, ShortArray, skipIndex));
+		auto shortArr = reinterpret_cast<int16_t*>(loader_table->field_nth(groupIndex,
+		                                                                   FieldTypes::ShortArray, skipIndex));
 		if (!shortArr)
 			break;
 		if (*shortArr == firstValue)

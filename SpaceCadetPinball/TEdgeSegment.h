@@ -30,6 +30,6 @@ public:
 
 	// How many floats a wall of this type takes, its type included
 	static int wall_length(wall_type wallType);
-	static TEdgeSegment* install_wall(float* floatArr, int length, TCollisionComponent* collComp, char* activeFlagPtr,
-									  unsigned int collisionGroup, float offset, size_t wallValue);
+	static TEdgeSegment* install_wall(const float* floatArr, int length, TCollisionComponent* collComp,
+									  char* activeFlagPtr, unsigned int collisionGroup, float offset, size_t wallValue);
 };
