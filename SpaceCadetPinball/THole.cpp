@@ -43,11 +43,9 @@ THole::THole(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	EdgeList.push_back(tCircle);
 
 	ZSetValue = loader::required_float_attribute(groupIndex, 0, 408)[2];
-	CollisionMask = loader::whole_number(*loader::required_float_attribute(groupIndex, 0, 1304));
-
 	// CollisionMask difference: 3DPB - value given as is, FT: mask = 1 << value
-	if (pb::FullTiltMode)
-		CollisionMask = loader::collision_group_bit(static_cast<float>(CollisionMask));
+	auto maskValue = *loader::required_float_attribute(groupIndex, 0, 1304);
+	CollisionMask = pb::FullTiltMode ? loader::collision_group_bit(maskValue) : loader::whole_number(maskValue);
 
 	Circle.RadiusSq = visual.FloatArr[2] * visual.FloatArr[2];
 	circle.RadiusSq = Circle.RadiusSq;
