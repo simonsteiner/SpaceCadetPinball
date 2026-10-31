@@ -151,6 +151,10 @@ public:
 	static void ShowSettings(bool controls = false);
 	// The pause screen, which pauses the game in play; it comes back on its own while the game is paused
 	static void ShowPause();
+	// The list of tables, as Ctrl+T opens it: from a game in play, which it pauses first, Back returns to the pause
+	// screen; from the title and the screens it leads to, to the title. Only with more than one table, and not from a
+	// game that is ending or its summary.
+	static void ShowTables();
 	// The bar of a recording that plays, which stays until the player goes back to the title
 	static void ShowViewer();
 	// The first-run screen when no game data was found: where it looked and a way to choose the folder; the game
@@ -186,9 +190,11 @@ private:
 	};
 
 	static DefinitiveHost Host;
-	static Screen Current, SettingsFrom;
+	static Screen Current, SettingsFrom, TablesFrom;
 	static bool Opened, ConfirmClear, SummaryShown, Focused;
 	static float CreditsScroll;
+	// The table chosen from a game in play, which asks before ending it; SIZE_MAX while not asking
+	static size_t ConfirmTable;
 	// The high score whose name is being entered, its place, the name so far, and the default names, one per player, of
 	// the scores that made the table
 	static DefinitiveHost::Record Entry;
@@ -197,6 +203,10 @@ private:
 	static std::vector<std::string> NewRecords;
 
 	static void Open(Screen screen);
+	// Whether the screen showing belongs to a game in play, which is paused under it
+	static bool FromPause();
+	// Whether the screen showing is the title or one it leads to, with the demo behind it
+	static bool UnderTitle();
 	static void FollowGame(const TableView& view, bool playing);
 	static void RenderTitle(const TableView& view);
 	static void RenderRecords();

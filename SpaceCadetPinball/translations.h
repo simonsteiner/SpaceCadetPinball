@@ -376,6 +376,7 @@ enum class Msg : int
 	Definitive_SwitchToClassic,
 	Definitive_Restart,
 	Definitive_QuitToTitle,
+	Definitive_ChangeTable,
 	Definitive_EndGame,
 	Definitive_NewHighScore,
 	Definitive_PlayAgain,

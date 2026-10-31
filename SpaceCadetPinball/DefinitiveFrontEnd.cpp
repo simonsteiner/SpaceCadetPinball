@@ -20,6 +20,7 @@
 DefinitiveHost DefinitiveFrontEnd::Host{};
 DefinitiveFrontEnd::Screen DefinitiveFrontEnd::Current = Screen::None;
 DefinitiveFrontEnd::Screen DefinitiveFrontEnd::SettingsFrom = Screen::Title;
+DefinitiveFrontEnd::Screen DefinitiveFrontEnd::TablesFrom = Screen::Title;
 bool DefinitiveFrontEnd::Opened = false;
 bool DefinitiveFrontEnd::ConfirmClear = false;
 bool DefinitiveFrontEnd::SummaryShown = false;
@@ -29,6 +30,7 @@ int DefinitiveFrontEnd::EntryPlace = 0;
 std::string DefinitiveFrontEnd::EntryName;
 std::vector<std::string> DefinitiveFrontEnd::NewRecords;
 float DefinitiveFrontEnd::CreditsScroll = 0;
+size_t DefinitiveFrontEnd::ConfirmTable = SIZE_MAX;
 
 namespace
 {
@@ -40,6 +42,8 @@ namespace
 		return translations::GetTranslation(id);
 	}
 
+	// The rows below the table chosen took the focus request in that frame; the question asks again
+	bool FocusConfirmTable = false;
 
 	// A line of the credits, a heading or not
 	struct CreditLine
@@ -83,6 +87,20 @@ void DefinitiveFrontEnd::ShowSettings(bool controls)
 	DefinitiveSettings::Open(controls ? DefinitiveSettings::Group::Controls : DefinitiveSettings::Group::Edition);
 }
 
+void DefinitiveFrontEnd::ShowTables()
+{
+	if (!Host.TableList || Host.TableList().size() < 2)
+		return;
+	// No screen shows in a game in play
+	auto fromPause = Current == Screen::None || FromPause();
+	if (!fromPause && !UnderTitle())
+		return;
+	if (fromPause && Current != Screen::Tables)
+		ShowPause();
+	TablesFrom = fromPause ? Screen::Pause : Screen::Title;
+	Open(Screen::Tables);
+}
+
 void DefinitiveFrontEnd::ShowViewer()
 {
 	Open(Screen::Viewer);
@@ -108,7 +126,23 @@ void DefinitiveFrontEnd::Open(Screen screen)
 	Current = screen;
 	Opened = true;
 	ConfirmClear = false;
+	ConfirmTable = SIZE_MAX;
 	CreditsScroll = 0;
+}
+
+bool DefinitiveFrontEnd::FromPause()
+{
+	return Current == Screen::Pause || Current == Screen::Guide ||
+		   (Current == Screen::Settings && SettingsFrom == Screen::Pause) ||
+		   (Current == Screen::Tables && TablesFrom == Screen::Pause);
+}
+
+bool DefinitiveFrontEnd::UnderTitle()
+{
+	return Current == Screen::Title || Current == Screen::Records || Current == Screen::Credits ||
+		   Current == Screen::Stats || Current == Screen::Recordings ||
+		   (Current == Screen::Tables && TablesFrom != Screen::Pause) ||
+		   (Current == Screen::Settings && SettingsFrom != Screen::Pause);
 }
 
 // Opens and closes the screens as a game starts, pauses and ends, and runs the demo behind the title
@@ -116,8 +150,7 @@ void DefinitiveFrontEnd::FollowGame(const TableView& view, bool playing)
 {
 	auto paused = Host.Paused && Host.Paused();
 	auto busy = Host.Busy && Host.Busy();
-	auto fromPause = Current == Screen::Pause || Current == Screen::Guide ||
-					 (Current == Screen::Settings && SettingsFrom == Screen::Pause);
+	auto fromPause = FromPause();
 	if (playing)
 	{
 		// A game in play closes the other screens, however it started; while it is paused, the pause screen shows
@@ -138,10 +171,7 @@ void DefinitiveFrontEnd::FollowGame(const TableView& view, bool playing)
 		}
 	}
 	// The demo plays behind the title and the screens it leads to, not behind a game that has just ended
-	auto title = Current == Screen::Title || Current == Screen::Records || Current == Screen::Credits ||
-				 Current == Screen::Stats || Current == Screen::Recordings || Current == Screen::Tables ||
-				 (Current == Screen::Settings && SettingsFrom != Screen::Pause);
-	if (title && view.GameOver && !busy && Host.StartDemo)
+	if (UnderTitle() && view.GameOver && !busy && Host.StartDemo)
 		Host.StartDemo();
 }
 
@@ -310,7 +340,10 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 		auto loaded = std::ranges::find_if(tables, &DefinitiveHost::TableChoice::Loaded);
 		if (Ui::MenuRow("table", Text(Msg::Definitive_Table), false,
 						loaded != tables.end() ? loaded->Name.c_str() : nullptr))
+		{
+			TablesFrom = Screen::Title;
 			Open(Screen::Tables);
+		}
 	}
 
 	// The players, from 1 to 4: left and right change them, as does a click on a digit; choosing the row counts up
@@ -496,8 +529,10 @@ void DefinitiveFrontEnd::RenderTables()
 	auto viewport = ImGui::GetMainViewport();
 	// Full Tilt!'s pictures are 120 pixels square
 	constexpr auto pictureSize = 160.0f;
-	auto rows = static_cast<float>(tables.size() + 1);
-	auto needed = 56 + 40 + 24 + rows * (Ui::RowHeight() + 2) + 24 + pictureSize + 24 + 26 + 24;
+	// From a game in play, choosing another table asks before ending the game, in place of the list
+	auto confirming = ConfirmTable < tables.size();
+	auto rows = confirming ? 2.0f : static_cast<float>(tables.size() + 1);
+	auto needed = 56 + 40 + 24 + (confirming ? 32 : 0) + rows * (Ui::RowHeight() + 2) + 24 + pictureSize + 24 + 26 + 24;
 	Ui::SetScale(std::min(Ui::Scale(), viewport->Size.y / needed));
 	auto scale = Ui::Scale();
 
@@ -509,12 +544,41 @@ void DefinitiveFrontEnd::RenderTables()
 	Ui::DrawText(drawList, Theme::HeadingFont(), Theme::TitleSize, ImVec2{origin.x + 16 * scale, origin.y},
 				 Theme::Chrome50, Text(Msg::Definitive_Table), innerWidth - 32 * scale);
 
-	ImGui::SetCursorScreenPos(ImVec2{origin.x, origin.y + (40 + 24) * scale});
+	auto top = origin.y + (40 + 24) * scale;
+	if (confirming)
+	{
+		Ui::DrawText(drawList, Theme::HeadingFont(), Theme::BodySize, ImVec2{origin.x + 16 * scale, top},
+					 Theme::Chrome50, Text(Msg::Definitive_EndGame), innerWidth - 32 * scale);
+		top += 32 * scale;
+	}
+	ImGui::SetCursorScreenPos(ImVec2{origin.x, top});
 	ImGui::BeginGroup();
 	ImGui::PushItemWidth(innerWidth);
 	// Each table with the game its data comes from and its best score; choosing another restarts the game with it
 	SDL_Texture* picture = nullptr;
-	for (size_t i = 0; i < tables.size(); i++)
+	if (confirming)
+	{
+		picture = tables[ConfirmTable].Picture;
+		if (FocusConfirmTable)
+			Ui::FocusNextRow();
+		FocusConfirmTable = false;
+		auto cancelled = Ui::MenuRow("cancel", Text(Msg::GenericCancel)) || BackPressed();
+		if (Ui::MenuRow("confirm", Text(Msg::GenericOk), true))
+		{
+			// As Restart does, the game resumes before it goes
+			if (Host.Resume)
+				Host.Resume();
+			if (Host.SelectTable)
+				Host.SelectTable(ConfirmTable);
+			cancelled = true;
+		}
+		if (cancelled)
+		{
+			ConfirmTable = SIZE_MAX;
+			Ui::FocusNextRow();
+		}
+	}
+	for (size_t i = 0; i < tables.size() && !confirming; i++)
 	{
 		const auto& table = tables[i];
 		auto note = table.Source;
@@ -528,12 +592,17 @@ void DefinitiveFrontEnd::RenderTables()
 		if (Ui::LastRowFocused())
 			picture = table.Picture;
 		if (chosen && table.Loaded)
-			Open(Screen::Title);
+			Open(TablesFrom);
+		else if (chosen && TablesFrom == Screen::Pause)
+		{
+			ConfirmTable = i;
+			FocusConfirmTable = true;
+		}
 		else if (chosen && Host.SelectTable)
 			Host.SelectTable(i);
 	}
-	if (Ui::MenuRow("back", Text(Msg::Definitive_Back)) || BackPressed())
-		Open(Screen::Title);
+	if (!confirming && (Ui::MenuRow("back", Text(Msg::Definitive_Back)) || BackPressed()))
+		Open(TablesFrom);
 	ImGui::PopItemWidth();
 	ImGui::EndGroup();
 

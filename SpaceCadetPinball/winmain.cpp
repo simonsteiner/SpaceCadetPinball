@@ -1665,6 +1665,9 @@ static bool FrontEndPassesShortcut(const SDL_Event& event)
 		}
 		if (!DefinitiveFrontEnd::PassesShortcut(event.key.key == SDLK_ESCAPE))
 			return false;
+		// Full Tilt!'s Ctrl+T, which opens the list of tables when there is a choice
+		if (event.key.key == SDLK_T && (event.key.mod & SDL_KMOD_CTRL) && TableMenus().Choices.size() > 1)
+			return true;
 		input = {InputTypes::Keyboard, event.key.scancode};
 		break;
 	case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
@@ -1816,11 +1819,14 @@ int winmain::event_handler(const SDL_Event* event)
 	case SDL_EVENT_KEY_DOWN:
 		if (event->key.repeat)
 			break;
-		// Full Tilt!'s Ctrl+T, which doesn't reach the table
-		if (event->key.key == SDLK_T && (event->key.mod & SDL_KMOD_CTRL) &&
-			options::GetEdition() == Editions::Classic && TableMenus().Choices.size() > 1)
+		// Full Tilt!'s Ctrl+T, which doesn't reach the table. Space Cadet 2026 opens its list of tables, from a game in
+		// play or a screen, but not from a game that is ending.
+		if (event->key.key == SDLK_T && (event->key.mod & SDL_KMOD_CTRL) && TableMenus().Choices.size() > 1)
 		{
-			ShowTableDialog();
+			if (options::GetEdition() == Editions::Classic)
+				ShowTableDialog();
+			else if ((pb::game_mode == GameModes::InGame && !DemoActive) || DefinitiveFrontEnd::ScreenOpen())
+				DefinitiveFrontEnd::ShowTables();
 			break;
 		}
 
