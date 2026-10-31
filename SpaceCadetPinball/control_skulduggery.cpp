@@ -148,6 +148,7 @@ namespace
 	TLight* v_lite521;
 	TLightSweeps* light_sweeps;
 	TSink* a_sink8;
+	TSound* tabb55wave;
 	// Attack Ship's
 	TLight* v_lite567;
 	TPinballComponent* s_rexit8;
@@ -3214,12 +3215,14 @@ namespace
 		}
 	}
 
-	// a_sink8, 0x42a3d0: a ball in it comes straight out again. PIRATES.EXE also plays tabb55wave as the sink lets a
-	// ball go (0x46) outside Lava-Ball, which this port's TSink doesn't tell the rules
+	// a_sink8, 0x42a3d0: a ball in it comes straight out again, and tabb55wave plays as the sink lets a ball go, in
+	// any state but Lava-Ball
 	void HideawayControl(MessageCode code, TPinballComponent* caller)
 	{
 		if (code == MessageCode::ControlCollision)
 			caller->Message(MessageCode::TSinkResetTimer, 0.0f);
+		else if (code == MessageCode::ControlTimerExpired && GameState() != LavaBallState)
+			tabb55wave->Play(nullptr, "HideawayControl");
 	}
 
 	// Lava-Ball, Jailbreak and the game's last ball let the brig's balls out themselves, so s_hole19 and s_oneway7
@@ -3669,6 +3672,7 @@ namespace
 		Find(v_lite521, "v_lite521");
 		Find(light_sweeps, "light_sweeps");
 		Find(a_sink8, "a_sink8");
+		Find(tabb55wave, "tabb55wave");
 		Find(v_lite567, "v_lite567");
 		Find(s_rexit8, "s_rexit8");
 		Find(tabb26wave, "tabb26wave");
@@ -3841,8 +3845,8 @@ namespace
 		all.insert(all.end(), {a_spot102, map_piece_light_group, tabb02wave, tabb07wave, tabb19wave, tabb22wave,
 							   tabb23wave, tabb24wave, tabb29wave});
 		all.insert(all.end(), v_lite524s.begin(), v_lite524s.end());
-		all.insert(all.end(), {v_lite520, v_lite521, light_sweeps, a_sink8, v_lite567, s_rexit8, tabb26wave, tabb40wave,
-							   tabb57wave, tabb58wave, tabb85wave});
+		all.insert(all.end(), {v_lite520, v_lite521, light_sweeps, a_sink8, tabb55wave, v_lite567, s_rexit8, tabb26wave,
+							   tabb40wave, tabb57wave, tabb58wave, tabb85wave});
 		all.insert(all.end(), treasure_lights.begin(), treasure_lights.end());
 		all.insert(all.end(), {v_lite519, left_orbit_light_group, right_orbit_light_group, left_orbit_combo_light_group,
 							   right_orbit_combo_light_group, s_trip3, s_trip8, a_sink14, a_sink15, a_sink17, a_roll8,

@@ -4,6 +4,7 @@
 
 #include "control.h"
 #include "loader.h"
+#include "pb.h"
 #include "render.h"
 #include "TPinballTable.h"
 #include "TBall.h"
@@ -88,4 +89,8 @@ void TSink::TimerExpired(int timerId, void* caller)
 	ball->throw_ball(&sink->BallThrowDirection, sink->ThrowAngleMult, sink->ThrowSpeedMult1, sink->ThrowSpeedMult2);
 	if (sink->SoundIndex3)
 		loader::play_sound(sink->SoundIndex3, ball, "TSink2");
+	// CADET.EXE's sinks tell the rules they have let the ball go (0x46, 0x418500), which the bonus tables' rules
+	// answer; Pinball.exe's don't, and Space Cadet keeps them with either game's data
+	if (pb::BonusTable())
+		control::handler(MessageCode::ControlTimerExpired, sink);
 }
