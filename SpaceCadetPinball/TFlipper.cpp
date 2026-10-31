@@ -23,12 +23,12 @@ TFlipper::TFlipper(TPinballTable* table, int groupIndex) : TCollisionComponent(t
 	Elasticity = visual.Elasticity;
 	Smoothness = visual.Smoothness;
 
-	auto collMult = *loader::query_float_attribute(groupIndex, 0, 803);
-	auto retractTime = *loader::query_float_attribute(groupIndex, 0, 805);
-	auto extendTime = *loader::query_float_attribute(groupIndex, 0, 804);
-	auto vecT2 = reinterpret_cast<vector3*>(loader::query_float_attribute(groupIndex, 0, 802));
-	auto vecT1 = reinterpret_cast<vector3*>(loader::query_float_attribute(groupIndex, 0, 801));
-	auto origin = reinterpret_cast<vector3*>(loader::query_float_attribute(groupIndex, 0, 800));
+	auto collMult = *loader::required_float_attribute(groupIndex, 0, 803);
+	auto retractTime = *loader::required_float_attribute(groupIndex, 0, 805);
+	auto extendTime = *loader::required_float_attribute(groupIndex, 0, 804);
+	auto vecT2 = reinterpret_cast<const vector3*>(loader::required_float_attribute(groupIndex, 0, 802));
+	auto vecT1 = reinterpret_cast<const vector3*>(loader::required_float_attribute(groupIndex, 0, 801));
+	auto origin = reinterpret_cast<const vector3*>(loader::required_float_attribute(groupIndex, 0, 800));
 	auto flipperEdge = new TFlipperEdge(
 		this,
 		&ActiveFlag,
@@ -118,6 +118,9 @@ void TFlipper::Collision(TBall* ball, vector2* nextPosition, vector2* direction,
 
 void TFlipper::UpdateSprite()
 {
+	// A damaged table's flipper can come without its frames
+	if (!ListBitmap)
+		return;
 	auto bmpCountSub1 = static_cast<int>(ListBitmap->size()) - 1;
 	auto newBmpIndex = static_cast<int>(floor(FlipperEdge->CurrentAngle / FlipperEdge->AngleMax * bmpCountSub1 + 0.5f));
 	newBmpIndex = Clamp(newBmpIndex, 0, bmpCountSub1);

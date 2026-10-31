@@ -101,7 +101,9 @@ private:
 	zmap_header_type* ZMaps[3]{};
 	bool NeedsSort = false;
 
-	static void SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, gdrv_bitmap8& bmp, zmap_header_type& zMap);
+	// srcSize is the size of the runs the spliced bitmap holds
+	static void SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, size_t srcSize, gdrv_bitmap8& bmp,
+								   zmap_header_type& zMap);
 
 	void SetBitmap(gdrv_bitmap8* bmp);
 	void SetZMap(zmap_header_type* zMap);
@@ -122,6 +124,8 @@ public:
 	int field_size(int groupIndex, FieldTypes targetEntryType);
 	int record_labeled(LPCSTR targetGroupName);
 	char* field_labeled(LPCSTR lpString, FieldTypes fieldType);
+	// The group at an index, or null when the index is outside the file
+	GroupData* Group(int groupIndex) const;
 	gdrv_bitmap8* GetBitmap(int groupIndex);
 	gdrv_bitmap8* GetAltBitmap(int groupIndex);
 	zmap_header_type* GetZMap(int groupIndex);

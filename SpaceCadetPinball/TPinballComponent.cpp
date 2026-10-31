@@ -35,9 +35,9 @@ TPinballComponent::TPinballComponent(TPinballTable* table, int groupIndex, bool 
 		for (int index = 0; index < visualCount; ++index)
 		{
 			loader::query_visual(groupIndex, index, &visual);
+			// A damaged table's bitmap can come without its zMap (GroupData::SetBitmap); SpriteSet hides such a state
 			if (visual.Bitmap.Bmp)
 			{
-				assertm(visual.Bitmap.ZMap, "Bitmap/zMap pairing is mandatory");
 				if (!ListBitmap)
 					ListBitmap = new std::vector<SpriteData>();
 				ListBitmap->push_back(visual.Bitmap);
@@ -65,13 +65,9 @@ TPinballComponent::TPinballComponent(TPinballTable* table, int groupIndex, bool 
 				maths::enclosing_box(bmp1Rect, tmpRect, bmp1Rect);
 			}
 
-			RenderSprite = new render_sprite(
-				VisualTypes::Sprite,
-				rootBmp,
-				rootSprite.ZMap,
-				rootBmp->XPosition - table->XOffset,
-				rootBmp->YPosition - table->YOffset,
-				&bmp1Rect);
+			RenderSprite =
+				new render_sprite(VisualTypes::Sprite, rootSprite.ZMap ? rootBmp : nullptr, rootSprite.ZMap,
+								  rootBmp->XPosition - table->XOffset, rootBmp->YPosition - table->YOffset, &bmp1Rect);
 
 			// Sound position = center of root visual, reverse-projected, normalized.
 			auto& rect = RenderSprite->BmpRect;
@@ -157,6 +153,10 @@ void TPinballComponent::SpriteSet(int index) const
 		zMap = spriteData.ZMap;
 		xPos = bmp->XPosition - PinballTable->XOffset;
 		yPos = bmp->YPosition - PinballTable->YOffset;
+		// A damaged table's bitmap can lose its zMap (GroupData::SetBitmap), and the frame can't be drawn without
+		// one; the state then shows nothing
+		if (!zMap)
+			bmp = nullptr;
 	}
 	else
 	{

@@ -17,7 +17,7 @@ TLightGroup::TLightGroup(TPinballTable* table, int groupIndex) : TPinballCompone
 	if (groupIndex > 0)
 	{
 		int count;
-		Timer1TimeDefault = *loader::query_float_attribute(groupIndex, 0, 903);
+		Timer1TimeDefault = *loader::required_float_attribute(groupIndex, 0, 903);
 		int16_t* groupIndArr = loader::query_iattribute(groupIndex, 1027, &count);
 		for (int index = 0; index < count; ++groupIndArr)
 		{

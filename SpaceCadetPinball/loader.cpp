@@ -73,7 +73,10 @@ void loader::default_vsi(visualStruct* visual)
 	visual->Kicker.HardHitSoundId = 0;
 	visual->Smoothness = 0.94999999f;
 	visual->Elasticity = 0.60000002f;
+	// No outline: a group without one, or a damaged one, reads zeros where the components expect its first points
+	static std::array<float, 8> noOutline{};
 	visual->FloatArrCount = 0;
+	visual->FloatArr = noOutline.data();
 	visual->SoftHitSoundId = 0;
 	visual->Bitmap = { nullptr, nullptr };
 	visual->SoundIndex3 = 0;
@@ -217,6 +220,7 @@ char* loader::query_name(int groupIndex)
 
 int16_t* loader::query_iattribute(int groupIndex, int firstValue, int* arraySize)
 {
+	using enum FieldTypes;
 	if (groupIndex < 0)
 	{
 		error(0, 22);
@@ -231,7 +235,11 @@ int16_t* loader::query_iattribute(int groupIndex, int firstValue, int* arraySize
 			break;
 		if (*shortArr == firstValue)
 		{
-			*arraySize = loader_table->field_size(groupIndex, FieldTypes::ShortArray) / 2 - 1;
+			// The count comes from the group's first array, as Pinball.exe takes it, but never runs past the array
+			// found, which in a damaged table can be shorter
+			auto firstCount = loader_table->field_size(groupIndex, ShortArray) / 2 - 1;
+			auto foundCount = loader_table->field_size_nth(groupIndex, ShortArray, skipIndex) / 2 - 1;
+			*arraySize = std::min(firstCount, foundCount);
 			return shortArr + 1;
 		}
 	}
@@ -243,6 +251,13 @@ int16_t* loader::query_iattribute(int groupIndex, int firstValue, int* arraySize
 
 float* loader::query_float_attribute(int groupIndex, int groupIndexOffset, int firstValue)
 {
+	int length;
+	return query_float_array(groupIndex, groupIndexOffset, firstValue, &length);
+}
+
+float* loader::query_float_array(int groupIndex, int groupIndexOffset, int firstValue, int* length)
+{
+	*length = 0;
 	if (groupIndex < 0)
 	{
 		error(0, 22);
@@ -263,13 +278,36 @@ float* loader::query_float_attribute(int groupIndex, int groupIndexOffset, int f
 		if (!floatArr)
 			break;
 		if (static_cast<int16_t>(floor(*floatArr)) == firstValue)
+		{
+			*length = loader_table->field_size_nth(stateId, FieldTypes::FloatArray, skipIndex) / 4 - 1;
 			return floatArr + 1;
+		}
 	}
 
 	// Full Tilt's loader (CADET.EXE) returns no attribute without an error, and its components check for it
 	if (!pb::FullTiltMode)
 		error(13, 22);
 	return nullptr;
+}
+
+int loader::collision_group_bit(float value)
+{
+	auto number = floor(value);
+	return number >= 0 && number < 32 ? static_cast<int>(1u << static_cast<unsigned>(number)) : 0;
+}
+
+int loader::whole_number(float value)
+{
+	auto number = floor(value);
+	return number >= -2147483648.0f && number < 2147483648.0f ? static_cast<int>(number) : 0;
+}
+
+const float* loader::required_float_attribute(int groupIndex, int groupIndexOffset, int firstValue)
+{
+	// Enough for the longest attribute a component reads at fixed places, a vector or a few values
+	static constexpr std::array<float, 8> zeros{};
+	auto attribute = query_float_attribute(groupIndex, groupIndexOffset, firstValue);
+	return attribute ? attribute : zeros.data();
 }
 
 float loader::query_float_attribute(int groupIndex, int groupIndexOffset, int firstValue, float defVal)
@@ -479,7 +517,8 @@ int loader::query_visual(int groupIndex, int groupIndexOffset, visualStruct* vis
 				visual->Kicker.HardHitSoundId = get_sound_id(shortArr[1]);
 				break;
 			case 602:
-				visual->CollisionGroup |= 1 << shortArr[1];
+				visual->CollisionGroup = static_cast<int>(static_cast<unsigned>(visual->CollisionGroup) |
+														  static_cast<unsigned>(collision_group_bit(shortArr[1])));
 				break;
 			case 1100:
 				visual->SoundIndex4 = get_sound_id(shortArr[1]);
@@ -519,7 +558,10 @@ int loader::query_visual(int groupIndex, int groupIndexOffset, visualStruct* vis
 		break;
 	default:
 		if (floatVal != visual->FloatArrCount)
+		{
+			visual->FloatArrCount = 0;
 			return error(8, 18);
+		}
 		break;
 	}
 

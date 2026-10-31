@@ -108,7 +108,15 @@ public:
 	static gdrv_bitmap8* query_alt_bitmap(int groupIndex, int groupIndexOffset);
 	static char* query_name(int groupIndex);
 	static float* query_float_attribute(int groupIndex, int groupIndexOffset, int firstValue);
+	// The same, with how many floats the attribute holds after its id, 0 when it has none
+	static float* query_float_array(int groupIndex, int groupIndexOffset, int firstValue, int* length);
+	// The bit of collision group number value, as the tables give them; none for a number outside the 32
+	static int collision_group_bit(float value);
+	// The whole part of a number from the table's data, as an int; 0 for NaN or a number outside int's range
+	static int whole_number(float value);
 	static float query_float_attribute(int groupIndex, int groupIndexOffset, int firstValue, float defVal);
+	// An attribute a component can't do without: zeros in place of one a damaged table lacks, after the same error
+	static const float* required_float_attribute(int groupIndex, int groupIndexOffset, int firstValue);
 	static int16_t* query_iattribute(int groupIndex, int firstValue, int* arraySize);
 	static float play_sound(int soundIndex, TPinballComponent *soundSource, const char* info);
 	static DatFile* loader_table;

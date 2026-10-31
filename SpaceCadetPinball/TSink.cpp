@@ -22,10 +22,10 @@ TSink::TSink(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	ThrowSpeedMult2 = visual.Kicker.ThrowBallMult * 0.01f;
 	SoundIndex4 = visual.SoundIndex4;
 	SoundIndex3 = visual.SoundIndex3;
-	auto floatArr = loader::query_float_attribute(groupIndex, 0, 601);
+	auto floatArr = loader::required_float_attribute(groupIndex, 0, 601);
 	BallPosition.X = floatArr[0];
 	BallPosition.Y = floatArr[1];
-	TimerTime = *loader::query_float_attribute(groupIndex, 0, 407);
+	TimerTime = *loader::required_float_attribute(groupIndex, 0, 407);
 }
 
 int TSink::Message(MessageCode code, float value)

@@ -13,8 +13,6 @@ short partman::_field_size[] =
 DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode, bool msgFont)
 {
 	datFileHeader header{};
-	dat8BitBmpHeader bmpHeader{};
-	dat16BitBmpHeader zMapHeader{};
 
 	auto fileHandle = fopenu(lpFileName, "rb");
 	if (fileHandle == nullptr)
@@ -34,8 +32,9 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode, bool msgFon
 		return nullptr;
 	}
 
-	datFile->AppName = header.AppName;
-	datFile->Description = header.Description;
+	// Neither has to end in a zero inside its field
+	datFile->AppName.assign(header.AppName, strnlen(header.AppName, sizeof header.AppName));
+	datFile->Description.assign(header.Description, strnlen(header.Description, sizeof header.Description));
 
 	if (header.Unknown)
 	{
@@ -66,86 +65,10 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode, bool msgFon
 
 		for (auto entryIndex = 0; entryIndex < entryCount; ++entryIndex)
 		{
-			auto entryData = new EntryData();
-			auto entryType = static_cast<FieldTypes>(LRead<uint8_t>(fileHandle, abort));
-			entryData->EntryType = entryType;
-
-			int fixedSize = _field_size[static_cast<int>(entryType)];
-			size_t fieldSize = fixedSize >= 0 ? fixedSize : LRead<uint32_t>(fileHandle, abort);
-			entryData->FieldSize = static_cast<int>(fieldSize);
-
-			if (entryType == FieldTypes::Bitmap8bit)
+			auto entryData = ReadEntry(fileHandle, fullTiltMode);
+			if (!entryData)
 			{
-				Read(fileHandle, &bmpHeader, sizeof(dat8BitBmpHeader), abort);
-				if (abort)
-				{
-					// The header is partly read; don't size a bitmap from it
-					delete entryData;
-					break;
-				}
-				assertm(bmpHeader.Size + sizeof(dat8BitBmpHeader) == fieldSize, "partman: Wrong bitmap field size");
-				assertm(bmpHeader.Resolution <= 2, "partman: bitmap resolution out of bounds");
-
-				auto bmp = new gdrv_bitmap8(bmpHeader);
-				entryData->Buffer = reinterpret_cast<char*>(bmp);
-				Read(fileHandle, bmp->IndexedBmpPtr, bmpHeader.Size, abort);
-			}
-			else if (entryType == FieldTypes::Bitmap16bit)
-			{
-				/*Full tilt has extra byte(@0:resolution) in zMap*/
-				auto zMapResolution = 0u;
-				if (fullTiltMode)
-				{
-					zMapResolution = LRead<uint8_t>(fileHandle, abort);
-					fieldSize--;
-
-					// -1 means universal resolution, maybe. FT demo .006 is the only known user.	
-					if (zMapResolution == 0xff)
-						zMapResolution = 0;
-
-					assertm(zMapResolution <= 2, "partman: zMap resolution out of bounds");
-				}
-
-				Read(fileHandle, &zMapHeader, sizeof(dat16BitBmpHeader), abort);
-				if (abort)
-				{
-					// The header is partly read; don't size a zMap from it
-					delete entryData;
-					break;
-				}
-				auto length = fieldSize - sizeof(dat16BitBmpHeader);
-
-				zmap_header_type* zMap;
-				if (zMapHeader.Stride * zMapHeader.Height * 2u == length)
-				{
-					zMap = new zmap_header_type(zMapHeader.Width, zMapHeader.Height, zMapHeader.Stride);
-					zMap->Resolution = zMapResolution;
-					Read(fileHandle, zMap->ZPtr1, length, abort);
-				}
-				else
-				{
-					// 3DPB .dat has zeroed zMap headers, in groups 497 and 498, skip them.
-					fseek(fileHandle, static_cast<int>(length), SEEK_CUR);
-					zMap = new zmap_header_type(0, 0, 0);
-				}
-				entryData->Buffer = reinterpret_cast<char*>(zMap);
-			}
-			else
-			{
-				auto entryBuffer = new char[fieldSize];
-				entryData->Buffer = entryBuffer;
-				if (!entryBuffer)
-				{
-					abort = true;
-					break;
-				}
-				Read(fileHandle, entryBuffer, fieldSize, abort);
-			}
-
-			if (abort)
-			{
-				// AddEntry would parse the partly read buffer
-				delete entryData;
+				abort = true;
 				break;
 			}
 			groupData->AddEntry(entryData);
@@ -162,4 +85,148 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode, bool msgFon
 	}
 	delete datFile;
 	return nullptr;
+}
+
+EntryData* partman::ReadEntry(FILE* file, bool fullTiltMode)
+{
+	// A field type the format doesn't have, or a field too large to be one, means the file is damaged; the load stops
+	// rather than size anything from it
+	auto failed = false;
+	auto typeIndex = LRead<uint8_t>(file, failed);
+	if (failed || typeIndex >= std::size(_field_size))
+		return nullptr;
+	auto entryType = static_cast<FieldTypes>(typeIndex);
+	int fixedSize = _field_size[typeIndex];
+	size_t fieldSize = fixedSize >= 0 ? fixedSize : LRead<uint32_t>(file, failed);
+	if (failed || !ValidFieldSize(entryType, fieldSize))
+		return nullptr;
+
+	auto entryData = new EntryData();
+	entryData->EntryType = entryType;
+	entryData->FieldSize = static_cast<int>(fieldSize);
+	bool read;
+	if (entryType == FieldTypes::Bitmap8bit)
+		read = ReadBitmap(file, *entryData, fieldSize);
+	else if (entryType == FieldTypes::Bitmap16bit)
+		read = ReadZMap(file, *entryData, fieldSize, fullTiltMode);
+	else
+		read = ReadField(file, *entryData, fieldSize);
+	if (!read)
+	{
+		// AddEntry would parse the partly read buffer
+		delete entryData;
+		return nullptr;
+	}
+	return entryData;
+}
+
+bool partman::ReadBitmap(FILE* file, EntryData& entry, size_t fieldSize)
+{
+	// Not value-initialized: Flags has no zero enumerator, and the read fills every byte or fails
+	dat8BitBmpHeader header;
+	auto failed = false;
+	Read(file, &header, sizeof header, failed);
+	// The header is partly read or doesn't fit its field; don't size a bitmap from it
+	if (failed || !ValidBitmapHeader(header, fieldSize))
+		return false;
+
+	auto bmp = new gdrv_bitmap8(header);
+	// EntryData::Buffer holds every field type as char*; GroupData::AddEntry and ~EntryData cast it back by
+	// EntryType, and its bytes are never read through it
+	entry.Buffer = reinterpret_cast<char*>(bmp);
+	Read(file, bmp->IndexedBmpPtr, header.Size, failed);
+	return !failed;
+}
+
+bool partman::ReadZMap(FILE* file, EntryData& entry, size_t fieldSize, bool fullTiltMode)
+{
+	/*Full tilt has extra byte(@0:resolution) in zMap*/
+	auto failed = false;
+	auto resolution = 0u;
+	if (fullTiltMode)
+	{
+		resolution = LRead<uint8_t>(file, failed);
+		fieldSize--;
+
+		// -1 means universal resolution, maybe. FT demo .006 is the only known user.
+		if (resolution == 0xff)
+			resolution = 0;
+	}
+
+	dat16BitBmpHeader header{};
+	Read(file, &header, sizeof header, failed);
+	// A group keeps a zMap for each of the three resolutions. A header partly read or not fitting its field doesn't
+	// size a zMap.
+	if (failed || resolution > 2 || fieldSize < sizeof header || header.Width < 0 || header.Height < 0 ||
+		header.Stride < header.Width)
+		return false;
+	auto length = fieldSize - sizeof header;
+
+	zmap_header_type* zMap;
+	if (header.Stride * header.Height * 2u == length)
+	{
+		zMap = new zmap_header_type(header.Width, header.Height, header.Stride);
+		zMap->Resolution = resolution;
+		Read(file, zMap->ZPtr1, length, failed);
+	}
+	else
+	{
+		// 3DPB .dat has zeroed zMap headers, in groups 497 and 498, skip them.
+		fseek(file, static_cast<int>(length), SEEK_CUR);
+		zMap = new zmap_header_type(0, 0, 0);
+	}
+	// Stored as char* like the bitmap in ReadBitmap, and cast back by EntryType
+	entry.Buffer = reinterpret_cast<char*>(zMap);
+	return !failed;
+}
+
+bool partman::ReadField(FILE* file, EntryData& entry, size_t fieldSize)
+{
+	// Zeros after the field: the components and the loader read some arrays at fixed places, which a damaged field
+	// can be too short for
+	constexpr size_t slack = 64;
+	auto buffer = new char[fieldSize + slack]{};
+	entry.Buffer = buffer;
+	auto failed = false;
+	Read(file, buffer, fieldSize, failed);
+	// Names and strings are read as C strings
+	auto cString = entry.EntryType == FieldTypes::GroupName || entry.EntryType == FieldTypes::String;
+	return !failed && !(cString && buffer[fieldSize - 1] != 0);
+}
+
+bool partman::ValidFieldSize(FieldTypes type, size_t size)
+{
+	using enum FieldTypes;
+	if (size > LargestField)
+		return false;
+	switch (type)
+	{
+	case Bitmap8bit:
+		return size >= sizeof(dat8BitBmpHeader);
+	case Bitmap16bit:
+		// Full Tilt!'s zMaps have a byte for their resolution before the header
+		return size >= sizeof(dat16BitBmpHeader);
+	case GroupName:
+	case String:
+		return size >= 1;
+	case Palette:
+		// 256 colours, the game reading entries 10 to 245
+		return size >= 256 * sizeof(uint32_t);
+	default:
+		return true;
+	}
+}
+
+bool partman::ValidBitmapHeader(const dat8BitBmpHeader& header, size_t fieldSize)
+{
+	// A group keeps a bitmap for each of the three resolutions
+	if (header.Resolution > 2 || header.Width < 0 || header.Height < 0 || header.Size < 0 ||
+		static_cast<size_t>(header.Size) + sizeof(dat8BitBmpHeader) != fieldSize)
+		return false;
+	// A spliced bitmap is packed runs, which GroupData reads within its size and unpacks to its full size, so that
+	// size gets the same bound as a field; any other bitmap holds every row, padded to 4
+	if (header.IsFlagSet(bmp8Flags::Spliced))
+		return static_cast<size_t>(header.Width) * static_cast<size_t>(header.Height) <= LargestField;
+	auto stride = (header.Width + 3) / 4 * 4;
+	return header.Size == stride * header.Height;
 }

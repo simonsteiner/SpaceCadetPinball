@@ -9,10 +9,9 @@
 
 
 TFlipperEdge::TFlipperEdge(TCollisionComponent* collComp, char* activeFlag, unsigned int collisionGroup,
-                           TPinballTable* table,
-                           vector3* origin, vector3* vecT1, vector3* vecT2, float extendSpeed, float retractSpeed,
-                           float collMult, float elasticity, float smoothness): TEdgeSegment(
-	collComp, activeFlag, collisionGroup)
+						   TPinballTable* table, const vector3* origin, const vector3* vecT1, const vector3* vecT2,
+						   float extendSpeed, float retractSpeed, float collMult, float elasticity, float smoothness) :
+	TEdgeSegment(collComp, activeFlag, collisionGroup)
 {
 	vector3 crossProd{}, vecOriginT1{}, vecOriginT2{};
 
@@ -56,6 +55,12 @@ TFlipperEdge::TFlipperEdge(TCollisionComponent* collComp, char* activeFlag, unsi
 	// FT: Flipper movement speed, in radians per sec.
 	if (!pb::FullTiltMode)
 	{
+		// A damaged table without a time reads 0 (loader::required_float_attribute); a speed from that would be
+		// infinite, so such a flipper takes the times PINBALL.DAT gives its own
+		if (!(extendSpeed > 0.0f))
+			extendSpeed = 0.04f;
+		if (!(retractSpeed > 0.0f))
+			retractSpeed = 0.08f;
 		auto angleMax = std::abs(AngleMax);
 		retractSpeed = angleMax / retractSpeed;
 		extendSpeed = angleMax / extendSpeed;

@@ -23,7 +23,7 @@ TTableLayer::TTableLayer(TPinballTable* table): TCollisionComponent(table, -1, f
 	auto spriteData = visual.Bitmap;
 
 	/*Full tilt: proj center first value is offset by resolution*/
-	auto projCenter = loader::query_float_attribute(groupIndex, 0, 700 + fullscrn::GetResolution());
+	auto projCenter = loader::required_float_attribute(groupIndex, 0, 700 + fullscrn::GetResolution());
 	proj::recenter(projCenter[0], projCenter[1]);
 	render::set_background_zmap(spriteData.ZMap, 0, 0);
 
@@ -59,7 +59,7 @@ TTableLayer::TTableLayer(TPinballTable* table): TCollisionComponent(table, -1, f
 	/*Full tilt hack - GraityMult should be 0.2*/
 	if (!pb::FullTiltMode && !pb::FullTiltDemoMode)
 	{
-		auto angleMultArr = loader::query_float_attribute(groupIndex, 0, 701);
+		auto angleMultArr = loader::required_float_attribute(groupIndex, 0, 701);
 		GraityMult = *angleMultArr;
 	}
 	else

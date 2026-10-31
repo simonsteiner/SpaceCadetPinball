@@ -11,7 +11,7 @@
 TPopupTarget::TPopupTarget(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, true)
 {
 	Timer = 0;
-	TimerTime = *loader::query_float_attribute(groupIndex, 0, 407);
+	TimerTime = *loader::required_float_attribute(groupIndex, 0, 407);
 }
 
 int TPopupTarget::Message(MessageCode code, float value)

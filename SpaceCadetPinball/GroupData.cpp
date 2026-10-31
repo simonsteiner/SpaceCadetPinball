@@ -4,6 +4,7 @@
 
 #include "fullscrn.h"
 #include "gdrv.h"
+#include "partman.h"
 #include "pb.h"
 #include "PeResource.h"
 #include "zdrv.h"
@@ -48,7 +49,9 @@ void GroupData::AddEntry(EntryData* entry)
 				// Get rid of spliced bitmap early on, to simplify render pipeline
 				auto bmp = new gdrv_bitmap8(srcBmp->Width, srcBmp->Height, true);
 				auto zMap = new zmap_header_type(srcBmp->Width, srcBmp->Height, srcBmp->Width);
-				SplitSplicedBitmap(*srcBmp, *bmp, *zMap);
+				// The runs fill the field after the bitmap's header
+				SplitSplicedBitmap(*srcBmp, static_cast<size_t>(entry->FieldSize) - sizeof(dat8BitBmpHeader), *bmp,
+								   *zMap);
 
 				NeedsSort = true;
 				addEntry = false;
@@ -104,7 +107,8 @@ zmap_header_type* GroupData::GetZMap(int resolution) const
 	return ZMaps[resolution];
 }
 
-void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, gdrv_bitmap8& bmp, zmap_header_type& zMap)
+void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, size_t srcSize, gdrv_bitmap8& bmp,
+								   zmap_header_type& zMap)
 {
 	assertm(srcBmp.BitmapType == BitmapTypes::Spliced, "GroupData: wrong bitmap type");
 
@@ -121,42 +125,62 @@ void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, gdrv_bitmap8& bmp
 	// One sprite of DRAGON.DAT, marked for 640 by 480, skips rows as if laid out for 800 by 600 and runs past its
 	// end; its pixels outside the bitmap are dropped instead of written past it
 	auto end = std::min(bmp.Stride * bmp.Height, zMap.Stride * zMap.Height);
-	// The data packs 16-bit values between single bytes, so the values are read wherever they fall
+	// The data packs 16-bit values between single bytes, so the values are read wherever they fall. Damaged data that
+	// runs past the field's end stops the runs there, as their end marker does.
 	auto src = srcBmp.IndexedBmpPtr;
-	auto read16 = [&src]
+	auto srcEnd = src + srcSize;
+	auto ended = false;
+	auto read16 = [&src, srcEnd, &ended]
 	{
-		uint16_t value;
+		uint16_t value = 0xffff;
+		if (srcEnd - src < static_cast<ptrdiff_t>(sizeof value))
+		{
+			ended = true;
+			return value;
+		}
 		std::memcpy(&value, src, sizeof value);
 		src += sizeof value;
 		return value;
 	};
-	for (int dstInd = 0;;)
+	// The step to the next run, or a negative one when the runs end
+	auto nextStride = [&]
 	{
 		auto stride = static_cast<int16_t>(read16());
-		if (stride < 0)
-			break;
-
-		// Stride is in terms of dst stride, hardcoded to match vScreen width in current resolution
+		if (ended)
+			return int16_t{-1};
+		// Stride is in terms of dst stride, hardcoded to match vScreen width in current resolution. Only damaged data
+		// steps backwards; its runs stop there
 		if (stride > bmp.Width)
-		{
 			stride = static_cast<int16_t>(stride + bmp.Width - tableWidth);
-			assertm(stride >= 0, "Spliced bitmap: negative computed stride");
-		}
-
-		dstInd += stride;
-		for (auto count = read16(); count; count--)
+		return stride;
+	};
+	// A run's pixel count, then each pixel's depth and colour index
+	auto copyRun = [&](int& dstInd)
+	{
+		auto count = read16();
+		while (count > 0 && !ended)
 		{
 			auto depth = read16();
-			if (dstInd < end)
+			// The colour index after the depth has to be within the field too
+			ended = ended || src >= srcEnd;
+			if (ended)
+				return;
+			if (dstInd >= 0 && dstInd < end)
 			{
 				bmp.IndexedBmpPtr[dstInd] = *src;
 				zMap.ZPtr1[dstInd] = depth;
 				zMap.Holes[dstInd] = 0;
 			}
-
 			src++;
 			dstInd++;
+			count--;
 		}
+	};
+	auto dstInd = 0;
+	for (auto stride = nextStride(); stride >= 0; stride = nextStride())
+	{
+		dstInd += stride;
+		copyRun(dstInd);
 	}
 }
 
@@ -173,12 +197,10 @@ void GroupData::SetBitmap(gdrv_bitmap8* bmp)
 	}
 	Bitmaps[bmp->Resolution] = bmp;
 
+	// A zMap of another size would be read at the bitmap's; a damaged table's sprite goes without depth instead
 	auto zMap = ZMaps[bmp->Resolution];
-	if (zMap)
-	{
-		assertm(bmp->Width == zMap->Width && bmp->Height == zMap->Height,
-		        "GroupData: mismatched bitmap/zMap dimensions");
-	}
+	if (zMap && (bmp->Width != zMap->Width || bmp->Height != zMap->Height))
+		ZMaps[bmp->Resolution] = nullptr;
 }
 
 void GroupData::SetZMap(zmap_header_type* zMap)
@@ -189,14 +211,10 @@ void GroupData::SetZMap(zmap_header_type* zMap)
 	// The first one wins, as for bitmaps
 	if (ZMaps[zMap->Resolution])
 		return;
+	// As in SetBitmap, a zMap of another size than the bitmap isn't kept
+	if (auto bmp = Bitmaps[zMap->Resolution]; bmp && (bmp->Width != zMap->Width || bmp->Height != zMap->Height))
+		return;
 	ZMaps[zMap->Resolution] = zMap;
-
-	auto bmp = Bitmaps[zMap->Resolution];
-	if (bmp)
-	{
-		assertm(bmp->Width == zMap->Width && bmp->Height == zMap->Height,
-		        "GroupData: mismatched bitmap/zMap dimensions");
-	}
 }
 
 
@@ -220,7 +238,9 @@ char* DatFile::field(int groupIndex, FieldTypes targetEntryType)
 	assertm(targetEntryType != FieldTypes::Bitmap8bit && targetEntryType != FieldTypes::Bitmap16bit,
 	        "partman: Use specific get for bitmaps");
 
-	auto group = Groups[groupIndex];
+	auto group = Group(groupIndex);
+	if (!group)
+		return nullptr;
 	for (const auto entry : group->GetEntries())
 	{
 		if (entry->EntryType == targetEntryType)
@@ -239,7 +259,9 @@ char* DatFile::field_nth(int groupIndex, FieldTypes targetEntryType, int skipFir
 	assertm(targetEntryType != FieldTypes::Bitmap8bit && targetEntryType != FieldTypes::Bitmap16bit,
 	        "partman: Use specific get for bitmaps");
 
-	auto group = Groups[groupIndex];
+	auto group = Group(groupIndex);
+	if (!group)
+		return nullptr;
 	auto skipCount = 0;
 	for (const auto entry : group->GetEntries())
 	{
@@ -254,7 +276,9 @@ char* DatFile::field_nth(int groupIndex, FieldTypes targetEntryType, int skipFir
 
 int DatFile::field_size_nth(int groupIndex, FieldTypes targetEntryType, int skipFirstN)
 {
-	auto group = Groups[groupIndex];
+	auto group = Group(groupIndex);
+	if (!group)
+		return 0;
 	auto skipCount = 0;
 	for (const auto entry : group->GetEntries())
 	{
@@ -270,6 +294,12 @@ int DatFile::field_size_nth(int groupIndex, FieldTypes targetEntryType, int skip
 int DatFile::field_size(int groupIndex, FieldTypes targetEntryType)
 {
 	return field_size_nth(groupIndex, targetEntryType, 0);
+}
+
+GroupData* DatFile::Group(int groupIndex) const
+{
+	// Group indices also come from the table's own data, which a damaged file can point anywhere
+	return groupIndex >= 0 && groupIndex < static_cast<int>(Groups.size()) ? Groups[groupIndex] : nullptr;
 }
 
 int DatFile::record_labeled(LPCSTR targetGroupName)
@@ -300,20 +330,20 @@ char* DatFile::field_labeled(LPCSTR lpString, FieldTypes fieldType)
 
 gdrv_bitmap8* DatFile::GetBitmap(int groupIndex)
 {
-	auto group = Groups[groupIndex];
-	return group->GetBitmap(fullscrn::GetResolution());
+	auto group = Group(groupIndex);
+	return group ? group->GetBitmap(fullscrn::GetResolution()) : nullptr;
 }
 
 gdrv_bitmap8* DatFile::GetAltBitmap(int groupIndex)
 {
-	auto group = Groups[groupIndex];
-	return group->GetAltBitmap(fullscrn::GetResolution());
+	auto group = Group(groupIndex);
+	return group ? group->GetAltBitmap(fullscrn::GetResolution()) : nullptr;
 }
 
 zmap_header_type* DatFile::GetZMap(int groupIndex)
 {
-	auto group = Groups[groupIndex];
-	return group->GetZMap(fullscrn::GetResolution());
+	auto group = Group(groupIndex);
+	return group ? group->GetZMap(fullscrn::GetResolution()) : nullptr;
 }
 
 // The 3D Pinball message font isn't in PINBALL.DAT but in pinball.exe, as the PBMSG_FT resource. Look for the

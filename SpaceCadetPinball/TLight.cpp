@@ -15,10 +15,10 @@ TLight::TLight(TPinballTable* table, int groupIndex) : TPinballComponent(table, 
 	UndoOverrideTimer = 0;
 	FlashTimer = 0;
 	Reset();
-	float* floatArr1 = loader::query_float_attribute(groupIndex, 0, 900);
+	auto floatArr1 = loader::required_float_attribute(groupIndex, 0, 900);
 	FlashDelay[0] = *floatArr1;
 	SourceDelay[0] = *floatArr1;
-	float* floatArr2 = loader::query_float_attribute(groupIndex, 0, 901);
+	auto floatArr2 = loader::required_float_attribute(groupIndex, 0, 901);
 	FlashDelay[1] = *floatArr2;
 	SourceDelay[1] = *floatArr2;
 }

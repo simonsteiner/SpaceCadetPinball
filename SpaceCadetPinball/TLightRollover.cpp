@@ -16,7 +16,7 @@ TLightRollover::TLightRollover(TPinballTable* table, int groupIndex) : TRollover
 	Timer = 0;
 	SpriteSet(-1);
 	build_walls(groupIndex);
-	FloatArr = *loader::query_float_attribute(groupIndex, 0, 407);
+	FloatArr = *loader::required_float_attribute(groupIndex, 0, 407);
 }
 
 int TLightRollover::Message(MessageCode code, float value)

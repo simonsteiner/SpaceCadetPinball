@@ -81,9 +81,11 @@ render_sprite::render_sprite(VisualTypes visualType, gdrv_bitmap8* bmp, zmap_hea
 		BmpRect.Width = 0;
 		BmpRect.Height = 0;
 	}
-	DirtyRectPrev = BmpRect;
+	// A sprite that starts without a bitmap repaints its whole box when a state first sets one
+	DirtyRectPrev = bmp || !boundingRect ? BmpRect : BoundingRect;
 
-	if (!ZMap && VisualType != VisualTypes::Ball)
+	// A sprite without a bitmap draws nothing and needs no zMap
+	if (!ZMap && Bmp && VisualType != VisualTypes::Ball)
 	{
 		assertm(false, "Background zMap should not be used");
 		ZMap = render::background_zmap;

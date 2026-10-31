@@ -5,6 +5,8 @@
 #include "TCollisionComponent.h"
 #include "TLine.h"
 
+#include <utility>
+
 TEdgeSegment::TEdgeSegment(TCollisionComponent* collComp, char* activeFlag, unsigned collisionGroup)
 {
 	CollisionComponent = collComp;
@@ -17,14 +19,38 @@ void TEdgeSegment::port_draw()
 {
 }
 
-TEdgeSegment* TEdgeSegment::install_wall(float* floatArr, TCollisionComponent* collComp, char* activeFlagPtr,
-                                         unsigned int collisionGroup, float offset, size_t wallValue)
+int TEdgeSegment::wall_length(wall_type wallType)
+{
+	// A circle is its type, centre and radius, a line its type and two points, any other wall its type and its points
+	switch (wallType)
+	{
+	case wall_type::Circle:
+		return 4;
+	case wall_type::Line:
+		return 5;
+	default:
+		return 2 * std::to_underlying(wallType) + 1;
+	}
+}
+
+TEdgeSegment* TEdgeSegment::install_wall(const float* floatArr, int length, TCollisionComponent* collComp,
+										 char* activeFlagPtr, unsigned int collisionGroup, float offset,
+										 size_t wallValue)
 {
 	vector2 center{}, start{}, end{}, prevCenter{};
 	vector3 vec1{}, vec2{}, dstVec{};
 	TEdgeSegment* edge = nullptr;
+	// A damaged table can lack the wall, give it a type below a circle's or no number at all (NaN), or more points
+	// than it holds
+	if (!floatArr || length < 1)
+		return nullptr;
+	auto typeValue = floor(*floatArr) - 1.0f;
+	if (!(typeValue >= 0.0f && typeValue <= static_cast<float>(length)))
+		return nullptr;
 
-	wall_type wallType = static_cast<wall_type>(static_cast<int>(floor(*floatArr) - 1.0f));
+	auto wallType = static_cast<wall_type>(static_cast<int>(typeValue));
+	if (length < wall_length(wallType))
+		return nullptr;
 	switch (wallType)
 	{
 	case wall_type::Circle:

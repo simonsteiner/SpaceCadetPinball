@@ -40,7 +40,7 @@ TBall::TBall(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 		HasGroupFlag = true;
 		loader::query_visual(groupIndex, 0, &visual);
 		CollisionMask = visual.CollisionGroup;
-		auto floatArr = loader::query_float_attribute(groupIndex, 0, 408);
+		auto floatArr = loader::required_float_attribute(groupIndex, 0, 408);
 		Position = {floatArr[0], floatArr[1], floatArr[3]};
 	}
 
@@ -52,7 +52,7 @@ TBall::TBall(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 		groupIndex = loader::query_handle(ballGroupName);
 	}
 
-	Radius = *loader::query_float_attribute(groupIndex, 0, 500);
+	Radius = *loader::required_float_attribute(groupIndex, 0, 500);
 
 	// The rules pick each frame's bitmap: the second while Dragon's Keep's PB cheat is on, for a smiley ball
 	auto& rules = TableRules::Current();
@@ -67,7 +67,7 @@ TBall::TBall(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 			altBall = true;
 		}
 		ListBitmap->push_back(visual.Bitmap);
-		auto visVec = reinterpret_cast<vector3*>(loader::query_float_attribute(groupIndex, index, 501));
+		auto visVec = reinterpret_cast<const vector3*>(loader::required_float_attribute(groupIndex, index, 501));
 		auto zDepth = proj::z_distance(*visVec);
 		VisualZArray[index] = zDepth;
 	}

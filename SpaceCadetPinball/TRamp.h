@@ -1,9 +1,8 @@
 #pragma once
 
 #include "TCollisionComponent.h"
+#include "maths.h"
 #include "TEdgeManager.h"
-
-struct ramp_plane_type;
 
 class TRamp :
 	public TCollisionComponent
@@ -28,4 +27,10 @@ public:
 	int Wall2CollisionGroup = 0;
 	float Wall1BallOffset = 0;
 	float Wall2BallOffset = 0;
+	// The ramp's planes, from the table's attribute 1300; RampPlane points into them
+	std::vector<ramp_plane_type> Planes;
+
+private:
+	// Copies the planes from their attribute, a count and the planes, at most as many as its length holds
+	void SetPlanes(const float* attribute, int length);
 };

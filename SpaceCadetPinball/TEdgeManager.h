@@ -40,4 +40,8 @@ public:
 	float Height;
 	TEdgeBox* BoxArray;
 	TEdgeSegment* EdgeArray[1000]{};
+
+private:
+	// A box index from a coordinate's floored offset, kept within 0 to boxCount - 1
+	static int clamp_box(float box, int boxCount);
 };

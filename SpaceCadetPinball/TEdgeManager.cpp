@@ -30,12 +30,23 @@ TEdgeManager::~TEdgeManager()
 
 int TEdgeManager::box_x(float x)
 {
-	return std::max(0, std::min(static_cast<int>(floor((x - MinX) / AdvanceX)), MaxBoxX - 1));
+	return clamp_box(floor((x - MinX) / AdvanceX), MaxBoxX);
 }
 
 int TEdgeManager::box_y(float y)
 {
-	return std::max(0, std::min(static_cast<int>(floor((y - MinY) / AdvanceY)), MaxBoxY - 1));
+	return clamp_box(floor((y - MinY) / AdvanceY), MaxBoxY);
+}
+
+int TEdgeManager::clamp_box(float box, int boxCount)
+{
+	// Clamped before the cast: a damaged table's NaN or far-off coordinate (a ramp without planes has bounds of
+	// 1e9) can't be converted to an int
+	if (!(box > 0.0f))
+		return 0;
+	if (box >= static_cast<float>(boxCount - 1))
+		return std::max(0, boxCount - 1);
+	return static_cast<int>(box);
 }
 
 int TEdgeManager::increment_box_x(int x)
@@ -197,6 +208,10 @@ float TEdgeManager::FindCollisionDistance(ray_type* ray, TBall* ball, TEdgeSegme
 				// Advance indexX otherwise
 				indexX += dirX;
 			}
+			// A clamped end box can lie beside the line, which then walks out of the grid without reaching it; a
+			// damaged table's speeds or sizes make such rays
+			if (indexX < 0 || indexX >= MaxBoxX || indexY < 0 || indexY >= MaxBoxY)
+				break;
 			edgeIndex = TestGridBox(indexX, indexY, &distance, edge, ray, ball, edgeIndex);
 		}
 	}

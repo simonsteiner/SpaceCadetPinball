@@ -12,6 +12,20 @@
 #include "TTableLayer.h"
 
 
+void TRamp::SetPlanes(const float* attribute, int length)
+{
+	// The planes are copied out of the attribute's floats, as the table lays them out
+	constexpr int planeFloats = sizeof(ramp_plane_type) / sizeof(float);
+	static_assert(std::is_trivially_copyable_v<ramp_plane_type> && sizeof(ramp_plane_type) % sizeof(float) == 0);
+	auto count = attribute ? loader::whole_number(*attribute) : 0;
+	count = std::clamp(count, 0, std::max(0, (length - 1) / planeFloats));
+	Planes.resize(count);
+	if (count > 0)
+		std::memcpy(Planes.data(), attribute + 1, Planes.size() * sizeof(ramp_plane_type));
+	RampPlaneCount = count;
+	RampPlane = count > 0 ? Planes.data() : nullptr;
+}
+
 TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, false)
 {
 	visualStruct visual{};
@@ -25,9 +39,10 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	BallFieldMult = loader::query_float_attribute(groupIndex, 0, 701, 0.2f);
 	BallZOffsetFlag = static_cast<int>(loader::query_float_attribute(groupIndex, 0, 1305, 0));
 
-	auto floatArr3Plane = loader::query_float_attribute(groupIndex, 0, 1300);
-	RampPlaneCount = static_cast<int>(floor(*floatArr3Plane));
-	RampPlane = reinterpret_cast<ramp_plane_type*>(floatArr3Plane + 1);
+	// The planes' count, then the planes; a damaged table's count can't run past the attribute
+	int planesLength;
+	auto floatArr3Plane = loader::query_float_array(groupIndex, 0, 1300, &planesLength);
+	SetPlanes(floatArr3Plane, planesLength);
 
 	// Full Tilt's bonus tables leave out some of the three walls, which CADET.EXE then doesn't build; their members
 	// keep the defaults from TRamp.h
@@ -36,7 +51,7 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 
 	if (auto wall0Arr = loader::query_float_attribute(groupIndex, 0, 1303))
 	{
-		auto wall0CollisionGroup = static_cast<int>(1u << static_cast<unsigned>(floor(wall0Arr[0])));
+		auto wall0CollisionGroup = loader::collision_group_bit(wall0Arr[0]);
 		auto wall0Pts = reinterpret_cast<wall_point_type*>(wall0Arr + 2);
 		Line1 = new TLine(this, &ActiveFlag, wall0CollisionGroup, wall0Pts->Pt1, wall0Pts->Pt0);
 		Line1->WallValue = nullptr;
@@ -46,8 +61,8 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 
 	if (auto wall1Arr = loader::query_float_attribute(groupIndex, 0, 1301))
 	{
-		Wall1CollisionGroup = static_cast<int>(1u << static_cast<unsigned>(floor(wall1Arr[0])));
-		wall1Enabled = static_cast<int>(floor(wall1Arr[1]));
+		Wall1CollisionGroup = loader::collision_group_bit(wall1Arr[0]);
+		wall1Enabled = loader::whole_number(wall1Arr[1]);
 		Wall1BallOffset = wall1Arr[7];
 		maths::find_closest_edge(RampPlane, RampPlaneCount, reinterpret_cast<wall_point_type*>(wall1Arr + 3), wall1End,
 								 wall1Start);
@@ -60,8 +75,8 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 
 	if (auto wall2Arr = loader::query_float_attribute(groupIndex, 0, 1302))
 	{
-		Wall2CollisionGroup = static_cast<int>(1u << static_cast<unsigned>(floor(wall2Arr[0])));
-		wall2Enabled = static_cast<int>(floor(wall2Arr[1]));
+		Wall2CollisionGroup = loader::collision_group_bit(wall2Arr[0]);
+		wall2Enabled = loader::whole_number(wall2Arr[1]);
 		Wall2BallOffset = wall2Arr[7];
 		maths::find_closest_edge(RampPlane, RampPlaneCount, reinterpret_cast<wall_point_type*>(wall2Arr + 3), wall2End,
 								 wall2Start);
