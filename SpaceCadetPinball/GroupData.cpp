@@ -142,29 +142,29 @@ void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, size_t srcSize, g
 		src += sizeof value;
 		return value;
 	};
-	for (int dstInd = 0;;)
+	// The step to the next run, or a negative one when the runs end
+	auto nextStride = [&]
 	{
 		auto stride = static_cast<int16_t>(read16());
-		if (stride < 0 || ended)
-			break;
-
-		// Stride is in terms of dst stride, hardcoded to match vScreen width in current resolution
+		if (ended)
+			return int16_t{-1};
+		// Stride is in terms of dst stride, hardcoded to match vScreen width in current resolution. Only damaged data
+		// steps backwards; its runs stop there
 		if (stride > bmp.Width)
-		{
 			stride = static_cast<int16_t>(stride + bmp.Width - tableWidth);
-			// Only damaged data steps backwards; its runs stop there
-			if (stride < 0)
-				break;
-		}
-
-		dstInd += stride;
-		for (auto count = read16(); count && !ended; count--)
+		return stride;
+	};
+	// A run's pixel count, then each pixel's depth and colour index
+	auto copyRun = [&](int& dstInd)
+	{
+		auto count = read16();
+		while (count > 0 && !ended)
 		{
 			auto depth = read16();
 			if (ended || src >= srcEnd)
 			{
 				ended = true;
-				break;
+				return;
 			}
 			if (dstInd >= 0 && dstInd < end)
 			{
@@ -175,7 +175,14 @@ void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, size_t srcSize, g
 
 			src++;
 			dstInd++;
+			count--;
 		}
+	};
+	auto dstInd = 0;
+	for (auto stride = nextStride(); stride >= 0; stride = nextStride())
+	{
+		dstInd += stride;
+		copyRun(dstInd);
 	}
 }
 
@@ -207,8 +214,7 @@ void GroupData::SetZMap(zmap_header_type* zMap)
 	if (ZMaps[zMap->Resolution])
 		return;
 	// As in SetBitmap, a zMap of another size than the bitmap isn't kept
-	auto bmp = Bitmaps[zMap->Resolution];
-	if (bmp && (bmp->Width != zMap->Width || bmp->Height != zMap->Height))
+	if (auto bmp = Bitmaps[zMap->Resolution]; bmp && (bmp->Width != zMap->Width || bmp->Height != zMap->Height))
 		return;
 	ZMaps[zMap->Resolution] = zMap;
 }

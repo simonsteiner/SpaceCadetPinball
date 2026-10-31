@@ -28,6 +28,8 @@ public:
 	virtual void place_in_grid(RectF* aabb) = 0;
 	virtual float FindCollisionDistance(const ray_type& ray) = 0;
 
+	// How many floats a wall of this type takes, its type included
+	static int wall_length(wall_type wallType);
 	static TEdgeSegment* install_wall(float* floatArr, int length, TCollisionComponent* collComp, char* activeFlagPtr,
 									  unsigned int collisionGroup, float offset, size_t wallValue);
 };

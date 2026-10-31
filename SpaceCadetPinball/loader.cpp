@@ -74,9 +74,9 @@ void loader::default_vsi(visualStruct* visual)
 	visual->Smoothness = 0.94999999f;
 	visual->Elasticity = 0.60000002f;
 	// No outline: a group without one, or a damaged one, reads zeros where the components expect its first points
-	static float noOutline[8]{};
+	static std::array<float, 8> noOutline{};
 	visual->FloatArrCount = 0;
-	visual->FloatArr = noOutline;
+	visual->FloatArr = noOutline.data();
 	visual->SoftHitSoundId = 0;
 	visual->Bitmap = { nullptr, nullptr };
 	visual->SoundIndex3 = 0;
@@ -220,6 +220,7 @@ char* loader::query_name(int groupIndex)
 
 int16_t* loader::query_iattribute(int groupIndex, int firstValue, int* arraySize)
 {
+	using enum FieldTypes;
 	if (groupIndex < 0)
 	{
 		error(0, 22);
@@ -228,16 +229,15 @@ int16_t* loader::query_iattribute(int groupIndex, int firstValue, int* arraySize
 
 	for (auto skipIndex = 0;; ++skipIndex)
 	{
-		auto shortArr = reinterpret_cast<int16_t*>(loader_table->field_nth(groupIndex,
-		                                                                   FieldTypes::ShortArray, skipIndex));
+		auto shortArr = reinterpret_cast<int16_t*>(loader_table->field_nth(groupIndex, ShortArray, skipIndex));
 		if (!shortArr)
 			break;
 		if (*shortArr == firstValue)
 		{
 			// The count comes from the group's first array, as Pinball.exe takes it, but never runs past the array
 			// found, which in a damaged table can be shorter
-			auto firstCount = loader_table->field_size(groupIndex, FieldTypes::ShortArray) / 2 - 1;
-			auto foundCount = loader_table->field_size_nth(groupIndex, FieldTypes::ShortArray, skipIndex) / 2 - 1;
+			auto firstCount = loader_table->field_size(groupIndex, ShortArray) / 2 - 1;
+			auto foundCount = loader_table->field_size_nth(groupIndex, ShortArray, skipIndex) / 2 - 1;
 			*arraySize = std::min(firstCount, foundCount);
 			return shortArr + 1;
 		}
@@ -304,9 +304,9 @@ int loader::whole_number(float value)
 const float* loader::required_float_attribute(int groupIndex, int groupIndexOffset, int firstValue)
 {
 	// Enough for the longest attribute a component reads at fixed places, a vector or a few values
-	static constexpr float zeros[8]{};
+	static constexpr std::array<float, 8> zeros{};
 	auto attribute = query_float_attribute(groupIndex, groupIndexOffset, firstValue);
-	return attribute ? attribute : zeros;
+	return attribute ? attribute : zeros.data();
 }
 
 float loader::query_float_attribute(int groupIndex, int groupIndexOffset, int firstValue, float defVal)
