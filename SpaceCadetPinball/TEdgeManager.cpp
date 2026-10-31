@@ -208,6 +208,10 @@ float TEdgeManager::FindCollisionDistance(ray_type* ray, TBall* ball, TEdgeSegme
 				// Advance indexX otherwise
 				indexX += dirX;
 			}
+			// A clamped end box can lie beside the line, which then walks out of the grid without reaching it; a
+			// damaged table's speeds or sizes make such rays
+			if (indexX < 0 || indexX >= MaxBoxX || indexY < 0 || indexY >= MaxBoxY)
+				break;
 			edgeIndex = TestGridBox(indexX, indexY, &distance, edge, ray, ball, edgeIndex);
 		}
 	}
