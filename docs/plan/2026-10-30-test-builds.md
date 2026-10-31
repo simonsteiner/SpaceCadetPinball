@@ -1,6 +1,6 @@
 # Test builds plan
 
-Date: 2026-10-30. Status: proposed. Decided 2026-10-30: test builds carry the game data (G0), are made on this machine and the Mac, and are never published; the other questions under Decisions wait for an answer.
+Date: 2026-10-30. Status: G0 done and merged (#150 to #152); next the test pass on the devices (G2 to G4 and G6) and Android (G5). Decided 2026-10-30: test builds carry the game data (G0), are made on this machine and the Mac, and are never published; the other questions under Decisions wait for an answer.
 
 Space Cadet 2026 has only been played on Linux, under Xvfb, with lavapipe's software Vulkan. This plan makes a build of `main` for each platform there is a device for (the web, Windows, macOS and Android), plays it on that device, and closes what the other plans left for the player's machine: items 2 and 3 of the [follow-ups plan](2026-10-19-follow-ups.md#needs-the-players-machine-or-account), and what Phase D of the [Space Cadet 2026 plan](2026-10-20-space-cadet-2026.md#phase-d-compositor-and-lighting) couldn't check (Direct3D 12, Metal and its hand-written shaders, Windows and macOS builds, multiball). The builds are for testing, not a release.
 
