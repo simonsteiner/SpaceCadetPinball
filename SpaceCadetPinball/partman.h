@@ -59,7 +59,10 @@ static_assert(sizeof(dat16BitBmpHeader) == 14, "Wrong size of zmap_header_type")
 class partman
 {
 public:
-	static class DatFile* load_records(LPCSTR lpFileName, bool fullTiltMode);
+	// msgFont adds 3D Pinball's message font, from the EXE next to the loaded table, to a 3D Pinball DAT; a DAT
+	// loaded only for its art doesn't need it
+	static class DatFile* load_records(LPCSTR lpFileName, bool fullTiltMode, bool msgFont = true);
+
 private:
 	static short _field_size[];
 

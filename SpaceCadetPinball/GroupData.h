@@ -125,7 +125,8 @@ public:
 	gdrv_bitmap8* GetBitmap(int groupIndex);
 	gdrv_bitmap8* GetAltBitmap(int groupIndex);
 	zmap_header_type* GetZMap(int groupIndex);
-	void Finalize();
+	// Adds 3D Pinball's message font when asked to, then sorts the groups' entries
+	void Finalize(bool addMsgFont);
 
 private:
 	void AddMsgFont(MsgFont* font, const std::string& fontName);

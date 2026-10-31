@@ -39,6 +39,9 @@ struct DefinitiveHost
 		SDL_Texture* Picture;
 	};
 	std::vector<TableChoice> (*TableList)();
+	// The art at the top of the loaded table's score panel, cut from its DAT file, for the HUD's header; enlarged with
+	// the upscaler while Upscaled Art is on. Null for a table without known art.
+	SDL_Texture* (*PanelArt)();
 	// Saves the choice and restarts the game with that table, as Classic's Select Table does
 	void (*SelectTable)(size_t index);
 	// The next new high score that needs a name, with its default name, which is its player's, and its place from 0;

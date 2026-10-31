@@ -438,6 +438,8 @@ struct optionsStruct
 	BoolOption Lighting;
 	BoolOption LampGlow;
 	BoolOption ShadedBall;
+	// The table's own panel art at the top of Space Cadet 2026's HUD
+	BoolOption PanelArt;
 	// No glow pulse and no shaking of the table when it is nudged, in Space Cadet 2026
 	BoolOption ReducedMotion;
 	// Quarter turns clockwise of Space Cadet 2026's picture, for a monitor on its side (fullscrn::Rotation)

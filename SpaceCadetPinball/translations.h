@@ -284,6 +284,8 @@ enum class Msg : int
 	Definitive_TextSizeNote,
 	Definitive_HighContrast,
 	Definitive_HighContrastNote,
+	Definitive_PanelArt,
+	Definitive_PanelArtNote,
 	Definitive_Colours,
 	Definitive_ColoursStandard,
 	Definitive_ColoursSafe,

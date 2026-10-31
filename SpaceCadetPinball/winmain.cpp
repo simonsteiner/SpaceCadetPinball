@@ -42,6 +42,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "render.h"
 #include "replay.h"
 #include "Sound.h"
+#include "TableArt.h"
 #include "TableView.h"
 #include "translations.h"
 #include "font_selection.h"
@@ -259,8 +260,8 @@ static void LoadTableChoices()
 {
 	for (const auto& data : pb::FoundTables)
 	{
-		// Full Tilt! keeps a 120 by 120 picture of each table next to its DAT, such as DRAGON.BMP; 3D Pinball has none
-		// Looked for first, so a missing picture leaves no SDL error behind
+		// Full Tilt! keeps a 120 by 120 picture of each table next to its DAT, such as DRAGON.BMP; 3D Pinball has none,
+		// so its picture is made from its DAT file. Looked for first, so a missing picture leaves no SDL error behind
 		auto stem = data.DatFileName.substr(0, data.DatFileName.rfind('.'));
 		auto fileName = pb::FindFile(data.Folder, stem + ".BMP");
 		SDL_Texture* picture = nullptr;
@@ -269,6 +270,8 @@ static void LoadTableChoices()
 			picture = SDL_CreateTextureFromSurface(winmain::Renderer, surface);
 			SDL_DestroySurface(surface);
 		}
+		if (!picture)
+			picture = TableArt::Texture(winmain::Renderer, TableArt::Picture(data));
 		TableMenus().Choices.emplace_back(data, picture);
 	}
 }
@@ -278,6 +281,57 @@ static void FreeTableChoices()
 	for (const auto& choice : TableMenus().Choices)
 		SDL_DestroyTexture(choice.Picture);
 	TableMenus().Choices.clear();
+}
+
+// The art at the top of the loaded table's score panel, for Space Cadet 2026's HUD, and a copy enlarged as Upscaled
+// Art enlarges the table
+struct PanelArtState
+{
+	TableArt::Image Art;
+	SDL_Texture* Texture = nullptr;
+	SDL_Texture* Upscaled = nullptr;
+	int Factor = 0;
+};
+
+static PanelArtState& PanelArt()
+{
+	static PanelArtState state;
+	return state;
+}
+
+// The texture for the Upscaled Art in use, enlarged with its upscaler the first time it is asked for
+static SDL_Texture* PanelArtTexture()
+{
+	auto& art = PanelArt();
+	auto factor = Upscale::Factor();
+	if (factor < Upscale::MinFactor || art.Art.Empty())
+		return art.Texture;
+	if (art.Factor != factor)
+	{
+		// SDL reports null as an invalid texture, which the main loop would print
+		if (art.Upscaled)
+			SDL_DestroyTexture(art.Upscaled);
+		art.Upscaled = TableArt::Texture(winmain::Renderer, TableArt::Magnify(art.Art, factor));
+		art.Factor = factor;
+	}
+	return art.Upscaled ? art.Upscaled : art.Texture;
+}
+
+static void LoadPanelArt()
+{
+	auto& art = PanelArt();
+	art.Art = TableArt::PanelArt(pb::Table, *pb::record_table);
+	art.Texture = TableArt::Texture(winmain::Renderer, art.Art);
+	PanelArtTexture();
+}
+
+static void FreePanelArt()
+{
+	auto& art = PanelArt();
+	for (auto texture : {art.Texture, art.Upscaled})
+		if (texture)
+			SDL_DestroyTexture(texture);
+	art = {};
 }
 
 // Classic's Select Table, as Full Tilt!'s Ctrl+T: it pauses the game, which stays paused if nothing is picked
@@ -342,6 +396,7 @@ static DefinitiveHost MakeDefinitiveHost()
 	};
 	host.ClearRecords = [] { high_score::clear_table(); };
 	host.TableList = TableList;
+	host.PanelArt = PanelArtTexture;
 	host.SelectTable = [](size_t index)
 	{
 		if (index < TableMenus().Choices.size())
@@ -794,6 +849,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 
 		fullscrn::init();
 		render::SetUpscale(Options.UpscaledArt ? Options.UpscaleFactor.V : 0);
+		LoadPanelArt();
 
 		pb::reset_table();
 		pb::firsttime_setup();
@@ -864,6 +920,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			options::uninit();
 		midi::music_shutdown();
 		Sound::Close();
+		FreePanelArt();
 		pb::uninit();
 		FreeTableChoices();
 		DefinitiveEdition::Reset();

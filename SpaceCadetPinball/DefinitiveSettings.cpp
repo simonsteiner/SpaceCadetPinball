@@ -351,6 +351,9 @@ void DefinitiveSettings::RenderGraphics(const DefinitiveHost& host)
 		host.SetUpscaleFactor(chosen ? 4 : 2);
 	if (Ui::ToggleRow("backdrop", Text(Msg::Definitive_Backdrop), options.Backdrop))
 		options::toggle(Menu1::WindowBackdrop);
+	Ui::NextRowNote(Text(Msg::Definitive_PanelArtNote));
+	if (Ui::ToggleRow("panelart", Text(Msg::Definitive_PanelArt), options.PanelArt))
+		options.PanelArt = !options.PanelArt;
 	if (Ui::ToggleRow("filtering", Text(Msg::Definitive_LinearFiltering), options.LinearFiltering))
 		options::toggle(Menu1::WindowLinearFilter);
 

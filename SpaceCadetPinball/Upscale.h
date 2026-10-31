@@ -25,6 +25,8 @@ public:
 	static std::string OriginalsFolder();
 	// Needs SDL 3.4 or newer, like the overrides; returns how many sprites were written
 	static int ExportOriginals();
+	// MMPX by a factor of 2 or 4, as the sprites are magnified
+	static std::vector<ColorRgba> Magnify(const ColorRgba* pixels, int width, int height, int factor);
 
 private:
 	static int CurrentFactor;
@@ -33,7 +35,6 @@ private:
 	// The file names an override of each sprite may have; ExportOriginals writes the first
 	static std::unordered_map<const gdrv_bitmap8*, std::vector<std::string>> SpriteNames;
 
-	static std::vector<ColorRgba> Magnify(const ColorRgba* pixels, int width, int height, int factor);
 	static void FindSpriteNames();
 	static gdrv_bitmap8* LoadOverride(const gdrv_bitmap8& bmp);
 };

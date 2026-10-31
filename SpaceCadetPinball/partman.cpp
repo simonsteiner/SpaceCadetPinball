@@ -10,7 +10,7 @@ short partman::_field_size[] =
 	2, -1, 2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0
 };
 
-DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
+DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode, bool msgFont)
 {
 	datFileHeader header{};
 	dat8BitBmpHeader bmpHeader{};
@@ -157,7 +157,7 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 	fclose(fileHandle);
 	if (!abort && datFile->Groups.size() == header.NumberOfGroups)
 	{
-		datFile->Finalize();
+		datFile->Finalize(!fullTiltMode && msgFont);
 		return datFile;
 	}
 	delete datFile;

@@ -157,7 +157,7 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 		SDL_FRect panel;
 		auto band = false;
 		Host.Layout(board, panel, band);
-		DefinitiveHud::Render(view, board, panel, band);
+		DefinitiveHud::Render(view, board, panel, band, Host.PanelArt ? Host.PanelArt() : nullptr);
 	}
 
 	// A recording that plays has its own bar and none of the game's screens, which would follow the game it shows
