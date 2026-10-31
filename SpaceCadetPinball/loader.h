@@ -112,6 +112,8 @@ public:
 	static float* query_float_array(int groupIndex, int groupIndexOffset, int firstValue, int* length);
 	// The bit of collision group number value, as the tables give them; none for a number outside the 32
 	static int collision_group_bit(float value);
+	// The whole part of a number from the table's data, as an int; 0 for NaN or a number outside int's range
+	static int whole_number(float value);
 	static float query_float_attribute(int groupIndex, int groupIndexOffset, int firstValue, float defVal);
 	// An attribute a component can't do without: zeros in place of one a damaged table lacks, after the same error
 	static const float* required_float_attribute(int groupIndex, int groupIndexOffset, int firstValue);

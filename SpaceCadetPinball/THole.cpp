@@ -43,7 +43,7 @@ THole::THole(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	EdgeList.push_back(tCircle);
 
 	ZSetValue = loader::required_float_attribute(groupIndex, 0, 408)[2];
-	CollisionMask = static_cast<int>(floor(*loader::required_float_attribute(groupIndex, 0, 1304)));
+	CollisionMask = loader::whole_number(*loader::required_float_attribute(groupIndex, 0, 1304));
 
 	// CollisionMask difference: 3DPB - value given as is, FT: mask = 1 << value
 	if (pb::FullTiltMode)

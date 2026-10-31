@@ -29,7 +29,7 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	int planesLength;
 	auto floatArr3Plane = loader::query_float_array(groupIndex, 0, 1300, &planesLength);
 	constexpr int planeFloats = sizeof(ramp_plane_type) / sizeof(float);
-	RampPlaneCount = floatArr3Plane ? static_cast<int>(floor(*floatArr3Plane)) : 0;
+	RampPlaneCount = floatArr3Plane ? loader::whole_number(*floatArr3Plane) : 0;
 	RampPlaneCount = std::clamp(RampPlaneCount, 0, std::max(0, (planesLength - 1) / planeFloats));
 	RampPlane = floatArr3Plane ? reinterpret_cast<ramp_plane_type*>(floatArr3Plane + 1) : nullptr;
 
@@ -51,7 +51,7 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	if (auto wall1Arr = loader::query_float_attribute(groupIndex, 0, 1301))
 	{
 		Wall1CollisionGroup = loader::collision_group_bit(wall1Arr[0]);
-		wall1Enabled = static_cast<int>(floor(wall1Arr[1]));
+		wall1Enabled = loader::whole_number(wall1Arr[1]);
 		Wall1BallOffset = wall1Arr[7];
 		maths::find_closest_edge(RampPlane, RampPlaneCount, reinterpret_cast<wall_point_type*>(wall1Arr + 3), wall1End,
 								 wall1Start);
@@ -65,7 +65,7 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	if (auto wall2Arr = loader::query_float_attribute(groupIndex, 0, 1302))
 	{
 		Wall2CollisionGroup = loader::collision_group_bit(wall2Arr[0]);
-		wall2Enabled = static_cast<int>(floor(wall2Arr[1]));
+		wall2Enabled = loader::whole_number(wall2Arr[1]);
 		Wall2BallOffset = wall2Arr[7];
 		maths::find_closest_edge(RampPlane, RampPlaneCount, reinterpret_cast<wall_point_type*>(wall2Arr + 3), wall2End,
 								 wall2Start);

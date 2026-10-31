@@ -295,6 +295,12 @@ int loader::collision_group_bit(float value)
 	return number >= 0 && number < 32 ? static_cast<int>(1u << static_cast<unsigned>(number)) : 0;
 }
 
+int loader::whole_number(float value)
+{
+	auto number = floor(value);
+	return number >= -2147483648.0f && number < 2147483648.0f ? static_cast<int>(number) : 0;
+}
+
 const float* loader::required_float_attribute(int groupIndex, int groupIndexOffset, int firstValue)
 {
 	// Enough for the longest attribute a component reads at fixed places, a vector or a few values

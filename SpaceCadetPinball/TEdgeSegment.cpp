@@ -24,13 +24,16 @@ TEdgeSegment* TEdgeSegment::install_wall(float* floatArr, int length, TCollision
 	vector2 center{}, start{}, end{}, prevCenter{};
 	vector3 vec1{}, vec2{}, dstVec{};
 	TEdgeSegment* edge = nullptr;
-	// A damaged table can lack the wall, give it a type below a circle's, or more points than it holds: a circle
-	// is its type, centre and radius, a line its type and two points, any other wall its type and its points
-	if (!floatArr || length < 1 || floor(*floatArr) - 1.0f < 0.0f ||
-		floor(*floatArr) - 1.0f > static_cast<float>(length))
+	// A damaged table can lack the wall, give it a type below a circle's or no number at all (NaN), or more points
+	// than it holds: a circle is its type, centre and radius, a line its type and two points, any other wall its type
+	// and its points
+	if (!floatArr || length < 1)
+		return nullptr;
+	auto typeValue = floor(*floatArr) - 1.0f;
+	if (!(typeValue >= 0.0f && typeValue <= static_cast<float>(length)))
 		return nullptr;
 
-	wall_type wallType = static_cast<wall_type>(static_cast<int>(floor(*floatArr) - 1.0f));
+	wall_type wallType = static_cast<wall_type>(static_cast<int>(typeValue));
 	auto needed = wallType == wall_type::Circle ? 4
 				  : wallType == wall_type::Line ? 5
 												: 2 * static_cast<int>(wallType) + 1;
