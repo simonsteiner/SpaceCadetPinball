@@ -365,9 +365,9 @@ bool DatFile::IsValidMsgFont(const std::vector<uint8_t>& data)
 	return true;
 }
 
-void DatFile::Finalize()
+void DatFile::Finalize(bool addMsgFont)
 {
-	if (!pb::FullTiltMode)
+	if (addMsgFont)
 	{
 		[[maybe_unused]] int groupIndex = record_labeled("pbmsg_ft");
 		assertm(groupIndex < 0, "DatFile: pbmsg_ft is already in .dat");

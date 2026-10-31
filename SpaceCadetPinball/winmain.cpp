@@ -265,7 +265,7 @@ static SDL_Texture* MakeTablePicture(const TableData& data)
 {
 	constexpr int size = 120;
 	const std::unique_ptr<DatFile> dat{
-		partman::load_records((data.Folder + data.DatFileName).c_str(), data.Table != Tables::SpaceCadet3DPB)};
+		partman::load_records((data.Folder + data.DatFileName).c_str(), data.Table != Tables::SpaceCadet3DPB, false)};
 	if (!dat)
 		return nullptr;
 	auto palette = reinterpret_cast<ColorRgba*>(dat->field_labeled("background", FieldTypes::Palette));
