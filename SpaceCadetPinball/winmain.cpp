@@ -269,7 +269,7 @@ static std::optional<std::array<ColorRgba, 256>> ReadPalette(DatFile& dat)
 	return palette;
 }
 
-// The average colour of the bitmap from x0,y0 up to x1,y1, which are left out
+// The average colour of the bitmap from x0,y0 up to x1,y1, which are left out; black when that is empty
 static ColorRgba AverageColor(const gdrv_bitmap8& bmp, const std::array<ColorRgba, 256>& palette, int x0, int y0,
 							  int x1, int y1)
 {
@@ -293,6 +293,8 @@ static ColorRgba AverageColor(const gdrv_bitmap8& bmp, const std::array<ColorRgb
 			count++;
 		}
 	}
+	if (count == 0)
+		return ColorRgba::Black();
 	return ColorRgba{static_cast<uint8_t>(red / count), static_cast<uint8_t>(green / count),
 					 static_cast<uint8_t>(blue / count), 255};
 }
