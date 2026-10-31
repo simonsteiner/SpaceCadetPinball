@@ -7155,6 +7155,12 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_ChangeTable,
+		{
+			{ Lang::English, "Change table" },
+		}
+	},
+	{
 		Msg::Definitive_NewHighScore,
 		{
 			{ Lang::English, "New high score" },

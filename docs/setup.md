@@ -44,7 +44,7 @@ Copy `PIRATES.DAT`, `PIRATES.BMP` and the `SOUND` folder from Full Tilt!'s `PIRA
 
 Once the game finds the data of more than one table, it lets the player pick one:
 
-- **Space Cadet 2026:** Table on the title, under Play, names the table loaded. It opens the list of tables, each with the game its data comes from and its best score; choosing another table loads it.
+- **Space Cadet 2026:** Table on the title, under Play, names the table loaded. It opens the list of tables, each with the game its data comes from and its best score; choosing another table loads it. During a game, Change table on the pause screen opens the same list, and so does Ctrl+T, which pauses the game first; choosing another table asks before it ends the game, and Back or the table loaded returns to the pause screen. Ctrl+T works on the title too, but not while a recording plays; in the web build the browser takes it.
 - **Classic:** Options → Select Table... (Ctrl+T), as in Full Tilt!, pauses the game and shows the tables' pictures side by side. Pick one with the arrow keys or a click and choose Ok, or press Enter or double-click it. The table loaded is greyed out.
 
 Each Full Tilt! table's picture is the BMP file next to its DAT file (`CADET.BMP`, `DRAGON.BMP`, `PIRATES.BMP`). 3D Pinball came without one, so the game makes one for its Space Cadet when it starts: the "3D Pinball Space Cadet" logo from the score panel in `PINBALL.DAT`, scaled down to the same 120 by 120. Any other table whose picture is missing gets its playfield from its own DAT file instead. The pictures are made on the player's machine and never saved.

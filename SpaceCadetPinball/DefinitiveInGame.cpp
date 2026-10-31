@@ -81,8 +81,7 @@ void DefinitiveFrontEnd::ShowPause()
 void DefinitiveFrontEnd::TogglePause()
 {
 	auto paused = Host.Paused && Host.Paused();
-	if (paused && (Current == Screen::Pause || Current == Screen::Guide ||
-				   (Current == Screen::Settings && SettingsFrom == Screen::Pause)))
+	if (paused && FromPause())
 	{
 		Current = Screen::None;
 		if (Host.Resume)
@@ -137,10 +136,12 @@ ImVec2 DefinitiveFrontEnd::BeginCentred(const char* name, ImVec2 size)
 
 void DefinitiveFrontEnd::RenderPause(const TableView& view)
 {
-	// Six rows and a separator, or the question and two rows
+	// Six rows and a separator, a seventh to change tables when there is a choice, or the question and two rows
 	// Rows grow with the Text Size option
+	auto changeTable = Host.TableList && Host.TableList().size() > 1;
 	auto row = Ui::RowHeight() + 2;
-	auto rowsHeight = ConfirmRestart || ConfirmQuit ? 32 + 2 * row : 6 * row + 12;
+	auto rows = changeTable ? 7 : 6;
+	auto rowsHeight = ConfirmRestart || ConfirmQuit ? 32 + 2 * row : rows * row + 12;
 	auto min = BeginCentred("##DefinitivePause", ImVec2{420, 24 + 40 + 24 + 16 + rowsHeight + 24 + 44});
 	auto scale = Ui::Scale();
 	auto drawList = ImGui::GetWindowDrawList();
@@ -203,6 +204,12 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 		ImGui::Dummy(ImVec2{0, 12 * scale});
 		if (Ui::MenuRow("restart", Text(Msg::Definitive_Restart), true))
 			ConfirmRestart = FocusConfirm = true;
+		// The list of tables, which asks before ending the game for another
+		if (changeTable && Ui::MenuRow("table", Text(Msg::Definitive_ChangeTable), true))
+		{
+			TablesFrom = Screen::Pause;
+			Open(Screen::Tables);
+		}
 		if (Ui::MenuRow("quit", Text(Msg::Definitive_QuitToTitle), true))
 			ConfirmQuit = FocusConfirm = true;
 		ImGui::PopItemWidth();
