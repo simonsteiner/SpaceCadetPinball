@@ -23,6 +23,9 @@ TEdgeSegment* TEdgeSegment::install_wall(float* floatArr, TCollisionComponent* c
 	vector2 center{}, start{}, end{}, prevCenter{};
 	vector3 vec1{}, vec2{}, dstVec{};
 	TEdgeSegment* edge = nullptr;
+	// A damaged table can lack the wall, or give it a type below a circle's
+	if (!floatArr || floor(*floatArr) - 1.0f < 0.0f)
+		return nullptr;
 
 	wall_type wallType = static_cast<wall_type>(static_cast<int>(floor(*floatArr) - 1.0f));
 	switch (wallType)

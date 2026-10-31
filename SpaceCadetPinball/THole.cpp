@@ -27,12 +27,12 @@ THole::THole(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 		GravityMult = loader::query_float_attribute(groupIndex, 0, 703, 0.5f);
 		EjectSpeed = loader::query_float_attribute(groupIndex, 0, 1306, 0.0f);
 	}
-	GravityPull = *loader::query_float_attribute(groupIndex, 0, 305);
+	GravityPull = *loader::required_float_attribute(groupIndex, 0, 305);
 
 	loader::query_visual(groupIndex, 0, &visual);
 	Circle.Center.X = visual.FloatArr[0];
 	Circle.Center.Y = visual.FloatArr[1];
-	Circle.RadiusSq = *loader::query_float_attribute(groupIndex, 0, 306) * visual.FloatArr[2];
+	Circle.RadiusSq = *loader::required_float_attribute(groupIndex, 0, 306) * visual.FloatArr[2];
 	if (Circle.RadiusSq == 0.0f)
 		Circle.RadiusSq = 0.001f;
 
@@ -42,8 +42,8 @@ THole::THole(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	tCircle->place_in_grid(&AABB);
 	EdgeList.push_back(tCircle);
 
-	ZSetValue = loader::query_float_attribute(groupIndex, 0, 408)[2];
-	CollisionMask = static_cast<int>(floor(*loader::query_float_attribute(groupIndex, 0, 1304)));
+	ZSetValue = loader::required_float_attribute(groupIndex, 0, 408)[2];
+	CollisionMask = static_cast<int>(floor(*loader::required_float_attribute(groupIndex, 0, 1304)));
 
 	// CollisionMask difference: 3DPB - value given as is, FT: mask = 1 << value
 	if (pb::FullTiltMode)

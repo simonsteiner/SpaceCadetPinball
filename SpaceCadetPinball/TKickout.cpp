@@ -25,7 +25,7 @@ TKickout::TKickout(TPinballTable* table, int groupIndex, bool someFlag): TCollis
 	MessageField = 0;
 	Timer = 0;
 	BallCaputeredFlag = 0;
-	FieldMult = *loader::query_float_attribute(groupIndex, 0, 305);
+	FieldMult = *loader::required_float_attribute(groupIndex, 0, 305);
 	loader::query_visual(groupIndex, 0, &visual);
 	SoftHitSoundId = visual.SoftHitSoundId;
 	HardHitSoundId = visual.Kicker.HardHitSoundId;

@@ -231,7 +231,11 @@ int16_t* loader::query_iattribute(int groupIndex, int firstValue, int* arraySize
 			break;
 		if (*shortArr == firstValue)
 		{
-			*arraySize = loader_table->field_size(groupIndex, FieldTypes::ShortArray) / 2 - 1;
+			// The count comes from the group's first array, as Pinball.exe takes it, but never runs past the array
+			// found, which in a damaged table can be shorter
+			auto firstCount = loader_table->field_size(groupIndex, FieldTypes::ShortArray) / 2 - 1;
+			auto foundCount = loader_table->field_size_nth(groupIndex, FieldTypes::ShortArray, skipIndex) / 2 - 1;
+			*arraySize = std::min(firstCount, foundCount);
 			return shortArr + 1;
 		}
 	}
@@ -270,6 +274,14 @@ float* loader::query_float_attribute(int groupIndex, int groupIndexOffset, int f
 	if (!pb::FullTiltMode)
 		error(13, 22);
 	return nullptr;
+}
+
+const float* loader::required_float_attribute(int groupIndex, int groupIndexOffset, int firstValue)
+{
+	// Enough for the longest attribute a component reads at fixed places, a vector or a few values
+	static constexpr float zeros[8]{};
+	auto attribute = query_float_attribute(groupIndex, groupIndexOffset, firstValue);
+	return attribute ? attribute : zeros;
 }
 
 float loader::query_float_attribute(int groupIndex, int groupIndexOffset, int firstValue, float defVal)
@@ -479,7 +491,10 @@ int loader::query_visual(int groupIndex, int groupIndexOffset, visualStruct* vis
 				visual->Kicker.HardHitSoundId = get_sound_id(shortArr[1]);
 				break;
 			case 602:
-				visual->CollisionGroup |= 1 << shortArr[1];
+				// One bit of the 32 collision groups
+				if (shortArr[1] >= 0 && shortArr[1] < 32)
+					visual->CollisionGroup = static_cast<int>(static_cast<unsigned>(visual->CollisionGroup) |
+															  1u << static_cast<unsigned>(shortArr[1]));
 				break;
 			case 1100:
 				visual->SoundIndex4 = get_sound_id(shortArr[1]);

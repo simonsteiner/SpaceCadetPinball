@@ -9,10 +9,9 @@
 
 
 TFlipperEdge::TFlipperEdge(TCollisionComponent* collComp, char* activeFlag, unsigned int collisionGroup,
-                           TPinballTable* table,
-                           vector3* origin, vector3* vecT1, vector3* vecT2, float extendSpeed, float retractSpeed,
-                           float collMult, float elasticity, float smoothness): TEdgeSegment(
-	collComp, activeFlag, collisionGroup)
+						   TPinballTable* table, const vector3* origin, const vector3* vecT1, const vector3* vecT2,
+						   float extendSpeed, float retractSpeed, float collMult, float elasticity, float smoothness) :
+	TEdgeSegment(collComp, activeFlag, collisionGroup)
 {
 	vector3 crossProd{}, vecOriginT1{}, vecOriginT2{};
 

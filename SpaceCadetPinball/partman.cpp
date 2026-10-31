@@ -147,7 +147,10 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 			}
 			else
 			{
-				auto entryBuffer = new char[fieldSize];
+				// Zeros after the field: the components and the loader read some arrays at fixed places, which a
+				// damaged field can be too short for
+				constexpr size_t slack = 64;
+				auto entryBuffer = new char[fieldSize + slack]{};
 				entryData->Buffer = entryBuffer;
 				if (!entryBuffer)
 				{

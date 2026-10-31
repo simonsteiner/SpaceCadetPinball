@@ -128,6 +128,8 @@ public:
 	gdrv_bitmap8* GetAltBitmap(int groupIndex);
 	zmap_header_type* GetZMap(int groupIndex);
 	void Finalize();
+	// The group at an index, or null when the index is outside the file
+	GroupData* Group(int groupIndex) const;
 
 private:
 	void AddMsgFont(MsgFont* font, const std::string& fontName);

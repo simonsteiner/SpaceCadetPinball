@@ -109,6 +109,8 @@ public:
 	static char* query_name(int groupIndex);
 	static float* query_float_attribute(int groupIndex, int groupIndexOffset, int firstValue);
 	static float query_float_attribute(int groupIndex, int groupIndexOffset, int firstValue, float defVal);
+	// An attribute a component can't do without: zeros in place of one a damaged table lacks, after the same error
+	static const float* required_float_attribute(int groupIndex, int groupIndexOffset, int firstValue);
 	static int16_t* query_iattribute(int groupIndex, int firstValue, int* arraySize);
 	static float play_sound(int soundIndex, TPinballComponent *soundSource, const char* info);
 	static DatFile* loader_table;

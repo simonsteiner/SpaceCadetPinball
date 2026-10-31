@@ -192,12 +192,10 @@ void GroupData::SetBitmap(gdrv_bitmap8* bmp)
 	}
 	Bitmaps[bmp->Resolution] = bmp;
 
+	// A zMap of another size would be read at the bitmap's; a damaged table's sprite goes without depth instead
 	auto zMap = ZMaps[bmp->Resolution];
-	if (zMap)
-	{
-		assertm(bmp->Width == zMap->Width && bmp->Height == zMap->Height,
-		        "GroupData: mismatched bitmap/zMap dimensions");
-	}
+	if (zMap && (bmp->Width != zMap->Width || bmp->Height != zMap->Height))
+		ZMaps[bmp->Resolution] = nullptr;
 }
 
 void GroupData::SetZMap(zmap_header_type* zMap)
@@ -208,14 +206,11 @@ void GroupData::SetZMap(zmap_header_type* zMap)
 	// The first one wins, as for bitmaps
 	if (ZMaps[zMap->Resolution])
 		return;
-	ZMaps[zMap->Resolution] = zMap;
-
+	// As in SetBitmap, a zMap of another size than the bitmap isn't kept
 	auto bmp = Bitmaps[zMap->Resolution];
-	if (bmp)
-	{
-		assertm(bmp->Width == zMap->Width && bmp->Height == zMap->Height,
-		        "GroupData: mismatched bitmap/zMap dimensions");
-	}
+	if (bmp && (bmp->Width != zMap->Width || bmp->Height != zMap->Height))
+		return;
+	ZMaps[zMap->Resolution] = zMap;
 }
 
 
@@ -239,7 +234,9 @@ char* DatFile::field(int groupIndex, FieldTypes targetEntryType)
 	assertm(targetEntryType != FieldTypes::Bitmap8bit && targetEntryType != FieldTypes::Bitmap16bit,
 	        "partman: Use specific get for bitmaps");
 
-	auto group = Groups[groupIndex];
+	auto group = Group(groupIndex);
+	if (!group)
+		return nullptr;
 	for (const auto entry : group->GetEntries())
 	{
 		if (entry->EntryType == targetEntryType)
@@ -258,7 +255,9 @@ char* DatFile::field_nth(int groupIndex, FieldTypes targetEntryType, int skipFir
 	assertm(targetEntryType != FieldTypes::Bitmap8bit && targetEntryType != FieldTypes::Bitmap16bit,
 	        "partman: Use specific get for bitmaps");
 
-	auto group = Groups[groupIndex];
+	auto group = Group(groupIndex);
+	if (!group)
+		return nullptr;
 	auto skipCount = 0;
 	for (const auto entry : group->GetEntries())
 	{
@@ -273,7 +272,9 @@ char* DatFile::field_nth(int groupIndex, FieldTypes targetEntryType, int skipFir
 
 int DatFile::field_size_nth(int groupIndex, FieldTypes targetEntryType, int skipFirstN)
 {
-	auto group = Groups[groupIndex];
+	auto group = Group(groupIndex);
+	if (!group)
+		return 0;
 	auto skipCount = 0;
 	for (const auto entry : group->GetEntries())
 	{
@@ -289,6 +290,12 @@ int DatFile::field_size_nth(int groupIndex, FieldTypes targetEntryType, int skip
 int DatFile::field_size(int groupIndex, FieldTypes targetEntryType)
 {
 	return field_size_nth(groupIndex, targetEntryType, 0);
+}
+
+GroupData* DatFile::Group(int groupIndex) const
+{
+	// Group indices also come from the table's own data, which a damaged file can point anywhere
+	return groupIndex >= 0 && groupIndex < static_cast<int>(Groups.size()) ? Groups[groupIndex] : nullptr;
 }
 
 int DatFile::record_labeled(LPCSTR targetGroupName)
@@ -319,20 +326,20 @@ char* DatFile::field_labeled(LPCSTR lpString, FieldTypes fieldType)
 
 gdrv_bitmap8* DatFile::GetBitmap(int groupIndex)
 {
-	auto group = Groups[groupIndex];
-	return group->GetBitmap(fullscrn::GetResolution());
+	auto group = Group(groupIndex);
+	return group ? group->GetBitmap(fullscrn::GetResolution()) : nullptr;
 }
 
 gdrv_bitmap8* DatFile::GetAltBitmap(int groupIndex)
 {
-	auto group = Groups[groupIndex];
-	return group->GetAltBitmap(fullscrn::GetResolution());
+	auto group = Group(groupIndex);
+	return group ? group->GetAltBitmap(fullscrn::GetResolution()) : nullptr;
 }
 
 zmap_header_type* DatFile::GetZMap(int groupIndex)
 {
-	auto group = Groups[groupIndex];
-	return group->GetZMap(fullscrn::GetResolution());
+	auto group = Group(groupIndex);
+	return group ? group->GetZMap(fullscrn::GetResolution()) : nullptr;
 }
 
 // The 3D Pinball message font isn't in PINBALL.DAT but in pinball.exe, as the PBMSG_FT resource. Look for the

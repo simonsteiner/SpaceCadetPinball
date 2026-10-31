@@ -27,10 +27,14 @@ TTextBox::TTextBox(TPinballTable* table, int groupIndex) : TPinballComponent(tab
 		/*Full tilt: text box dimensions index is offset by resolution*/
 		int arrLength;
 		auto dimensions = loader::query_iattribute(groupIndex + fullscrn::GetResolution(), 1500, &arrLength);
-		OffsetX = dimensions[0];
-		OffsetY = dimensions[1];
-		Width = dimensions[2];
-		Height = dimensions[3];
+		// A damaged table may lack them; the box then stays empty
+		if (dimensions && arrLength >= 4)
+		{
+			OffsetX = dimensions[0];
+			OffsetY = dimensions[1];
+			Width = dimensions[2];
+			Height = dimensions[3];
+		}
 	}
 }
 
