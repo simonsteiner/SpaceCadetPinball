@@ -124,12 +124,12 @@ public:
 	int field_size(int groupIndex, FieldTypes targetEntryType);
 	int record_labeled(LPCSTR targetGroupName);
 	char* field_labeled(LPCSTR lpString, FieldTypes fieldType);
+	// The group at an index, or null when the index is outside the file
+	GroupData* Group(int groupIndex) const;
 	gdrv_bitmap8* GetBitmap(int groupIndex);
 	gdrv_bitmap8* GetAltBitmap(int groupIndex);
 	zmap_header_type* GetZMap(int groupIndex);
 	void Finalize();
-	// The group at an index, or null when the index is outside the file
-	GroupData* Group(int groupIndex) const;
 
 private:
 	void AddMsgFont(MsgFont* font, const std::string& fontName);
