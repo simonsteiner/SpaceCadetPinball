@@ -131,6 +131,8 @@ bool partman::ReadBitmap(FILE* file, EntryData& entry, size_t fieldSize)
 		return false;
 
 	auto bmp = new gdrv_bitmap8(header);
+	// EntryData::Buffer holds every field type as char*; GroupData::AddEntry and ~EntryData cast it back by
+	// EntryType, and its bytes are never read through it
 	entry.Buffer = reinterpret_cast<char*>(bmp);
 	Read(file, bmp->IndexedBmpPtr, header.Size, failed);
 	return !failed;
@@ -173,6 +175,7 @@ bool partman::ReadZMap(FILE* file, EntryData& entry, size_t fieldSize, bool full
 		fseek(file, static_cast<int>(length), SEEK_CUR);
 		zMap = new zmap_header_type(0, 0, 0);
 	}
+	// Stored as char* like the bitmap in ReadBitmap, and cast back by EntryType
 	entry.Buffer = reinterpret_cast<char*>(zMap);
 	return !failed;
 }
