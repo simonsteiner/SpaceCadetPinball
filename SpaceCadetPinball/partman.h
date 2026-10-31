@@ -1,6 +1,7 @@
 #pragma once
 
 struct zmap_header_type;
+struct EntryData;
 struct gdrv_bitmap8;
 enum class FieldTypes : int16_t;
 
@@ -66,6 +67,13 @@ private:
 	// No field of a real DAT comes near this; a larger size is damage, not data
 	static constexpr size_t LargestField = 16 * 1024 * 1024;
 
+	// One field of a group, or null when the file ends early or is damaged
+	static EntryData* ReadEntry(FILE* file, bool fullTiltMode);
+	// The field's contents into entry.Buffer; false when the file ends early or they don't fit the field. A buffer
+	// already made stays in entry, for its destructor.
+	static bool ReadBitmap(FILE* file, EntryData& entry, size_t fieldSize);
+	static bool ReadZMap(FILE* file, EntryData& entry, size_t fieldSize, bool fullTiltMode);
+	static bool ReadField(FILE* file, EntryData& entry, size_t fieldSize);
 	// Whether a field's size fits its type; a damaged file has sizes that would overrun what is made from them
 	static bool ValidFieldSize(FieldTypes type, size_t size);
 	// Whether an 8-bit bitmap's header fits its field and describes a bitmap the game can hold
