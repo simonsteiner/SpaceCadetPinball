@@ -63,6 +63,8 @@ public:
 	static class DatFile* load_records(LPCSTR lpFileName, bool fullTiltMode);
 private:
 	static short _field_size[];
+	// No field of a real DAT comes near this; a larger size is damage, not data
+	static constexpr size_t LargestField = 16 * 1024 * 1024;
 
 	// Whether a field's size fits its type; a damaged file has sizes that would overrun what is made from them
 	static bool ValidFieldSize(FieldTypes type, size_t size);

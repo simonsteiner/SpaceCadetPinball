@@ -188,9 +188,7 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 
 bool partman::ValidFieldSize(FieldTypes type, size_t size)
 {
-	// No field of a real DAT comes near this; a larger size is damage, not data
-	constexpr size_t largest = 16 * 1024 * 1024;
-	if (size > largest)
+	if (size > LargestField)
 		return false;
 	switch (type)
 	{
@@ -216,9 +214,10 @@ bool partman::ValidBitmapHeader(const dat8BitBmpHeader& header, size_t fieldSize
 	if (header.Resolution > 2 || header.Width < 0 || header.Height < 0 || header.Size < 0 ||
 		static_cast<size_t>(header.Size) + sizeof(dat8BitBmpHeader) != fieldSize)
 		return false;
-	// A spliced bitmap is packed runs, which GroupData reads within its size; any other holds every row, padded to 4
+	// A spliced bitmap is packed runs, which GroupData reads within its size and unpacks to its full size, so that
+	// size gets the same bound as a field; any other bitmap holds every row, padded to 4
 	if (header.IsFlagSet(bmp8Flags::Spliced))
-		return true;
+		return static_cast<size_t>(header.Width) * static_cast<size_t>(header.Height) <= LargestField;
 	auto stride = (header.Width + 3) / 4 * 4;
 	return header.Size == stride * header.Height;
 }
