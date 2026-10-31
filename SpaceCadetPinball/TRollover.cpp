@@ -69,9 +69,9 @@ void TRollover::build_walls(int groupIndex)
 
 	loader::query_visual(groupIndex, 0, &visual);
 	int length;
-	float* arr1 = loader::query_float_array(groupIndex, 0, 600, &length);
+	const float* arr1 = loader::query_float_array(groupIndex, 0, 600, &length);
 	TEdgeSegment::install_wall(arr1, length, this, &ActiveFlag, visual.CollisionGroup, 0.0, 600);
-	float* arr2 = loader::query_float_array(groupIndex, 0, 603, &length);
+	const float* arr2 = loader::query_float_array(groupIndex, 0, 603, &length);
 	TEdgeSegment::install_wall(arr2, length, this, &RolloverFlag, visual.CollisionGroup, 0.0, 603);
 }
 
