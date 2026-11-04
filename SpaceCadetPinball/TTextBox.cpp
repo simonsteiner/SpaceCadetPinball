@@ -134,10 +134,10 @@ void TTextBox::Display(const char* text, float time, bool lowPriority, int fontI
 	if (!text)
 		return;
 
-	// PIRATES.EXE's text box (0x41de40, the same in CADET.EXE and DRAGON.EXE) also clears its queue for a message
-	// without a time, so a mode's help text replaces the picture shown before it; Pinball.exe's waits for it.
-	// Skulduggery only: on Dragon's Keep the change could reach play, through the rules' state texts
-	auto clearsQueue = pb::Table == Tables::Skulduggery && time == -1.0f;
+	// The bonus tables' text box (0x41de40 in PIRATES.EXE and DRAGON.EXE, the same in CADET.EXE) also clears its queue
+	// for a message without a time, so a mode's help text replaces the picture shown before it; Pinball.exe's waits
+	// for it, and Space Cadet keeps that with either game's data
+	auto clearsQueue = pb::BonusTable() && time == -1.0f;
 	if (IsRepeat(text, fontIndex) && !(clearsQueue && PreviousMessage->Time != -1.0f))
 	{
 		RefreshRepeat(time);
