@@ -3219,9 +3219,10 @@ namespace
 	// any state but Lava-Ball
 	void HideawayControl(MessageCode code, TPinballComponent* caller)
 	{
-		if (code == MessageCode::ControlCollision)
-			caller->Message(MessageCode::TSinkResetTimer, 0.0f);
-		else if (code == MessageCode::ControlTimerExpired && GameState() != LavaBallState)
+		using enum MessageCode;
+		if (code == ControlCollision)
+			caller->Message(TSinkResetTimer, 0.0f);
+		else if (code == ControlTimerExpired && GameState() != LavaBallState)
 			tabb55wave->Play(nullptr, "HideawayControl");
 	}
 
