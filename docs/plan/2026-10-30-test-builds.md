@@ -1,6 +1,6 @@
 # Test builds plan
 
-Date: 2026-10-30. Status: G0 done and merged (#150 to #152); next the test pass on the devices (G2 to G4 and G6) and Android (G5). Decided 2026-10-30: test builds carry the game data (G0), are made on this machine and the Mac, and are never published; the other questions under Decisions wait for an answer.
+Date: 2026-10-30. Status: G0 done and merged for the web, Windows and macOS (#150 to #152), Android's comes with G5; next the test pass on the devices (G2 to G4 and G6) and Android (G5). Decided 2026-10-30: test builds carry the game data (G0), are made on this machine and the Mac, and are never published; the other questions under Decisions wait for an answer.
 
 Space Cadet 2026 has only been played on Linux, under Xvfb, with lavapipe's software Vulkan. This plan makes a build of `main` for each platform there is a device for (the web, Windows, macOS and Android), plays it on that device, and closes what the other plans left for the player's machine: items 2 and 3 of the [follow-ups plan](2026-10-19-follow-ups.md#needs-the-players-machine-or-account), and what Phase D of the [Space Cadet 2026 plan](2026-10-20-space-cadet-2026.md#phase-d-compositor-and-lighting) couldn't check (Direct3D 12, Metal and its hand-written shaders, Windows and macOS builds, multiball). The builds are for testing, not a release.
 
@@ -56,7 +56,7 @@ One pull request each, with a checkpoint after each that stops for review, as in
    The replays can't be checked on the phone with `tools/check-replays.sh`, and ARM's float maths may drift from the Linux recordings as Windows' does; the simulation code is the same, so the replays stay checked on Linux.
 7. **G6: the test pass.** The checklist below on each device, with the results written into this plan; each problem found becomes its own pull request, and a fix to play asks first, as always.
 
-G0 comes first; G2 to G4 then need nothing else and can run in any order, and G1 can come at any time. G5 is the bulk of the work. The F6 follow-ups in the Space Cadet 2026 plan come first, so the builds tested have them.
+G0 comes first; G2 to G4 then need nothing else and can run in any order, and G1 can come at any time. G5 is the bulk of the work. The F6 follow-ups in the Space Cadet 2026 plan were to come first, so the builds tested have them; from 2026-10-31 they run alongside the device tests, and a build made before they merge lacks them.
 
 ## Found so far
 
