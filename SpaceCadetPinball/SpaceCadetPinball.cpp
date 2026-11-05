@@ -1,8 +1,56 @@
 #include "pch.h"
 #include "winmain.h"
 
+#ifdef __ANDROID__
+#include <thread>
+
+#include <android/log.h>
+#include <unistd.h>
+// Renames main to SDL_main, which SDL's Java activity calls in libmain.so
+#include <SDL3/SDL_main.h>
+
+namespace
+{
+	// The game prints its progress to stdout, which Android drops; this sends both streams to logcat instead
+	void LogStdoutToLogcat()
+	{
+		int pipeEnds[2];
+		if (pipe(pipeEnds) != 0)
+			return;
+		setvbuf(stdout, nullptr, _IOLBF, 0);
+		setvbuf(stderr, nullptr, _IONBF, 0);
+		dup2(pipeEnds[1], STDOUT_FILENO);
+		dup2(pipeEnds[1], STDERR_FILENO);
+		close(pipeEnds[1]);
+		std::thread{[readEnd = pipeEnds[0]]
+					{
+						std::string line;
+						char buffer[512];
+						ssize_t count;
+						while ((count = read(readEnd, buffer, sizeof buffer)) > 0)
+						{
+							for (ssize_t index = 0; index < count; index++)
+							{
+								if (buffer[index] != '\n')
+									line += buffer[index];
+								else
+								{
+									__android_log_write(ANDROID_LOG_INFO, "SpaceCadetPinball", line.c_str());
+									line.clear();
+								}
+							}
+						}
+					}}
+			.detach();
+	}
+} // namespace
+#endif
+
 int main(int argc, char* argv[])
 {
+#ifdef __ANDROID__
+	LogStdoutToLogcat();
+#endif
 	std::string cmdLine;
 	for (int i = 1; i < argc; i++)
 	{
