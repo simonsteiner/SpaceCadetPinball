@@ -3,7 +3,7 @@
 # A test build holds Microsoft's files: it stays on this machine and the player's devices, copied over USB or the
 # local network, and is never committed, uploaded, attached to a pull request or made in CI (docs/deployment.md).
 #
-# Usage: tools/make-test-build.sh windows [--msvc] | web | macos
+# Usage: tools/make-test-build.sh windows [--msvc] | web | macos | android
 #   windows  one executable with the data inside, unpacked into the preferences folder at its first start.
 #            Cross-compiled with MinGW (the mingw preset; x86_64-w64-mingw32-gcc on PATH), or with --msvc, from
 #            WSL, with the Windows host's Visual Studio in a folder under its %TEMP%.
@@ -11,6 +11,10 @@
 #            the MIT SoundFont the published page offers. Needs EMSDK set (tools/install-emsdk.sh).
 #   macos    a DMG with the app, built on a Mac with the macos preset; the data goes into the app's
 #            Contents/Resources, which the game searches as the executable's folder, and the app is ad-hoc signed.
+#   android  an APK for arm64-v8a with the data in its assets, copied into the app's private storage at its first
+#            start, signed with the workspace's fixed test key (../android-keystore, or SCP_ANDROID_KEYSTORE for its
+#            keystore.properties), so it installs over the last with adb install -r. Needs the Android SDK in
+#            ANDROID_HOME (default ~/Android/sdk) with the NDK and CMake that Platform/Android/app/build.gradle names.
 #
 # It builds the committed HEAD, from a copy made with git archive, so uncommitted changes are not in the build.
 # The data comes from the workspace's sibling folders; set these to use others, or to an empty value to leave a
@@ -26,7 +30,7 @@
 set -euo pipefail
 
 usage() {
-	echo "Usage: $0 windows [--msvc] | web | macos" >&2
+	echo "Usage: $0 windows [--msvc] | web | macos | android" >&2
 	exit 2
 }
 
@@ -45,7 +49,7 @@ for arg in "$@"; do
 	esac
 done
 case $platform in
-	windows | web) ;;
+	windows | web | android) ;;
 	macos)
 		if [ "$(uname -s)" != Darwin ]; then
 			echo "The macos test build is made on a Mac" >&2
@@ -316,7 +320,45 @@ build_macos() {
 	hdiutil create -fs HFS+ -srcfolder "$app" -volname "SpaceCadetPinball test build" -ov "$dmg"
 }
 
+# The APK: Platform/Android's Gradle project, with the layout in its assets under bundled/ and the list the game copies
+# them by in bundled.txt, whose first line names the copy after the files' names and contents (BundledData.cpp)
+build_android() {
+	local sdk=${ANDROID_HOME:-$HOME/Android/sdk} signing=${SCP_ANDROID_KEYSTORE:-$workspace/android-keystore/keystore.properties}
+	local assets=$build/android-assets file name list hash count
+	if [ ! -d "$sdk/ndk" ]; then
+		echo "No Android SDK with an NDK in $sdk; set ANDROID_HOME" >&2
+		exit 1
+	fi
+	if [ ! -f "$signing" ]; then
+		echo "No test keystore's $signing (docs/deployment.md, Android)" >&2
+		exit 1
+	fi
+	if [ -d "$assets" ]; then
+		rm -rf -- "${assets:?}"
+	fi
+	mkdir -p "$assets/bundled"
+	cp -R "$layout/." "$assets/bundled/"
+	list=$(cd "$layout" && find . -type f | sed 's|^\./||' | LC_ALL=C sort)
+	while IFS= read -r name; do
+		printf '%s %s\n' "$(sha256 "$layout/$name")" "$name"
+	done <<<"$list" >"$build/android-contents.txt"
+	hash=$(sha256 "$build/android-contents.txt" | cut -c1-16)
+	printf '%s\n%s\n' "$hash" "$list" >"$assets/bundled.txt"
+	count=$(git -C "$repo" rev-list --count HEAD)
+	(cd "$src/Platform/Android" && ANDROID_HOME=$sdk ./gradlew --no-daemon --console=plain assembleRelease \
+		"-PscpDescribe=$describe" "-PscpCommitCount=$count" "-PscpAssets=$assets" "-PscpSigning=$signing" \
+		"-PscpBuildDir=$build/android-gradle" "-PscpNativeBuildDir=$build/android-cxx")
+	file=$build/android-gradle/outputs/apk/release/app-release.apk
+	cp "$file" "$out/SpaceCadetPinball-$commit.apk"
+}
+
 case $platform in
+	android)
+		build_android
+		echo "Test build $describe: $out/SpaceCadetPinball-$commit.apk"
+		echo "Install it over USB with adb install -r; its first start copies the data into the app's storage." \
+			"Never upload it."
+		;;
 	macos)
 		build_macos
 		echo "Test build $describe: $out/SpaceCadetPinball-$commit-mac.dmg"

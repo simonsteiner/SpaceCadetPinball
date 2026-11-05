@@ -155,6 +155,10 @@ namespace
 			}
 		}
 		for (auto path : {
+#ifdef __ANDROID__
+				 // In the APK's assets, which SDL_LoadFile reads by a relative path
+				 "FluidR3Mono_GM.sf3",
+#endif
 				 "/usr/share/sounds/sf3/default-GM.sf3",
 				 "/usr/share/sounds/sf2/default-GM.sf2",
 				 "/usr/share/sounds/sf2/FluidR3_GM.sf2",
