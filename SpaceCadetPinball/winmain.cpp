@@ -424,37 +424,8 @@ static DefinitiveHost MakeDefinitiveHost()
 	host.Resume = winmain::end_pause;
 	host.Paused = [] { return winmain::single_step; };
 	host.Version = winmain::Version;
-	host.SetPostProcessing = [](int effect) { winmain::SetPostProcessing(static_cast<PostEffects>(effect)); };
 	host.PostProcessingUnavailable = winmain::PostProcessingUnavailable;
 	host.EffectsUnavailable = winmain::EffectsUnavailable;
-	host.SetUpscaleFactor = [](int factor)
-	{
-		options::Options.UpscaleFactor = factor;
-		if (options::Options.UpscaledArt)
-			render::SetUpscale(factor);
-	};
-	host.SetSoundVolume = [](int volume)
-	{
-		options::Options.SoundVolume = volume;
-		Sound::SetVolume(volume);
-	};
-	host.SetSoundChannels = [](int channels)
-	{
-		options::Options.SoundChannels = channels;
-		Sound::SetChannels(channels);
-	};
-	host.SetMusicVolume = [](int volume)
-	{
-		options::Options.MusicVolume = volume;
-		midi::SetVolume(volume);
-	};
-	host.FrameRateChanged = winmain::UpdateFrameRate;
-	host.PreciseSleepChanged = winmain::ResetPreciseSleep;
-	host.SetLanguage = [](const char* shortName)
-	{
-		translations::SetCurrentLanguage(shortName);
-		winmain::Restart();
-	};
 	host.MaxResolution = fullscrn::GetMaxResolution;
 	host.ChangeFont = font_selection::ShowDialog;
 	host.EditionKey = [] { return options::Options.Key[~GameBindings::ToggleEdition].GetShortcutDescription(); };
@@ -483,11 +454,6 @@ static DefinitiveHost MakeDefinitiveHost()
 	host.SetRotation = [](int quarterTurns) { PendingRotation = quarterTurns; };
 #ifndef __EMSCRIPTEN__
 	host.SoundPacks = [] { return Sound::Packs(); };
-	host.SetSoundPack = [](const std::string& name)
-	{
-		options::Options.SoundPack.V = name;
-		Sound::SetPack(name);
-	};
 #endif
 #ifndef __EMSCRIPTEN__
 	host.Recordings = []
@@ -848,7 +814,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		LoadTableChoices();
 
 		fullscrn::init();
-		render::SetUpscale(Options.UpscaledArt ? Options.UpscaleFactor.V : 0);
+		options::Apply(Options.UpscaledArt);
 		LoadPanelArt();
 
 		pb::reset_table();
@@ -1321,8 +1287,7 @@ void winmain::RenderUi()
 					{
 						if (currentLanguage->Language != item.Language)
 						{
-							translations::SetCurrentLanguage(item.ShortName);
-							Restart();
+							options::Set(Options.Language, item.ShortName);
 						}
 					}
 				}
@@ -1342,13 +1307,13 @@ void winmain::RenderUi()
 				                     "%d",
 				                     ImGuiSliderFlags_AlwaysClamp))
 				{
-					Sound::SetVolume(Options.SoundVolume);
+					options::Apply(Options.SoundVolume);
 				}
 				ImGui::TextUnformatted("Sound Channels");
 				if (ImGui::SliderInt("##Sound Channels", &Options.SoundChannels.V, options::MinSoundChannels,
 				                     options::MaxSoundChannels, "%d", ImGuiSliderFlags_AlwaysClamp))
 				{
-					Sound::SetChannels(Options.SoundChannels);
+					options::Apply(Options.SoundChannels);
 				}
 				ImGui::Separator();
 
@@ -1358,7 +1323,7 @@ void winmain::RenderUi()
 				                     "%d",
 				                     ImGuiSliderFlags_AlwaysClamp))
 				{
-					midi::SetVolume(Options.MusicVolume);
+					options::Apply(Options.MusicVolume);
 				}
 				ImGui::EndMenu();
 			}
@@ -1394,9 +1359,7 @@ void winmain::RenderUi()
 						snprintf(label, sizeof label, "%dx", factor);
 						if (ImGui::MenuItem(label, nullptr, Options.UpscaleFactor == factor))
 						{
-							Options.UpscaleFactor = factor;
-							if (Options.UpscaledArt)
-								render::SetUpscale(factor);
+							options::Set(Options.UpscaleFactor, factor);
 						}
 					}
 #if SDL_VERSION_ATLEAST(3, 4, 0)
@@ -1422,7 +1385,7 @@ void winmain::RenderUi()
 					for (int i = 0; i < static_cast<int>(PostEffects::Max); i++)
 					{
 						if (ImGui::MenuItem(names[i], nullptr, Options.PostProcessing == i))
-							SetPostProcessing(static_cast<PostEffects>(i));
+							options::Set(Options.PostProcessing, i);
 					}
 					if (SoftwareRenderer)
 						ImGui::TextDisabled("Not with the software renderer");
@@ -1482,8 +1445,7 @@ void winmain::RenderUi()
 				if (ImGui::MenuItem("Precise Sleep", nullptr, Options.HybridSleep))
 				{
 					Options.HybridSleep ^= true;
-					SleepState = WelfordState{};
-					SpinThreshold = DurationMs::zero();
+					options::Apply(Options.HybridSleep);
 				}
 
 				if (changed)
@@ -2128,13 +2090,6 @@ void winmain::TouchInput(const SDL_TouchFingerEvent& event)
 	TouchBindings[key] = binding;
 	if (first)
 		pb::BindingDown(binding);
-}
-
-void winmain::SetPostProcessing(PostEffects effect)
-{
-	// The GPU renderer switches effects on the fly; without it the option is only saved
-	Options.PostProcessing = static_cast<int>(effect);
-	PostEffect::SetEffect(effect);
 }
 
 void winmain::RenderEditionHint()

@@ -352,8 +352,7 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 	auto row = Ui::LastRow();
 	ImVec2 digitsMin{row.Max.x - 16 * scale - digitsWidth, (row.Min.y + row.Max.y - box.y) / 2};
 	auto players = options::Options.Players.V;
-	auto setPlayers = [](int count)
-	{ options::toggle(static_cast<Menu1>(std::to_underlying(Menu1::OnePlayer) + count - 1)); };
+	auto setPlayers = [](int count) { options::Set(options::Options.Players, count); };
 	if (chosen)
 	{
 		auto mouse = ImGui::GetIO().MousePos;

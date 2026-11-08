@@ -100,7 +100,6 @@ public:
 	static void HandleGameBinding(GameBindings binding, bool shortcut);
 	static void ApplyDisplayScale();
 	static bool CreateRenderer(bool gpu);
-	static void SetPostProcessing(PostEffects effect);
 	static void GamepadTrigger(const SDL_GamepadAxisEvent& event);
 	static void GamepadInput(SDL_JoystickID gamepad, int value, bool down);
 	static void TouchInput(const SDL_TouchFingerEvent& event);

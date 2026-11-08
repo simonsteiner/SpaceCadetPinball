@@ -57,24 +57,12 @@ struct DefinitiveHost
 	bool (*Busy)();
 	const char* Version;
 
-	// Settings that need more than an option set, as the Classic menus do after changing them
-	void (*SetPostProcessing)(int effect);
 	// Why post-processing can't show here, or null
 	const char* (*PostProcessingUnavailable)();
 	// Why the lighting, glow and shaded ball can't show here, or null
 	const char* (*EffectsUnavailable)();
-	void (*SetUpscaleFactor)(int factor);
-	void (*SetSoundVolume)(int volume);
-	void (*SetSoundChannels)(int channels);
-	void (*SetMusicVolume)(int volume);
-	// The sound packs found, by name, and the one to use, empty for none; null where there are none to find, as in a
-	// browser
+	// The sound packs found, by name; null where there are none to find, as in a browser
 	std::vector<std::string> (*SoundPacks)();
-	void (*SetSoundPack)(const std::string& name);
-	void (*FrameRateChanged)();
-	void (*PreciseSleepChanged)();
-	// Restarts the game in another language, as the Classic menu does
-	void (*SetLanguage)(const char* shortName);
 	// The largest table resolution the data has, 0 for 640 by 480 only
 	int (*MaxResolution)();
 	// Opens the dialog that asks for a font file, as the Classic menu's Change Font does
