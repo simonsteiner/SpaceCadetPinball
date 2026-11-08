@@ -553,6 +553,12 @@ enum class Msg : int
 	Definitive_AchEveryModeText,
 	Definitive_AchPegLegsLoot,
 	Definitive_AchPegLegsLootText,
+	// The control deck for touch screens
+	Definitive_TouchControls,
+	Definitive_TouchDeck,
+	Definitive_TouchTable,
+	Definitive_TouchLaunch,
+	Definitive_TouchNudge,
 
 	// Full Tilt's CADET.EXE strings, shown instead of 3D Pinball's in Full Tilt mode
 	FullTilt_Caption,

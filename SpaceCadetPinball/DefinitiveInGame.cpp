@@ -100,11 +100,14 @@ bool DefinitiveFrontEnd::NextName()
 	return true;
 }
 
+// Opens a panel of size, scaled to fit, in the middle of the window over a veil; returns its top left corner
 ImVec2 DefinitiveFrontEnd::BeginCentred(const char* name, ImVec2 size)
 {
 	auto viewport = ImGui::GetMainViewport();
-	// Smaller in a small window, so the whole panel shows
-	auto scale = std::min(Ui::Scale(), std::min(viewport->Size.x / (size.x + 48), viewport->Size.y / (size.y + 48)));
+	// Smaller in a small window, so the whole panel shows. Upright, as on a phone, it grows to the window's width as
+	// far as the height allows, so its rows are thumb-sized
+	auto fit = std::min(viewport->Size.x / (size.x + 48), viewport->Size.y / (size.y + 48));
+	auto scale = viewport->Size.y > viewport->Size.x ? fit : std::min(Ui::Scale(), fit);
 	Ui::SetScale(scale);
 	ImVec2 scaled{size.x * scale, size.y * scale};
 	ImVec2 min{viewport->Pos.x + (viewport->Size.x - scaled.x) / 2,
@@ -134,13 +137,14 @@ ImVec2 DefinitiveFrontEnd::BeginCentred(const char* name, ImVec2 size)
 	return min;
 }
 
+// The pause screen: resume, settings, the guide, the switch to Classic where it exists, restart, change table and quit
 void DefinitiveFrontEnd::RenderPause(const TableView& view)
 {
 	// Six rows and a separator, a seventh to change tables when there is a choice, or the question and two rows
 	// Rows grow with the Text Size option
 	auto changeTable = Host.TableList && Host.TableList().size() > 1;
 	auto row = Ui::RowHeight() + 2;
-	auto rows = changeTable ? 7 : 6;
+	auto rows = (changeTable ? 7 : 6) - (options::ClassicAvailable ? 0 : 1);
 	auto rowsHeight = ConfirmRestart || ConfirmQuit ? 32 + 2 * row : rows * row + 12;
 	auto min = BeginCentred("##DefinitivePause", ImVec2{420, 24 + 40 + 24 + 16 + rowsHeight + 24 + 44});
 	auto scale = Ui::Scale();
@@ -196,7 +200,8 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 		}
 		// The edition key passes to the game here, as on the title, and switches too; the game stays paused in Classic
 		auto key = Host.EditionKey ? Host.EditionKey() : std::string{};
-		if (Ui::MenuRow("classic", Text(Msg::Definitive_SwitchToClassic), false, key.empty() ? nullptr : key.c_str()))
+		if (options::ClassicAvailable &&
+			Ui::MenuRow("classic", Text(Msg::Definitive_SwitchToClassic), false, key.empty() ? nullptr : key.c_str()))
 			options::SetEdition(Editions::Classic);
 		auto separator = ImGui::GetCursorScreenPos().y + 6 * scale;
 		drawList->AddLine(ImVec2{rowsAt.x + padding, separator}, ImVec2{rowsAt.x + width - padding, separator},

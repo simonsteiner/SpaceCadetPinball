@@ -5,6 +5,7 @@
 #include "options.h"
 #include "pb.h"
 #include "render.h"
+#include "TouchControls.h"
 #include "winmain.h"
 
 
@@ -108,6 +109,7 @@ int fullscrn::GetMaxResolution()
 	return pb::FullTiltMode && !pb::FullTiltDemoMode ? 2 : 0;
 }
 
+// Works out the table's scale and offset and the board and panel rects for the window's size, edition and options
 void fullscrn::window_size_changed()
 {
 	if (!render::vscreen)
@@ -122,6 +124,20 @@ void fullscrn::window_size_changed()
 	auto res = &resolution_array[resolution];
 	auto boardWidth = render::BoardWidth();
 	auto sidebarWidth = res->TableWidth - boardWidth;
+
+	// Space Cadet 2026 with its control deck for touch screens, at any scale that fits, since whole multiples would
+	// waste much of a phone's screen
+	if (TouchControls::Arrange(width, height, boardWidth, res->TableHeight, ScaleX))
+	{
+		ScaleY = ScaleX;
+		Portrait = false;
+		const auto& deck = TouchControls::Current();
+		OffsetX = deck.Board.x;
+		OffsetY = deck.Board.y;
+		render::BoardRect = deck.Board;
+		render::SidebarRect = deck.Panel;
+		return;
+	}
 
 	// Space Cadet 2026 in a window taller than wide, such as a phone held upright or a monitor on its side: the table
 	// at the top, as large as it fits with a share of the height left for the HUD, which takes the band under it

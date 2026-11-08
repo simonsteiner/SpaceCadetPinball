@@ -1,0 +1,224 @@
+// The Android app: SDL3's android-project template, with the game built from the repository's CMakeLists.txt as
+// libmain.so and SDL linked statically into it. SDL's Java sources come from the same pinned SDL release the CMake
+// build fetches, so the Java and native halves of SDL always match.
+//
+// Properties, all optional (-P on the command line; tools/make-test-build.sh android sets them):
+//   scpDescribe       the commit, as git describe prints it, for versionName (default: git), and for the About box,
+//                     which names a test build only when this is given (SCP_BUILD_COMMIT)
+//   scpCommitCount    versionCode (default: git rev-list --count HEAD)
+//   scpAssets         a folder of extra assets: a test build's game data (bundled/ and bundled.txt)
+//   scpSigning        a properties file with storeFile, storePassword, keyAlias and keyPassword for the release build
+//   scpNativeBuildDir where CMake builds (default: app/.cxx)
+//   scpBuildDir       Gradle's build folder for the app (default: app/build)
+//   scpWarnings       build the game with SCP_WARNINGS=ON, warnings as errors, as CI does
+//   scpCmakeArgs      more CMake configure arguments, separated by spaces (make-test-build.sh's SCP_CMAKE_ARGS)
+plugins {
+    id 'com.android.application'
+}
+
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+
+def repoDir = file('../../..')
+// Outside the source tree when tools/make-test-build.sh builds from a fresh copy, so downloads are kept between builds
+if (project.hasProperty('scpBuildDir')) {
+    layout.buildDirectory = file(project.property('scpBuildDir'))
+}
+
+def gitOutput(String... args) {
+    try {
+        def process = (['git', '-C', file('../../..').path] + args.toList()).execute()
+        def text = process.text.trim()
+        return process.waitFor() == 0 ? text : null
+    } catch (IOException ignored) {
+        return null
+    }
+}
+
+def testBuildCommit = project.findProperty('scpDescribe')
+def describe = testBuildCommit ?: gitOutput('describe', '--always', '--tags', 'HEAD') ?: 'unknown'
+def commitCount = (project.findProperty('scpCommitCount') ?: gitOutput('rev-list', '--count', 'HEAD') ?: '1') as int
+
+// The version, as winmain::Version names it, so it is set in one place (docs/deployment.md)
+def versionMatch = new File(repoDir, 'SpaceCadetPinball/winmain.h').text =~ /static constexpr const char\* Version = "([^"]+)";/
+if (!versionMatch.find()) {
+    throw new GradleException('No winmain::Version = "..." in SpaceCadetPinball/winmain.h')
+}
+def gameVersion = versionMatch.group(1)
+
+// SDL's URL and hash, as CMakeLists.txt pins them
+def cmakeLists = new File(repoDir, 'CMakeLists.txt').text
+def sdlMatch = cmakeLists =~ /FetchContent_Declare\(SDL3\s+URL\s+(\S+)\s+URL_HASH\s+SHA256=([0-9a-f]{64})/
+if (!sdlMatch.find()) {
+    throw new GradleException('No FetchContent_Declare(SDL3 URL ... URL_HASH SHA256=...) in CMakeLists.txt')
+}
+def sdlUrl = sdlMatch.group(1)
+def sdlHash = sdlMatch.group(2)
+def sdlDir = layout.buildDirectory.dir('sdl').get().asFile
+def sdlSource = new File(sdlDir, 'src')
+
+// The MIT SoundFont the web build offers, pinned as in tools/make-test-build.sh and .github/workflows/Pages.yml
+def soundFontBase = 'https://raw.githubusercontent.com/musescore/MuseScore/v2.3.2/share/sound'
+def soundFontFiles = [
+    'FluidR3Mono_GM.sf3'    : 'cfcd66d89e8386823400eca64934b14fbea7bf48ba1f00d21189af1262794ec2',
+    'FluidR3Mono_License.md': '09926f9451f751408abd65162c99343f840234d2a708584808fd46427633063f',
+]
+def soundFontDir = layout.buildDirectory.dir('generated/soundfont').get().asFile
+
+def sha256(File file) {
+    def digest = MessageDigest.getInstance('SHA-256')
+    file.eachByte(1 << 16) { bytes, length -> digest.update(bytes, 0, length) }
+    return digest.digest().encodeHex().toString()
+}
+
+// Downloads url to file unless it is there with the hash, and checks the hash
+def download(String url, File file, String hash) {
+    if (file.isFile() && sha256(file) == hash) {
+        return
+    }
+    file.parentFile.mkdirs()
+    def partial = new File(file.path + '.part')
+    new URL(url).withInputStream { input -> partial.withOutputStream { output -> output << input } }
+    def actual = sha256(partial)
+    if (actual != hash) {
+        partial.delete()
+        throw new GradleException("$url has SHA-256 $actual, not the pinned $hash")
+    }
+    // Over an older download of the same name, which File.renameTo leaves in place on Windows
+    Files.move(partial.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+}
+
+// Taken at configuration time: a task action that reaches for Task.project is deprecated
+def fileOps = project.services.get(FileSystemOperations)
+def archiveOps = project.services.get(ArchiveOperations)
+
+def fetchSdl = tasks.register('fetchSdl') {
+    description = 'Downloads and unpacks the SDL release CMakeLists.txt pins'
+    inputs.property('url', sdlUrl)
+    inputs.property('hash', sdlHash)
+    outputs.dir(sdlSource)
+    doLast {
+        def archive = new File(sdlDir, 'SDL3.tar.gz')
+        download(sdlUrl, archive, sdlHash)
+        fileOps.delete { delete sdlSource }
+        fileOps.copy {
+            from archiveOps.tarTree(archiveOps.gzip(archive))
+            into sdlSource
+            // Without the archive's top folder, SDL3-<version>/
+            eachFile { it.relativePath = new RelativePath(true, *it.relativePath.segments.drop(1)) }
+            includeEmptyDirs = false
+        }
+    }
+}
+
+def fetchSoundFont = tasks.register('fetchSoundFont') {
+    description = 'Downloads the SoundFont the music plays with'
+    inputs.property('files', soundFontFiles)
+    outputs.dir(soundFontDir)
+    doLast {
+        soundFontFiles.each { name, hash -> download("$soundFontBase/$name", new File(soundFontDir, name), hash) }
+    }
+}
+
+android {
+    namespace = 'io.github.simonsteiner.spacecadetpinball'
+    compileSdk = 36
+    ndkVersion = '29.0.14206865'
+
+    defaultConfig {
+        applicationId = 'io.github.simonsteiner.spacecadetpinball'
+        // SDL3's own minimum
+        minSdk = 21
+        targetSdk = 36
+        versionCode = commitCount
+        versionName = "$gameVersion $describe"
+        externalNativeBuild {
+            cmake {
+                arguments '-DANDROID_STL=c++_static', '-DSCP_VENDORED_SDL=ON',
+                    "-DFETCHCONTENT_SOURCE_DIR_SDL3=${sdlSource.path}"
+                targets 'SpaceCadetPinball'
+                // Only a test build calls itself one, as on the other platforms
+                if (testBuildCommit) {
+                    arguments "-DSCP_BUILD_COMMIT=$testBuildCommit"
+                }
+                if (project.hasProperty('scpWarnings')) {
+                    arguments '-DSCP_WARNINGS=ON'
+                }
+                if (project.hasProperty('scpCmakeArgs')) {
+                    arguments(*project.property('scpCmakeArgs').toString().tokenize())
+                }
+            }
+        }
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    signingConfigs {
+        if (project.hasProperty('scpSigning')) {
+            def signing = new Properties()
+            def signingFile = file(project.property('scpSigning'))
+            signingFile.withInputStream { signing.load(it) }
+            def value = { String key ->
+                def text = signing.getProperty(key)
+                if (!text) {
+                    throw new GradleException("No $key in $signingFile")
+                }
+                return text
+            }
+            // A relative storeFile is next to the properties file
+            def store = new File(value('storeFile'))
+            test {
+                storeFile = store.absolute ? store : new File(signingFile.parentFile, store.path)
+                storePassword = value('storePassword')
+                keyAlias = value('keyAlias')
+                keyPassword = value('keyPassword')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled = false
+            if (project.hasProperty('scpSigning')) {
+                signingConfig = signingConfigs.test
+            }
+        }
+    }
+
+    sourceSets.main {
+        java.srcDirs += new File(sdlSource, 'android-project/app/src/main/java')
+        assets.srcDirs += soundFontDir
+        if (project.hasProperty('scpAssets')) {
+            assets.srcDirs += file(project.property('scpAssets'))
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = new File(repoDir, 'CMakeLists.txt')
+            version = '4.1.2'
+            if (project.hasProperty('scpNativeBuildDir')) {
+                buildStagingDirectory = file(project.property('scpNativeBuildDir'))
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError = false
+    }
+}
+
+tasks.named('preBuild') { dependsOn fetchSdl, fetchSoundFont }
+// CMake configures before preBuild's dependents in some AGP versions; it needs SDL's source too
+tasks.configureEach {
+    if (name.startsWith('configureCMake') || name.startsWith('buildCMake') || name.startsWith('generateJsonModel')) {
+        dependsOn fetchSdl
+    }
+}

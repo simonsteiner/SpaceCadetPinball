@@ -182,6 +182,13 @@ public:
 	static std::vector<GameBindings> MapGameInput(GameInput key);
 	static void ResetAllOptions();
 	static Editions GetEdition();
+	// Whether Classic can be chosen. Not on Android, where it would need a keyboard (its menu bar, F3 to resume a
+	// paused game) and has no control deck; the game is always Space Cadet 2026 there
+#ifdef __ANDROID__
+	static constexpr bool ClassicAvailable = false;
+#else
+	static constexpr bool ClassicAvailable = true;
+#endif
 	// Switches to the edition's drawing options and applies them, also during a game
 	static void SetEdition(Editions edition);
 	// Switches to the edition's drawing options without applying them, before the table is drawn
@@ -470,4 +477,7 @@ struct optionsStruct
 	BoolOption RecordSessions;
 	// Whether the player has set Reduced Motion; until then the web build follows the browser's
 	BoolOption ReducedMotionChosen;
+	// How Space Cadet 2026 takes touch: 0 on the table itself (its halves flip, the score panel pulls the plunger),
+	// 1 on a control deck drawn beside it (TouchControls); the deck by default on Android
+	IntOption TouchControls;
 };

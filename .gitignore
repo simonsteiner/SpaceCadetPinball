@@ -314,3 +314,10 @@ build.ninja
 ### lefthook ###
 # Personal overrides of lefthook.yml
 lefthook-local.yml
+
+# The Android project's Gradle and CMake output (Platform/Android)
+Platform/Android/.gradle/
+Platform/Android/build/
+Platform/Android/app/build/
+Platform/Android/app/.cxx/
+Platform/Android/local.properties

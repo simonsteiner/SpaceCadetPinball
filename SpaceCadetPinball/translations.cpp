@@ -8121,6 +8121,36 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_TouchControls,
+		{
+			{ Lang::English, "Touch controls" },
+		}
+	},
+	{
+		Msg::Definitive_TouchDeck,
+		{
+			{ Lang::English, "Control deck" },
+		}
+	},
+	{
+		Msg::Definitive_TouchTable,
+		{
+			{ Lang::English, "On the table" },
+		}
+	},
+	{
+		Msg::Definitive_TouchLaunch,
+		{
+			{ Lang::English, "Launch" },
+		}
+	},
+	{
+		Msg::Definitive_TouchNudge,
+		{
+			{ Lang::English, "Flick a flipper pad up to nudge" },
+		}
+	},
+	{
 		Msg::FullTilt_Caption,
 		{
 			{ Lang::English, "Full Tilt! - Space Cadet" },
