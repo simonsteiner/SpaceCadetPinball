@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "TouchControls.h"
 
+#include "DefinitiveFrontEnd.h"
 #include "fullscrn.h"
 #include "options.h"
 #include "pb.h"
@@ -251,7 +252,8 @@ void TouchControls::FingerLifted(const FingerKey& key)
 
 void TouchControls::FingerDown(const FingerKey& key, const SDL_FPoint& position)
 {
-	if (Fingers.contains(key) || winmain::ImIO->WantCaptureMouse)
+	// A screen hides the deck and takes every new touch, also outside its panel, where ImGui's capture flag is false
+	if (Fingers.contains(key) || winmain::ImIO->WantCaptureMouse || DefinitiveFrontEnd::ScreenOpen())
 		return;
 
 	SDL_Point point{static_cast<int>(position.x), static_cast<int>(position.y)};
