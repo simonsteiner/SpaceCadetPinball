@@ -29,7 +29,7 @@ The backlog, in rank order. After the scan only three parts of the report change
 
 | ID | Deepening | Strength | Door | Lens | Status | Branch | PR | Breaking | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| [C1](C1-apply-settings.md) | Apply each setting in one place | 🟢 Strong | ↔ two-way | deepening | pr-open | `refactor/apply-settings` | | no | batch 1 of 3 |
+| [C1](C1-apply-settings.md) | Apply each setting in one place | 🟢 Strong | ↔ two-way | deepening | pr-open | `refactor/apply-settings` | [#172](https://github.com/simonsteiner/SpaceCadetPinball/pull/172) | no | batch 1 of 3 |
 | [C2](C2-table-catalog.md) | Let `TableInfo` carry every per-table fact | 🟢 Strong | ↔ two-way | deepening | todo | `refactor/table-catalog` | | | batch 2 of 3 |
 | [C3](C3-table-choices.md) | One table-choice module for both pickers | 🟢 Strong | ↔ two-way | deepening | todo | `refactor/table-choices` | | | batch 3 of 3; builds on C2 |
 | [C4](C4-hi-frame.md) | Paint the 1x and Hi frames as a pair | 🟡 Worth exploring | ↔ two-way | deepening | todo | `refactor/hi-frame` | | | |
