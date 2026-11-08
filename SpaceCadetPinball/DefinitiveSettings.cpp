@@ -316,13 +316,13 @@ void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunn
 	// Only where there is a touch screen to use it on
 	int touchDevices = 0;
 	SDL_free(SDL_GetTouchDevices(&touchDevices));
-	if (touchDevices > 0 && host.SetTouchControls)
+	if (touchDevices > 0)
 	{
 		if (auto controls = Ui::ChoiceRow("touch", Text(Msg::Definitive_TouchControls),
 										  {Text(Msg::Definitive_TouchTable), Text(Msg::Definitive_TouchDeck)},
 										  options.TouchControls);
 			controls != options.TouchControls)
-			host.SetTouchControls(controls);
+			options::Set(options.TouchControls, controls);
 	}
 
 	if (Ui::ToggleRow("match", Text(Msg::Definitive_MatchRefresh), options.MatchRefreshRate))

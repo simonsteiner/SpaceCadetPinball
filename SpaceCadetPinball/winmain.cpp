@@ -537,12 +537,6 @@ static DefinitiveHost MakeDefinitiveHost()
 		deck.ExplainNudge = !TouchControls::Nudged();
 		return true;
 	};
-	// Saves the Touch Controls option and lays the window out again for it
-	host.SetTouchControls = [](int controls)
-	{
-		options::Options.TouchControls = std::clamp(controls, 0, 1);
-		fullscrn::window_size_changed();
-	};
 	return host;
 }
 

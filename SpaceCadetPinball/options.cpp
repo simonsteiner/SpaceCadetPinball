@@ -457,7 +457,7 @@ void options::Apply(const OptionBase& option)
 	else if (is(Options.FullScreen))
 		fullscrn::set_screen_mode(Options.FullScreen);
 	else if (is(Options.ShowMenu) || is(Options.UniformScaling) || is(Options.IntegerScaling) ||
-			 is(Options.StackedLayout))
+			 is(Options.StackedLayout) || is(Options.TouchControls))
 		fullscrn::window_size_changed();
 	else if (is(Options.LinearFiltering))
 		render::recreate_screen_texture();

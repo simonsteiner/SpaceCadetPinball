@@ -130,8 +130,6 @@ struct DefinitiveHost
 	void (*Layout)(SDL_FRect& board, SDL_FRect& panel, bool& band);
 	// The control deck for touch screens, when the Touch Controls option shows it; false without one
 	bool (*TouchDeck)(DefinitiveDeck& deck);
-	// The Touch Controls option: 0 on the table, 1 on the deck
-	void (*SetTouchControls)(int controls);
 };
 
 // Space Cadet 2026's front end: the title with the main menu and the screens it leads to. It takes the place of
