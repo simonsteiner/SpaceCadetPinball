@@ -4,12 +4,15 @@
 #include "fullscrn.h"
 #include "options.h"
 #include "pb.h"
+#include "TPinballTable.h"
 #include "winmain.h"
 
 std::map<std::pair<SDL_TouchID, SDL_FingerID>, TouchControls::FingerState> TouchControls::Fingers{};
 TouchControls::Layout TouchControls::Rects{};
+TouchControls::Row TouchControls::PadRow{};
 bool TouchControls::IsActive = false, TouchControls::HasNudged = false;
-Uint64 TouchControls::PlungerTicks = 0;
+Uint64 TouchControls::PlungerTicks = 0, TouchControls::AnimateTicks = 0;
+float TouchControls::LaneShown = 1;
 
 namespace
 {
@@ -25,6 +28,10 @@ namespace
 	// A flick: up by this share of the pad's height within this time
 	constexpr float FlickShare = 0.25f;
 	constexpr Uint64 FlickMs = 300;
+	// How far down the table from the plunger's feed point a ball waiting on it can be, in table units
+	constexpr float LaneDepth = 3;
+	// The lane folds and unfolds in this long
+	constexpr float FoldSeconds = 0.25f;
 
 	SDL_Rect Rect(float x, float y, float w, float h)
 	{
@@ -50,20 +57,6 @@ namespace
 		return flipper == GameBindings::LeftFlipper ? GameBindings::LeftTableBump : GameBindings::RightTableBump;
 	}
 
-	// Escape, as the keyboard and Android's back gesture send it: the pause screen in a game
-	void SendEscape()
-	{
-		for (auto type : {SDL_EVENT_KEY_DOWN, SDL_EVENT_KEY_UP})
-		{
-			SDL_Event event{};
-			event.type = type;
-			event.key.windowID = SDL_GetWindowID(winmain::MainWindow);
-			event.key.scancode = SDL_SCANCODE_ESCAPE;
-			event.key.key = SDLK_ESCAPE;
-			event.key.down = type == SDL_EVENT_KEY_DOWN;
-			SDL_PushEvent(&event);
-		}
-	}
 } // namespace
 
 bool TouchControls::Arrange(int width, int height, int boardWidth, int tableHeight, float& scale)
@@ -89,11 +82,7 @@ bool TouchControls::Arrange(int width, int height, int boardWidth, int tableHeig
 		auto gap = safe.w * GapShare;
 		auto hintH = deckH * HintShare;
 		auto padsY = deckY + hintH, padsH = deckH - hintH - gap;
-		auto plungerW = safe.w * PlungerShare;
-		auto padW = (safe.w - plungerW - gap * 4) / 2;
-		layout.LeftPad = Rect(safe.x + gap, padsY, padW, padsH);
-		layout.RightPad = Rect(safe.x + gap * 2 + padW, padsY, padW, padsH);
-		layout.Plunger = Rect(safe.x + safe.w - gap - plungerW, padsY, plungerW, padsH);
+		PadRow = Row{SDL_FRect{safe.x + gap, padsY, safe.w - gap * 2, padsH}, safe.w * PlungerShare, gap, true};
 		layout.Pause = Rect(safe.x + safe.w - gap - hintH, deckY, hintH, hintH);
 		layout.Hint = Rect(safe.x + gap, deckY, safe.w - gap * 3 - hintH, hintH);
 	}
@@ -120,13 +109,59 @@ bool TouchControls::Arrange(int width, int height, int boardWidth, int tableHeig
 		// Right: the score panel over the right pad and the plunger, which keeps to the outer edge
 		auto rightX = safe.x + leftW + w;
 		layout.Panel = Rect(rightX, safe.y, rightW, padsY - safe.y - gap);
-		auto plungerW = rightW * PlungerShare * 1.4f;
-		layout.RightPad = Rect(rightX + gap, padsY, rightW - plungerW - gap * 3, padsH);
-		layout.Plunger = Rect(rightX + rightW - gap - plungerW, padsY, plungerW, padsH);
+		PadRow = Row{SDL_FRect{rightX + gap, padsY, rightW - gap * 2, padsH}, rightW * PlungerShare * 1.4f, gap, false};
 	}
 	Rects = layout;
+	PlaceRow(LaneShown);
 	IsActive = true;
 	return true;
+}
+
+void TouchControls::PlaceRow(float shown)
+{
+	// The lane keeps to the outer edge and narrows as it folds; the pads share what it leaves
+	auto& area = PadRow.Area;
+	auto plungerW = PadRow.PlungerWidth * shown;
+	auto padsW = area.w - (plungerW + PadRow.Gap) * std::min(1.0f, shown * 4);
+	Rects.Plunger = Rect(area.x + area.w - plungerW, area.y, plungerW, area.h);
+	if (PadRow.BothPads)
+	{
+		auto padW = (padsW - PadRow.Gap) / 2;
+		Rects.LeftPad = Rect(area.x, area.y, padW, area.h);
+		Rects.RightPad = Rect(area.x + padW + PadRow.Gap, area.y, padW, area.h);
+	}
+	else
+		Rects.RightPad = Rect(area.x, area.y, padsW, area.h);
+}
+
+void TouchControls::Animate()
+{
+	auto now = SDL_GetTicks();
+	auto seconds = AnimateTicks ? static_cast<float>(now - AnimateTicks) / 1000.0f : 0.0f;
+	AnimateTicks = now;
+	if (!IsActive)
+		return;
+	// Only reads the table: whether a ball is in the shooter lane, from where the plunger feeds it down to where it
+	// comes to rest on the plunger, a little further down the table
+	auto table = pb::MainTable;
+	auto waiting = false;
+	if (table)
+	{
+		auto margin = table->CollisionCompOffset * 1.5f;
+		const auto& feed = table->PlungerPosition;
+		waiting = table->BallCountInRect(RectF{.XMax = feed.X + margin,
+											   .YMax = feed.Y + LaneDepth,
+											   .XMin = feed.X - margin,
+											   .YMin = feed.Y - margin}) > 0;
+	}
+	auto target = waiting || Held(GameBindings::Plunger) ? 1.0f : 0.0f;
+	auto step = seconds / FoldSeconds;
+	auto shown = LaneShown < target ? std::min(LaneShown + step, target) : std::max(LaneShown - step, target);
+	if (shown != LaneShown)
+	{
+		LaneShown = shown;
+		PlaceRow(shown);
+	}
 }
 
 bool TouchControls::Active()
@@ -195,7 +230,8 @@ void TouchControls::Finger(const SDL_TouchFingerEvent& event)
 	SDL_Point point{static_cast<int>(position.x), static_cast<int>(position.y)};
 	if (SDL_PointInRect(&point, &Rects.Pause))
 	{
-		SendEscape();
+		// The pause binding itself: a made-up Escape would reach the pause screen in the frame it opens and close it
+		winmain::HandleGameBinding(GameBindings::TogglePause, true);
 		return;
 	}
 	GameBindings binding;
@@ -229,6 +265,11 @@ bool TouchControls::Held(GameBindings binding)
 float TouchControls::PlungerSeconds()
 {
 	return PlungerTicks ? static_cast<float>(SDL_GetTicks() - PlungerTicks) / 1000.0f : 0.0f;
+}
+
+float TouchControls::PlungerWidth()
+{
+	return PadRow.PlungerWidth;
 }
 
 bool TouchControls::Nudged()

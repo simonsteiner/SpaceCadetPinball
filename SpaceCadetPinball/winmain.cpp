@@ -546,6 +546,7 @@ static DefinitiveHost MakeDefinitiveHost()
 	};
 	host.TouchDeck = [](DefinitiveDeck& deck)
 	{
+		TouchControls::Animate();
 		if (!TouchControls::Active())
 			return false;
 		auto fbScale = ImGui::GetIO().DisplayFramebufferScale;
@@ -564,6 +565,7 @@ static DefinitiveHost MakeDefinitiveHost()
 		deck.RightHeld = TouchControls::Held(GameBindings::RightFlipper);
 		deck.PlungerHeld = TouchControls::Held(GameBindings::Plunger);
 		deck.PlungerSeconds = TouchControls::PlungerSeconds();
+		deck.PlungerWidth = TouchControls::PlungerWidth() / fbScale.x;
 		deck.ExplainNudge = !TouchControls::Nudged();
 		return true;
 	};
@@ -2178,6 +2180,9 @@ void winmain::SetPostProcessing(PostEffects effect)
 
 void winmain::RenderEditionHint()
 {
+	// It names a key, which the control deck's touch screen hasn't; Settings still switches editions there
+	if (TouchControls::Active())
+		return;
 	// Once, at the first start in Space Cadet 2026, also for settings from before editions existed
 	if (!Options.EditionHintShown)
 	{

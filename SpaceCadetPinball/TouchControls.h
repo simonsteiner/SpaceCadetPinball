@@ -18,6 +18,9 @@ public:
 	// their room, all inside the window's safe area. False where the deck doesn't apply (the option is off, the window
 	// is too square for it, or the picture is turned), and fullscrn lays out as before.
 	static bool Arrange(int width, int height, int boardWidth, int tableHeight, float& scale);
+	// Each frame: folds the plunger lane away while no ball waits at the plunger and no finger holds it, and gives
+	// its room to the pads
+	static void Animate();
 	static bool Active();
 	static const Layout& Current();
 
@@ -26,6 +29,8 @@ public:
 	// Whether a finger holds the binding, and how long the plunger has been held, for drawing them
 	static bool Held(GameBindings binding);
 	static float PlungerSeconds();
+	// The plunger lane's width unfolded, in pixels
+	static float PlungerWidth();
 	// Whether the player has nudged by touch yet, after which the deck stops explaining how
 	static bool Nudged();
 
@@ -38,7 +43,18 @@ private:
 		bool Nudged;
 	};
 	static std::map<std::pair<SDL_TouchID, SDL_FingerID>, FingerState> Fingers;
+	// The row the pads and the plunger share (both pads upright, the right one on its side), and the lane's width
+	struct Row
+	{
+		SDL_FRect Area{};
+		float PlungerWidth = 0, Gap = 0;
+		bool BothPads = false;
+	};
+	static void PlaceRow(float shown);
 	static Layout Rects;
+	static Row PadRow;
 	static bool IsActive, HasNudged;
-	static Uint64 PlungerTicks;
+	static Uint64 PlungerTicks, AnimateTicks;
+	// 1 while the lane shows, 0 once folded away
+	static float LaneShown;
 };

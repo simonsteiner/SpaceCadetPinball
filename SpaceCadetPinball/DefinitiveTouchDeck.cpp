@@ -144,8 +144,16 @@ void DefinitiveTouchDeck::Render(const DefinitiveDeck& deck)
 	DrawFlipper(drawList, deck.LeftPad, true, LeftAngle, deck.LeftHeld);
 	DrawControl(drawList, deck.RightPad, deck.RightHeld);
 	DrawFlipper(drawList, deck.RightPad, false, RightAngle, deck.RightHeld);
-	DrawControl(drawList, deck.Plunger, deck.PlungerHeld);
-	DrawPlunger(drawList, deck.Plunger, deck.PlungerHeld, deck.PlungerSeconds);
+	// The lane folds away while no ball waits for it; drawn at its full width and cut to what shows of it
+	if (deck.Plunger.w >= 2)
+	{
+		auto full = deck.Plunger;
+		full.w = std::max(full.w, deck.PlungerWidth);
+		drawList->PushClipRect(Min(deck.Plunger), Max(deck.Plunger), true);
+		DrawControl(drawList, full, deck.PlungerHeld);
+		DrawPlunger(drawList, full, deck.PlungerHeld, deck.PlungerSeconds);
+		drawList->PopClipRect();
+	}
 	if (deck.Pause.w > 0)
 		DrawPause(drawList, deck.Pause);
 

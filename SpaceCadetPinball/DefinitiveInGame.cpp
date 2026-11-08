@@ -103,8 +103,10 @@ bool DefinitiveFrontEnd::NextName()
 ImVec2 DefinitiveFrontEnd::BeginCentred(const char* name, ImVec2 size)
 {
 	auto viewport = ImGui::GetMainViewport();
-	// Smaller in a small window, so the whole panel shows
-	auto scale = std::min(Ui::Scale(), std::min(viewport->Size.x / (size.x + 48), viewport->Size.y / (size.y + 48)));
+	// Smaller in a small window, so the whole panel shows. Upright, as on a phone, it grows to the window's width as
+	// far as the height allows, so its rows are thumb-sized
+	auto fit = std::min(viewport->Size.x / (size.x + 48), viewport->Size.y / (size.y + 48));
+	auto scale = viewport->Size.y > viewport->Size.x ? fit : std::min(Ui::Scale(), fit);
 	Ui::SetScale(scale);
 	ImVec2 scaled{size.x * scale, size.y * scale};
 	ImVec2 min{viewport->Pos.x + (viewport->Size.x - scaled.x) / 2,

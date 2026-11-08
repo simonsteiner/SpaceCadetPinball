@@ -187,7 +187,8 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 		Host.Layout(board, panel, band);
 		DefinitiveHud::Render(view, board, panel, band, Host.PanelArt ? Host.PanelArt() : nullptr);
 	}
-	if (DefinitiveDeck deck; Host.TouchDeck && Host.TouchDeck(deck))
+	// Only in play: a screen takes the whole window, and its rows the touches
+	if (DefinitiveDeck deck; Current == Screen::None && Host.TouchDeck && Host.TouchDeck(deck))
 		DefinitiveTouchDeck::Render(deck);
 
 	// A recording that plays has its own bar and none of the game's screens, which would follow the game it shows
@@ -254,7 +255,9 @@ float DefinitiveFrontEnd::BeginColumn(const char* name, float width)
 {
 	auto viewport = ImGui::GetMainViewport();
 	auto scale = Ui::Scale();
-	auto columnWidth = std::min(width * scale, viewport->Size.x);
+	// In a window taller than wide, such as a phone held upright, the column and its shade take the whole width
+	auto columnWidth =
+		viewport->Size.y > viewport->Size.x ? viewport->Size.x : std::min(width * scale, viewport->Size.x);
 	auto fade = std::min(120 * scale, viewport->Size.x - columnWidth);
 
 	// Over the table, under every window
@@ -313,13 +316,19 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 	auto rows = (Host.Quit ? 8 : 7) + (Host.Recordings ? 1 : 0) + (chooseTable ? 1 : 0);
 	// Margins, the name, the year, the rows and the hints, shrunk to fit a small window
 	auto needed = 56 + 60 + 14 + 40 + 48 + rows * (Ui::RowHeight() + 2) + 24 + 26 + 24;
-	Ui::SetScale(std::min(Ui::Scale(), viewport->Size.y / needed));
-	auto scale = Ui::Scale();
+	constexpr float ColumnWidth = 500;
+	// Upright, the menu grows to the window's width, as far as its height allows, and sits in the middle of it, so
+	// the rows are thumb-sized and the screen isn't left half empty
+	auto upright = viewport->Size.y > viewport->Size.x;
+	auto scale = upright ? std::min(viewport->Size.x / ColumnWidth, viewport->Size.y / needed)
+						 : std::min(Ui::Scale(), viewport->Size.y / needed);
+	Ui::SetScale(scale);
 
-	auto width = BeginColumn("##DefinitiveTitle", 500);
+	auto width = BeginColumn("##DefinitiveTitle", ColumnWidth);
 	auto drawList = ImGui::GetWindowDrawList();
 	auto margin = 48 * scale;
-	ImVec2 origin{viewport->Pos.x + margin, viewport->Pos.y + 56 * scale};
+	auto top = upright ? std::max(0.0f, (viewport->Size.y - needed * scale) / 2) : 0.0f;
+	ImVec2 origin{viewport->Pos.x + margin, viewport->Pos.y + top + 56 * scale};
 
 	// The game's name is the same in every language
 	drawList->AddText(Theme::HeadingFont(), Theme::DisplaySize * scale, ImVec2{origin.x + 16 * scale, origin.y},
