@@ -65,21 +65,21 @@ flowchart LR
   classDef leak fill:#fef2f2,stroke:#dc2626,stroke-width:2px,color:#991b1b
 ```
 
-`winmain.cpp` took 101 commits in three months and grew from upstream's 1,416 lines to 2,826. A setting's side effect is written out in up to four places, and adding Skulduggery touched 21 files.
+`winmain.cpp` took 101 commits in three months and grew from upstream's 1,416 lines to 2,826. A setting's side effect is written out in up to five places, and adding Skulduggery touched 21 files.
 
 ## Smaller findings
 
 ### S1 · The Definitive host adapter lives in `winmain.cpp`
 
-`SpaceCadetPinball/winmain.cpp:373-548` · own PR
+`SpaceCadetPinball/winmain.cpp:373-547` · own PR
 
-`MakeDefinitiveHost` is the one adapter behind `DefinitiveHost`: 176 lines of lambdas inside a 2,826-line file that also holds startup, the frame loop, input and Classic's menus. Move it to its own file beside `DefinitiveFrontEnd`, leaving `winmain` one call to make it.
+`MakeDefinitiveHost` is the one adapter behind `DefinitiveHost`: 175 lines of lambdas inside a 2,826-line file that also holds startup, the frame loop, input and Classic's menus. Move it to its own file beside `DefinitiveFrontEnd`, leaving `winmain` one call to make it.
 
 ### S2 · Classic's Upscaled Art Size bypasses the option setter
 
 `SpaceCadetPinball/winmain.cpp:1393-1400` · rides with C1
 
-The factor menu sets `Options.UpscaleFactor` and calls `render::SetUpscale` itself, a fourth copy of the rule `options::toggle` and `MakeDefinitiveHost` already hold. It goes through C1's single setter instead.
+The factor menu sets `Options.UpscaleFactor` and calls `render::SetUpscale` itself, one more copy of the rule `options::toggle` and `MakeDefinitiveHost` already hold. It goes through C1's single setter instead.
 
 ### S3 · Space Cadet 2026 drives settings through Classic's menu ids
 
