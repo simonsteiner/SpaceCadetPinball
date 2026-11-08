@@ -50,6 +50,10 @@ private:
 		float PlungerWidth = 0, Gap = 0;
 		bool BothPads = false;
 	};
+	// Arrange's layout, false where the deck doesn't apply
+	static bool Place(int width, int height, int boardWidth, int tableHeight, float& scale);
+	// Lets go of every binding and nudge the fingers on the deck hold, when it stops taking them
+	static void ReleaseAll();
 	static void PlaceRow(float shown);
 	static Layout Rects;
 	static Row PadRow;

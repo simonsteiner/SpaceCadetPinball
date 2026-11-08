@@ -61,7 +61,32 @@ namespace
 
 bool TouchControls::Arrange(int width, int height, int boardWidth, int tableHeight, float& scale)
 {
-	IsActive = false;
+	auto wasActive = IsActive;
+	IsActive = Place(width, height, boardWidth, tableHeight, scale);
+	// Fingers on the deck lift on the table's path, which doesn't know them: let go of what they hold now
+	if (wasActive && !IsActive)
+		ReleaseAll();
+	return IsActive;
+}
+
+void TouchControls::ReleaseAll()
+{
+	std::vector<GameBindings> held;
+	for (const auto& [key, state] : Fingers)
+	{
+		if (state.Nudged)
+			pb::BindingUp(BumpFor(state.Binding));
+		if (std::find(held.begin(), held.end(), state.Binding) == held.end())
+			held.push_back(state.Binding);
+	}
+	Fingers.clear();
+	for (auto binding : held)
+		pb::BindingUp(binding);
+	PlungerTicks = 0;
+}
+
+bool TouchControls::Place(int width, int height, int boardWidth, int tableHeight, float& scale)
+{
 	if (options::GetEdition() != Editions::Definitive || options::Options.TouchControls != 1 ||
 		!options::Options.UniformScaling || fullscrn::Rotation() != 0 || boardWidth <= 0 || tableHeight <= 0)
 		return false;
@@ -113,7 +138,6 @@ bool TouchControls::Arrange(int width, int height, int boardWidth, int tableHeig
 	}
 	Rects = layout;
 	PlaceRow(LaneShown);
-	IsActive = true;
 	return true;
 }
 

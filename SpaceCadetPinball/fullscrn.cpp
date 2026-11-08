@@ -126,7 +126,7 @@ void fullscrn::window_size_changed()
 
 	// Space Cadet 2026 with its control deck for touch screens, at any scale that fits, since whole multiples would
 	// waste much of a phone's screen
-	if (menuHeight == 0 && TouchControls::Arrange(width, height, boardWidth, res->TableHeight, ScaleX))
+	if (TouchControls::Arrange(width, height, boardWidth, res->TableHeight, ScaleX))
 	{
 		ScaleY = ScaleX;
 		Portrait = false;
