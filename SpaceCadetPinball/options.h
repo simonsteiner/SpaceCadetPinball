@@ -2,6 +2,7 @@
 
 enum class Msg : int;
 enum class Tables;
+struct OptionBase;
 template <typename T> struct OptionBaseT;
 
 enum class Menu1:int
@@ -162,7 +163,7 @@ public:
 	// Stores the value, then runs the option's side effect: the sound, the window, the renderer, a restart
 	template <typename T> static void Set(OptionBaseT<T>& option, std::type_identity_t<T> value);
 	// Runs the side effect of a value already stored, for what writes the option in place, as ImGui's sliders do
-	static void Apply(const struct OptionBase& option);
+	static void Apply(const OptionBase& option);
 	// A folder as the game data search joins file names to it: with a separator at its end, unless it is empty
 	static std::string FolderPath(std::string folder);
 	static void InputDown(GameInput input);
