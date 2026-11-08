@@ -208,18 +208,22 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 	return !back;
 }
 
+// The edition's rows: the choice of edition where Classic exists, the language and the data folder
 void DefinitiveSettings::RenderEdition(const DefinitiveHost& host, bool gameRunning)
 {
-	// Choosing Classic takes this screen away, as the switch does during play
-	char note[160];
-	auto key = host.EditionKey ? host.EditionKey() : std::string{};
-	snprintf(note, sizeof note, Text(Msg::Definitive_EditionNote), key.empty() ? "-" : key.c_str());
-	Ui::NextRowNote(note);
-	auto edition = options::GetEdition() == Editions::Definitive ? 1 : 0;
-	auto chosen = Ui::ChoiceRow("edition", Text(Msg::Definitive_Edition),
-								{Text(Msg::Definitive_Classic), Text(Msg::Menu1_ToggleEdition)}, edition);
-	if (chosen != edition)
-		options::SetEdition(chosen ? Editions::Definitive : Editions::Classic);
+	// Choosing Classic takes this screen away, as the switch does during play; Android has no Classic
+	if (options::ClassicAvailable)
+	{
+		char note[160];
+		auto key = host.EditionKey ? host.EditionKey() : std::string{};
+		snprintf(note, sizeof note, Text(Msg::Definitive_EditionNote), key.empty() ? "-" : key.c_str());
+		Ui::NextRowNote(note);
+		auto edition = options::GetEdition() == Editions::Definitive ? 1 : 0;
+		auto chosen = Ui::ChoiceRow("edition", Text(Msg::Definitive_Edition),
+									{Text(Msg::Definitive_Classic), Text(Msg::Menu1_ToggleEdition)}, edition);
+		if (chosen != edition)
+			options::SetEdition(chosen ? Editions::Definitive : Editions::Classic);
+	}
 
 	if (FocusLanguage)
 		Ui::FocusNextRow();
@@ -274,6 +278,7 @@ void DefinitiveSettings::RenderLanguages(const DefinitiveHost& host, bool opened
 	}
 }
 
+// The Display rows: window, scaling, rotation, touch controls where there's a touch screen, pacing, cursor
 void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunning)
 {
 	auto& options = options::Options;
@@ -308,6 +313,17 @@ void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunn
 			Ui::ChoiceRow("rotation", Text(Msg::Definitive_Rotation), {"0°", "90°", "180°", "270°"}, options.Rotation);
 		rotation != options.Rotation && host.SetRotation)
 		host.SetRotation(rotation);
+	// Only where there is a touch screen to use it on
+	int touchDevices = 0;
+	SDL_free(SDL_GetTouchDevices(&touchDevices));
+	if (touchDevices > 0 && host.SetTouchControls)
+	{
+		if (auto controls = Ui::ChoiceRow("touch", Text(Msg::Definitive_TouchControls),
+										  {Text(Msg::Definitive_TouchTable), Text(Msg::Definitive_TouchDeck)},
+										  options.TouchControls);
+			controls != options.TouchControls)
+			host.SetTouchControls(controls);
+	}
 
 	auto rateChanged = false;
 	if (Ui::ToggleRow("match", Text(Msg::Definitive_MatchRefresh), options.MatchRefreshRate))

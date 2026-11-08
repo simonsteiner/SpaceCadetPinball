@@ -15,7 +15,7 @@ endif()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin)
 
 # Windows, macOS and the web have no standard SDL packages, so build SDL from source there by default
-if(WIN32 OR APPLE OR EMSCRIPTEN)
+if(WIN32 OR APPLE OR EMSCRIPTEN OR ANDROID)
     set(SCP_VENDORED_SDL_DEFAULT ON)
 else()
     set(SCP_VENDORED_SDL_DEFAULT OFF)
@@ -248,6 +248,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/TableView.h
         SpaceCadetPinball/TTextBox.cpp
         SpaceCadetPinball/TTextBox.h
+        SpaceCadetPinball/TouchControls.cpp
+        SpaceCadetPinball/TouchControls.h
         SpaceCadetPinball/TTextBoxMessage.cpp
         SpaceCadetPinball/TTextBoxMessage.h
         SpaceCadetPinball/TTimer.cpp
@@ -286,6 +288,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/DefinitiveText.h
         SpaceCadetPinball/DefinitiveTheme.cpp
         SpaceCadetPinball/DefinitiveTheme.h
+        SpaceCadetPinball/DefinitiveTouchDeck.cpp
+        SpaceCadetPinball/DefinitiveTouchDeck.h
         SpaceCadetPinball/DefinitiveUi.cpp
         SpaceCadetPinball/DefinitiveUi.h
         )
@@ -384,7 +388,14 @@ if(UNIX)
     target_link_libraries(tinysoundfont PUBLIC m)
 endif()
 
-add_executable(SpaceCadetPinball ${SOURCE_FILES})
+# On Android the game is libmain.so, which SDL's Java activity loads and calls SDL_main in (Platform/Android)
+if(ANDROID)
+    add_library(SpaceCadetPinball SHARED ${SOURCE_FILES})
+    set_target_properties(SpaceCadetPinball PROPERTIES OUTPUT_NAME main)
+    target_link_libraries(SpaceCadetPinball log android)
+else()
+    add_executable(SpaceCadetPinball ${SOURCE_FILES})
+endif()
 target_link_libraries(SpaceCadetPinball tinysoundfont mmpx)
 
 # Vendored SDL_native_midi plays MIDI music through the system's synth on Windows and macOS
@@ -498,7 +509,7 @@ if(EMSCRIPTEN)
     endif()
 endif()
 
-if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
+if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN AND NOT ANDROID)
 	include(GNUInstallDirs)
 	install(TARGETS "${PROJECT_NAME}" RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
 	install(FILES "${CMAKE_SOURCE_DIR}/Platform/Linux/${PROJECT_NAME}.desktop" DESTINATION "share/applications")

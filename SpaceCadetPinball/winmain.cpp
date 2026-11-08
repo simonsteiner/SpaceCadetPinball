@@ -33,6 +33,7 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "DefinitiveUi.h"
 #include "EmbeddedData.h"
 #include "fullscrn.h"
+#include "TouchControls.h"
 #include "midi.h"
 #include "options.h"
 #include "pb.h"
@@ -530,6 +531,7 @@ static DefinitiveHost MakeDefinitiveHost()
 	host.ViewerPause = [](bool paused) { RecordingViewer::SetPaused(paused); };
 	host.ViewerSpeed = [](float speed) { RecordingViewer::SetSpeed(speed); };
 	host.StopViewing = [] { RecordingViewer::Stop(); };
+	// The board and panel rects in window coordinates; the panel is a band under the table upright or beside the deck
 	host.Layout = [](SDL_FRect& board, SDL_FRect& panel, bool& band)
 	{
 		// The layout is in pixels, ImGui in window coordinates
@@ -541,7 +543,39 @@ static DefinitiveHost MakeDefinitiveHost()
 		};
 		board = convert(render::BoardRect);
 		panel = convert(render::SidebarRect);
-		band = fullscrn::Portrait;
+		band = fullscrn::Portrait || TouchControls::Active();
+	};
+	// Folds the plunger lane, then hands the deck's rects in window coordinates and what fingers hold
+	host.TouchDeck = [](DefinitiveDeck& deck)
+	{
+		TouchControls::Animate();
+		if (!TouchControls::Active())
+			return false;
+		auto fbScale = ImGui::GetIO().DisplayFramebufferScale;
+		auto convert = [&](const SDL_Rect& rect)
+		{
+			return SDL_FRect{static_cast<float>(rect.x) / fbScale.x, static_cast<float>(rect.y) / fbScale.y,
+							 static_cast<float>(rect.w) / fbScale.x, static_cast<float>(rect.h) / fbScale.y};
+		};
+		const auto& rects = TouchControls::Current();
+		deck.LeftPad = convert(rects.LeftPad);
+		deck.RightPad = convert(rects.RightPad);
+		deck.Plunger = convert(rects.Plunger);
+		deck.Pause = convert(rects.Pause);
+		deck.Hint = convert(rects.Hint);
+		deck.LeftHeld = TouchControls::Held(GameBindings::LeftFlipper);
+		deck.RightHeld = TouchControls::Held(GameBindings::RightFlipper);
+		deck.PlungerHeld = TouchControls::Held(GameBindings::Plunger);
+		deck.PlungerSeconds = TouchControls::PlungerSeconds();
+		deck.PlungerWidth = TouchControls::PlungerWidth() / fbScale.x;
+		deck.ExplainNudge = !TouchControls::Nudged();
+		return true;
+	};
+	// Saves the Touch Controls option and lays the window out again for it
+	host.SetTouchControls = [](int controls)
+	{
+		options::Options.TouchControls = std::clamp(controls, 0, 1);
+		fullscrn::window_size_changed();
 	};
 	return host;
 }
@@ -1776,6 +1810,7 @@ static bool CancelsBindingWait(const SDL_Event& event)
 	}
 }
 
+// Hands an SDL event to ImGui, the front end or the game; returns 0 on quit
 int winmain::event_handler(const SDL_Event* event)
 {
 	// Neither ImGui nor the game sees it, so the cancel neither goes back nor taps a row
@@ -1858,6 +1893,7 @@ int winmain::event_handler(const SDL_Event* event)
 		case SDL_EVENT_FINGER_DOWN:
 		case SDL_EVENT_FINGER_UP:
 		case SDL_EVENT_FINGER_CANCELED:
+		case SDL_EVENT_FINGER_MOTION:
 			return 1;
 		default:
 			break;
@@ -2042,6 +2078,7 @@ int winmain::event_handler(const SDL_Event* event)
 	case SDL_EVENT_FINGER_DOWN:
 	case SDL_EVENT_FINGER_UP:
 	case SDL_EVENT_FINGER_CANCELED:
+	case SDL_EVENT_FINGER_MOTION:
 		TouchInput(event->tfinger);
 		break;
 	default: ;
@@ -2079,11 +2116,20 @@ void winmain::GamepadInput(SDL_JoystickID gamepad, int value, bool down)
 	}
 }
 
+// Touch on the table and its panel, or on the control deck while it is active
 void winmain::TouchInput(const SDL_TouchFingerEvent& event)
 {
 	// The left half of the table works the left flipper, the right half the right one, and the score panel the
 	// plunger, held to pull it back. Each finger keeps what it pressed until it lifts, and a binding is held while
 	// any finger is on it, so it goes down with the first finger and up with the last.
+	// Space Cadet 2026's control deck has its own pads, and a flick on them nudges
+	if (TouchControls::Active())
+	{
+		TouchControls::Finger(event);
+		return;
+	}
+	if (event.type == SDL_EVENT_FINGER_MOTION)
+		return;
 	// Finger IDs are unique only per touch device
 	auto key = std::pair{event.touchID, event.fingerID};
 	auto held = [](GameBindings binding)
@@ -2137,8 +2183,12 @@ void winmain::SetPostProcessing(PostEffects effect)
 	PostEffect::SetEffect(effect);
 }
 
+// Shows the edition hint once, at the first start in Space Cadet 2026, unless the control deck is on
 void winmain::RenderEditionHint()
 {
+	// It names a key, which the control deck's touch screen hasn't; Settings still switches editions there
+	if (TouchControls::Active())
+		return;
 	// Once, at the first start in Space Cadet 2026, also for settings from before editions existed
 	if (!Options.EditionHintShown)
 	{

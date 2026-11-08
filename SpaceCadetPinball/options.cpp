@@ -204,6 +204,11 @@ optionsStruct options::Options
 	{"Sound Pack", ""},
 	{"Record Sessions", false},
 	{"Reduced Motion Chosen", false},
+#ifdef __ANDROID__
+	{"Touch Controls", 1},
+#else
+	{"Touch Controls", 0},
+#endif
 };
 // clang-format on
 
@@ -583,8 +588,11 @@ Editions options::GetEdition()
 	return static_cast<Editions>(Options.Edition.V);
 }
 
+// Switches edition and applies its options; Space Cadet 2026 only where Classic isn't available
 void options::SetEdition(Editions edition)
 {
+	if (!ClassicAvailable)
+		edition = Editions::Definitive;
 	if (edition == GetEdition())
 		return;
 
@@ -600,8 +608,11 @@ void options::SetEdition(Editions edition)
 	fullscrn::window_size_changed();
 }
 
+// Sets the edition and shows its options; Space Cadet 2026 only where Classic isn't available
 void options::SelectEdition(Editions edition)
 {
+	if (!ClassicAvailable)
+		edition = Editions::Definitive;
 	Options.Edition = static_cast<int>(edition);
 	ShowEditionOptions(edition);
 }
@@ -635,6 +646,7 @@ void options::MyUserData_WriteAll(ImGuiContext* ctx, ImGuiSettingsHandler* handl
 	buf->append("\n");
 }
 
+// Clamps the options read from the settings file to their valid ranges and applies the ones ImGui reads
 void options::PostProcessOptions()
 {
 	ImGui::GetStyle().FontScaleMain = Options.UIScale;
@@ -645,7 +657,8 @@ void options::PostProcessOptions()
 	Options.PostProcessing = Clamp(Options.PostProcessing.V, 0, static_cast<int>(PostEffects::Max) - 1);
 	Options.MusicVolume = Clamp(Options.MusicVolume.V, MinVolume, MaxVolume);
 	Options.KeyBindingsVersion = KeyBindingsScancodes;
-	Options.Edition = Clamp(Options.Edition.V, 0, static_cast<int>(Editions::Max) - 1);
+	Options.Edition = ClassicAvailable ? Clamp(Options.Edition.V, 0, static_cast<int>(Editions::Max) - 1)
+									   : static_cast<int>(Editions::Definitive);
 	Options.Rotation = Clamp(Options.Rotation.V, 0, 3);
 	// 100, 125 or 150 percent, rounding down
 	if (Options.TextSize.V >= 150)
@@ -655,6 +668,7 @@ void options::PostProcessOptions()
 	else
 		Options.TextSize = 100;
 	Options.ColourVision = Clamp(Options.ColourVision.V, 0, 1);
+	Options.TouchControls = Clamp(Options.TouchControls.V, 0, 1);
 	// A sound pack is a folder name in the sounds folder, never a path out of it
 	auto& pack = Options.SoundPack.V;
 	if (pack.find_first_of("/\\") != std::string::npos || pack == "." || pack == "..")

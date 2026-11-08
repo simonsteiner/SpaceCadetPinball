@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+#include "DefinitiveTouchDeck.h"
+
 struct TableView;
 
 // What Space Cadet 2026's screens ask the game to do. Presentation code can't reach the table or winmain, so winmain
@@ -138,6 +140,10 @@ struct DefinitiveHost
 	// Where the table and its score panel are drawn, in window coordinates; the panel is empty when the table has none.
 	// band is set in a window taller than wide, where the panel is the band under the table, as wide as the window.
 	void (*Layout)(SDL_FRect& board, SDL_FRect& panel, bool& band);
+	// The control deck for touch screens, when the Touch Controls option shows it; false without one
+	bool (*TouchDeck)(DefinitiveDeck& deck);
+	// The Touch Controls option: 0 on the table, 1 on the deck
+	void (*SetTouchControls)(int controls);
 };
 
 // Space Cadet 2026's front end: the title with the main menu and the screens it leads to. It takes the place of
