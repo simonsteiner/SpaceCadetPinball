@@ -42,7 +42,12 @@ private:
 		Uint64 StartTicks;
 		bool Nudged;
 	};
-	static std::map<std::pair<SDL_TouchID, SDL_FingerID>, FingerState> Fingers;
+	// Finger IDs are unique only per touch device
+	using FingerKey = std::pair<SDL_TouchID, SDL_FingerID>;
+	static std::map<FingerKey, FingerState> Fingers;
+	static void FingerMoved(const FingerKey& key, const SDL_FPoint& position);
+	static void FingerLifted(const FingerKey& key);
+	static void FingerDown(const FingerKey& key, const SDL_FPoint& position);
 	// The row the pads and the plunger share (both pads upright, the right one on its side), and the lane's width
 	struct Row
 	{

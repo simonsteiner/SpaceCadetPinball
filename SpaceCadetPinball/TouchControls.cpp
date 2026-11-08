@@ -7,7 +7,7 @@
 #include "TPinballTable.h"
 #include "winmain.h"
 
-std::map<std::pair<SDL_TouchID, SDL_FingerID>, TouchControls::FingerState> TouchControls::Fingers{};
+std::map<TouchControls::FingerKey, TouchControls::FingerState> TouchControls::Fingers{};
 TouchControls::Layout TouchControls::Rects{};
 TouchControls::Row TouchControls::PadRow{};
 bool TouchControls::IsActive = false, TouchControls::HasNudged = false;
@@ -200,55 +200,57 @@ const TouchControls::Layout& TouchControls::Current()
 
 void TouchControls::Finger(const SDL_TouchFingerEvent& event)
 {
-	// Finger IDs are unique only per touch device
-	auto key = std::pair{event.touchID, event.fingerID};
+	FingerKey key{event.touchID, event.fingerID};
 	int width, height;
 	fullscrn::OutputSize(width, height);
 	SDL_FPoint position{event.x * static_cast<float>(width), event.y * static_cast<float>(height)};
 
-	auto held = [](GameBindings binding)
-	{
-		return std::any_of(Fingers.begin(), Fingers.end(),
-						   [binding](const auto& finger) { return finger.second.Binding == binding; });
-	};
-
 	if (event.type == SDL_EVENT_FINGER_MOTION)
-	{
-		// A quick flick up on a pad nudges the table from that side, held until the finger lifts, as a key would be
-		auto finger = Fingers.find(key);
-		if (finger == Fingers.end() || finger->second.Nudged)
-			return;
-		auto& state = finger->second;
-		if (state.Binding != GameBindings::LeftFlipper && state.Binding != GameBindings::RightFlipper)
-			return;
-		auto& pad = state.Binding == GameBindings::LeftFlipper ? Rects.LeftPad : Rects.RightPad;
-		if (state.StartY - position.y >= pad.h * FlickShare && SDL_GetTicks() - state.StartTicks <= FlickMs)
-		{
-			state.Nudged = true;
-			HasNudged = true;
-			pb::BindingDown(BumpFor(state.Binding));
-		}
-		return;
-	}
+		FingerMoved(key, position);
+	else if (event.type == SDL_EVENT_FINGER_DOWN)
+		FingerDown(key, position);
+	else
+		FingerLifted(key);
+}
 
-	if (event.type != SDL_EVENT_FINGER_DOWN)
-	{
-		auto finger = Fingers.find(key);
-		if (finger == Fingers.end())
-			return;
-		auto state = finger->second;
-		Fingers.erase(finger);
-		if (state.Nudged)
-			pb::BindingUp(BumpFor(state.Binding));
-		if (!held(state.Binding))
-		{
-			pb::BindingUp(state.Binding);
-			if (state.Binding == GameBindings::Plunger)
-				PlungerTicks = 0;
-		}
+void TouchControls::FingerMoved(const FingerKey& key, const SDL_FPoint& position)
+{
+	// A quick flick up on a pad nudges the table from that side, held until the finger lifts, as a key would be
+	auto finger = Fingers.find(key);
+	if (finger == Fingers.end() || finger->second.Nudged)
 		return;
+	auto& state = finger->second;
+	if (state.Binding != GameBindings::LeftFlipper && state.Binding != GameBindings::RightFlipper)
+		return;
+	const auto& pad = state.Binding == GameBindings::LeftFlipper ? Rects.LeftPad : Rects.RightPad;
+	if (state.StartY - position.y >= pad.h * FlickShare && SDL_GetTicks() - state.StartTicks <= FlickMs)
+	{
+		state.Nudged = true;
+		HasNudged = true;
+		pb::BindingDown(BumpFor(state.Binding));
 	}
-	if (Fingers.count(key) || winmain::ImIO->WantCaptureMouse)
+}
+
+void TouchControls::FingerLifted(const FingerKey& key)
+{
+	auto finger = Fingers.find(key);
+	if (finger == Fingers.end())
+		return;
+	auto state = finger->second;
+	Fingers.erase(finger);
+	if (state.Nudged)
+		pb::BindingUp(BumpFor(state.Binding));
+	if (!Held(state.Binding))
+	{
+		pb::BindingUp(state.Binding);
+		if (state.Binding == GameBindings::Plunger)
+			PlungerTicks = 0;
+	}
+}
+
+void TouchControls::FingerDown(const FingerKey& key, const SDL_FPoint& position)
+{
+	if (Fingers.contains(key) || winmain::ImIO->WantCaptureMouse)
 		return;
 
 	SDL_Point point{static_cast<int>(position.x), static_cast<int>(position.y)};
@@ -270,7 +272,7 @@ void TouchControls::Finger(const SDL_TouchFingerEvent& event)
 	else
 		return;
 
-	auto first = !held(binding);
+	auto first = !Held(binding);
 	Fingers[key] = FingerState{binding, position.y, SDL_GetTicks(), false};
 	if (first)
 	{
