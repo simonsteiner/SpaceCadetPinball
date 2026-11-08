@@ -4,6 +4,8 @@
 #ifdef __ANDROID__
 #include <thread>
 
+#include <cerrno>
+
 #include <android/log.h>
 #include <unistd.h>
 // Renames main to SDL_main, which SDL's Java activity calls in libmain.so
@@ -26,9 +28,14 @@ namespace
 					{
 						std::string line;
 						char buffer[512];
-						ssize_t count;
-						while ((count = read(readEnd, buffer, sizeof buffer)) > 0)
+						while (true)
 						{
+							auto count = read(readEnd, buffer, sizeof buffer);
+							// A signal handler without SA_RESTART interrupts the read; that isn't the end
+							if (count < 0 && errno == EINTR)
+								continue;
+							if (count <= 0)
+								break;
 							for (ssize_t index = 0; index < count; index++)
 							{
 								if (buffer[index] != '\n')
@@ -40,6 +47,9 @@ namespace
 								}
 							}
 						}
+						// The last line, when the streams end without a newline
+						if (!line.empty())
+							__android_log_write(ANDROID_LOG_INFO, "SpaceCadetPinball", line.c_str());
 					}}
 			.detach();
 	}
