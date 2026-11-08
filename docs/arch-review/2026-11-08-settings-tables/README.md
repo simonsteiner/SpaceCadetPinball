@@ -29,15 +29,15 @@ The backlog, in rank order. After the scan only three parts of the report change
 
 | ID | Deepening | Strength | Door | Lens | Status | Branch | PR | Breaking | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| [C1](C1-apply-settings.md) | Apply each setting in one place | 🟢 Strong | ↔ two-way | deepening | in-progress | `refactor/apply-settings` | | | batch 1 of 3 |
+| [C1](C1-apply-settings.md) | Apply each setting in one place | 🟢 Strong | ↔ two-way | deepening | pr-open | `refactor/apply-settings` | | no | batch 1 of 3 |
 | [C2](C2-table-catalog.md) | Let `TableInfo` carry every per-table fact | 🟢 Strong | ↔ two-way | deepening | todo | `refactor/table-catalog` | | | batch 2 of 3 |
 | [C3](C3-table-choices.md) | One table-choice module for both pickers | 🟢 Strong | ↔ two-way | deepening | todo | `refactor/table-choices` | | | batch 3 of 3; builds on C2 |
 | [C4](C4-hi-frame.md) | Paint the 1x and Hi frames as a pair | 🟡 Worth exploring | ↔ two-way | deepening | todo | `refactor/hi-frame` | | | |
 | [C5](C5-edition-presentation.md) | Ask the edition, not the option | 🟡 Worth exploring | ↔ two-way | maintainability | todo | `refactor/edition-presentation` | | | |
 | [C6](C6-bonus-rules-core.md) | Share the bonus tables' rules machinery | ⚪ Speculative | ↔ two-way | maintainability | todo | `refactor/bonus-rules-core` | | | |
 | [S1](#s1--the-definitive-host-adapter-lives-in-winmaincpp) | The Definitive host adapter lives in `winmain.cpp` | — | ↔ two-way | maintainability | todo | `refactor/definitive-host-file` | | | own PR |
-| [S2](#s2--classics-upscaled-art-size-bypasses-the-option-setter) | Classic's Upscaled Art Size bypasses the option setter | — | ↔ two-way | maintainability | todo | rides with C1 | | | |
-| [S3](#s3--space-cadet-2026-drives-settings-through-classics-menu-ids) | Space Cadet 2026 drives settings through Classic's menu ids | — | ↔ two-way | maintainability | todo | rides with C1 | | | |
+| [S2](#s2--classics-upscaled-art-size-bypasses-the-option-setter) | Classic's Upscaled Art Size bypasses the option setter | — | ↔ two-way | maintainability | pr-open | rides with C1 | | | |
+| [S3](#s3--space-cadet-2026-drives-settings-through-classics-menu-ids) | Space Cadet 2026 drives settings through Classic's menu ids | — | ↔ two-way | maintainability | pr-open | rides with C1 | | | |
 | [S4](#s4--options-lists-the-bonus-tables-by-hand) | `options` lists the bonus tables by hand | — | ↔ two-way | maintainability | todo | rides with C2 | | | |
 | [S5](#s5--classics-cheats-menu-repeats-the-rules-cheat-words) | Classic's Cheats menu repeats the rules' cheat words | — | ↔ two-way | maintainability | todo | rides with C2 | | | |
 
