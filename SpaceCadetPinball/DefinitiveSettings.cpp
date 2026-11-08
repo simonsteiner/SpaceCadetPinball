@@ -208,6 +208,7 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 	return !back;
 }
 
+// The edition's rows: the choice of edition where Classic exists, the language and the data folder
 void DefinitiveSettings::RenderEdition(const DefinitiveHost& host, bool gameRunning)
 {
 	// Choosing Classic takes this screen away, as the switch does during play; Android has no Classic
@@ -277,6 +278,7 @@ void DefinitiveSettings::RenderLanguages(const DefinitiveHost& host, bool opened
 	}
 }
 
+// The Display rows: window, scaling, rotation, touch controls where there's a touch screen, pacing, cursor
 void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunning)
 {
 	auto& options = options::Options;

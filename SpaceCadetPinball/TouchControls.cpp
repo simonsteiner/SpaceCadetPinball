@@ -53,6 +53,7 @@ namespace
 		return SDL_FRect{safe.x * density, safe.y * density, safe.w * density, safe.h * density};
 	}
 
+	// The nudge from the flipper's side of the table
 	GameBindings BumpFor(GameBindings flipper)
 	{
 		return flipper == GameBindings::LeftFlipper ? GameBindings::LeftTableBump : GameBindings::RightTableBump;
@@ -60,6 +61,7 @@ namespace
 
 } // namespace
 
+// Lays out the deck, and lets go of what its fingers hold when it stops applying
 bool TouchControls::Arrange(int width, int height, int boardWidth, int tableHeight, float& scale)
 {
 	auto wasActive = IsActive;
@@ -70,6 +72,7 @@ bool TouchControls::Arrange(int width, int height, int boardWidth, int tableHeig
 	return IsActive;
 }
 
+// Sends each nudge's and each held binding's release once, then forgets the fingers
 void TouchControls::ReleaseAll()
 {
 	std::vector<GameBindings> held;
@@ -86,6 +89,7 @@ void TouchControls::ReleaseAll()
 	PlungerTicks = 0;
 }
 
+// The table at the largest scale that leaves the deck its room: upright over it, on its side between the pads
 bool TouchControls::Place(int width, int height, int boardWidth, int tableHeight, float& scale)
 {
 	if (options::GetEdition() != Editions::Definitive || options::Options.TouchControls != 1 ||
@@ -142,6 +146,7 @@ bool TouchControls::Place(int width, int height, int boardWidth, int tableHeight
 	return true;
 }
 
+// Places the pads and the plunger lane in their row, with the lane shown by this share of its width
 void TouchControls::PlaceRow(float shown)
 {
 	// The lane keeps to the outer edge and narrows as it folds; the pads share what it leaves
@@ -159,6 +164,7 @@ void TouchControls::PlaceRow(float shown)
 		Rects.RightPad = Rect(area.x, area.y, padsW, area.h);
 }
 
+// Folds the lane towards shown while a ball waits at the plunger or a finger holds it, else towards folded
 void TouchControls::Animate()
 {
 	auto now = SDL_GetTicks();
@@ -199,6 +205,7 @@ const TouchControls::Layout& TouchControls::Current()
 	return Rects;
 }
 
+// Hands a finger event, at its position in pixels, to the handler for its type
 void TouchControls::Finger(const SDL_TouchFingerEvent& event)
 {
 	FingerKey key{event.touchID, event.fingerID};
@@ -214,6 +221,7 @@ void TouchControls::Finger(const SDL_TouchFingerEvent& event)
 		FingerLifted(key);
 }
 
+// Nudges once for a finger that went down on a pad and has moved up far enough, fast enough
 void TouchControls::FingerMoved(const FingerKey& key, const SDL_FPoint& position)
 {
 	// A quick flick up on a pad nudges the table from that side, held until the finger lifts, as a key would be
@@ -233,6 +241,7 @@ void TouchControls::FingerMoved(const FingerKey& key, const SDL_FPoint& position
 	}
 }
 
+// Releases the finger's nudge, and its binding once no other finger holds it
 void TouchControls::FingerLifted(const FingerKey& key)
 {
 	auto finger = Fingers.find(key);
@@ -250,6 +259,7 @@ void TouchControls::FingerLifted(const FingerKey& key)
 	}
 }
 
+// Pauses from the pause button, or holds the control under the finger, pressing it if no other finger holds it
 void TouchControls::FingerDown(const FingerKey& key, const SDL_FPoint& position)
 {
 	// A screen hides the deck and takes every new touch, also outside its panel, where ImGui's capture flag is false
@@ -286,12 +296,14 @@ void TouchControls::FingerDown(const FingerKey& key, const SDL_FPoint& position)
 	}
 }
 
+// Whether any finger holds the binding
 bool TouchControls::Held(GameBindings binding)
 {
 	return std::any_of(Fingers.begin(), Fingers.end(),
 					   [binding](const auto& finger) { return finger.second.Binding == binding; });
 }
 
+// Seconds since the first finger went down on the plunger, 0 while none holds it
 float TouchControls::PlungerSeconds()
 {
 	return PlungerTicks ? static_cast<float>(SDL_GetTicks() - PlungerTicks) / 1000.0f : 0.0f;

@@ -109,6 +109,7 @@ int fullscrn::GetMaxResolution()
 	return pb::FullTiltMode && !pb::FullTiltDemoMode ? 2 : 0;
 }
 
+// Works out the table's scale and offset and the board and panel rects for the window's size, edition and options
 void fullscrn::window_size_changed()
 {
 	if (!render::vscreen)

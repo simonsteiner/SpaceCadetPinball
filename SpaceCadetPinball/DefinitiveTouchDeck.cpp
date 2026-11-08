@@ -30,6 +30,7 @@ namespace
 		return ImVec2{rect.x + rect.w, rect.y + rect.h};
 	}
 
+	// Moves value towards target by step at most, without passing it
 	float Approach(float value, float target, float step)
 	{
 		return value < target ? std::min(value + step, target) : std::max(value - step, target);
@@ -133,6 +134,7 @@ namespace
 	}
 } // namespace
 
+// Swings the pads' flippers, then draws the pads, the lane cut to what shows, the pause button and the hint
 void DefinitiveTouchDeck::Render(const DefinitiveDeck& deck)
 {
 	auto drawList = ImGui::GetBackgroundDrawList();

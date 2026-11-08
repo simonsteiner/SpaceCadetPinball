@@ -531,6 +531,7 @@ static DefinitiveHost MakeDefinitiveHost()
 	host.ViewerPause = [](bool paused) { RecordingViewer::SetPaused(paused); };
 	host.ViewerSpeed = [](float speed) { RecordingViewer::SetSpeed(speed); };
 	host.StopViewing = [] { RecordingViewer::Stop(); };
+	// The board and panel rects in window coordinates; the panel is a band under the table upright or beside the deck
 	host.Layout = [](SDL_FRect& board, SDL_FRect& panel, bool& band)
 	{
 		// The layout is in pixels, ImGui in window coordinates
@@ -544,6 +545,7 @@ static DefinitiveHost MakeDefinitiveHost()
 		panel = convert(render::SidebarRect);
 		band = fullscrn::Portrait || TouchControls::Active();
 	};
+	// Folds the plunger lane, then hands the deck's rects in window coordinates and what fingers hold
 	host.TouchDeck = [](DefinitiveDeck& deck)
 	{
 		TouchControls::Animate();
@@ -569,6 +571,7 @@ static DefinitiveHost MakeDefinitiveHost()
 		deck.ExplainNudge = !TouchControls::Nudged();
 		return true;
 	};
+	// Saves the Touch Controls option and lays the window out again for it
 	host.SetTouchControls = [](int controls)
 	{
 		options::Options.TouchControls = std::clamp(controls, 0, 1);
@@ -1807,6 +1810,7 @@ static bool CancelsBindingWait(const SDL_Event& event)
 	}
 }
 
+// Hands an SDL event to ImGui, the front end or the game; returns 0 on quit
 int winmain::event_handler(const SDL_Event* event)
 {
 	// Neither ImGui nor the game sees it, so the cancel neither goes back nor taps a row
@@ -2112,6 +2116,7 @@ void winmain::GamepadInput(SDL_JoystickID gamepad, int value, bool down)
 	}
 }
 
+// Touch on the table and its panel, or on the control deck while it is active
 void winmain::TouchInput(const SDL_TouchFingerEvent& event)
 {
 	// The left half of the table works the left flipper, the right half the right one, and the score panel the
@@ -2178,6 +2183,7 @@ void winmain::SetPostProcessing(PostEffects effect)
 	PostEffect::SetEffect(effect);
 }
 
+// Shows the edition hint once, at the first start in Space Cadet 2026, unless the control deck is on
 void winmain::RenderEditionHint()
 {
 	// It names a key, which the control deck's touch screen hasn't; Settings still switches editions there

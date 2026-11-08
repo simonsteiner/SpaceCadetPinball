@@ -100,6 +100,7 @@ bool DefinitiveFrontEnd::NextName()
 	return true;
 }
 
+// Opens a panel of size, scaled to fit, in the middle of the window over a veil; returns its top left corner
 ImVec2 DefinitiveFrontEnd::BeginCentred(const char* name, ImVec2 size)
 {
 	auto viewport = ImGui::GetMainViewport();
@@ -136,6 +137,7 @@ ImVec2 DefinitiveFrontEnd::BeginCentred(const char* name, ImVec2 size)
 	return min;
 }
 
+// The pause screen: resume, settings, the guide, the switch to Classic where it exists, restart, change table and quit
 void DefinitiveFrontEnd::RenderPause(const TableView& view)
 {
 	// Six rows and a separator, a seventh to change tables when there is a choice, or the question and two rows

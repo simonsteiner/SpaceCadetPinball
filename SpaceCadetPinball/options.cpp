@@ -588,6 +588,7 @@ Editions options::GetEdition()
 	return static_cast<Editions>(Options.Edition.V);
 }
 
+// Switches edition and applies its options; Space Cadet 2026 only where Classic isn't available
 void options::SetEdition(Editions edition)
 {
 	if (!ClassicAvailable)
@@ -607,6 +608,7 @@ void options::SetEdition(Editions edition)
 	fullscrn::window_size_changed();
 }
 
+// Sets the edition and shows its options; Space Cadet 2026 only where Classic isn't available
 void options::SelectEdition(Editions edition)
 {
 	if (!ClassicAvailable)
@@ -644,6 +646,7 @@ void options::MyUserData_WriteAll(ImGuiContext* ctx, ImGuiSettingsHandler* handl
 	buf->append("\n");
 }
 
+// Clamps the options read from the settings file to their valid ranges and applies the ones ImGui reads
 void options::PostProcessOptions()
 {
 	ImGui::GetStyle().FontScaleMain = Options.UIScale;

@@ -173,6 +173,7 @@ void DefinitiveFrontEnd::FollowGame(const TableView& view, bool playing)
 		Host.StartDemo();
 }
 
+// Each frame: the score panel, the touch deck while no screen shows, then the open screen or the recording's bar
 void DefinitiveFrontEnd::Render(const TableView& view)
 {
 	Ui::NewFrame();
@@ -251,6 +252,7 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 	DefinitiveStatsScreen::RenderNotice();
 }
 
+// Opens a full-height column at the window's left over a shade of the table, the whole width upright; returns its width
 float DefinitiveFrontEnd::BeginColumn(const char* name, float width)
 {
 	auto viewport = ImGui::GetMainViewport();
@@ -307,6 +309,7 @@ bool DefinitiveFrontEnd::BackPressed()
 			ImGui::IsMouseClicked(ImGuiMouseButton_Right));
 }
 
+// The title: the game's name, the main menu and the hints, scaled to fit the window and centred in it upright
 void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 {
 	auto viewport = ImGui::GetMainViewport();
