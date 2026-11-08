@@ -29,9 +29,9 @@ The backlog, in rank order. After the scan only three parts of the report change
 
 | ID | Deepening | Strength | Door | Lens | Status | Branch | PR | Breaking | Notes |
 |---|---|---|---|---|---|---|---|---|---|
-| [C1](C1-apply-settings.md) | Apply each setting in one place | 🟢 Strong | ↔ two-way | deepening | todo | `refactor/apply-settings` | | | |
-| [C2](C2-table-catalog.md) | Let `TableInfo` carry every per-table fact | 🟢 Strong | ↔ two-way | deepening | todo | `refactor/table-catalog` | | | |
-| [C3](C3-table-choices.md) | One table-choice module for both pickers | 🟢 Strong | ↔ two-way | deepening | todo | `refactor/table-choices` | | | builds on C2 |
+| [C1](C1-apply-settings.md) | Apply each setting in one place | 🟢 Strong | ↔ two-way | deepening | in-progress | `refactor/apply-settings` | | | batch 1 of 3 |
+| [C2](C2-table-catalog.md) | Let `TableInfo` carry every per-table fact | 🟢 Strong | ↔ two-way | deepening | todo | `refactor/table-catalog` | | | batch 2 of 3 |
+| [C3](C3-table-choices.md) | One table-choice module for both pickers | 🟢 Strong | ↔ two-way | deepening | todo | `refactor/table-choices` | | | batch 3 of 3; builds on C2 |
 | [C4](C4-hi-frame.md) | Paint the 1x and Hi frames as a pair | 🟡 Worth exploring | ↔ two-way | deepening | todo | `refactor/hi-frame` | | | |
 | [C5](C5-edition-presentation.md) | Ask the edition, not the option | 🟡 Worth exploring | ↔ two-way | maintainability | todo | `refactor/edition-presentation` | | | |
 | [C6](C6-bonus-rules-core.md) | Share the bonus tables' rules machinery | ⚪ Speculative | ↔ two-way | maintainability | todo | `refactor/bonus-rules-core` | | | |
