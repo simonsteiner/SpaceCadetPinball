@@ -2,6 +2,7 @@ package io.github.simonsteiner.spacecadetpinball;
 
 import android.os.Build;
 import android.os.Bundle;
+import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.window.OnBackInvokedDispatcher;
 
@@ -32,6 +33,20 @@ public class SpaceCadetActivity extends SDLActivity {
     @SuppressWarnings("deprecation")
     public void onBackPressed() {
         sendEscape();
+    }
+
+    // Before API 33, SDL's view takes the back key itself and hands the game SDLK_AC_BACK, which it doesn't use, so
+    // onBackPressed never runs; the activity sees the key first and makes it Escape. A mouse's back button stays SDL's.
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getKeyCode() == KeyEvent.KEYCODE_BACK
+            && (event.getSource() & InputDevice.SOURCE_MOUSE) != InputDevice.SOURCE_MOUSE) {
+            if (event.getAction() == KeyEvent.ACTION_UP && !event.isCanceled()) {
+                sendEscape();
+            }
+            return true;
+        }
+        return super.dispatchKeyEvent(event);
     }
 
     private void sendEscape() {
