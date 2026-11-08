@@ -40,6 +40,8 @@ private:
 		GameBindings Binding;
 		float StartY;
 		Uint64 StartTicks;
+		// Whether it went down on a flipper pad, the only place a flick nudges from
+		bool OnPad;
 		bool Nudged;
 	};
 	// Finger IDs are unique only per touch device

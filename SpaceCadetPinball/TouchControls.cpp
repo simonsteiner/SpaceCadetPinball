@@ -220,7 +220,8 @@ void TouchControls::FingerMoved(const FingerKey& key, const SDL_FPoint& position
 	if (finger == Fingers.end() || finger->second.Nudged)
 		return;
 	auto& state = finger->second;
-	if (state.Binding != GameBindings::LeftFlipper && state.Binding != GameBindings::RightFlipper)
+	// Only from a pad: a finger on the table's halves that slides up keeps flipping
+	if (!state.OnPad)
 		return;
 	const auto& pad = state.Binding == GameBindings::LeftFlipper ? Rects.LeftPad : Rects.RightPad;
 	if (state.StartY - position.y >= pad.h * FlickShare && SDL_GetTicks() - state.StartTicks <= FlickMs)
@@ -271,9 +272,10 @@ void TouchControls::FingerDown(const FingerKey& key, const SDL_FPoint& position)
 		binding = point.x < Rects.Board.x + Rects.Board.w / 2 ? GameBindings::LeftFlipper : GameBindings::RightFlipper;
 	else
 		return;
+	auto onPad = SDL_PointInRect(&point, &Rects.LeftPad) || SDL_PointInRect(&point, &Rects.RightPad);
 
 	auto first = !Held(binding);
-	Fingers[key] = FingerState{binding, position.y, SDL_GetTicks(), false};
+	Fingers[key] = FingerState{binding, position.y, SDL_GetTicks(), onPad, false};
 	if (first)
 	{
 		if (binding == GameBindings::Plunger)
