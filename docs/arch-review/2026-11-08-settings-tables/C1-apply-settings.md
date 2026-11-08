@@ -44,7 +44,7 @@ flowchart LR
   style after fill:#fafaf9,stroke:#e2e8f0
 ```
 
-`render::SetUpscale(UpscaledArt ? UpscaleFactor : 0)` is written out 4 times (`options.cpp:424`, `options.cpp:597`, `winmain.cpp:851`, and inline at `winmain.cpp:1398`); `Sound::SetVolume`, `Sound::SetChannels` and `midi::SetVolume` each appear in both the Classic menu and `MakeDefinitiveHost`.
+`render::SetUpscale(UpscaledArt ? UpscaleFactor : 0)` has 5 call sites (`options.cpp:424`, `options.cpp:597` and `winmain.cpp:851` as written, `winmain.cpp:434` and `winmain.cpp:1399` with the toggle tested in an `if`); `Sound::SetVolume`, `Sound::SetChannels` and `midi::SetVolume` each appear in both the Classic menu and `MakeDefinitiveHost`.
 
 | Problem | Solution | Wins |
 |---|---|---|

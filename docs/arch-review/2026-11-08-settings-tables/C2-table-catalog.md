@@ -4,7 +4,7 @@
 
 🟢 **Strong** · `in-process` · ↔ `two-way` · builds on: —
 
-`SpaceCadetPinball/pb.cpp:170-195` · `SpaceCadetPinball/options.cpp:807-843` · `SpaceCadetPinball/options.h:149` · `SpaceCadetPinball/TableView.cpp:250-260` · `SpaceCadetPinball/midi.cpp:398-402` · `SpaceCadetPinball/TableArt.cpp:270-280` · `SpaceCadetPinball/winmain.cpp:584-586` · `SpaceCadetPinball/winmain.cpp:1600-1610`
+`SpaceCadetPinball/pb.cpp:170-195` · `SpaceCadetPinball/pb.cpp:308-318` · `SpaceCadetPinball/options.cpp:807-843` · `SpaceCadetPinball/options.h:149` · `SpaceCadetPinball/TableView.cpp:250-260` · `SpaceCadetPinball/midi.cpp:398-402` · `SpaceCadetPinball/TableArt.cpp:270-280` · `SpaceCadetPinball/winmain.cpp:584-586` · `SpaceCadetPinball/winmain.cpp:1600-1610`
 
 ```mermaid
 flowchart LR
@@ -52,7 +52,7 @@ Adding Skulduggery to the engine (`6a3cd51`) touched 21 files; 19 `Tables::` ref
 
 | Problem | Solution | Wins |
 |---|---|---|
-| `TableInfo` is the catalog of tables, yet options, `TableView`, `midi`, `TableArt` and the Cheats menu each switch on `Tables` for a fact of their own. | Each such fact becomes a field of `TableInfo` and the fork-added callers ask `Info(table)`; upstream's `FullTiltMode` reads stay as they are. | locality: a new table is one entry<br>switches on `Tables` disappear |
+| `TableInfo` is the catalog of tables, yet options, `TableView`, `midi`, `TableArt` and the Cheats menu each switch on `Tables` for a fact of their own, and `pb::FindTables` searches its own fixed list of tables. | Each such fact becomes a field of `TableInfo`, the fork-added callers ask `Info(table)`, and discovery walks `TableInfos` once per key, in today's search order; upstream's `FullTiltMode` reads stay as they are. | locality: a new table is one entry<br>switches on `Tables` disappear |
 
 <details>
 <summary>Decisions</summary>
