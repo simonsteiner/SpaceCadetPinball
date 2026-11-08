@@ -590,6 +590,8 @@ Editions options::GetEdition()
 
 void options::SetEdition(Editions edition)
 {
+	if (!ClassicAvailable)
+		edition = Editions::Definitive;
 	if (edition == GetEdition())
 		return;
 
@@ -607,6 +609,8 @@ void options::SetEdition(Editions edition)
 
 void options::SelectEdition(Editions edition)
 {
+	if (!ClassicAvailable)
+		edition = Editions::Definitive;
 	Options.Edition = static_cast<int>(edition);
 	ShowEditionOptions(edition);
 }
@@ -650,7 +654,8 @@ void options::PostProcessOptions()
 	Options.PostProcessing = Clamp(Options.PostProcessing.V, 0, static_cast<int>(PostEffects::Max) - 1);
 	Options.MusicVolume = Clamp(Options.MusicVolume.V, MinVolume, MaxVolume);
 	Options.KeyBindingsVersion = KeyBindingsScancodes;
-	Options.Edition = Clamp(Options.Edition.V, 0, static_cast<int>(Editions::Max) - 1);
+	Options.Edition = ClassicAvailable ? Clamp(Options.Edition.V, 0, static_cast<int>(Editions::Max) - 1)
+									   : static_cast<int>(Editions::Definitive);
 	Options.Rotation = Clamp(Options.Rotation.V, 0, 3);
 	// 100, 125 or 150 percent, rounding down
 	if (Options.TextSize.V >= 150)

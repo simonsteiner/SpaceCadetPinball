@@ -142,7 +142,7 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 	// Rows grow with the Text Size option
 	auto changeTable = Host.TableList && Host.TableList().size() > 1;
 	auto row = Ui::RowHeight() + 2;
-	auto rows = changeTable ? 7 : 6;
+	auto rows = (changeTable ? 7 : 6) - (options::ClassicAvailable ? 0 : 1);
 	auto rowsHeight = ConfirmRestart || ConfirmQuit ? 32 + 2 * row : rows * row + 12;
 	auto min = BeginCentred("##DefinitivePause", ImVec2{420, 24 + 40 + 24 + 16 + rowsHeight + 24 + 44});
 	auto scale = Ui::Scale();
@@ -198,7 +198,8 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 		}
 		// The edition key passes to the game here, as on the title, and switches too; the game stays paused in Classic
 		auto key = Host.EditionKey ? Host.EditionKey() : std::string{};
-		if (Ui::MenuRow("classic", Text(Msg::Definitive_SwitchToClassic), false, key.empty() ? nullptr : key.c_str()))
+		if (options::ClassicAvailable &&
+			Ui::MenuRow("classic", Text(Msg::Definitive_SwitchToClassic), false, key.empty() ? nullptr : key.c_str()))
 			options::SetEdition(Editions::Classic);
 		auto separator = ImGui::GetCursorScreenPos().y + 6 * scale;
 		drawList->AddLine(ImVec2{rowsAt.x + padding, separator}, ImVec2{rowsAt.x + width - padding, separator},

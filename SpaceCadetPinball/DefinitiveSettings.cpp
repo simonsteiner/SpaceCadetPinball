@@ -210,16 +210,19 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 
 void DefinitiveSettings::RenderEdition(const DefinitiveHost& host, bool gameRunning)
 {
-	// Choosing Classic takes this screen away, as the switch does during play
-	char note[160];
-	auto key = host.EditionKey ? host.EditionKey() : std::string{};
-	snprintf(note, sizeof note, Text(Msg::Definitive_EditionNote), key.empty() ? "-" : key.c_str());
-	Ui::NextRowNote(note);
-	auto edition = options::GetEdition() == Editions::Definitive ? 1 : 0;
-	auto chosen = Ui::ChoiceRow("edition", Text(Msg::Definitive_Edition),
-								{Text(Msg::Definitive_Classic), Text(Msg::Menu1_ToggleEdition)}, edition);
-	if (chosen != edition)
-		options::SetEdition(chosen ? Editions::Definitive : Editions::Classic);
+	// Choosing Classic takes this screen away, as the switch does during play; Android has no Classic
+	if (options::ClassicAvailable)
+	{
+		char note[160];
+		auto key = host.EditionKey ? host.EditionKey() : std::string{};
+		snprintf(note, sizeof note, Text(Msg::Definitive_EditionNote), key.empty() ? "-" : key.c_str());
+		Ui::NextRowNote(note);
+		auto edition = options::GetEdition() == Editions::Definitive ? 1 : 0;
+		auto chosen = Ui::ChoiceRow("edition", Text(Msg::Definitive_Edition),
+									{Text(Msg::Definitive_Classic), Text(Msg::Menu1_ToggleEdition)}, edition);
+		if (chosen != edition)
+			options::SetEdition(chosen ? Editions::Definitive : Editions::Classic);
+	}
 
 	if (FocusLanguage)
 		Ui::FocusNextRow();

@@ -176,6 +176,13 @@ public:
 	static std::vector<GameBindings> MapGameInput(GameInput key);
 	static void ResetAllOptions();
 	static Editions GetEdition();
+	// Whether Classic can be chosen. Not on Android, where it would need a keyboard (its menu bar, F3 to resume a
+	// paused game) and has no control deck; the game is always Space Cadet 2026 there
+#ifdef __ANDROID__
+	static constexpr bool ClassicAvailable = false;
+#else
+	static constexpr bool ClassicAvailable = true;
+#endif
 	// Switches to the edition's drawing options and applies them, also during a game
 	static void SetEdition(Editions edition);
 	// Switches to the edition's drawing options without applying them, before the table is drawn
