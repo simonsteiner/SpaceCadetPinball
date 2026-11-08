@@ -156,7 +156,8 @@ namespace
 		}
 		for (auto path : {
 #ifdef __ANDROID__
-				 // In the APK's assets, which SDL_LoadFile reads by a relative path
+				 // The APK's assets. SDL_LoadFile looks for a relative path in the app's files/ first, then in the
+				 // assets.
 				 "FluidR3Mono_GM.sf3",
 #endif
 				 "/usr/share/sounds/sf3/default-GM.sf3",

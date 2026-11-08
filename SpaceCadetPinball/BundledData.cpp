@@ -98,7 +98,9 @@ std::string BundledData::Folder(const std::string& prefPath)
 // A test APK's assets hold the data in bundled/ and its list in bundled.txt: the data's hash on the first line, then
 // one file per line, relative to bundled/ (tools/make-test-build.sh android). The first start copies the files into
 // prefPath, the app's private storage, in a folder named after the hash, since SDL reads assets only through SDL_IO
-// and the game opens its files with fopen. An APK without the list has no data of its own.
+// and the game opens its files with fopen. An APK without the list has no data of its own. SDL_LoadFile looks for a
+// relative path in prefPath (the app's files/) before the assets, so nothing may be written to files/bundled.txt or
+// files/bundled/, or it would stand in for the APK's copy.
 std::string BundledData::Folder(const std::string& prefPath)
 {
 	size_t size = 0;
