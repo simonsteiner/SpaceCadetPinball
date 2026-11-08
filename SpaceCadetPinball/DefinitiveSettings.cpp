@@ -308,6 +308,17 @@ void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunn
 			Ui::ChoiceRow("rotation", Text(Msg::Definitive_Rotation), {"0°", "90°", "180°", "270°"}, options.Rotation);
 		rotation != options.Rotation && host.SetRotation)
 		host.SetRotation(rotation);
+	// Only where there is a touch screen to use it on
+	int touchDevices = 0;
+	SDL_free(SDL_GetTouchDevices(&touchDevices));
+	if (touchDevices > 0 && host.SetTouchControls)
+	{
+		if (auto controls = Ui::ChoiceRow("touch", Text(Msg::Definitive_TouchControls),
+										  {Text(Msg::Definitive_TouchTable), Text(Msg::Definitive_TouchDeck)},
+										  options.TouchControls);
+			controls != options.TouchControls)
+			host.SetTouchControls(controls);
+	}
 
 	auto rateChanged = false;
 	if (Ui::ToggleRow("match", Text(Msg::Definitive_MatchRefresh), options.MatchRefreshRate))

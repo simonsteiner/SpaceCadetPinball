@@ -204,6 +204,11 @@ optionsStruct options::Options
 	{"Sound Pack", ""},
 	{"Record Sessions", false},
 	{"Reduced Motion Chosen", false},
+#ifdef __ANDROID__
+	{"Touch Controls", 1},
+#else
+	{"Touch Controls", 0},
+#endif
 };
 // clang-format on
 
@@ -655,6 +660,7 @@ void options::PostProcessOptions()
 	else
 		Options.TextSize = 100;
 	Options.ColourVision = Clamp(Options.ColourVision.V, 0, 1);
+	Options.TouchControls = Clamp(Options.TouchControls.V, 0, 1);
 	// A sound pack is a folder name in the sounds folder, never a path out of it
 	auto& pack = Options.SoundPack.V;
 	if (pack.find_first_of("/\\") != std::string::npos || pack == "." || pack == "..")

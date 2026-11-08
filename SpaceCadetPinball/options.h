@@ -458,4 +458,7 @@ struct optionsStruct
 	BoolOption RecordSessions;
 	// Whether the player has set Reduced Motion; until then the web build follows the browser's
 	BoolOption ReducedMotionChosen;
+	// How Space Cadet 2026 takes touch: 0 on the table itself (its halves flip, the score panel pulls the plunger),
+	// 1 on a control deck drawn beside it (TouchControls); the deck by default on Android
+	IntOption TouchControls;
 };

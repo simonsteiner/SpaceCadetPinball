@@ -187,6 +187,8 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 		Host.Layout(board, panel, band);
 		DefinitiveHud::Render(view, board, panel, band, Host.PanelArt ? Host.PanelArt() : nullptr);
 	}
+	if (DefinitiveDeck deck; Host.TouchDeck && Host.TouchDeck(deck))
+		DefinitiveTouchDeck::Render(deck);
 
 	// A recording that plays has its own bar and none of the game's screens, which would follow the game it shows
 	if (Host.Viewing && Host.Viewing())

@@ -248,6 +248,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/TableView.h
         SpaceCadetPinball/TTextBox.cpp
         SpaceCadetPinball/TTextBox.h
+        SpaceCadetPinball/TouchControls.cpp
+        SpaceCadetPinball/TouchControls.h
         SpaceCadetPinball/TTextBoxMessage.cpp
         SpaceCadetPinball/TTextBoxMessage.h
         SpaceCadetPinball/TTimer.cpp
@@ -286,6 +288,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/DefinitiveText.h
         SpaceCadetPinball/DefinitiveTheme.cpp
         SpaceCadetPinball/DefinitiveTheme.h
+        SpaceCadetPinball/DefinitiveTouchDeck.cpp
+        SpaceCadetPinball/DefinitiveTouchDeck.h
         SpaceCadetPinball/DefinitiveUi.cpp
         SpaceCadetPinball/DefinitiveUi.h
         )
