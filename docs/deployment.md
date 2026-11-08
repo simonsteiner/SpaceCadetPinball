@@ -10,6 +10,8 @@ The version appears in three places. Update all three together:
 - `build-mac-app.sh`: `sw_version`, used in the DMG name and `Info.plist`
 - `Platform/Linux/SpaceCadetPinball.metainfo.xml`: a new `<release>` entry for Flathub and distribution packages
 
+The Android app's `versionName` (`Platform/Android/app/build.gradle`) reads `winmain::Version` out of `winmain.h`, so it needs no change of its own.
+
 ## Windows
 
 Run `BuildForWindows.ps1` from the repository root on Windows with Visual Studio 2022 installed. It builds the `windows-x64` preset (see [setup.md](setup.md#build)) and writes `bin/SpaceCadetPinballx64Win.zip`. SDL is linked statically, so the zip holds only `SpaceCadetPinball.exe`. There are no 32-bit or Windows XP builds.

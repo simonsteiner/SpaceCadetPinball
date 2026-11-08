@@ -347,7 +347,8 @@ build_android() {
 	count=$(git -C "$repo" rev-list --count HEAD)
 	(cd "$src/Platform/Android" && ANDROID_HOME=$sdk ./gradlew --no-daemon --console=plain assembleRelease \
 		"-PscpDescribe=$describe" "-PscpCommitCount=$count" "-PscpAssets=$assets" "-PscpSigning=$signing" \
-		"-PscpBuildDir=$build/android-gradle" "-PscpNativeBuildDir=$build/android-cxx")
+		"-PscpBuildDir=$build/android-gradle" "-PscpNativeBuildDir=$build/android-cxx" \
+		"-PscpCmakeArgs=${SCP_CMAKE_ARGS:-}")
 	file=$build/android-gradle/outputs/apk/release/app-release.apk
 	cp "$file" "$out/SpaceCadetPinball-$commit.apk"
 }
