@@ -240,6 +240,9 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 	case Screen::Pause:
 		RenderPause(view);
 		break;
+	case Screen::Exit:
+		RenderExit();
+		break;
 	case Screen::GameOver:
 		RenderGameOver(view);
 		break;
@@ -318,7 +321,7 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 	// A choice of tables only when the data of more than one was found
 	auto tables = Host.TableList ? Host.TableList() : std::vector<DefinitiveHost::TableChoice>{};
 	auto chooseTable = tables.size() > 1;
-	auto rows = (Host.Quit ? 8 : 7) + (Host.Recordings ? 1 : 0) + (chooseTable ? 1 : 0);
+	auto rows = (QuitRow() ? 8 : 7) + (Host.Recordings ? 1 : 0) + (chooseTable ? 1 : 0);
 	// Margins, the name, the year, the rows and the hints, shrunk to fit a small window
 	auto needed = 56 + 60 + 14 + 40 + 48 + rows * (Ui::RowHeight() + 2) + 24 + 26 + 24;
 	constexpr float ColumnWidth = 500;
@@ -425,7 +428,7 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 	}
 	if (Ui::MenuRow("credits", Text(Msg::Definitive_Credits)))
 		Open(Screen::Credits);
-	if (Host.Quit && Ui::MenuRow("quit", Text(Msg::Menu1_Exit)))
+	if (QuitRow() && Ui::MenuRow("quit", Text(Msg::Menu1_Exit)))
 		Host.Quit();
 	ImGui::PopItemWidth();
 	ImGui::EndGroup();
@@ -778,7 +781,7 @@ void DefinitiveFrontEnd::RenderMissingData(const std::vector<std::string>& looke
 	auto width = BeginColumn("##DefinitiveMissingData", 680);
 	// No game runs behind this screen to take Escape to its Exit binding, as on the title; Back lights Exit instead,
 	// over the first row that ImGui's cancel would light
-	auto back = BackPressed() && Host.Quit;
+	auto back = BackPressed() && QuitRow();
 	if (back)
 		Ui::TakeFocusRequest();
 	auto drawList = ImGui::GetWindowDrawList();
@@ -830,7 +833,7 @@ void DefinitiveFrontEnd::RenderMissingData(const std::vector<std::string>& looke
 		Host.ChooseDataFolder();
 	if (back)
 		Ui::FocusNextRow();
-	if (Host.Quit && Ui::MenuRow("quit", Text(Msg::Menu1_Exit)))
+	if (QuitRow() && Ui::MenuRow("quit", Text(Msg::Menu1_Exit)))
 		Host.Quit();
 	ImGui::PopItemWidth();
 	ImGui::EndGroup();

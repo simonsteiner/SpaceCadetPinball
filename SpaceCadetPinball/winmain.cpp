@@ -441,6 +441,10 @@ static DefinitiveHost MakeDefinitiveHost()
 		SDL_PushEvent(&event);
 	};
 #endif
+#ifdef __ANDROID__
+	// Android closes apps itself; Back on the title still asks and quits
+	host.QuitInMenus = false;
+#endif
 	host.Records = []
 	{
 		std::vector<DefinitiveHost::Record> records;
@@ -2827,6 +2831,9 @@ void winmain::HandleGameBinding(GameBindings binding, bool shortcut)
 			SDL_Event event{SDL_EVENT_QUIT};
 			SDL_PushEvent(&event);
 		}
+		// Space Cadet 2026 asks in its own screen, scaled to the window, which on a phone ImGui's popup isn't
+		else if (options::GetEdition() == Editions::Definitive)
+			DefinitiveFrontEnd::ShowExit();
 		else
 			ShowExitPopup = true;
 		break;

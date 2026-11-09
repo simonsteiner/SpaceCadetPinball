@@ -26,6 +26,9 @@ struct DefinitiveHost
 	void (*StartDemo)();
 	// Null where the game can't end itself, as in a browser tab
 	void (*Quit)();
+	// Whether the title and the missing-data screen have an Exit row; not on Android, which closes apps itself. The
+	// exit question still quits there, after Back on the title.
+	bool QuitInMenus = true;
 	std::vector<Record> (*Records)();
 	void (*ClearRecords)();
 	// The tables whose data was found, Space Cadet first; the title lists them when there is more than one
@@ -150,6 +153,8 @@ public:
 	// screen; from the title and the screens it leads to, to the title. Only with more than one table, and not from a
 	// game that is ending or its summary.
 	static void ShowTables();
+	// The exit question, as Escape or Back opens it on the title: Cancel goes back to the title, OK quits
+	static void ShowExit();
 	// The bar of a recording that plays, which stays until the player goes back to the title
 	static void ShowViewer();
 	// The first-run screen when no game data was found: where it looked and a way to choose the folder; the game
@@ -182,6 +187,7 @@ private:
 		Recordings,
 		Viewer,
 		Tables,
+		Exit,
 	};
 
 	static DefinitiveHost Host;
@@ -217,6 +223,9 @@ private:
 	static void RenderCredits();
 	// In DefinitiveInGame.cpp
 	static void RenderPause(const TableView& view);
+	static void RenderExit();
+	// Whether the title and the missing-data screen show the Exit row
+	static bool QuitRow();
 	static void RenderGameOver(const TableView& view);
 	static void RenderNameEntry();
 	// Asks for the name of the next new high score; false when there is none

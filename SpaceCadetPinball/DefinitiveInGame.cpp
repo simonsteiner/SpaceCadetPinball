@@ -32,7 +32,7 @@ namespace
 	constexpr size_t MaxNameLength = 16;
 
 	bool ConfirmRestart = false, ConfirmQuit = false, FocusConfirm = false;
-	int PauseFrame = 0;
+	int PauseFrame = 0, ExitFrame = 0;
 
 	// Asks once before ending the game: the question, then Cancel and OK; true when OK is chosen
 	bool Confirm(ImDrawList* drawList, ImVec2 position, float width, bool& asking)
@@ -241,6 +241,54 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 		if (Host.Resume)
 			Host.Resume();
 	}
+}
+
+bool DefinitiveFrontEnd::QuitRow()
+{
+	return Host.Quit && Host.QuitInMenus;
+}
+
+void DefinitiveFrontEnd::ShowExit()
+{
+	if (!Host.Quit)
+		return;
+	ExitFrame = ImGui::GetFrameCount();
+	Open(Screen::Exit);
+}
+
+// The exit question, in the middle of the window over the title's demo, sized as the pause screen is
+void DefinitiveFrontEnd::RenderExit()
+{
+	auto row = Ui::RowHeight() + 2;
+	auto min = BeginCentred("##DefinitiveExit", ImVec2{420, 24 + 40 + 24 + 2 * row + 24 + 44});
+	auto scale = Ui::Scale();
+	auto drawList = ImGui::GetWindowDrawList();
+	auto padding = 16 * scale;
+	auto width = ImGui::GetWindowSize().x - padding * 2;
+	Ui::DrawText(drawList, Theme::HeadingFont(), Theme::TitleSize, ImVec2{min.x + padding * 2, min.y + 24 * scale},
+				 Theme::Chrome50, Text(Msg::Definitive_ExitQuestion), width - padding * 2);
+
+	ImGui::SetCursorScreenPos(ImVec2{min.x + padding, min.y + (24 + 40 + 24) * scale});
+	ImGui::BeginGroup();
+	ImGui::PushItemWidth(width);
+	auto cancel = Ui::MenuRow("cancel", Text(Msg::GenericCancel));
+	auto quit = Ui::MenuRow("quit", Text(Msg::GenericOk), true);
+	ImGui::PopItemWidth();
+	ImGui::EndGroup();
+	// Not in the frame the question opened: the Escape or Back that opened it reaches ImGui in that frame too
+	cancel |= ImGui::GetFrameCount() > ExitFrame + 1 && BackPressed();
+
+	Ui::DrawHints(drawList, ImVec2{min.x + padding * 2, min.y + ImGui::GetWindowSize().y - 44 * scale},
+				  {{Ui::Action::Select, Text(Msg::Definitive_Select)}, {Ui::Action::Back, Text(Msg::Definitive_Back)}});
+	Focused = ImGui::IsWindowFocused() && !ImGui::GetTopMostPopupModal();
+	ImGui::End();
+	ImGui::PopStyleColor();
+	ImGui::PopStyleVar(3);
+
+	if (quit && Host.Quit)
+		Host.Quit();
+	else if (cancel)
+		Open(Screen::Title);
 }
 
 void DefinitiveFrontEnd::RenderGameOver(const TableView& view)
