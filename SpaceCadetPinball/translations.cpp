@@ -7125,6 +7125,12 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_Loading,
+		{
+			{ Lang::English, "Loading the table" },
+		}
+	},
+	{
 		Msg::Definitive_Resume,
 		{
 			{ Lang::English, "Resume" },

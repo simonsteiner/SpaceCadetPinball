@@ -1,6 +1,7 @@
 #pragma once
 #include "gdrv.h"
 
+#include <functional>
 #include <set>
 
 enum class GameBindings;
@@ -170,6 +171,8 @@ private:
 	static void ApplyEditionLook();
 	// Hands Space Cadet 2026's screens the window's safe area for the frame; the whole picture when it is turned
 	static void SetSafeArea(bool turned);
+	// Draws one frame of a Space Cadet 2026 screen alone, before the table is loaded or without one
+	static void PresentScreen(const std::function<void()>& render);
 	// One table update, then Space Cadet 2026's, while it is on
 	static void TableFrame(float dtMilliSec);
 	static void ImGuiMenuItemWShortcut(GameBindings binding, bool selected = false);
