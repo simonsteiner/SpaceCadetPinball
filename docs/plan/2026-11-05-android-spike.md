@@ -54,6 +54,17 @@ When the A54 is connected: `adb install -r` the test APK, start it, and read `ad
 5. Back opens the pause screen and doesn't close the app (the A54 covers API 33 and up; the `dispatchKeyEvent` path for older versions needs an older device); going home and back resumes; rotation doesn't restart it.
 6. Where the HUD and touch zones sit against the camera cutout and the gesture bar, with Android 16's forced edge to edge.
 
+## Checked on the emulator (2026-11-09)
+
+On the Windows host's Android Emulator (WHPX; WSL has no `/dev/kvm`) with the x86_64 test APK from `make-test-build.sh android --emulator`, on two system images: a Pixel 3a with Android 14, and a 1080×2340 device with Android 16 (API 36) and the emulated punch-hole cutout, close to the A54. The emulator draws through the PC's GPU, so items 2 and 4 above (the Mali-G68's Vulkan and the frame rate) and the music's CPU cost stay for the phone.
+
+- **Works:** the first start copies the data and the Table list shows all four tables; the renderer is `gpu`; the touch deck plays; Back opens and closes the pause screen and never closes the app, on Android 14 and 16; going home and back keeps the process and the game; rotation doesn't restart the activity, and the layout switches between upright and landscape.
+- **Edge to edge on Android 16:** the window is the whole 1080×2340 screen. In a game, the table, HUD and deck keep clear of the status bar, the cutout and the gesture bar, upright and in both landscape rotations. On the title menu, the key hint row at the bottom runs into the gesture bar.
+- **Speed:** the arm64-only APK runs there too, through the image's ARM translation, but took 13 s from start to the table loaded; the x86_64 build takes 4 s.
+- **Lost when Android ends the app:** options other than the table and the current table's high scores reach the settings map only in `options::Save` and `high_score::write`, which run at quit or on a table change (`pb::uninit`); ImGui then writes the `.ini` up to 5 s later, and only while frames run. A game that goes to the background and is killed there, as Android does, loses them. This is PR 4's job (save on `SDL_EVENT_WILL_ENTER_BACKGROUND`), and it is confirmed now. Coming back from the background resumes the game at once, without the pause screen, which PR 4 also adds.
+- **Logged and not yet explained:** `SDL Error: That operation is not supported` once at startup, after the music starts, and `No OpenGL context has been made current` once on coming back from the background. Neither stops the game.
+- **Touch hints still name keys:** the title menu and the pause screen show Enter, Esc and the arrows, which a phone doesn't have.
+
 ## The rest of G5, as pull requests
 
 In order; each is small enough to review on its own. Sizes: S is up to a day, M a few days, L about a week.
