@@ -104,10 +104,31 @@ static bool SDLCALL OnLifecycleEvent(void*, SDL_Event* event)
 	case SDL_EVENT_TERMINATING:
 		winmain::SaveSettings();
 		break;
+#ifdef __ANDROID__
+	case SDL_EVENT_DID_ENTER_FOREGROUND:
+		// On the way back, SDL's Android driver restores the window's OpenGL context and sets its swap interval, also
+		// when SDL's GPU renderer draws through Vulkan and there is no context; the swap interval then fails. That is
+		// SDL's own and harmless, so it isn't reported as an error. It comes just before this event.
+		if (!SDL_GL_GetCurrentContext() && SDL_strcmp(SDL_GetError(), "No OpenGL context has been made current") == 0)
+			SDL_ClearError();
+		break;
+#endif
 	default:
 		break;
 	}
 	return true;
+}
+
+// Shows the window, created hidden until the table sizes it. Showing it applies its pending flags, which begins with
+// SDL_RestoreWindow, and SDL's Android driver has none: SDL_Unsupported(), although the window shows. That error is
+// SDL's own and harmless, so it isn't reported.
+static void ShowMainWindow()
+{
+	[[maybe_unused]] auto shown = SDL_ShowWindow(winmain::MainWindow);
+#ifdef __ANDROID__
+	if (shown && SDL_strcmp(SDL_GetError(), "That operation is not supported") == 0)
+		SDL_ClearError();
+#endif
 }
 
 #ifdef __EMSCRIPTEN__
@@ -903,7 +924,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		}
 		else
 		{
-			SDL_ShowWindow(window);
+			ShowMainWindow();
 #ifdef __EMSCRIPTEN__
 			FitWindowToPage(EM_ASM_INT({ return window.innerWidth; }), EM_ASM_INT({ return window.innerHeight; }));
 			emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, false, PageResized);
@@ -2268,9 +2289,12 @@ bool winmain::FindGameData(const std::vector<const char*>& searchPaths)
 	ChosenFolderEmpty = !Options.GameDataFolder.V.empty();
 
 	// The window was waiting for the table to size it
-	SDL_SetWindowSize(MainWindow, 1100, 700);
-	SDL_SetWindowPosition(MainWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-	SDL_ShowWindow(MainWindow);
+	if (fullscrn::WindowSizable)
+	{
+		SDL_SetWindowSize(MainWindow, 1100, 700);
+		SDL_SetWindowPosition(MainWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+	}
+	ShowMainWindow();
 	while (true)
 	{
 		SDL_Event event;

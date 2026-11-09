@@ -212,6 +212,8 @@ void fullscrn::FitScale(int width, int height, int contentWidth, int contentHeig
 
 void fullscrn::ResetWindowSize(bool center)
 {
+	if (!WindowSizable)
+		return;
 	// The largest whole multiple of the table, up to the display's scale, that fits on the display.
 	// A window that size shows the table at about the size the original had at 96 DPI, without blurring it.
 	auto res = &resolution_array[resolution];
