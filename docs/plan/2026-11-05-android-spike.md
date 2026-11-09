@@ -102,7 +102,7 @@ Three pull requests follow from it:
    | --- | --- | --- | --- | --- |
    | Title with the demo | 38 to 41 | 59 to 60 | 7.1 Mcyc | 2.6 to 3.1 |
    | A game | 43 to 57 | 60 | 6.0 to 6.3 | 2.3 |
-   | A game at 4x art (title) | 29 | 51 | 18.9 | 4.2 |
+   | Title at 4x art | 29 | 51 | 18.9 | 4.2 |
 
    The GPU now stays at its lowest clock, 221 MHz, 63 to 78 % busy, and the table runs at real speed. In a game SurfaceFlinger shows 87 to 91 % of the frames 16 to 17 ms after the one before, about 5 % after 8 ms and 5 % after 24 to 25 ms; before, they jumped between 16, 25 and 33 ms. Turning vsync on (`SDL_SetRenderVSync`) changed neither the rate nor that spread, so the pacing stays as it is: the off-beat frames come from the loop sleeping by its own clock on a 120 Hz panel, and telling Android the game's rate (`ANativeWindow_setFrameRate`) would be the way to remove them, if they show. Comparing the frame still takes 4 to 5 ms of the main thread at 2x and 14 ms at 4x, which is what holds 4x at 51 fps; comparing the 1x frame instead would cut that. Also found: below 60 fps the table runs slow, at 64 % of real speed at 38 fps, because the main loop drops the time a loop pass takes beyond 16.7 ms; a fix is proposed separately, since it changes the game's timing on slow devices.
 3. **The SoundFont's memory:** not done yet.
