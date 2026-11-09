@@ -34,7 +34,7 @@ const DefinitiveScene& DefinitiveScene::Build(const TableView& view, const Table
 	// Reduced Motion holds the glow at the pulse's middle
 	auto seconds = static_cast<float>(SDL_GetTicks() % 60000) / 1000.0f;
 	auto wave = options.ReducedMotion ? 0.0f : std::sin(seconds * 2.0f * std::numbers::pi_v<float> / PulsePeriod);
-	auto pulse = 1.0f - PulseDepth * 0.5f * (1.0f + wave);
+	scene.GlowPulse = 1.0f - PulseDepth * 0.5f * (1.0f + wave);
 	scene.Glows.clear();
 	for (const auto& light : view.Lights)
 	{
@@ -43,7 +43,7 @@ const DefinitiveScene& DefinitiveScene::Build(const TableView& view, const Table
 			continue;
 		SDL_FRect sprite;
 		SDL_RectToFRect(&light.Sprite, &sprite);
-		scene.Glows.push_back({sprite, pulse});
+		scene.Glows.push_back({sprite, 1.0f});
 	}
 
 	// Where the frame would have drawn each ball's sprite. A smiley ball isn't shaded: the frame's sprite stays, as

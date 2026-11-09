@@ -55,8 +55,9 @@ struct gdrv_bitmap8
 	void ScaleIndexed(float scaleX, float scaleY);
 	void CreateTexture(SDL_ScaleMode scaleMode, SDL_TextureAccess access);
 	void BlitToTexture();
-	// As BlitToTexture, but only the parts that changed since the last call go to the texture
-	void BlitChangesToTexture();
+	// As BlitToTexture, but only the parts that changed since the last call go to the texture; changes, if given,
+	// gets a rectangle added for each
+	void BlitChangesToTexture(std::vector<SDL_Rect>* changes = nullptr);
 	ColorRgba* BmpBufPtr1;
 	char* IndexedBmpPtr;
 	int Width;

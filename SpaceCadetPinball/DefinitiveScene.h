@@ -12,7 +12,7 @@ struct DefinitiveScene
 	{
 		// The lit lamp's sprite in the 1x frame, in pixels
 		SDL_FRect Sprite;
-		// 0 to 1
+		// 0 to 1, without the pulse
 		float Strength;
 	};
 
@@ -28,6 +28,8 @@ struct DefinitiveScene
 	// Light the table from its depth map
 	bool Lighting;
 	std::vector<Glow> Glows;
+	// How much of the glows shows at this moment of their slow pulse, 0 to 1; the same for every lamp
+	float GlowPulse;
 	// Draw the balls as shaded spheres instead of the frame's ball sprites
 	bool ShadedBalls;
 	std::vector<Ball> Balls;

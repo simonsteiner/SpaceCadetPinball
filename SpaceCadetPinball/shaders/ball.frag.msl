@@ -12,7 +12,8 @@ struct Context
     float glow;
     float z_min;
     float z_scaler;
-    float2 padding;
+    float glow_pulse;
+    float padding;
     float4 up;
     float4 light;
 };

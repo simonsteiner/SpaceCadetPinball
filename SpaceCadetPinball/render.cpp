@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "render.h"
 
+#include "ChangedTiles.h"
+
 #include "fullscrn.h"
 #include "GroupData.h"
 #include "options.h"
@@ -35,6 +37,22 @@ SDL_Texture* render::DepthTexture = nullptr;
 rectangle_type render::DepthChanged{};
 bool render::DepthChangedAll = true;
 std::vector<ColorRgba> render::DepthRows{};
+
+namespace
+{
+	// What the depth texture holds, so only the tiles whose depths changed go up again
+	std::vector<uint16_t> DepthUploaded;
+	// The parts of the frame's texture and of the depth texture that changed since the compositor last composed
+	std::vector<SDL_Rect> FrameChanges, DepthChanges;
+
+	// While the compositor isn't composing, the lists would grow without end; one rectangle for all of it does
+	void LimitChanges(std::vector<SDL_Rect>& changes, int width, int height)
+	{
+		constexpr size_t Limit = 1024;
+		if (changes.size() > Limit)
+			changes.assign(1, SDL_Rect{0, 0, width, height});
+	}
+} // namespace
 
 #if SDL_VERSION_ATLEAST(3, 4, 0)
 // The same as nearest at whole multiples; at other scales it keeps every table pixel the same size
@@ -175,6 +193,7 @@ void render::uninit()
 	}
 	DepthTexture = nullptr;
 	DepthRows.clear();
+	DepthUploaded.clear();
 }
 
 void render::recreate_screen_texture()
@@ -637,7 +656,7 @@ void render::PresentVScreen(float ballAlpha)
 		unpaint_balls();
 		paint_balls(true);
 	}
-	screen->BlitChangesToTexture();
+	screen->BlitChangesToTexture(&FrameChanges);
 	if (hideBalls)
 	{
 		unpaint_balls();
@@ -649,11 +668,18 @@ void render::PresentVScreen(float ballAlpha)
 	auto table = screen->Texture;
 	if (scene)
 	{
-		if (auto composed = Compositor::Compose(screen->Texture, UpdateDepthTexture(), scale, *scene))
+		auto depth = UpdateDepthTexture();
+		if (auto composed = Compositor::Compose(screen->Texture, depth, scale, *scene, FrameChanges, DepthChanges))
+		{
 			table = composed;
+			FrameChanges.clear();
+			DepthChanges.clear();
+		}
 		else if (hideBalls)
-			screen->BlitChangesToTexture();
+			screen->BlitChangesToTexture(&FrameChanges);
 	}
+	LimitChanges(FrameChanges, screen->Width, screen->Height);
+	LimitChanges(DepthChanges, screen->Width, screen->Height);
 	// Only the table goes through the post-processing effect, not the backdrop or the overlays
 	PostEffect::Begin(static_cast<float>(screen->Width), static_cast<float>(screen->Height),
 					  fullscrn::ScaleX / static_cast<float>(scale), fullscrn::ScaleY / static_cast<float>(scale));
@@ -883,23 +909,43 @@ SDL_Texture* render::UpdateDepthTexture()
 	}
 	else
 		rect = {};
+	const auto all = DepthChangedAll;
 	DepthChangedAll = false;
 	DepthChanged = {};
 	if (rect.w <= 0 || rect.h <= 0)
 		return DepthTexture;
 
-	// Red holds the high byte of each depth and green the low byte
-	DepthRows.resize(static_cast<size_t>(rect.w) * rect.h);
-	for (int y = 0; y < rect.h; y++)
+	// Sprites are repainted with the depths they had far more often than the depths change, so the part that may have
+	// changed is compared with what the texture holds. Red holds the high byte of each depth and green the low byte.
+	const auto upload = [zmap](const SDL_Rect& run)
 	{
-		auto src = &zmap->ZPtr1[(rect.y + y) * zmap->Stride + rect.x];
-		auto dst = &DepthRows[static_cast<size_t>(y) * rect.w];
-		for (int x = 0; x < rect.w; x++)
+		DepthRows.resize(static_cast<size_t>(run.w) * run.h);
+		for (int y = 0; y < run.h; y++)
 		{
-			auto depth = static_cast<unsigned>(src[x]);
-			dst[x] = ColorRgba{static_cast<uint8_t>(depth >> 8u), static_cast<uint8_t>(depth & 0xFFu), 0, 255};
+			auto src = &zmap->ZPtr1[(run.y + y) * zmap->Stride + run.x];
+			auto dst = &DepthRows[static_cast<size_t>(y) * run.w];
+			for (int x = 0; x < run.w; x++)
+			{
+				auto depth = static_cast<unsigned>(src[x]);
+				dst[x] = ColorRgba{static_cast<uint8_t>(depth >> 8u), static_cast<uint8_t>(depth & 0xFFu), 0, 255};
+			}
 		}
+		SDL_UpdateTexture(DepthTexture, &run, DepthRows.data(), run.w * static_cast<int>(sizeof(ColorRgba)));
+		DepthChanges.push_back(run);
+	};
+	const auto texels = static_cast<size_t>(zmap->Width) * zmap->Height;
+	if (all || DepthUploaded.size() != texels)
+	{
+		DepthUploaded.resize(texels);
+		for (int y = 0; y < zmap->Height; y++)
+			std::copy_n(&zmap->ZPtr1[y * zmap->Stride], zmap->Width,
+						&DepthUploaded[static_cast<size_t>(y) * zmap->Width]);
+		upload(SDL_Rect{0, 0, zmap->Width, zmap->Height});
 	}
-	SDL_UpdateTexture(DepthTexture, &rect, DepthRows.data(), rect.w * static_cast<int>(sizeof(ColorRgba)));
+	else
+	{
+		ChangedTiles::ForEachRun(zmap->ZPtr1, zmap->Stride, DepthUploaded.data(), zmap->Width, zmap->Height, rect,
+								 upload);
+	}
 	return DepthTexture;
 }

@@ -12,7 +12,8 @@ struct Context
     float glow;
     float z_min;
     float z_scaler;
-    float2 padding;
+    float glow_pulse;
+    float padding;
     float4 up;
     float4 light;
 };
@@ -125,6 +126,6 @@ fragment main0_out main0(main0_in in [[stage_in]], constant Context& context [[b
     main0_out out = {};
     int2 texel = int2(in.v_position.xy);
     float3 color = Lit(context, u_depth, texel, u_texture.read(uint2(texel)).rgb);
-    out.o_color = float4(saturate(color + LimitGlow(context, u_glow.read(uint2(texel)))), 1.0);
+    out.o_color = float4(saturate(color + LimitGlow(context, u_glow.read(uint2(texel)) * context.glow_pulse)), 1.0);
     return out;
 }

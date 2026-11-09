@@ -138,6 +138,7 @@ set(SOURCE_FILES
         SpaceCadetPinball/PostEffect.cpp
         SpaceCadetPinball/PostEffect.h
         SpaceCadetPinball/Compositor.cpp
+        SpaceCadetPinball/ChangedTiles.h
         SpaceCadetPinball/Compositor.h
         SpaceCadetPinball/shaders/PostEffectShaders.h
         SpaceCadetPinball/proj.cpp

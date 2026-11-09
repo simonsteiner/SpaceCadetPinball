@@ -3,7 +3,8 @@
 // keeps its colours and slopes, ramps and rounded parts turn towards or away from the light.
 #include "compositor.frag.hlsli"
 
-// The lamps' glow, added up by glow.frag.hlsl
+// The lamps' glow, added up by glow.frag.hlsl at full strength; the pulse is applied here, so the glow texture is
+// drawn again only when a lamp changes
 [[vk::combinedImageSampler]] Texture2D u_glow : register(t2, space2);
 [[vk::combinedImageSampler]] SamplerState u_glow_sampler : register(s2, space2);
 
@@ -88,6 +89,6 @@ PSOutput main(PSInput input)
     PSOutput output;
     int2 texel = int2(input.v_position.xy);
     float3 color = Lit(texel, u_texture.Load(int3(texel, 0)).rgb);
-    output.o_color = float4(saturate(color + LimitGlow(u_glow.Load(int3(texel, 0)))), 1.0);
+    output.o_color = float4(saturate(color + LimitGlow(u_glow.Load(int3(texel, 0)) * glow_pulse)), 1.0);
     return output;
 }

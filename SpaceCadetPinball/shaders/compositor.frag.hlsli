@@ -13,7 +13,8 @@ cbuffer Context : register(b0, space3)
     float glow;         // How bright the lamps' glow is
     float z_min;
     float z_scaler;
-    float2 padding;
+    float glow_pulse;   // The glows' slow pulse, 0 to 1, which the lighting pass applies to the glow texture
+    float padding;
     float4 up;          // The table's up, and the direction towards the light, as the camera sees them
     float4 light;
 };

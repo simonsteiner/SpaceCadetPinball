@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "Compositor.h"
 
+#include "ChangedTiles.h"
+
 #include "DefinitiveScene.h"
 #include "PostEffect.h"
 #include "proj.h"
@@ -35,9 +37,12 @@ namespace
 		float Glow;
 		float ZMin;
 		float ZScaler;
-		std::array<float, 2> Padding;
+		float GlowPulse;
+		float Padding;
 		std::array<float, 4> Up;
 		std::array<float, 4> Light;
+
+		bool operator==(const PassUniforms&) const = default;
 	};
 
 	// The key light comes from the upper left and from above; the table's x runs from right to left on screen
@@ -51,6 +56,143 @@ namespace
 
 	// A ball's quad reaches this far from its centre, in radii, to hold its shadow
 	constexpr float BallQuadExtent = 1.9f;
+
+	// The composed picture is kept between frames, and a frame composes only the tiles whose inputs changed: the
+	// frame's or the depth map's texels, a lamp's glow, a ball that was drawn there, or the lighting itself. On a
+	// phone the passes over the whole frame were more than half of the GPU's work, for a picture of which a few
+	// percent change from one frame to the next. A tile composed again gets exactly what composing all of it gives.
+	class TileSet
+	{
+	public:
+		void Resize(int width, int height)
+		{
+			Width = width;
+			Height = height;
+			Across = (width + ChangedTiles::Size - 1) / ChangedTiles::Size;
+			Tiles.assign(static_cast<size_t>(Across) * ((height + ChangedTiles::Size - 1) / ChangedTiles::Size), 0);
+			Some = false;
+		}
+
+		bool SizeIs(int width, int height) const
+		{
+			return Width == width && Height == height;
+		}
+
+		bool Any() const
+		{
+			return Some;
+		}
+
+		void Clear()
+		{
+			std::fill(Tiles.begin(), Tiles.end(), static_cast<uint8_t>(0));
+			Some = false;
+		}
+
+		void AddAll()
+		{
+			Add(SDL_Rect{0, 0, Width, Height});
+		}
+
+		// The tiles a rectangle of texels touches
+		void Add(const SDL_Rect& rect)
+		{
+			const SDL_Rect bounds{0, 0, Width, Height};
+			SDL_Rect clipped;
+			if (!SDL_GetRectIntersection(&rect, &bounds, &clipped))
+				return;
+			for (int y = clipped.y / ChangedTiles::Size; y <= (clipped.y + clipped.h - 1) / ChangedTiles::Size; y++)
+			{
+				for (int x = clipped.x / ChangedTiles::Size; x <= (clipped.x + clipped.w - 1) / ChangedTiles::Size; x++)
+					Tiles[static_cast<size_t>(y) * Across + x] = 1;
+			}
+			Some = true;
+		}
+
+		void Add(const TileSet& other)
+		{
+			for (auto i = 0u; i < Tiles.size(); i++)
+				Tiles[i] |= other.Tiles[i];
+			Some = Some || other.Some;
+		}
+
+		// Each row's runs of tiles, as rectangles of texels
+		template <typename Draw> void ForEachRun(Draw&& draw) const
+		{
+			for (int y = 0; Some && static_cast<size_t>(y) * Across < Tiles.size(); y++)
+			{
+				for (int x = 0; x < Across; x++)
+				{
+					if (!Tiles[static_cast<size_t>(y) * Across + x])
+						continue;
+					auto first = x;
+					while (x + 1 < Across && Tiles[static_cast<size_t>(y) * Across + x + 1])
+						x++;
+					SDL_Rect run{first * ChangedTiles::Size, y * ChangedTiles::Size,
+								 (x + 1 - first) * ChangedTiles::Size, ChangedTiles::Size};
+					run.w = std::min(run.w, Width - run.x);
+					run.h = std::min(run.h, Height - run.y);
+					draw(run);
+				}
+			}
+		}
+
+	private:
+		int Width = 0;
+		int Height = 0;
+		int Across = 0;
+		bool Some = false;
+		std::vector<uint8_t> Tiles;
+	};
+
+	// What the kept textures hold: the tiles to draw again this frame, and the scene they were drawn from
+	TileSet StaleTiles, StaleGlowTiles;
+	bool AllStale = true;
+	std::vector<DefinitiveScene::Glow> DrawnGlows;
+	std::vector<SDL_Rect> DrawnBalls;
+	PassUniforms DrawnUniforms{};
+
+	bool Touches(const std::vector<SDL_Rect>& changes, const SDL_Rect& rect)
+	{
+		return std::any_of(changes.begin(), changes.end(),
+						   [&rect](const SDL_Rect& change) { return SDL_HasRectIntersection(&change, &rect); });
+	}
+
+	bool SameGlow(const DefinitiveScene::Glow& a, const DefinitiveScene::Glow& b)
+	{
+		return a.Sprite.x == b.Sprite.x && a.Sprite.y == b.Sprite.y && a.Sprite.w == b.Sprite.w &&
+			   a.Sprite.h == b.Sprite.h && a.Strength == b.Strength;
+	}
+
+	// The texels a rectangle given in fractions of texels covers
+	SDL_Rect Texels(const SDL_FRect& rect)
+	{
+		auto left = static_cast<int>(std::floor(rect.x));
+		auto top = static_cast<int>(std::floor(rect.y));
+		return {left, top, static_cast<int>(std::ceil(rect.x + rect.w)) - left,
+				static_cast<int>(std::ceil(rect.y + rect.h)) - top};
+	}
+
+	// A lamp's sprite in the frame's texels, how far its glow reaches, and the quad the glow is drawn in, which is
+	// far enough out for the glow to have faded
+	struct GlowQuad
+	{
+		SDL_FRect Sprite;
+		float Reach;
+		SDL_FRect Quad;
+	};
+
+	GlowQuad QuadOf(const DefinitiveScene::Glow& glow, float scale)
+	{
+		GlowQuad quad{};
+		quad.Sprite = {glow.Sprite.x * scale, glow.Sprite.y * scale, glow.Sprite.w * scale, glow.Sprite.h * scale};
+		quad.Reach =
+			std::min(GlowReachSize * std::max(glow.Sprite.w, glow.Sprite.h) + GlowReachPixels, GlowReachMax) * scale;
+		auto margin = quad.Reach * 2.5f;
+		quad.Quad = {quad.Sprite.x - margin, quad.Sprite.y - margin, quad.Sprite.w + 2 * margin,
+					 quad.Sprite.h + 2 * margin};
+		return quad;
+	}
 
 	// A direction in the table's coordinates as the camera sees it
 	std::array<float, 4> ToCamera(const mat4_row_major& matrix, const std::array<float, 3>& direction)
@@ -144,7 +286,8 @@ bool Compositor::Available()
 	return ComposeShader && GlowShader && BallShader && DepthSampler;
 }
 
-SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int frameScale, const DefinitiveScene& scene)
+SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int frameScale, const DefinitiveScene& scene,
+								 const std::vector<SDL_Rect>& frameChanges, const std::vector<SDL_Rect>& depthChanges)
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
 	if (!Available() || !frame || !depth || !PrepareTarget(frame) || !PrepareStates(depth))
@@ -162,7 +305,8 @@ SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int fra
 						  GlowBrightness,
 						  camera.ZMin,
 						  camera.ZScaler,
-						  {},
+						  scene.GlowPulse,
+						  0.0f,
 						  {},
 						  {}};
 	uniforms.Up = ToCamera(camera.Matrix, {0, 0, 1});
@@ -171,32 +315,114 @@ SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int fra
 	SDL_SetGPURenderStateFragmentUniforms(GlowState, 0, &uniforms, sizeof uniforms);
 	SDL_SetGPURenderStateFragmentUniforms(BallState, 0, &uniforms, sizeof uniforms);
 
+	// What has to be drawn again. Everything, when the textures are new or the lighting changed
+	auto texelsAcross = static_cast<int>(width);
+	auto texelsDown = static_cast<int>(height);
+	if (!StaleTiles.SizeIs(texelsAcross, texelsDown))
+	{
+		StaleTiles.Resize(texelsAcross, texelsDown);
+		StaleGlowTiles.Resize(texelsAcross, texelsDown);
+		AllStale = true;
+	}
+	auto pulsed = uniforms.GlowPulse != DrawnUniforms.GlowPulse;
+	DrawnUniforms.GlowPulse = uniforms.GlowPulse;
+	if (uniforms != DrawnUniforms)
+		AllStale = true;
+	DrawnUniforms = uniforms;
+
+	auto scale = static_cast<float>(frameScale);
+	if (AllStale)
+	{
+		StaleGlowTiles.AddAll();
+		StaleTiles.AddAll();
+	}
+	else
+	{
+		for (const auto& change : frameChanges)
+			StaleTiles.Add(change);
+		// The lighting takes a texel's slope from its neighbours, one table pixel to each side
+		auto reach = std::max(frameScale, 1);
+		for (const auto& change : depthChanges)
+			StaleTiles.Add(SDL_Rect{change.x - reach, change.y - reach, change.w + 2 * reach, change.h + 2 * reach});
+
+		// A lamp's glow takes its colour from the lamp's texels and is hidden by what stands in front of it, so it is
+		// drawn again when those changed, and when the lamp is new, gone or lit differently
+		for (const auto& glow : DrawnGlows)
+		{
+			if (std::none_of(scene.Glows.begin(), scene.Glows.end(),
+							 [&glow](const DefinitiveScene::Glow& other) { return SameGlow(glow, other); }))
+				StaleGlowTiles.Add(Texels(QuadOf(glow, scale).Quad));
+		}
+		for (const auto& glow : scene.Glows)
+		{
+			auto quad = QuadOf(glow, scale);
+			auto texels = Texels(quad.Quad);
+			if (std::none_of(DrawnGlows.begin(), DrawnGlows.end(),
+							 [&glow](const DefinitiveScene::Glow& other) { return SameGlow(glow, other); }) ||
+				Touches(frameChanges, Texels(quad.Sprite)) || Touches(depthChanges, texels))
+				StaleGlowTiles.Add(texels);
+			// The pulse changes the table wherever a glow falls, but not the glow texture
+			if (pulsed)
+				StaleTiles.Add(texels);
+		}
+		StaleTiles.Add(StaleGlowTiles);
+		// The balls are drawn over the composed table, so the table under the last frame's balls is composed again
+		for (const auto& ball : DrawnBalls)
+			StaleTiles.Add(ball);
+	}
+
 	// Every pass draws in the frame's own texels, so a pass's pixel is the frame's and the depth map's texel. The
 	// glows go first, into their own texture, which the lighting pass adds to the table.
 	Uint8 red;
 	Uint8 green;
 	Uint8 blue;
 	Uint8 alpha;
+	SDL_BlendMode blendMode;
 	SDL_GetRenderDrawColor(Renderer, &red, &green, &blue, &alpha);
+	SDL_GetRenderDrawBlendMode(Renderer, &blendMode);
 	// The window, or the picture Space Cadet 2026 turns for a monitor on its side
 	auto output = SDL_GetRenderTarget(Renderer);
-	SDL_SetRenderTarget(Renderer, GlowTarget);
-	SDL_SetRenderDrawColor(Renderer, 0, 0, 0, 0);
-	SDL_RenderClear(Renderer);
-	SDL_SetRenderDrawColor(Renderer, red, green, blue, alpha);
-	DrawGlows(frame, frameScale, scene);
-	SDL_SetRenderTarget(Renderer, Target);
-	SDL_SetGPURenderState(Renderer, ComposeState);
-	SDL_RenderTexture(Renderer, frame, nullptr, nullptr);
-	DrawBalls(frame, frameScale, scene);
-	SDL_SetGPURenderState(Renderer, nullptr);
+	if (StaleGlowTiles.Any())
+	{
+		SDL_SetRenderTarget(Renderer, GlowTarget);
+		SDL_SetRenderDrawColor(Renderer, 0, 0, 0, 0);
+		SDL_SetRenderDrawBlendMode(Renderer, SDL_BLENDMODE_NONE);
+		DrawGlows(frame, frameScale, scene);
+		SDL_SetRenderClipRect(Renderer, nullptr);
+		SDL_SetRenderDrawColor(Renderer, red, green, blue, alpha);
+		SDL_SetRenderDrawBlendMode(Renderer, blendMode);
+	}
+	auto balls = scene.ShadedBalls && !scene.Balls.empty();
+	if (StaleTiles.Any() || balls)
+	{
+		SDL_SetRenderTarget(Renderer, Target);
+		SDL_SetGPURenderState(Renderer, ComposeState);
+		StaleTiles.ForEachRun(
+			[frame](const SDL_Rect& run)
+			{
+				SDL_FRect part;
+				SDL_RectToFRect(&run, &part);
+				SDL_RenderTexture(Renderer, frame, &part, &part);
+			});
+		DrawBalls(frame, frameScale, scene);
+		SDL_SetGPURenderState(Renderer, nullptr);
+	}
+	if (!balls)
+		DrawnBalls.clear();
 	SDL_SetRenderTarget(Renderer, output);
+
+	DrawnGlows = scene.Glows;
+	StaleTiles.Clear();
+	StaleGlowTiles.Clear();
+	AllStale = false;
 	return Target;
 #else
 	(void)frame;
 	(void)depth;
 	(void)frameScale;
 	(void)scene;
+	(void)frameChanges;
+	(void)depthChanges;
 	return nullptr;
 #endif
 }
@@ -215,6 +441,7 @@ bool Compositor::PrepareTarget(SDL_Texture* frame)
 	{
 		// The states bind the glow texture, and a new one can have the old one's address
 		DestroyStates();
+		AllStale = true;
 		for (auto texture : {&Target, &GlowTarget})
 		{
 			if (*texture)
@@ -295,14 +522,13 @@ void Compositor::DestroyStates()
 	BallState = nullptr;
 	BoundDepth = nullptr;
 	BoundGlow = nullptr;
+	// A new depth texture, or new targets: nothing kept counts any more
+	AllStale = true;
 }
 
 void Compositor::DrawGlows(SDL_Texture* frame, int frameScale, const DefinitiveScene& scene)
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
-	if (scene.Glows.empty())
-		return;
-
 	// One quad per lamp, added up in the glow texture; each vertex carries the lamp's sprite and glow (glow.frag.hlsl)
 	float width;
 	float height;
@@ -314,18 +540,15 @@ void Compositor::DrawGlows(SDL_Texture* frame, int frameScale, const DefinitiveS
 	indices.reserve(scene.Glows.size() * 6);
 	for (const auto& glow : scene.Glows)
 	{
-		SDL_FRect sprite{glow.Sprite.x * scale, glow.Sprite.y * scale, glow.Sprite.w * scale, glow.Sprite.h * scale};
-		auto reach =
-			std::min(GlowReachSize * std::max(glow.Sprite.w, glow.Sprite.h) + GlowReachPixels, GlowReachMax) * scale;
-		// Far enough out for the glow to have faded
-		auto margin = reach * 2.5f;
+		auto quad = QuadOf(glow, scale);
+		const auto& sprite = quad.Sprite;
 		SDL_FColor lamp{sprite.x / width, sprite.y / height, sprite.w / width, sprite.h / height};
 		auto first = static_cast<int>(vertices.size());
 		for (auto corner = 0u; corner < 4; corner++)
 		{
-			auto x = corner & 1u ? sprite.x + sprite.w + margin : sprite.x - margin;
-			auto y = corner & 2u ? sprite.y + sprite.h + margin : sprite.y - margin;
-			vertices.push_back({{x, y}, lamp, {glow.Strength, reach / width}});
+			auto x = corner & 1u ? quad.Quad.x + quad.Quad.w : quad.Quad.x;
+			auto y = corner & 2u ? quad.Quad.y + quad.Quad.h : quad.Quad.y;
+			vertices.push_back({{x, y}, lamp, {glow.Strength, quad.Reach / width}});
 		}
 		for (auto index : {0, 1, 2, 1, 3, 2})
 			indices.push_back(first + index);
@@ -336,9 +559,19 @@ void Compositor::DrawGlows(SDL_Texture* frame, int frameScale, const DefinitiveS
 		SDL_ComposeCustomBlendMode(SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_MAXIMUM,
 								   SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ONE, SDL_BLENDOPERATION_ADD);
 	SDL_SetTextureBlendMode(frame, blend);
-	SDL_SetGPURenderState(Renderer, GlowState);
-	SDL_RenderGeometry(Renderer, frame, vertices.data(), static_cast<int>(vertices.size()), indices.data(),
-					   static_cast<int>(indices.size()));
+	// Each stale part is emptied and gets every glow that reaches into it, cut to it
+	StaleGlowTiles.ForEachRun(
+		[&](const SDL_Rect& run)
+		{
+			SDL_SetRenderClipRect(Renderer, &run);
+			SDL_RenderFillRect(Renderer, nullptr);
+			if (vertices.empty())
+				return;
+			SDL_SetGPURenderState(Renderer, GlowState);
+			SDL_RenderGeometry(Renderer, frame, vertices.data(), static_cast<int>(vertices.size()), indices.data(),
+							   static_cast<int>(indices.size()));
+			SDL_SetGPURenderState(Renderer, nullptr);
+		});
 	SDL_SetTextureBlendMode(frame, SDL_BLENDMODE_NONE);
 #else
 	(void)frame;
@@ -360,11 +593,13 @@ void Compositor::DrawBalls(SDL_Texture* frame, int frameScale, const DefinitiveS
 	auto scale = static_cast<float>(frameScale);
 	std::vector<SDL_Vertex> vertices;
 	std::vector<int> indices;
+	DrawnBalls.clear();
 	for (const auto& ball : scene.Balls)
 	{
 		auto radius = ball.Radius * scale;
 		auto reach = radius * BallQuadExtent;
 		SDL_FPoint center{ball.Center.x * scale, ball.Center.y * scale};
+		DrawnBalls.push_back(Texels(SDL_FRect{center.x - reach, center.y - reach, 2 * reach, 2 * reach}));
 		SDL_FColor data{static_cast<float>(ball.Depth) / 0xFFFF, radius / width, 0, 1};
 		auto first = static_cast<int>(vertices.size());
 		for (auto corner = 0u; corner < 4; corner++)

@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "gdrv.h"
 
+#include "ChangedTiles.h"
+
 #include "GroupData.h"
 #include "partman.h"
 #include "pb.h"
@@ -169,55 +171,31 @@ void gdrv_bitmap8::BlitToTexture()
 	Uploaded.clear();
 }
 
-void gdrv_bitmap8::BlitChangesToTexture()
+void gdrv_bitmap8::BlitChangesToTexture(std::vector<SDL_Rect>* changes)
 {
 	// Between two frames little of the table changes: lights, flippers, the score. Uploading all of it every frame
 	// took 5 to 7 ms of a phone's frame at twice the original size, and a quarter of its GPU's work. So the frame is
-	// compared with a copy of what the texture holds, tile by tile, and each row of tiles uploads its changed runs.
+	// compared with a copy of what the texture holds, and only the changed tiles are uploaded.
 	assertm(Texture, "Updating null texture");
-	constexpr int Tile = 64;
 	const auto pitch = static_cast<int>(Width * sizeof(ColorRgba));
+	const SDL_Rect all{0, 0, Width, Height};
 	if (Uploaded.size() != static_cast<size_t>(Width) * Height)
 	{
 		Uploaded.assign(BmpBufPtr1, BmpBufPtr1 + static_cast<size_t>(Width) * Height);
 		SDL_UpdateTexture(Texture, nullptr, BmpBufPtr1, pitch);
+		if (changes)
+			changes->push_back(all);
 		return;
 	}
 
-	for (int tileY = 0; tileY < Height; tileY += Tile)
-	{
-		const auto rows = std::min(Tile, Height - tileY);
-		auto runStart = -1;
-		// One step past the last tile, to end a run that reaches the right edge
-		for (int tileX = 0; tileX < Width + Tile; tileX += Tile)
-		{
-			auto changed = false;
-			const auto columns = std::min(Tile, Width - tileX);
-			for (int y = tileY; columns > 0 && y < tileY + rows && !changed; y++)
-			{
-				const auto offset = static_cast<size_t>(y) * Width + tileX;
-				changed = std::memcmp(&BmpBufPtr1[offset], &Uploaded[offset], columns * sizeof(ColorRgba)) != 0;
-			}
-			if (changed)
-			{
-				if (runStart < 0)
-					runStart = tileX;
-				continue;
-			}
-			if (runStart < 0)
-				continue;
-
-			const SDL_Rect run{runStart, tileY, std::min(tileX, Width) - runStart, rows};
-			const auto first = static_cast<size_t>(run.y) * Width + run.x;
-			SDL_UpdateTexture(Texture, &run, &BmpBufPtr1[first], pitch);
-			for (int y = 0; y < run.h; y++)
-			{
-				const auto offset = first + static_cast<size_t>(y) * Width;
-				std::memcpy(&Uploaded[offset], &BmpBufPtr1[offset], run.w * sizeof(ColorRgba));
-			}
-			runStart = -1;
-		}
-	}
+	ChangedTiles::ForEachRun(BmpBufPtr1, Width, Uploaded.data(), Width, Height, all,
+							 [&](const SDL_Rect& run)
+							 {
+								 SDL_UpdateTexture(Texture, &run,
+												   &BmpBufPtr1[static_cast<size_t>(run.y) * Width + run.x], pitch);
+								 if (changes)
+									 changes->push_back(run);
+							 });
 }
 
 int gdrv::display_palette(ColorRgba* plt)

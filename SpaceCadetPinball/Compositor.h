@@ -16,8 +16,11 @@ public:
 	static bool Available();
 	// Composes the frame with its depth map, both frameScale texels per table pixel; the depth map holds each pixel's
 	// depth, 0 to 0xFFFF, in red (the high byte) and green. Returns the composed texture, or null if it couldn't
-	// compose, in which case the frame should be drawn as it is.
-	static SDL_Texture* Compose(SDL_Texture* frame, SDL_Texture* depth, int frameScale, const DefinitiveScene& scene);
+	// compose, in which case the frame should be drawn as it is. The composed texture is kept from call to call, and
+	// only the tiles whose inputs changed are composed again: frameChanges and depthChanges hold every part of the two
+	// textures that changed since the last call that returned a texture.
+	static SDL_Texture* Compose(SDL_Texture* frame, SDL_Texture* depth, int frameScale, const DefinitiveScene& scene,
+								const std::vector<SDL_Rect>& frameChanges, const std::vector<SDL_Rect>& depthChanges);
 	// Lets go of the depth texture Compose was given; call before destroying it, since a new texture can have the same
 	// address
 	static void ForgetDepth();
@@ -41,6 +44,7 @@ private:
 	static bool PrepareTarget(SDL_Texture* frame);
 	static bool PrepareStates(SDL_Texture* depth);
 	static void DestroyStates();
+	// The lamps' glows, into the stale tiles of the glow texture
 	static void DrawGlows(SDL_Texture* frame, int frameScale, const DefinitiveScene& scene);
 	static void DrawBalls(SDL_Texture* frame, int frameScale, const DefinitiveScene& scene);
 };
