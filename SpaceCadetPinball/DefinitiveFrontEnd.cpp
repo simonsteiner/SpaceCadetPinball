@@ -762,6 +762,29 @@ SDL_native_midi, MMPX)");
 	EndColumn();
 }
 
+void DefinitiveFrontEnd::RenderLoading()
+{
+	Ui::NewFrame();
+	// The whole window in the colour of the screens, the game's name and year in the middle, and what is happening
+	auto viewport = ImGui::GetMainViewport();
+	ImGui::GetBackgroundDrawList()->AddRectFilled(
+		viewport->Pos, ImVec2{viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y}, Theme::Space950);
+	// Upright, as large as the title that follows it, which grows to the window's width
+	const auto& safe = Ui::SafeArea();
+	if (safe.Size.y > safe.Size.x)
+		Ui::SetScale(safe.Size.x / 500);
+	auto scale = Ui::Scale();
+	auto name = Theme::HeadingFont()->CalcTextSizeA(Theme::DisplaySize * scale, FLT_MAX, 0, "Space Cadet");
+	auto height = name.y + (14 + 40 + 32) * scale + Ui::TextSize(Theme::TextFont(), Theme::BodySize, "Ag").y;
+	ImVec2 origin{safe.Pos.x + (safe.Size.x - name.x) / 2, safe.Pos.y + (safe.Size.y - height) / 2};
+	auto drawList = ImGui::GetForegroundDrawList();
+	drawList->AddText(Theme::HeadingFont(), Theme::DisplaySize * scale, origin, Theme::Chrome50, "Space Cadet");
+	Theme::DrawLed(drawList, ImVec2{origin.x + 2 * scale, origin.y + name.y + 14 * scale}, 40 * scale, "2026");
+	Ui::DrawText(drawList, Theme::TextFont(), Theme::BodySize,
+				 ImVec2{origin.x + 2 * scale, origin.y + name.y + (14 + 40 + 32) * scale}, Theme::Chrome400,
+				 Text(Msg::Definitive_Loading));
+}
+
 void DefinitiveFrontEnd::RenderMissingData(const std::vector<std::string>& looked, bool chosenFolderFailed)
 {
 	const auto* viewport = &Ui::SafeArea();

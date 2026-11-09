@@ -802,6 +802,18 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		ImGui_ImplSDL3_InitForSDLRenderer(window, Renderer);
 		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
 		DefinitiveFrontEnd::SetHost(MakeDefinitiveHost());
+		// The music's SoundFont and the table take seconds to load on a phone, which would show a black screen
+		// meanwhile. The window waits hidden for the table to size it, and SDL draws nothing into a hidden window;
+		// where the window is the whole screen anyway, it shows now. A replay plays without a window.
+		auto loadingScreen =
+			options::GetEdition() == Editions::Definitive && !replay::IsPlaying() && !fullscrn::WindowSizable;
+		if (loadingScreen)
+		{
+			ShowMainWindow();
+			// The window gets the screen's size only from the events SDL takes in here; they stay queued for the game
+			SDL_PumpEvents();
+			PresentScreen(DefinitiveFrontEnd::RenderLoading);
+		}
 
 		// Data search order: WD, executable path, user pref path, platform specific paths.
 		std::vector<const char*> searchPaths
@@ -859,6 +871,12 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		// and clearing it here would persist Music=0 after a -noaudio or -quick run.
 		midi::music_init(mixer, Options.MusicVolume);
 
+		// Again before the table loads, in case the window's size came only after the first frame
+		if (loadingScreen)
+		{
+			SDL_PumpEvents();
+			PresentScreen(DefinitiveFrontEnd::RenderLoading);
+		}
 		if (pb::init())
 		{
 #ifndef __EMSCRIPTEN__
@@ -2310,22 +2328,27 @@ bool winmain::FindGameData(const std::vector<const char*>& searchPaths)
 		if (TakeChosenFolder())
 			return true;
 
-		ImGui_ImplSDLRenderer3_NewFrame();
-		ImGui_ImplSDL3_NewFrame();
-		// This screen is never turned, whatever the Rotation option says
-		SetSafeArea(false);
-		ApplyEditionLook();
-		ImGui::NewFrame();
-		DefinitiveFrontEnd::RenderMissingData(looked, ChosenFolderEmpty);
-		ImGui::Render();
-		SDL_RenderClear(Renderer);
-		auto fbScale = ImIO->DisplayFramebufferScale;
-		SDL_SetRenderScale(Renderer, fbScale.x, fbScale.y);
-		ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), Renderer);
-		SDL_SetRenderScale(Renderer, 1.0f, 1.0f);
-		SDL_RenderPresent(Renderer);
+		PresentScreen([&looked] { DefinitiveFrontEnd::RenderMissingData(looked, ChosenFolderEmpty); });
 		SDL_Delay(16);
 	}
+}
+
+void winmain::PresentScreen(const std::function<void()>& render)
+{
+	ImGui_ImplSDLRenderer3_NewFrame();
+	ImGui_ImplSDL3_NewFrame();
+	// These screens are never turned, whatever the Rotation option says
+	SetSafeArea(false);
+	ApplyEditionLook();
+	ImGui::NewFrame();
+	render();
+	ImGui::Render();
+	SDL_RenderClear(Renderer);
+	auto fbScale = ImIO->DisplayFramebufferScale;
+	SDL_SetRenderScale(Renderer, fbScale.x, fbScale.y);
+	ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), Renderer);
+	SDL_SetRenderScale(Renderer, 1.0f, 1.0f);
+	SDL_RenderPresent(Renderer);
 }
 
 bool winmain::DefinitivePause()

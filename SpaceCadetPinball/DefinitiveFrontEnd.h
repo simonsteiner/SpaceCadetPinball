@@ -152,6 +152,8 @@ public:
 	static void ShowTables();
 	// The bar of a recording that plays, which stays until the player goes back to the title
 	static void ShowViewer();
+	// The loading screen, drawn once while the table, its sounds and the music load, which takes seconds on a phone
+	static void RenderLoading();
 	// The first-run screen when no game data was found: where it looked and a way to choose the folder; the game
 	// runs it in place of the table until a folder is chosen or the player quits
 	static void RenderMissingData(const std::vector<std::string>& looked, bool chosenFolderFailed);
