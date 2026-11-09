@@ -26,8 +26,8 @@ struct DefinitiveHost
 	void (*StartDemo)();
 	// Null where the game can't end itself, as in a browser tab
 	void (*Quit)();
-	// Whether the title and the missing-data screen have an Exit row; not on Android, which closes apps itself. The
-	// exit question still quits there, after Back on the title.
+	// Whether the title and the missing-data screen have an Exit row; not on Android, which closes apps itself. Back
+	// still quits there: after the exit question on the title, at once on the missing-data screen.
 	bool QuitInMenus = true;
 	std::vector<Record> (*Records)();
 	void (*ClearRecords)();

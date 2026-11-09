@@ -780,10 +780,13 @@ void DefinitiveFrontEnd::RenderMissingData(const std::vector<std::string>& looke
 	opened = false;
 	auto width = BeginColumn("##DefinitiveMissingData", 680);
 	// No game runs behind this screen to take Escape to its Exit binding, as on the title; Back lights Exit instead,
-	// over the first row that ImGui's cancel would light
+	// over the first row that ImGui's cancel would light. Without the Exit row, as on Android, Back quits, as it leaves
+	// an app's first screen there.
 	auto back = BackPressed() && QuitRow();
 	if (back)
 		Ui::TakeFocusRequest();
+	else if (BackPressed() && Host.Quit && !Host.QuitInMenus)
+		Host.Quit();
 	auto drawList = ImGui::GetWindowDrawList();
 	auto margin = 48 * scale;
 	auto inner = width - margin - 32 * scale;

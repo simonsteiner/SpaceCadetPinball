@@ -442,7 +442,7 @@ static DefinitiveHost MakeDefinitiveHost()
 	};
 #endif
 #ifdef __ANDROID__
-	// Android closes apps itself; Back on the title still asks and quits
+	// Android closes apps itself; Back on the title still asks and quits, and Back on the missing-data screen quits
 	host.QuitInMenus = false;
 #endif
 	host.Records = []
