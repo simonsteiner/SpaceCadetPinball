@@ -115,9 +115,9 @@ ImVec2 DefinitiveFrontEnd::BeginCentred(const char* name, ImVec2 size)
 
 	// The veil dims the game under every window, the bars and the cutout too; the panel sits in the safe area
 	auto whole = ImGui::GetMainViewport();
-	ImGui::GetBackgroundDrawList()->AddRectFilled(
-		whole->Pos, ImVec2{whole->Pos.x + whole->Size.x, whole->Pos.y + whole->Size.y},
-		Theme::WithAlpha(Theme::Space950, 0.55f));
+	ImGui::GetBackgroundDrawList()->AddRectFilled(whole->Pos,
+												  ImVec2{whole->Pos.x + whole->Size.x, whole->Pos.y + whole->Size.y},
+												  Theme::WithAlpha(Theme::Space950, 0.55f));
 	ImGui::SetNextWindowPos(min);
 	ImGui::SetNextWindowSize(scaled);
 	if (Opened || (!ImGui::GetTopMostPopupModal() && !GImGui->NavWindow))
