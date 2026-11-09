@@ -355,25 +355,22 @@ void options::toggle(Menu1 uIDCheckItem)
 	{
 	case Menu1::Sounds:
 		Options.Sounds ^= true;
-		Sound::Enable(Options.Sounds);
+		Apply(Options.Sounds);
 		return;
 	case Menu1::SoundStereo:
 		Options.SoundStereo ^= true;
 		return;
 	case Menu1::Music:
 		Options.Music ^= true;
-		if (!Options.Music)
-			midi::music_stop();
-		else
-			midi::music_play();
+		Apply(Options.Music);
 		return;
 	case Menu1::Show_Menu:
 		Options.ShowMenu ^= true;
-		fullscrn::window_size_changed();
+		Apply(Options.ShowMenu);
 		return;
 	case Menu1::Full_Screen:
 		Options.FullScreen ^= true;
-		fullscrn::set_screen_mode(Options.FullScreen);
+		Apply(Options.FullScreen);
 		return;
 	case Menu1::OnePlayer:
 	case Menu1::TwoPlayers:
@@ -407,34 +404,79 @@ void options::toggle(Menu1 uIDCheckItem)
 		}
 	case Menu1::WindowUniformScale:
 		Options.UniformScaling ^= true;
-		fullscrn::window_size_changed();
+		Apply(Options.UniformScaling);
 		break;
 	case Menu1::WindowLinearFilter:
 		Options.LinearFiltering ^= true;
-		render::recreate_screen_texture();
+		Apply(Options.LinearFiltering);
 		break;
 	case Menu1::Prefer3DPBGameData:
 		Options.Prefer3DPBGameData ^= true;
-		winmain::Restart();
+		Apply(Options.Prefer3DPBGameData);
 		break;
 	case Menu1::WindowIntegerScale:
 		Options.IntegerScaling ^= true;
-		fullscrn::window_size_changed();
+		Apply(Options.IntegerScaling);
 		break;
 	case Menu1::WindowBackdrop:
 		Options.Backdrop ^= true;
 		break;
 	case Menu1::WindowUpscaledArt:
 		Options.UpscaledArt ^= true;
-		render::SetUpscale(Options.UpscaledArt ? Options.UpscaleFactor.V : 0);
+		Apply(Options.UpscaledArt);
 		break;
 	case Menu1::WindowStackedLayout:
 		Options.StackedLayout ^= true;
-		fullscrn::window_size_changed();
+		Apply(Options.StackedLayout);
 		break;
 	default:
 		break;
 	}
+}
+
+void options::Apply(const OptionBase& option)
+{
+	const auto is = [&option](const OptionBase& other) { return &option == &other; };
+	if (is(Options.Sounds))
+		Sound::Enable(Options.Sounds);
+	else if (is(Options.Music))
+	{
+		if (!Options.Music)
+			midi::music_stop();
+		else
+			midi::music_play();
+	}
+	else if (is(Options.SoundVolume))
+		Sound::SetVolume(Options.SoundVolume);
+	else if (is(Options.SoundChannels))
+		Sound::SetChannels(Options.SoundChannels);
+	else if (is(Options.MusicVolume))
+		midi::SetVolume(Options.MusicVolume);
+	else if (is(Options.SoundPack))
+		Sound::SetPack(Options.SoundPack.V);
+	else if (is(Options.FullScreen))
+		fullscrn::set_screen_mode(Options.FullScreen);
+	else if (is(Options.ShowMenu) || is(Options.UniformScaling) || is(Options.IntegerScaling) ||
+			 is(Options.StackedLayout) || is(Options.TouchControls))
+		fullscrn::window_size_changed();
+	else if (is(Options.LinearFiltering))
+		render::recreate_screen_texture();
+	else if (is(Options.UpscaledArt) || is(Options.UpscaleFactor))
+		render::SetUpscale(Options.UpscaledArt ? Options.UpscaleFactor.V : 0);
+	else if (is(Options.PostProcessing))
+		// The GPU renderer switches effects on the fly; without it the option is only saved
+		PostEffect::SetEffect(static_cast<PostEffects>(Options.PostProcessing.V));
+	else if (is(Options.FramesPerSecond) || is(Options.UpdatesPerSecond) || is(Options.MatchRefreshRate))
+		winmain::UpdateFrameRate();
+	else if (is(Options.HybridSleep))
+		winmain::ResetPreciseSleep();
+	else if (is(Options.Language))
+	{
+		translations::SetCurrentLanguage(Options.Language.V.c_str());
+		winmain::Restart();
+	}
+	else if (is(Options.Prefer3DPBGameData))
+		winmain::Restart();
 }
 
 void options::InputDown(GameInput input)
@@ -602,9 +644,9 @@ void options::SetEdition(Editions edition)
 	DefinitiveEdition::Reset();
 
 	// What toggling each drawing option that differs would do
-	render::SetUpscale(Options.UpscaledArt ? Options.UpscaleFactor.V : 0);
+	Apply(Options.UpscaledArt);
 	if (Options.LinearFiltering != linearFiltering)
-		render::recreate_screen_texture();
+		Apply(Options.LinearFiltering);
 	fullscrn::window_size_changed();
 }
 

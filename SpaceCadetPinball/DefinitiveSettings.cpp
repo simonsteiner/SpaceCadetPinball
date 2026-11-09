@@ -142,7 +142,7 @@ bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 		ImGui::SetScrollY(0);
 	ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - (ImGui::GetScrollMaxY() > 0 ? 12 * scale : 0));
 	if (Languages)
-		RenderLanguages(host, Languages != ShownLanguages);
+		RenderLanguages(Languages != ShownLanguages);
 	else
 	{
 		switch (Current)
@@ -255,10 +255,10 @@ void DefinitiveSettings::RenderEdition(const DefinitiveHost& host, bool gameRunn
 	Ui::NextRowNote(Text(gameRunning ? Msg::Definitive_EndsGame : Msg::Definitive_Restarts));
 	if (Ui::ToggleRow("prefer3dpb", Text(Msg::Definitive_Prefer3DPB), options::Options.Prefer3DPBGameData) &&
 		!Ui::RowStep())
-		options::toggle(Menu1::Prefer3DPBGameData);
+		options::Set(options::Options.Prefer3DPBGameData, !options::Options.Prefer3DPBGameData);
 }
 
-void DefinitiveSettings::RenderLanguages(const DefinitiveHost& host, bool opened)
+void DefinitiveSettings::RenderLanguages(bool opened)
 {
 	// The list opens on the language in use
 	auto current = translations::GetCurrentLanguage();
@@ -272,8 +272,8 @@ void DefinitiveSettings::RenderLanguages(const DefinitiveHost& host, bool opened
 		ImGui::PushID(language.ShortName);
 		// The language in use is marked; choosing another restarts the game in it
 		if (Ui::MenuRow("language", language.DisplayName, false, &language == current ? "\xE2\x80\xA2" : nullptr) &&
-			&language != current && host.SetLanguage)
-			host.SetLanguage(language.ShortName);
+			&language != current)
+			options::Set(options::Options.Language, language.ShortName);
 		ImGui::PopID();
 	}
 }
@@ -283,7 +283,7 @@ void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunn
 {
 	auto& options = options::Options;
 	if (Ui::ToggleRow("fullscreen", Text(Msg::Menu1_Full_Screen), options.FullScreen))
-		options::toggle(Menu1::Full_Screen);
+		options::Set(options.FullScreen, !options.FullScreen);
 
 	// Full Tilt's art comes in three sizes; changing it reloads the table, so only choosing the row does
 	auto maxResolution = host.MaxResolution ? host.MaxResolution() : 0;
@@ -302,11 +302,11 @@ void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunn
 	}
 
 	if (Ui::ToggleRow("uniform", Text(Msg::Menu1_WindowUniformScale), options.UniformScaling))
-		options::toggle(Menu1::WindowUniformScale);
+		options::Set(options.UniformScaling, !options.UniformScaling);
 	if (Ui::ToggleRow("integer", Text(Msg::Definitive_IntegerScaling), options.IntegerScaling))
-		options::toggle(Menu1::WindowIntegerScale);
+		options::Set(options.IntegerScaling, !options.IntegerScaling);
 	if (Ui::ToggleRow("stacked", Text(Msg::Definitive_StackedLayout), options.StackedLayout, options.UniformScaling))
-		options::toggle(Menu1::WindowStackedLayout);
+		options::Set(options.StackedLayout, !options.StackedLayout);
 	// For a cabinet's monitor on its side; a window taller than wide then puts the HUD under the table
 	Ui::NextRowNote(Text(Msg::Definitive_RotationNote));
 	if (auto rotation =
@@ -316,42 +316,32 @@ void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunn
 	// Only where there is a touch screen to use it on
 	int touchDevices = 0;
 	SDL_free(SDL_GetTouchDevices(&touchDevices));
-	if (touchDevices > 0 && host.SetTouchControls)
+	if (touchDevices > 0)
 	{
 		if (auto controls = Ui::ChoiceRow("touch", Text(Msg::Definitive_TouchControls),
 										  {Text(Msg::Definitive_TouchTable), Text(Msg::Definitive_TouchDeck)},
 										  options.TouchControls);
 			controls != options.TouchControls)
-			host.SetTouchControls(controls);
+			options::Set(options.TouchControls, controls);
 	}
 
-	auto rateChanged = false;
 	if (Ui::ToggleRow("match", Text(Msg::Definitive_MatchRefresh), options.MatchRefreshRate))
-	{
-		options.MatchRefreshRate ^= true;
-		rateChanged = true;
-	}
+		options::Set(options.MatchRefreshRate, !options.MatchRefreshRate);
 	if (!options.MatchRefreshRate)
 	{
 		auto fps = Ui::SliderRow("fps", Text(Msg::Definitive_Fps), options.FramesPerSecond, options::MinFps,
 								 options::MaxFps, 10);
-		rateChanged |= fps != options.FramesPerSecond;
-		options.FramesPerSecond = fps;
+		if (fps != options.FramesPerSecond)
+			options::Set(options.FramesPerSecond, fps);
 	}
 	auto ups =
 		Ui::SliderRow("ups", Text(Msg::Definitive_Ups), options.UpdatesPerSecond, options::MinUps, options::MaxUps, 10);
-	rateChanged |= ups != options.UpdatesPerSecond;
-	options.UpdatesPerSecond = ups;
-	if (rateChanged && host.FrameRateChanged)
-		host.FrameRateChanged();
+	if (ups != options.UpdatesPerSecond)
+		options::Set(options.UpdatesPerSecond, ups);
 	if (Ui::ToggleRow("uncapped", Text(Msg::Definitive_Uncapped), options.UncappedUpdatesPerSecond))
 		options.UncappedUpdatesPerSecond ^= true;
 	if (Ui::ToggleRow("sleep", Text(Msg::Definitive_PreciseSleep), options.HybridSleep))
-	{
-		options.HybridSleep ^= true;
-		if (host.PreciseSleepChanged)
-			host.PreciseSleepChanged();
-	}
+		options::Set(options.HybridSleep, !options.HybridSleep);
 	if (Ui::ToggleRow("cursor", Text(Msg::Definitive_HideCursor), options.HideCursor))
 		options.HideCursor ^= true;
 }
@@ -360,18 +350,18 @@ void DefinitiveSettings::RenderGraphics(const DefinitiveHost& host)
 {
 	auto& options = options::Options;
 	if (Ui::ToggleRow("upscaled", Text(Msg::Menu1_ToggleUpscaledArt), options.UpscaledArt))
-		options::toggle(Menu1::WindowUpscaledArt);
+		options::Set(options.UpscaledArt, !options.UpscaledArt);
 	auto factor = options.UpscaleFactor == 4 ? 1 : 0;
 	auto chosen = Ui::ChoiceRow("factor", Text(Msg::Definitive_UpscaleSize), {"2x", "4x"}, factor, options.UpscaledArt);
-	if (chosen != factor && host.SetUpscaleFactor)
-		host.SetUpscaleFactor(chosen ? 4 : 2);
+	if (chosen != factor)
+		options::Set(options.UpscaleFactor, chosen ? 4 : 2);
 	if (Ui::ToggleRow("backdrop", Text(Msg::Definitive_Backdrop), options.Backdrop))
-		options::toggle(Menu1::WindowBackdrop);
+		options::Set(options.Backdrop, !options.Backdrop);
 	Ui::NextRowNote(Text(Msg::Definitive_PanelArtNote));
 	if (Ui::ToggleRow("panelart", Text(Msg::Definitive_PanelArt), options.PanelArt))
 		options.PanelArt = !options.PanelArt;
 	if (Ui::ToggleRow("filtering", Text(Msg::Definitive_LinearFiltering), options.LinearFiltering))
-		options::toggle(Menu1::WindowLinearFilter);
+		options::Set(options.LinearFiltering, !options.LinearFiltering);
 
 	// The compositor's effects and the post effect need SDL's GPU renderer; without it the choices are kept for when it
 	// is there
@@ -396,8 +386,8 @@ void DefinitiveSettings::RenderGraphics(const DefinitiveHost& host)
 	auto chosenEffect = Ui::ChoiceRow(
 		"effect", Text(Msg::Definitive_PostProcessing),
 		{Text(Msg::Definitive_None), Text(Msg::Definitive_Crt), Text(Msg::Definitive_SmoothEdges)}, effect);
-	if (chosenEffect != effect && host.SetPostProcessing)
-		host.SetPostProcessing(chosenEffect);
+	if (chosenEffect != effect)
+		options::Set(options.PostProcessing, chosenEffect);
 
 	// A font for the text the built-in fonts lack, such as Chinese, Japanese and Korean; the row shows its file name
 	const auto& font = options.FontFileName.V;
@@ -413,24 +403,24 @@ void DefinitiveSettings::RenderAudio(const DefinitiveHost& host)
 {
 	auto& options = options::Options;
 	if (Ui::ToggleRow("sounds", Text(Msg::Menu1_Sounds), options.Sounds))
-		options::toggle(Menu1::Sounds);
+		options::Set(options.Sounds, !options.Sounds);
 	auto volume = Ui::SliderRow("soundvolume", Text(Msg::Definitive_SoundVolume), ToPercent(options.SoundVolume), 0,
 								100, 5, "%d%%");
-	if (volume != ToPercent(options.SoundVolume) && host.SetSoundVolume)
-		host.SetSoundVolume(FromPercent(volume));
+	if (volume != ToPercent(options.SoundVolume))
+		options::Set(options.SoundVolume, FromPercent(volume));
 	if (Ui::ToggleRow("stereo", Text(Msg::Definitive_Stereo), options.SoundStereo))
-		options::toggle(Menu1::SoundStereo);
+		options::Set(options.SoundStereo, !options.SoundStereo);
 	auto channels = Ui::SliderRow("channels", Text(Msg::Definitive_SoundChannels), options.SoundChannels,
 								  options::MinSoundChannels, options::MaxSoundChannels, 1);
-	if (channels != options.SoundChannels && host.SetSoundChannels)
-		host.SetSoundChannels(channels);
+	if (channels != options.SoundChannels)
+		options::Set(options.SoundChannels, channels);
 
 	if (Ui::ToggleRow("music", Text(Msg::Menu1_Music), options.Music))
-		options::toggle(Menu1::Music);
+		options::Set(options.Music, !options.Music);
 	auto music = Ui::SliderRow("musicvolume", Text(Msg::Definitive_MusicVolume), ToPercent(options.MusicVolume), 0, 100,
 							   5, "%d%%");
-	if (ToPercent(options.MusicVolume) != music && host.SetMusicVolume)
-		host.SetMusicVolume(FromPercent(music));
+	if (ToPercent(options.MusicVolume) != music)
+		options::Set(options.MusicVolume, FromPercent(music));
 
 	// Space Cadet 2026's own, on the sound effects only
 	Ui::NextRowNote(Text(Msg::Definitive_RoomReverbNote));
@@ -442,7 +432,7 @@ void DefinitiveSettings::RenderAudio(const DefinitiveHost& host)
 		options.WideStereo = !options.WideStereo;
 
 	// The packs found, after None; choosing the row or right steps on, left steps back
-	if (!host.SoundPacks || !host.SetSoundPack)
+	if (!host.SoundPacks)
 		return;
 	if (!PacksRead)
 	{
@@ -462,7 +452,7 @@ void DefinitiveSettings::RenderAudio(const DefinitiveHost& host)
 	if (step)
 	{
 		auto count = static_cast<long>(packs.size());
-		host.SetSoundPack(packs[(current + step + count) % count]);
+		options::Set(options.SoundPack, packs[(current + step + count) % count]);
 	}
 }
 

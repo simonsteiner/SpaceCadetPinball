@@ -7,7 +7,8 @@ struct DefinitiveHost;
 struct GameInput;
 
 // Space Cadet 2026's Settings: a panel on the left with the groups as tabs, so the table shows each change behind it.
-// Every setting writes the option the Classic menus write, through the same setters.
+// Every setting writes the option the Classic menus write; one with a side effect goes through options::Set, which
+// runs it.
 class DefinitiveSettings
 {
 public:
@@ -38,7 +39,7 @@ private:
 	static bool PacksRead;
 
 	static void RenderEdition(const DefinitiveHost& host, bool gameRunning);
-	static void RenderLanguages(const DefinitiveHost& host, bool opened);
+	static void RenderLanguages(bool opened);
 	static void RenderDisplay(const DefinitiveHost& host, bool gameRunning);
 	static void RenderGraphics(const DefinitiveHost& host);
 	static void RenderAudio(const DefinitiveHost& host);
