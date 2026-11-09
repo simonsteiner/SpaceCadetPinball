@@ -269,8 +269,11 @@ void TouchControls::FingerDown(const FingerKey& key, const SDL_FPoint& position)
 	SDL_Point point{static_cast<int>(position.x), static_cast<int>(position.y)};
 	if (SDL_PointInRect(&point, &Rects.Pause))
 	{
-		// The pause binding itself: a made-up Escape would reach the pause screen in the frame it opens and close it
+		// The pause binding itself: a made-up Escape would reach the pause screen in the frame it opens and close it.
+		// SDL reports the tap as a click too, which the pause screen would take as a tap on the game and resume.
 		winmain::HandleGameBinding(GameBindings::TogglePause, true);
+		if (DefinitiveFrontEnd::ScreenOpen())
+			DefinitiveFrontEnd::SwallowPauseTap();
 		return;
 	}
 	GameBindings binding;

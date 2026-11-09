@@ -157,6 +157,8 @@ public:
 	static void RenderMissingData(const std::vector<std::string>& looked, bool chosenFolderFailed);
 	// The pause key: the pause screen, or back to the game from it and from Settings opened there
 	static void TogglePause();
+	// The pause key comes from a tap, whose click the pause screen that opens mustn't take as a tap on the game
+	static void SwallowPauseTap();
 	// Whether a screen is open, rather than the game in play
 	static bool ScreenOpen();
 	// Whether a key the game binds to a shortcut should still reach the game although a screen has the keyboard: while
