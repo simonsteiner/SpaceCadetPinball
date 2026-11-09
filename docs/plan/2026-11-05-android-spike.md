@@ -78,7 +78,25 @@ Measured on the Galaxy A54 (SM-A546B, Exynos 1380, Mali-G68, Android 16, 1080×2
 Three pull requests follow from it:
 
 1. **The SoundFont loads on a thread of its own.** `midi::music_init` used to decode every Vorbis sample of `FluidR3Mono_GM.sf3` on the main thread before the table loaded (`tsf_load_memory`; 0.9 s on the PC, about 6 s on the phone). Now a thread loads it once per process; the table and the menu come up meanwhile, and `midi::music_update`, once a frame, starts the track that was asked for when the synth is ready. The synth outlives `midi::music_shutdown`, so changing the table or the edition no longer loads the SoundFont again, and a restart during the load doesn't wait for it. Quitting during the load still waits for it to end, after the window has closed. The web build has no threads and loads as before. Two log lines help measuring: `First frame … ms after start` and the load time on the `Playing music with SoundFont` line. On the PC the first frame comes after 0.25 s instead of 1.2 s. On the A54 it comes 1.2 to 1.5 s after the launch instead of about 6.4 s (three cold starts of `581a718`). The load itself takes longer beside the running game, 7.5 to 8.5 s instead of 5.4 to 6.2 s, so the music starts 8.5 to 9.5 s after the launch, 2 to 3 s later than before; a higher priority for the thread didn't change that (7.1 to 7.5 s), so it stays as it is until the third pull request cuts the decoding. Memory is unchanged, 563 MB PSS with 376 MB native heap.
-2. **The frame rate:** not done yet.
+2. **The frame rate.** A diagnostic build (never merged) logged each frame's sections and switched single passes off over `adb shell setprop`. GPU work per frame is the GPU's busy share times its clock times the frame time, in million clock cycles (Mcyc), because the A54 keeps changing its GPU clock between 221 and 650 MHz. At 2x art (a 1200×832 frame on the 1080×2340 screen), before the change:
+
+   | What | fps | GPU work per frame | Upload on the main thread |
+   | --- | --- | --- | --- |
+   | Title with the demo | 38 to 41 | 7.1 Mcyc | 7 ms |
+   | A game | 43 to 57 | 6.0 to 6.3 Mcyc | 5 to 7 ms |
+   | Without the compositor's passes | 59 to 60 | 3.1 (title), 2.6 (game) | 5 ms |
+   | Without the frame's upload | 43 to 48 | 5.3 (title), 4.1 (game) | 0.1 ms |
+   | Without the HUD | 58 (title) | 5.5 (title), the same in a game | |
+   | 1x art | 54 | 3.2 | 2 ms |
+   | 4x art | 29 | 18.9 | 18 ms |
+   | Only clearing and presenting | 60 | 0.9 | |
+
+   So the glow and lighting passes were 55 to 60 % of the GPU's work and the upload of the whole frame, every frame, a quarter of it and 5 to 7 ms of the main thread, during which the GPU idled; the GPU read about 80 % busy and kept its clock near 330 of 949 MHz. The passes already ran below the screen's resolution, so drawing them smaller wasn't the lever. What changed:
+   - **The frame and the depth map upload only their changed tiles** (`gdrv_bitmap8::BlitChangesToTexture`, `render::UpdateDepthTexture`, `ChangedTiles.h`): each is compared with a copy of what its texture holds, in 64-texel tiles. Behind the title the demo changes under 2 % of the frame per frame.
+   - **The compositor keeps its picture and composes only stale tiles** (`Compositor::Compose`): those whose frame or depth texels changed, where a lamp's glow changed, and under the last frame's balls; all of it when the lighting or the textures change. The glows' pulse moved from the glow texture into the lighting pass, so the glow texture is drawn again only when a lamp changes. A temporary check that composed every frame both ways found no differing texel in over 6000 frames on the four tables, in a game and across an edition switch. With the pulse, 20 to 30 % of the tiles are composed per frame instead of all, and the glow shader runs on 1 to 8 % of them.
+   - **The manifest declares the app a game** (`android:appCategory`).
+
+   Not measured on the phone yet, and the pacing (vsync and a steady rate) is still to do. Also found: below 60 fps the table runs slow, at 64 % of real speed at 38 fps, because the main loop drops the time a loop pass takes beyond 16.7 ms; a fix is proposed separately, since it changes the game's timing on slow devices.
 3. **The SoundFont's memory:** not done yet.
 
 ## The rest of G5, as pull requests
