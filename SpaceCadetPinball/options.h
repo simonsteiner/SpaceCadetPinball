@@ -160,7 +160,9 @@ public:
 	static void GetInput(const std::string& rowName, GameInput (&values)[3]);
 	static void SetInput(const std::string& rowName, GameInput (&values)[3]);
 	static void toggle(Menu1 uIDCheckItem);
-	// Stores the value, then runs the option's side effect: the sound, the window, the renderer, a restart
+	// Stores the value, then runs the option's side effect: the sound, the window, the renderer, a restart.
+	// It doesn't skip an unchanged value, so callers compare first: Language and Prefer3DPBGameData restart the game,
+	// and SoundChannels recreates the sound tracks, cutting off the effects playing
 	template <typename T> static void Set(OptionBaseT<T>& option, std::type_identity_t<T> value);
 	// Runs the side effect of a value already stored, for what writes the option in place, as ImGui's sliders do
 	static void Apply(const OptionBase& option);
