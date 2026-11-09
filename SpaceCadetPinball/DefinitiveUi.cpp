@@ -7,6 +7,9 @@
 float DefinitiveUi::LayoutScale = 1;
 float DefinitiveUi::TextFactor = 1;
 DefinitiveUi::Device DefinitiveUi::Last = DefinitiveUi::Device::Keyboard;
+bool DefinitiveUi::Touch = false;
+bool DefinitiveUi::DeviceChosen = false;
+DefinitiveUi::Area DefinitiveUi::Safe{};
 ImRect DefinitiveUi::Row{};
 bool DefinitiveUi::RowFocused = false;
 bool DefinitiveUi::FocusNext = false;
@@ -21,13 +24,27 @@ void DefinitiveUi::NewFrame()
 	TextFactor = static_cast<float>(options::Options.TextSize.V) / 100;
 	DefinitiveTheme::SetPalette(options::Options.ColourVision);
 
-	// The device whose input came last decides the hints
+	// The device whose input came last decides the hints. With the touch deck on, the screens start without key
+	// hints, as they do once a finger has touched them.
+	if (!DeviceChosen)
+	{
+		DeviceChosen = true;
+		if (options::Options.TouchControls == 1)
+		{
+			Last = Device::Pointer;
+			Touch = true;
+		}
+	}
 	auto& io = ImGui::GetIO();
 	if (io.MouseDelta.x != 0 || io.MouseDelta.y != 0 || ImGui::IsAnyMouseDown())
+	{
 		Last = Device::Pointer;
+		Touch = io.MouseSource == ImGuiMouseSource_TouchScreen;
+	}
 	for (auto key = ImGuiKey_Keyboard_BEGIN; key < ImGuiKey_Keyboard_END; key = static_cast<ImGuiKey>(key + 1))
 	{
-		if (ImGui::IsKeyPressed(key, false))
+		// Android's Back comes as Escape; a key of a real keyboard shows its hints again
+		if (ImGui::IsKeyPressed(key, false) && !(Touch && Last == Device::Pointer && key == ImGuiKey_Escape))
 			Last = Device::Keyboard;
 	}
 	for (auto key = ImGuiKey_Gamepad_BEGIN; key < ImGuiKey_Gamepad_END; key = static_cast<ImGuiKey>(key + 1))
@@ -35,6 +52,21 @@ void DefinitiveUi::NewFrame()
 		if (ImGui::IsKeyPressed(key, false))
 			Last = Device::Gamepad;
 	}
+}
+
+void DefinitiveUi::SetSafeArea(const Area& area)
+{
+	Safe = area;
+}
+
+const DefinitiveUi::Area& DefinitiveUi::SafeArea()
+{
+	static Area whole;
+	if (Safe.Size.x > 0 && Safe.Size.y > 0)
+		return Safe;
+	auto viewport = ImGui::GetMainViewport();
+	whole = Area{viewport->Pos, viewport->Size};
+	return whole;
 }
 
 float DefinitiveUi::Scale()
@@ -653,7 +685,7 @@ void DefinitiveUi::DrawHints(ImDrawList* drawList, ImVec2 position, std::initial
 
 DefinitiveUi::Panel DefinitiveUi::BeginPanel(const char* name, const char* title, bool takeFocus)
 {
-	auto viewport = ImGui::GetMainViewport();
+	const auto* viewport = &SafeArea();
 	auto scale = LayoutScale;
 	auto margin = 24 * scale;
 	Panel panel{ImVec2{viewport->Pos.x + margin, viewport->Pos.y + margin},

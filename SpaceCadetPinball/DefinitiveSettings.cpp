@@ -79,7 +79,7 @@ bool DefinitiveSettings::WaitsForBinding()
 
 bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 {
-	auto viewport = ImGui::GetMainViewport();
+	const auto* viewport = &Ui::SafeArea();
 	auto scale = Ui::Scale();
 	auto margin = 24 * scale;
 	ImVec2 min{viewport->Pos.x + margin, viewport->Pos.y + margin};

@@ -21,6 +21,13 @@ public:
 	static int OffsetY;
 	// Whether Space Cadet 2026 lays the table out for a window taller than wide, with the HUD in the band under it
 	static bool Portrait;
+	// Whether the game sizes and places its window. Not on Android, where the window is always the whole screen and
+	// SDL's driver has no way to size or move it: it would only set "That operation is not supported".
+#ifdef __ANDROID__
+	static constexpr bool WindowSizable = false;
+#else
+	static constexpr bool WindowSizable = true;
+#endif
 
 	static void init();
 	static void shutdown();

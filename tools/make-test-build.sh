@@ -3,7 +3,7 @@
 # A test build holds Microsoft's files: it stays on this machine and the player's devices, copied over USB or the
 # local network, and is never committed, uploaded, attached to a pull request or made in CI (docs/deployment.md).
 #
-# Usage: tools/make-test-build.sh windows [--msvc] | web | macos | android
+# Usage: tools/make-test-build.sh windows [--msvc] | web | macos | android [--emulator]
 #   windows  one executable with the data inside, unpacked into the preferences folder at its first start.
 #            Cross-compiled with MinGW (the mingw preset; x86_64-w64-mingw32-gcc on PATH), or with --msvc, from
 #            WSL, with the Windows host's Visual Studio in a folder under its %TEMP%.
@@ -15,6 +15,8 @@
 #            start, signed with the workspace's fixed test key (../android-keystore, or SCP_ANDROID_KEYSTORE for its
 #            keystore.properties), so it installs over the last with adb install -r. Needs the Android SDK in
 #            ANDROID_HOME (default ~/Android/sdk) with the NDK and CMake that Platform/Android/app/build.gradle names.
+#            --emulator adds x86_64, so the APK runs at full speed in the Android Emulator on a PC as well as on the
+#            phone, and names it SpaceCadetPinball-<commit>-emulator.apk.
 #
 # It builds the committed HEAD, from a copy made with git archive, so uncommitted changes are not in the build.
 # The data comes from the workspace's sibling folders; set these to use others, or to an empty value to leave a
@@ -30,7 +32,7 @@
 set -euo pipefail
 
 usage() {
-	echo "Usage: $0 windows [--msvc] | web | macos | android" >&2
+	echo "Usage: $0 windows [--msvc] | web | macos | android [--emulator]" >&2
 	exit 2
 }
 
@@ -42,9 +44,11 @@ fi
 platform=$1
 shift
 msvc=false
+emulator=false
 for arg in "$@"; do
 	case $arg in
 		--msvc) [ "$platform" = windows ] || usage; msvc=true ;;
+		--emulator) [ "$platform" = android ] || usage; emulator=true ;;
 		*) usage ;;
 	esac
 done
@@ -324,7 +328,7 @@ build_macos() {
 # them by in bundled.txt, whose first line names the copy after the files' names and contents (BundledData.cpp)
 build_android() {
 	local sdk=${ANDROID_HOME:-$HOME/Android/sdk} signing=${SCP_ANDROID_KEYSTORE:-$workspace/android-keystore/keystore.properties}
-	local assets=$build/android-assets file name list hash count
+	local assets=$build/android-assets file name list hash count abis=arm64-v8a
 	if [ ! -d "$sdk/ndk" ]; then
 		echo "No Android SDK with an NDK in $sdk; set ANDROID_HOME" >&2
 		exit 1
@@ -345,18 +349,25 @@ build_android() {
 	hash=$(sha256 "$build/android-contents.txt" | cut -c1-16)
 	printf '%s\n%s\n' "$hash" "$list" >"$assets/bundled.txt"
 	count=$(git -C "$repo" rev-list --count HEAD)
+	if $emulator; then
+		abis=arm64-v8a,x86_64
+	fi
 	(cd "$src/Platform/Android" && ANDROID_HOME=$sdk ./gradlew --no-daemon --console=plain assembleRelease \
 		"-PscpDescribe=$describe" "-PscpCommitCount=$count" "-PscpAssets=$assets" "-PscpSigning=$signing" \
 		"-PscpBuildDir=$build/android-gradle" "-PscpNativeBuildDir=$build/android-cxx" \
-		"-PscpCmakeArgs=${SCP_CMAKE_ARGS:-}")
+		"-PscpCmakeArgs=${SCP_CMAKE_ARGS:-}" "-PscpAbis=$abis")
 	file=$build/android-gradle/outputs/apk/release/app-release.apk
-	cp "$file" "$out/SpaceCadetPinball-$commit.apk"
+	cp "$file" "$out/$apk"
 }
 
 case $platform in
 	android)
+		apk=SpaceCadetPinball-$commit.apk
+		if $emulator; then
+			apk=SpaceCadetPinball-$commit-emulator.apk
+		fi
 		build_android
-		echo "Test build $describe: $out/SpaceCadetPinball-$commit.apk"
+		echo "Test build $describe: $out/$apk"
 		echo "Install it over USB with adb install -r; its first start copies the data into the app's storage." \
 			"Never upload it."
 		;;

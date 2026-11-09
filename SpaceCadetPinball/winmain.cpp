@@ -74,20 +74,73 @@ bool winmain::no_time_loss = false;
 
 bool winmain::restart = false;
 
-#ifdef __EMSCRIPTEN__
 // True while a game runs and its settings may be saved
 static bool GameRunning = false;
 
+void winmain::SaveSettings()
+{
+	// A replay being checked plays with the player's settings, which it never writes back
+	if (!GameRunning || replay::IsPlaying() || !ImIO || !ImIO->IniFilename)
+		return;
+	// The stats live in the settings already; the options and the table's high scores get there only now
+	options::Save();
+	high_score::write();
+	ImGui::SaveIniSettingsToDisk(ImIO->IniFilename);
+}
+
+// Android and iOS may end the app in the background without a quit, so a game in play is paused and the settings are
+// saved as it goes there. SDL never queues these events; it hands them only to event watches, on the main thread
+// between frames, and on Android then blocks that thread until the app comes back. SDL_EVENT_DID_ENTER_BACKGROUND
+// follows SDL_EVENT_WILL_ENTER_BACKGROUND at once there and finds nothing new to save.
+static bool SDLCALL OnLifecycleEvent(void*, SDL_Event* event)
+{
+	switch (event->type)
+	{
+	case SDL_EVENT_WILL_ENTER_BACKGROUND:
+		if (GameRunning)
+			winmain::PauseInBackground();
+		winmain::SaveSettings();
+		break;
+	case SDL_EVENT_TERMINATING:
+		winmain::SaveSettings();
+		break;
+#ifdef __ANDROID__
+	case SDL_EVENT_DID_ENTER_FOREGROUND:
+		// On the way back, SDL's Android driver restores the window's OpenGL context and sets its swap interval, also
+		// when SDL's GPU renderer draws through Vulkan and the window has no context; the swap interval then fails.
+		// That is SDL's own and harmless, so it isn't reported as an error. It comes just before this event. A window
+		// the OpenGL ES renderer draws in keeps the error, which there means its context couldn't be restored.
+		if (winmain::MainWindow && !(SDL_GetWindowFlags(winmain::MainWindow) & SDL_WINDOW_OPENGL) &&
+			SDL_strcmp(SDL_GetError(), "No OpenGL context has been made current") == 0)
+			SDL_ClearError();
+		break;
+#endif
+	default:
+		break;
+	}
+	return true;
+}
+
+// Shows the window, created hidden until the table sizes it. Showing it applies its pending flags, which begins with
+// SDL_RestoreWindow, and SDL's Android driver has none: SDL_Unsupported(), although the window shows. That error is
+// SDL's own and harmless, so it isn't reported.
+static void ShowMainWindow()
+{
+#ifdef __ANDROID__
+	if (SDL_ShowWindow(winmain::MainWindow) && SDL_strcmp(SDL_GetError(), "That operation is not supported") == 0)
+		SDL_ClearError();
+#else
+	SDL_ShowWindow(winmain::MainWindow);
+#endif
+}
+
+#ifdef __EMSCRIPTEN__
 // The page calls this before it copies the preference folder to IndexedDB. The browser never lets MainLoop
 // return, so the options, high scores and ImGui's .ini would otherwise only reach the file at a shutdown that
 // doesn't happen.
 extern "C" EMSCRIPTEN_KEEPALIVE void SaveSettings()
 {
-	if (!GameRunning || !winmain::ImIO || !winmain::ImIO->IniFilename)
-		return;
-	options::Save();
-	high_score::write();
-	ImGui::SaveIniSettingsToDisk(winmain::ImIO->IniFilename);
+	winmain::SaveSettings();
 }
 #endif
 
@@ -608,6 +661,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		return 1;
 	}
 
+	SDL_AddEventWatch(OnLifecycleEvent, nullptr);
+
 	pb::quickFlag = HasArg(args, "-quick");
 
 	// SDL window
@@ -872,7 +927,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		}
 		else
 		{
-			SDL_ShowWindow(window);
+			ShowMainWindow();
 #ifdef __EMSCRIPTEN__
 			FitWindowToPage(EM_ASM_INT({ return window.innerWidth; }), EM_ASM_INT({ return window.innerHeight; }));
 			emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, nullptr, false, PageResized);
@@ -896,13 +951,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			else
 				pb::replay_level(false);
 
-#ifdef __EMSCRIPTEN__
 			GameRunning = true;
 			MainLoop();
 			GameRunning = false;
-#else
-			MainLoop();
-#endif
 		}
 		auto played = replay::IsPlaying();
 		// A recording's games end in its own high scores, which the player's table doesn't take
@@ -1071,6 +1122,7 @@ void winmain::MainLoop()
 					if (!SDL_GetMouseFocus())
 						ImIO->AddMousePosEvent(-FLT_MAX, -FLT_MAX);
 				}
+				SetSafeArea(fullscrn::Rotation() != 0);
 				ApplyEditionLook();
 				ImGui::NewFrame();
 				RenderUi();
@@ -2240,9 +2292,12 @@ bool winmain::FindGameData(const std::vector<const char*>& searchPaths)
 	ChosenFolderEmpty = !Options.GameDataFolder.V.empty();
 
 	// The window was waiting for the table to size it
-	SDL_SetWindowSize(MainWindow, 1100, 700);
-	SDL_SetWindowPosition(MainWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-	SDL_ShowWindow(MainWindow);
+	if (fullscrn::WindowSizable)
+	{
+		SDL_SetWindowSize(MainWindow, 1100, 700);
+		SDL_SetWindowPosition(MainWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+	}
+	ShowMainWindow();
 	while (true)
 	{
 		SDL_Event event;
@@ -2257,6 +2312,8 @@ bool winmain::FindGameData(const std::vector<const char*>& searchPaths)
 
 		ImGui_ImplSDLRenderer3_NewFrame();
 		ImGui_ImplSDL3_NewFrame();
+		// This screen is never turned, whatever the Rotation option says
+		SetSafeArea(false);
 		ApplyEditionLook();
 		ImGui::NewFrame();
 		DefinitiveFrontEnd::RenderMissingData(looked, ChosenFolderEmpty);
@@ -2282,6 +2339,33 @@ bool winmain::DefinitivePause()
 		return !pb::GameEnded;
 	DefinitiveFrontEnd::TogglePause();
 	return true;
+}
+
+void winmain::SetSafeArea(bool turned)
+{
+	// Space Cadet 2026's screens keep clear of the status bar, a camera cutout and the gesture bar. SDL's safe area is
+	// in window coordinates, as ImGui's are; turned for a monitor on its side, the picture has none.
+	SDL_Rect safe{};
+	if (!turned && SDL_GetWindowSafeArea(MainWindow, &safe) && safe.w > 0 && safe.h > 0)
+		DefinitiveUi::SetSafeArea({ImVec2{static_cast<float>(safe.x), static_cast<float>(safe.y)},
+								   ImVec2{static_cast<float>(safe.w), static_cast<float>(safe.h)}});
+	else
+		DefinitiveUi::SetSafeArea({ImVec2{}, ImIO->DisplaySize});
+}
+
+void winmain::PauseInBackground()
+{
+	// A game in play waits for the player on the way back, rather than playing on at once; the demo plays on
+	if (DemoActive || pb::game_mode != GameModes::InGame || replay::IsViewing())
+		return;
+	if (options::GetEdition() == Editions::Definitive)
+	{
+		// The other screens of a game in play, Settings and the list of tables, have paused it already
+		if (!DefinitiveFrontEnd::ScreenOpen())
+			DefinitiveFrontEnd::ShowPause();
+	}
+	else
+		pause(false);
 }
 
 const char* winmain::PostProcessingUnavailable()

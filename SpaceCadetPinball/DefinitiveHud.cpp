@@ -652,7 +652,7 @@ void DefinitiveHud::Render(const TableView& view, SDL_FRect board, SDL_FRect pan
 
 	// The screens' scale, unless the room beside or under the table is smaller: the table's panel and the window's
 	// margin beyond it
-	auto viewport = ImGui::GetMainViewport();
+	const auto* viewport = &Ui::SafeArea();
 	auto right = viewport->Pos.x + viewport->Size.x;
 	auto bottom = viewport->Pos.y + viewport->Size.y;
 	auto stacked = panel.y >= board.y + board.h - 1;
@@ -697,8 +697,10 @@ void DefinitiveHud::Render(const TableView& view, SDL_FRect board, SDL_FRect pan
 	ImVec2 min{panel.x + Margin * scale, board.y + (board.h - size.y) / 2};
 	if (stacked)
 		min = ImVec2{board.x + (board.w - size.x) / 2, panel.y + Margin * scale};
-	min.x = std::clamp(min.x, viewport->Pos.x, right - size.x);
-	min.y = std::clamp(min.y, viewport->Pos.y, bottom - size.y);
+	// The table fills the whole window beside the card, which can make the card taller than the safe area: it then
+	// starts at the safe area's top and is cut off at its bottom
+	min.x = std::clamp(min.x, viewport->Pos.x, std::max(viewport->Pos.x, right - size.x));
+	min.y = std::clamp(min.y, viewport->Pos.y, std::max(viewport->Pos.y, bottom - size.y));
 	ImVec2 max{min.x + size.x, std::min(min.y + size.y, bottom)};
 
 	auto drawList = ImGui::GetBackgroundDrawList();

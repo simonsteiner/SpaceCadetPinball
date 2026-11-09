@@ -256,24 +256,26 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 float DefinitiveFrontEnd::BeginColumn(const char* name, float width)
 {
 	auto viewport = ImGui::GetMainViewport();
+	const auto& safe = Ui::SafeArea();
 	auto scale = Ui::Scale();
 	// In a window taller than wide, such as a phone held upright, the column and its shade take the whole width
-	auto columnWidth =
-		viewport->Size.y > viewport->Size.x ? viewport->Size.x : std::min(width * scale, viewport->Size.x);
-	auto fade = std::min(120 * scale, viewport->Size.x - columnWidth);
+	auto upright = safe.Size.y > safe.Size.x;
+	auto columnWidth = upright ? safe.Size.x : std::min(width * scale, safe.Size.x);
 
-	// Over the table, under every window
+	// Over the table, under every window; the shade covers the bars and the cutout too, the column keeps clear of them
 	auto background = ImGui::GetBackgroundDrawList();
 	auto min = viewport->Pos;
-	auto height = viewport->Size.y;
+	ImVec2 max{min.x + viewport->Size.x, min.y + viewport->Size.y};
+	auto shadeRight = upright ? max.x : safe.Pos.x + columnWidth;
+	auto fade = std::min(120 * scale, max.x - shadeRight);
 	auto shade = Theme::WithAlpha(Theme::Space950, 0.88f);
 	auto clear = Theme::WithAlpha(Theme::Space950, 0);
-	background->AddRectFilled(min, ImVec2{min.x + columnWidth, min.y + height}, shade);
-	background->AddRectFilledMultiColor(ImVec2{min.x + columnWidth, min.y},
-										ImVec2{min.x + columnWidth + fade, min.y + height}, shade, clear, clear, shade);
+	background->AddRectFilled(min, ImVec2{shadeRight, max.y}, shade);
+	background->AddRectFilledMultiColor(ImVec2{shadeRight, min.y}, ImVec2{shadeRight + fade, max.y}, shade, clear,
+										clear, shade);
 
-	ImGui::SetNextWindowPos(min);
-	ImGui::SetNextWindowSize(ImVec2{columnWidth, height});
+	ImGui::SetNextWindowPos(safe.Pos);
+	ImGui::SetNextWindowSize(ImVec2{columnWidth, safe.Size.y});
 	// A screen that opens takes the keyboard and gamepad; so does one that lost them to a click on the table
 	if (Opened || (!ImGui::GetTopMostPopupModal() && !GImGui->NavWindow))
 		ImGui::SetNextWindowFocus();
@@ -312,7 +314,7 @@ bool DefinitiveFrontEnd::BackPressed()
 // The title: the game's name, the main menu and the hints, scaled to fit the window and centred in it upright
 void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 {
-	auto viewport = ImGui::GetMainViewport();
+	const auto* viewport = &Ui::SafeArea();
 	// A choice of tables only when the data of more than one was found
 	auto tables = Host.TableList ? Host.TableList() : std::vector<DefinitiveHost::TableChoice>{};
 	auto chooseTable = tables.size() > 1;
@@ -450,7 +452,7 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 
 void DefinitiveFrontEnd::RenderRecords()
 {
-	auto viewport = ImGui::GetMainViewport();
+	const auto* viewport = &Ui::SafeArea();
 	auto needed = 56 + 40 + 24 + 5 * 44 + 32 + 2 * (Ui::RowHeight() + 2) + 24 + 26 + 24;
 	Ui::SetScale(std::min(Ui::Scale(), viewport->Size.y / needed));
 	auto scale = Ui::Scale();
@@ -537,7 +539,7 @@ void DefinitiveFrontEnd::RenderRecords()
 void DefinitiveFrontEnd::RenderTables()
 {
 	auto tables = Host.TableList ? Host.TableList() : std::vector<DefinitiveHost::TableChoice>{};
-	auto viewport = ImGui::GetMainViewport();
+	const auto* viewport = &Ui::SafeArea();
 	// Full Tilt!'s pictures are 120 pixels square
 	constexpr auto pictureSize = 160.0f;
 	// From a game in play, choosing another table asks before ending the game, in place of the list
@@ -697,7 +699,7 @@ All under the SIL Open Font License 1.1
 SDL and SDL_mixer, Dear ImGui, TinySoundFont, stb_vorbis,
 SDL_native_midi, MMPX)");
 
-	auto viewport = ImGui::GetMainViewport();
+	const auto* viewport = &Ui::SafeArea();
 	auto scale = Ui::Scale();
 	auto width = BeginColumn("##DefinitiveCredits", 640);
 	auto drawList = ImGui::GetWindowDrawList();
@@ -762,7 +764,7 @@ SDL_native_midi, MMPX)");
 
 void DefinitiveFrontEnd::RenderMissingData(const std::vector<std::string>& looked, bool chosenFolderFailed)
 {
-	auto viewport = ImGui::GetMainViewport();
+	const auto* viewport = &Ui::SafeArea();
 	Ui::NewFrame();
 	auto lines = static_cast<float>(looked.size());
 	auto needed =

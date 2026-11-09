@@ -251,7 +251,7 @@ void DefinitiveStatsScreen::RenderNotice()
 	// A panel over the top of the window with a lit lamp, the kind of notice the edition hint is; it neither slides
 	// nor fades, so Reduced Motion has nothing to hold still
 	const auto& achievement = DefinitiveStats::Achievements()[static_cast<size_t>(recent)];
-	auto viewport = ImGui::GetMainViewport();
+	const auto* viewport = &Ui::SafeArea();
 	auto scale = Ui::Scale();
 	auto padding = 16 * scale;
 	auto lampRadius = 7 * scale;

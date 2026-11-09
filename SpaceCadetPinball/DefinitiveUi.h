@@ -44,8 +44,18 @@ public:
 		return static_cast<int>((0U | ... | static_cast<unsigned>(flags)));
 	}
 
+	// A rectangle in ImGui's coordinates, laid out like ImGuiViewport's
+	struct Area
+	{
+		ImVec2 Pos, Size;
+	};
+
 	// Once a frame, before any screen draws
 	static void NewFrame();
+	// The part of the window clear of the status bar, a camera cutout and the gesture bar, which the host sets before
+	// each frame; the whole viewport until it does. The screens keep their contents in it and shade the whole window.
+	static void SetSafeArea(const Area& area);
+	static const Area& SafeArea();
 	// Sizes are given for a window 720 pixels high and multiplied by this: the window's height over 720, or its width
 	// where that is smaller, times the UI Scale option, within limits
 	static float Scale();
@@ -144,6 +154,10 @@ private:
 	static float LayoutScale;
 	static float TextFactor;
 	static Device Last;
+	// The last pointer was a finger, or the deck is on and no pointer has moved yet: a phone's Back, which comes as
+	// Escape, leaves the hints hidden
+	static bool Touch, DeviceChosen;
+	static Area Safe;
 	static ImRect Row;
 	static ImVec2 Footer;
 	static bool RowFocused, FocusNext;
