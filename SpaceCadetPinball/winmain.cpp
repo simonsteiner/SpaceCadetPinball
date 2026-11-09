@@ -1098,6 +1098,7 @@ void winmain::MainLoop()
 					if (!SDL_GetMouseFocus())
 						ImIO->AddMousePosEvent(-FLT_MAX, -FLT_MAX);
 				}
+				SetSafeArea();
 				ApplyEditionLook();
 				ImGui::NewFrame();
 				RenderUi();
@@ -2309,6 +2310,18 @@ bool winmain::DefinitivePause()
 		return !pb::GameEnded;
 	DefinitiveFrontEnd::TogglePause();
 	return true;
+}
+
+void winmain::SetSafeArea()
+{
+	// Space Cadet 2026's screens keep clear of the status bar, a camera cutout and the gesture bar. SDL's safe area is
+	// in window coordinates, as ImGui's are; turned for a monitor on its side, the picture has none.
+	SDL_Rect safe{};
+	if (!fullscrn::Rotation() && SDL_GetWindowSafeArea(MainWindow, &safe) && safe.w > 0 && safe.h > 0)
+		DefinitiveUi::SetSafeArea({ImVec2{static_cast<float>(safe.x), static_cast<float>(safe.y)},
+								   ImVec2{static_cast<float>(safe.w), static_cast<float>(safe.h)}});
+	else
+		DefinitiveUi::SetSafeArea({ImVec2{}, ImIO->DisplaySize});
 }
 
 void winmain::PauseInBackground()

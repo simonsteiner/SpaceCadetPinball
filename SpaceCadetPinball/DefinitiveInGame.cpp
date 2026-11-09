@@ -103,7 +103,7 @@ bool DefinitiveFrontEnd::NextName()
 // Opens a panel of size, scaled to fit, in the middle of the window over a veil; returns its top left corner
 ImVec2 DefinitiveFrontEnd::BeginCentred(const char* name, ImVec2 size)
 {
-	auto viewport = ImGui::GetMainViewport();
+	const auto* viewport = &Ui::SafeArea();
 	// Smaller in a small window, so the whole panel shows. Upright, as on a phone, it grows to the window's width as
 	// far as the height allows, so its rows are thumb-sized
 	auto fit = std::min(viewport->Size.x / (size.x + 48), viewport->Size.y / (size.y + 48));
@@ -113,9 +113,10 @@ ImVec2 DefinitiveFrontEnd::BeginCentred(const char* name, ImVec2 size)
 	ImVec2 min{viewport->Pos.x + (viewport->Size.x - scaled.x) / 2,
 			   viewport->Pos.y + (viewport->Size.y - scaled.y) / 2};
 
-	// The veil dims the game under every window
+	// The veil dims the game under every window, the bars and the cutout too; the panel sits in the safe area
+	auto whole = ImGui::GetMainViewport();
 	ImGui::GetBackgroundDrawList()->AddRectFilled(
-		viewport->Pos, ImVec2{viewport->Pos.x + viewport->Size.x, viewport->Pos.y + viewport->Size.y},
+		whole->Pos, ImVec2{whole->Pos.x + whole->Size.x, whole->Pos.y + whole->Size.y},
 		Theme::WithAlpha(Theme::Space950, 0.55f));
 	ImGui::SetNextWindowPos(min);
 	ImGui::SetNextWindowSize(scaled);

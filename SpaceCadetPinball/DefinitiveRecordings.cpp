@@ -174,7 +174,7 @@ void DefinitiveRecordings::RenderViewer(const DefinitiveHost& host)
 	if (!host.ViewerState)
 		return;
 	auto state = host.ViewerState();
-	auto viewport = ImGui::GetMainViewport();
+	const auto* viewport = &Ui::SafeArea();
 	auto scale = Ui::Scale();
 	auto& io = ImGui::GetIO();
 

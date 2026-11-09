@@ -652,7 +652,7 @@ void DefinitiveHud::Render(const TableView& view, SDL_FRect board, SDL_FRect pan
 
 	// The screens' scale, unless the room beside or under the table is smaller: the table's panel and the window's
 	// margin beyond it
-	auto viewport = ImGui::GetMainViewport();
+	const auto* viewport = &Ui::SafeArea();
 	auto right = viewport->Pos.x + viewport->Size.x;
 	auto bottom = viewport->Pos.y + viewport->Size.y;
 	auto stacked = panel.y >= board.y + board.h - 1;
