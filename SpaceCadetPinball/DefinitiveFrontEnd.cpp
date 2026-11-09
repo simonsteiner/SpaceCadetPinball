@@ -140,7 +140,8 @@ bool DefinitiveFrontEnd::UnderTitle()
 {
 	using enum Screen;
 	return Current == Title || Current == Records || Current == Credits || Current == Stats || Current == Recordings ||
-		   (Current == Tables && TablesFrom != Pause) || (Current == Settings && SettingsFrom != Pause);
+		   Current == Exit || (Current == Tables && TablesFrom != Pause) ||
+		   (Current == Settings && SettingsFrom != Pause);
 }
 
 // Opens and closes the screens as a game starts, pauses and ends, and runs the demo behind the title
