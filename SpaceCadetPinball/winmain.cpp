@@ -1016,6 +1016,15 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	return return_value;
 }
 
+// For measuring a cold start: SDL's clock starts when the game does
+static void LogFirstFrame()
+{
+	static auto logged = false;
+	if (!logged)
+		printf("First frame %u ms after start\n", static_cast<unsigned>(SDL_GetTicks()));
+	logged = true;
+}
+
 void winmain::MainLoop()
 {
 	bQuit = false;
@@ -1171,12 +1180,7 @@ void winmain::MainLoop()
 				fullscrn::EndFrame();
 
 				SDL_RenderPresent(Renderer);
-				if (static auto logged = false; !logged)
-				{
-					// For measuring a cold start: SDL's clock starts when the game does
-					logged = true;
-					printf("First frame %u ms after start\n", static_cast<unsigned>(SDL_GetTicks()));
-				}
+				LogFirstFrame();
 				frameCounter++;
 				UpdateToFrameCounter -= UpdateToFrameRatio;
 			}

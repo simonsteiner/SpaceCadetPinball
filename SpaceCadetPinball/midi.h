@@ -138,6 +138,8 @@ private:
 	static void StopPlayback();
 	static bool StartPlayback(MidiSong* song);
 	static void ShutdownBackend();
+	// Starts loading the SoundFont, if that is still to do, and sets up the SoundFont backend unless none loaded
+	static void StartSoundFontBackend();
 	static MidiSong* load_track(std::string fileName);
 	// Dragon's Keep's or Skulduggery's tracks, as their EXEs load them
 	static void load_bonus_table_tracks();

@@ -242,7 +242,7 @@ namespace
 
 		bool Ready() const
 		{
-			return Done.load(std::memory_order_acquire);
+			return Done.load();
 		}
 
 		// The synth, or null when no SoundFont loaded. Only once Ready
@@ -255,7 +255,7 @@ namespace
 		void Load()
 		{
 			Font = LoadSoundFont();
-			Done.store(true, std::memory_order_release);
+			Done.store(true);
 		}
 
 		void LoadOnThread()
@@ -382,23 +382,7 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 		}
 #endif
 		if (Backend == MidiBackend::None)
-			SoundFont.Start();
-		// The SoundFont backend too while the load still runs: its tracks load and count as playing, and
-		// music_update starts the music, or falls back, when the load ends
-		if (Backend == MidiBackend::None && (!SoundFont.Ready() || SoundFont.Get()))
-		{
-			const SDL_AudioSpec synthSpec{SDL_AUDIO_F32, 2, SynthRate};
-			SynthStream = SDL_CreateAudioStream(&synthSpec, nullptr);
-			MusicTrack = MIX_CreateTrack(Mixer);
-			if (SynthStream && MusicTrack && MIX_SetTrackAudioStream(MusicTrack, SynthStream))
-			{
-				Synth = SoundFont.Get();
-				SDL_SetAudioStreamGetCallback(SynthStream, RenderSynth, nullptr);
-				Backend = MidiBackend::SoundFont;
-			}
-			else
-				ShutdownBackend();
-		}
+			StartSoundFontBackend();
 		// Last, whatever MIDI decoder SDL_mixer has, if any
 		if (Backend == MidiBackend::None)
 		{
@@ -430,6 +414,27 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 	}
 
 	return track1 != nullptr;
+}
+
+void midi::StartSoundFontBackend()
+{
+	SoundFont.Start();
+	// The SoundFont backend too while the load still runs: its tracks load and count as playing, and music_update
+	// starts the music, or falls back, when the load ends
+	if (SoundFont.Ready() && !SoundFont.Get())
+		return;
+
+	const SDL_AudioSpec synthSpec{SDL_AUDIO_F32, 2, SynthRate};
+	SynthStream = SDL_CreateAudioStream(&synthSpec, nullptr);
+	MusicTrack = MIX_CreateTrack(Mixer);
+	if (SynthStream && MusicTrack && MIX_SetTrackAudioStream(MusicTrack, SynthStream))
+	{
+		Synth = SoundFont.Get();
+		SDL_SetAudioStreamGetCallback(SynthStream, RenderSynth, nullptr);
+		Backend = MidiBackend::SoundFont;
+	}
+	else
+		ShutdownBackend();
 }
 
 void midi::music_update()
