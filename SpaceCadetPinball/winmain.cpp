@@ -74,20 +74,49 @@ bool winmain::no_time_loss = false;
 
 bool winmain::restart = false;
 
-#ifdef __EMSCRIPTEN__
 // True while a game runs and its settings may be saved
 static bool GameRunning = false;
 
+void winmain::SaveSettings()
+{
+	// A replay being checked plays with the player's settings, which it never writes back
+	if (!GameRunning || replay::IsPlaying() || !ImIO || !ImIO->IniFilename)
+		return;
+	// The stats live in the settings already; the options and the table's high scores get there only now
+	options::Save();
+	high_score::write();
+	ImGui::SaveIniSettingsToDisk(ImIO->IniFilename);
+}
+
+// Android and iOS may end the app in the background without a quit, so a game in play is paused and the settings are
+// saved as it goes there. SDL never queues these events; it hands them only to event watches, on the main thread
+// between frames, and on Android then blocks that thread until the app comes back. SDL_EVENT_DID_ENTER_BACKGROUND
+// follows SDL_EVENT_WILL_ENTER_BACKGROUND at once there and finds nothing new to save.
+static bool SDLCALL OnLifecycleEvent(void*, SDL_Event* event)
+{
+	switch (event->type)
+	{
+	case SDL_EVENT_WILL_ENTER_BACKGROUND:
+		if (GameRunning)
+			winmain::PauseInBackground();
+		winmain::SaveSettings();
+		break;
+	case SDL_EVENT_TERMINATING:
+		winmain::SaveSettings();
+		break;
+	default:
+		break;
+	}
+	return true;
+}
+
+#ifdef __EMSCRIPTEN__
 // The page calls this before it copies the preference folder to IndexedDB. The browser never lets MainLoop
 // return, so the options, high scores and ImGui's .ini would otherwise only reach the file at a shutdown that
 // doesn't happen.
 extern "C" EMSCRIPTEN_KEEPALIVE void SaveSettings()
 {
-	if (!GameRunning || !winmain::ImIO || !winmain::ImIO->IniFilename)
-		return;
-	options::Save();
-	high_score::write();
-	ImGui::SaveIniSettingsToDisk(winmain::ImIO->IniFilename);
+	winmain::SaveSettings();
 }
 #endif
 
@@ -608,6 +637,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		return 1;
 	}
 
+	SDL_AddEventWatch(OnLifecycleEvent, nullptr);
+
 	pb::quickFlag = HasArg(args, "-quick");
 
 	// SDL window
@@ -896,13 +927,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			else
 				pb::replay_level(false);
 
-#ifdef __EMSCRIPTEN__
 			GameRunning = true;
 			MainLoop();
 			GameRunning = false;
-#else
-			MainLoop();
-#endif
 		}
 		auto played = replay::IsPlaying();
 		// A recording's games end in its own high scores, which the player's table doesn't take
@@ -2282,6 +2309,21 @@ bool winmain::DefinitivePause()
 		return !pb::GameEnded;
 	DefinitiveFrontEnd::TogglePause();
 	return true;
+}
+
+void winmain::PauseInBackground()
+{
+	// A game in play waits for the player on the way back, rather than playing on at once; the demo plays on
+	if (DemoActive || pb::game_mode != GameModes::InGame || replay::IsViewing())
+		return;
+	if (options::GetEdition() == Editions::Definitive)
+	{
+		// The other screens of a game in play, Settings and the list of tables, have paused it already
+		if (!DefinitiveFrontEnd::ScreenOpen())
+			DefinitiveFrontEnd::ShowPause();
+	}
+	else
+		pause(false);
 }
 
 const char* winmain::PostProcessingUnavailable()

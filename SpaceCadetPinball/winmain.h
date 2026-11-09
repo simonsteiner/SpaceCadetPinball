@@ -115,6 +115,10 @@ public:
 	// Opens or closes Space Cadet 2026's pause screen for the game in play, or ignores the key while a game ends; false
 	// when Classic's pause should handle it
 	static bool DefinitivePause();
+	// Writes the options, the table's high scores and the stats to ImGui's .ini at once, while a game runs
+	static void SaveSettings();
+	// Pauses a game in play as the app goes to the background: Space Cadet 2026's pause screen, or Classic's pause
+	static void PauseInBackground();
 	// Space Cadet 2026's screen for missing game data, in place of the table; true once the player has chosen a
 	// folder to load from, false when they quit
 	static bool FindGameData(const std::vector<const char*>& searchPaths);
