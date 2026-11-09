@@ -157,11 +157,15 @@ public:
 	static void ShowExit();
 	// The bar of a recording that plays, which stays until the player goes back to the title
 	static void ShowViewer();
+	// The loading screen, drawn once while the table, its sounds and the music load, which takes seconds on a phone
+	static void RenderLoading();
 	// The first-run screen when no game data was found: where it looked and a way to choose the folder; the game
 	// runs it in place of the table until a folder is chosen or the player quits
 	static void RenderMissingData(const std::vector<std::string>& looked, bool chosenFolderFailed);
 	// The pause key: the pause screen, or back to the game from it and from Settings opened there
 	static void TogglePause();
+	// The pause key comes from a tap, whose click the pause screen that opens mustn't take as a tap on the game
+	static void SwallowPauseTap();
 	// Whether a screen is open, rather than the game in play
 	static bool ScreenOpen();
 	// Whether a key the game binds to a shortcut should still reach the game although a screen has the keyboard: while

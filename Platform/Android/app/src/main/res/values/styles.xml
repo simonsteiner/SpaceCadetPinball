@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Space Cadet 2026's darkest colour (DefinitiveTheme::Space950), so the time before the loading screen's first
+         frame, and Android 12's splash screen behind the icon, aren't plain black -->
+    <color name="space950">#050918</color>
     <style name="AppTheme" parent="android:Theme.DeviceDefault.NoActionBar.Fullscreen">
-        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowBackground">@color/space950</item>
     </style>
 </resources>

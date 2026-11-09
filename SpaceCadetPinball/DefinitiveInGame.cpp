@@ -33,6 +33,9 @@ namespace
 
 	bool ConfirmRestart = false, ConfirmQuit = false, FocusConfirm = false;
 	int PauseFrame = 0, ExitFrame = 0;
+	// The deck's pause button opened the screen with a tap, which SDL also reports as a click; ImGui gets that click a
+	// frame or two later, so clicks don't resume until the tap has been let go
+	bool SwallowTap = false;
 
 	// Asks once before ending the game: the question, then Cancel and OK; true when OK is chosen
 	bool Confirm(ImDrawList* drawList, ImVec2 position, float width, bool& asking)
@@ -76,6 +79,11 @@ void DefinitiveFrontEnd::ShowPause()
 	ConfirmRestart = ConfirmQuit = false;
 	PauseFrame = ImGui::GetFrameCount();
 	Open(Screen::Pause);
+}
+
+void DefinitiveFrontEnd::SwallowPauseTap()
+{
+	SwallowTap = true;
 }
 
 void DefinitiveFrontEnd::TogglePause()
@@ -220,9 +228,11 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 			ConfirmQuit = FocusConfirm = true;
 		ImGui::PopItemWidth();
 		ImGui::EndGroup();
-		// A tap on the dimmed game resumes too
-		resume |=
-			ResumePressed() || (ImGui::IsMouseClicked(0) && !ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered());
+		// A tap on the dimmed game resumes too, but not the one on the deck's pause button that opened the screen
+		resume |= ResumePressed() ||
+				  (!SwallowTap && ImGui::IsMouseClicked(0) && !ImGui::IsWindowHovered() && !ImGui::IsAnyItemHovered());
+		if (ImGui::IsMouseReleased(0))
+			SwallowTap = false;
 	}
 
 	Ui::DrawHints(
