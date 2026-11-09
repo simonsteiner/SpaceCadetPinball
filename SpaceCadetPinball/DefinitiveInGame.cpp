@@ -262,11 +262,19 @@ void DefinitiveFrontEnd::ShowExit()
 {
 	if (!Host.Quit)
 		return;
+	// A gamepad's Back reaches the Exit binding on every screen, this one too, where it cancels as Escape does
+	if (Current == Screen::Exit)
+	{
+		if (ImGui::GetFrameCount() > ExitFrame + 1)
+			Open(ExitFrom);
+		return;
+	}
+	ExitFrom = Current;
 	ExitFrame = ImGui::GetFrameCount();
 	Open(Screen::Exit);
 }
 
-// The exit question, in the middle of the window over the title's demo, sized as the pause screen is
+// The exit question, in the middle of the window over the screen it was opened from, sized as the pause screen is
 void DefinitiveFrontEnd::RenderExit()
 {
 	auto row = Ui::RowHeight() + 2;
@@ -298,7 +306,7 @@ void DefinitiveFrontEnd::RenderExit()
 	if (quit && Host.Quit)
 		Host.Quit();
 	else if (cancel)
-		Open(Screen::Title);
+		Open(ExitFrom);
 }
 
 void DefinitiveFrontEnd::RenderGameOver(const TableView& view)

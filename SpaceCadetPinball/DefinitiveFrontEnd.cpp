@@ -21,6 +21,7 @@ DefinitiveHost DefinitiveFrontEnd::Host{};
 DefinitiveFrontEnd::Screen DefinitiveFrontEnd::Current = Screen::None;
 DefinitiveFrontEnd::Screen DefinitiveFrontEnd::SettingsFrom = Screen::Title;
 DefinitiveFrontEnd::Screen DefinitiveFrontEnd::TablesFrom = Screen::Title;
+DefinitiveFrontEnd::Screen DefinitiveFrontEnd::ExitFrom = Screen::Title;
 bool DefinitiveFrontEnd::Opened = false;
 bool DefinitiveFrontEnd::ConfirmClear = false;
 bool DefinitiveFrontEnd::SummaryShown = false;
@@ -139,9 +140,10 @@ bool DefinitiveFrontEnd::FromPause()
 bool DefinitiveFrontEnd::UnderTitle()
 {
 	using enum Screen;
-	return Current == Title || Current == Records || Current == Credits || Current == Stats || Current == Recordings ||
-		   Current == Exit || (Current == Tables && TablesFrom != Pause) ||
-		   (Current == Settings && SettingsFrom != Pause);
+	// The exit question belongs where it was opened from
+	auto screen = Current == Exit ? ExitFrom : Current;
+	return screen == Title || screen == Records || screen == Credits || screen == Stats || screen == Recordings ||
+		   (screen == Tables && TablesFrom != Pause) || (screen == Settings && SettingsFrom != Pause);
 }
 
 // Opens and closes the screens as a game starts, pauses and ends, and runs the demo behind the title

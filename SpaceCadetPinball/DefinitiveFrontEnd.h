@@ -153,7 +153,8 @@ public:
 	// screen; from the title and the screens it leads to, to the title. Only with more than one table, and not from a
 	// game that is ending or its summary.
 	static void ShowTables();
-	// The exit question, as Escape or Back opens it on the title: Cancel goes back to the title, OK quits
+	// The exit question, as Escape or Back opens it on the title, or a gamepad's Back on any screen: Cancel, or Back
+	// again, goes back to the screen it was opened from, OK quits
 	static void ShowExit();
 	// The bar of a recording that plays, which stays until the player goes back to the title
 	static void ShowViewer();
@@ -196,6 +197,8 @@ private:
 
 	static DefinitiveHost Host;
 	static Screen Current, SettingsFrom;
+	// The screen the exit question was opened from, which Cancel returns to
+	static Screen ExitFrom;
 	// Where Back leads from the list of tables: the pause screen or the title
 	static Screen TablesFrom;
 	static bool Opened, ConfirmClear, SummaryShown, Focused;
