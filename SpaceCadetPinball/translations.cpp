@@ -7131,6 +7131,12 @@ const TextArray translations::Translations =
 		}
 	},
 	{
+		Msg::Definitive_ExitQuestion,
+		{
+			{ Lang::English, "Exit the game?" },
+		}
+	},
+	{
 		Msg::Definitive_Resume,
 		{
 			{ Lang::English, "Resume" },

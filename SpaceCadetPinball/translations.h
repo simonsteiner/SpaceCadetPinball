@@ -375,6 +375,7 @@ enum class Msg : int
 	Definitive_UiScaleNote,
 	Definitive_Paused,
 	Definitive_Loading,
+	Definitive_ExitQuestion,
 	Definitive_Resume,
 	Definitive_SwitchToClassic,
 	Definitive_Restart,
