@@ -107,9 +107,11 @@ static bool SDLCALL OnLifecycleEvent(void*, SDL_Event* event)
 #ifdef __ANDROID__
 	case SDL_EVENT_DID_ENTER_FOREGROUND:
 		// On the way back, SDL's Android driver restores the window's OpenGL context and sets its swap interval, also
-		// when SDL's GPU renderer draws through Vulkan and there is no context; the swap interval then fails. That is
-		// SDL's own and harmless, so it isn't reported as an error. It comes just before this event.
-		if (!SDL_GL_GetCurrentContext() && SDL_strcmp(SDL_GetError(), "No OpenGL context has been made current") == 0)
+		// when SDL's GPU renderer draws through Vulkan and the window has no context; the swap interval then fails.
+		// That is SDL's own and harmless, so it isn't reported as an error. It comes just before this event. A window
+		// the OpenGL ES renderer draws in keeps the error, which there means its context couldn't be restored.
+		if (winmain::MainWindow && !(SDL_GetWindowFlags(winmain::MainWindow) & SDL_WINDOW_OPENGL) &&
+			SDL_strcmp(SDL_GetError(), "No OpenGL context has been made current") == 0)
 			SDL_ClearError();
 		break;
 #endif
