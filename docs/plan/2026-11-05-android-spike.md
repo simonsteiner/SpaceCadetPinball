@@ -96,7 +96,15 @@ Three pull requests follow from it:
    - **The compositor keeps its picture and composes only stale tiles** (`Compositor::Compose`): those whose frame or depth texels changed, where a lamp's glow changed, and under the last frame's balls; all of it when the lighting or the textures change. The glows' pulse moved from the glow texture into the lighting pass, so the glow texture is drawn again only when a lamp changes. A temporary check that composed every frame both ways found no differing texel in over 6000 frames on the four tables, in a game and across an edition switch. With the pulse, 20 to 30 % of the tiles are composed per frame instead of all, and the glow shader runs on 1 to 8 % of them.
    - **The manifest declares the app a game** (`android:appCategory`).
 
-   Not measured on the phone yet, and the pacing (vsync and a steady rate) is still to do. Also found: below 60 fps the table runs slow, at 64 % of real speed at 38 fps, because the main loop drops the time a loop pass takes beyond 16.7 ms; a fix is proposed separately, since it changes the game's timing on slow devices.
+   On the A54 afterwards, at 2x art:
+
+   | What | fps before | fps after | GPU work per frame before | after |
+   | --- | --- | --- | --- | --- |
+   | Title with the demo | 38 to 41 | 59 to 60 | 7.1 Mcyc | 2.6 to 3.1 |
+   | A game | 43 to 57 | 60 | 6.0 to 6.3 | 2.3 |
+   | A game at 4x art (title) | 29 | 51 | 18.9 | 4.2 |
+
+   The GPU now stays at its lowest clock, 221 MHz, 63 to 78 % busy, and the table runs at real speed. In a game SurfaceFlinger shows 87 to 91 % of the frames 16 to 17 ms after the one before, about 5 % after 8 ms and 5 % after 24 to 25 ms; before, they jumped between 16, 25 and 33 ms. Turning vsync on (`SDL_SetRenderVSync`) changed neither the rate nor that spread, so the pacing stays as it is: the off-beat frames come from the loop sleeping by its own clock on a 120 Hz panel, and telling Android the game's rate (`ANativeWindow_setFrameRate`) would be the way to remove them, if they show. Comparing the frame still takes 4 to 5 ms of the main thread at 2x and 14 ms at 4x, which is what holds 4x at 51 fps; comparing the 1x frame instead would cut that. Also found: below 60 fps the table runs slow, at 64 % of real speed at 38 fps, because the main loop drops the time a loop pass takes beyond 16.7 ms; a fix is proposed separately, since it changes the game's timing on slow devices.
 3. **The SoundFont's memory:** not done yet.
 
 ## The rest of G5, as pull requests
