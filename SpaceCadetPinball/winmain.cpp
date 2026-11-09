@@ -124,10 +124,11 @@ static bool SDLCALL OnLifecycleEvent(void*, SDL_Event* event)
 // SDL's own and harmless, so it isn't reported.
 static void ShowMainWindow()
 {
-	[[maybe_unused]] auto shown = SDL_ShowWindow(winmain::MainWindow);
 #ifdef __ANDROID__
-	if (shown && SDL_strcmp(SDL_GetError(), "That operation is not supported") == 0)
+	if (SDL_ShowWindow(winmain::MainWindow) && SDL_strcmp(SDL_GetError(), "That operation is not supported") == 0)
 		SDL_ClearError();
+#else
+	SDL_ShowWindow(winmain::MainWindow);
 #endif
 }
 
