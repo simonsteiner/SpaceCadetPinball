@@ -12,7 +12,7 @@ std::map<TouchControls::FingerKey, TouchControls::FingerState> TouchControls::Fi
 TouchControls::Layout TouchControls::Rects{};
 TouchControls::Row TouchControls::PadRow{};
 bool TouchControls::IsActive = false, TouchControls::HasNudged = false;
-Uint64 TouchControls::PlungerTicks = 0, TouchControls::AnimateTicks = 0;
+Uint64 TouchControls::PlungerTicks = 0, TouchControls::AnimateTicks = 0, TouchControls::LaneEmptyTicks = 0;
 float TouchControls::LaneShown = 1;
 
 namespace
@@ -33,6 +33,9 @@ namespace
 	constexpr float LaneDepth = 3;
 	// The lane folds and unfolds in this long
 	constexpr float FoldSeconds = 0.25f;
+	// and folds only once it has been empty this long: a new game takes the demo's ball out of the lane and puts its
+	// own in less than a second later, which would fold the lane and unfold it again at once
+	constexpr Uint64 FoldDelayMs = 1500;
 
 	SDL_Rect Rect(float x, float y, float w, float h)
 	{
@@ -164,7 +167,8 @@ void TouchControls::PlaceRow(float shown)
 		Rects.RightPad = Rect(area.x, area.y, padsW, area.h);
 }
 
-// Folds the lane towards shown while a ball waits at the plunger or a finger holds it, else towards folded
+// Folds the lane towards shown while a ball waits at the plunger or a finger holds it, else, after a while, towards
+// folded
 void TouchControls::Animate()
 {
 	auto now = SDL_GetTicks();
@@ -185,7 +189,13 @@ void TouchControls::Animate()
 											   .XMin = feed.X - margin,
 											   .YMin = feed.Y - margin}) > 0;
 	}
-	auto target = waiting || Held(GameBindings::Plunger) ? 1.0f : 0.0f;
+	auto wanted = waiting || Held(GameBindings::Plunger);
+	if (wanted)
+		LaneEmptyTicks = 0;
+	else if (!LaneEmptyTicks)
+		LaneEmptyTicks = now;
+	auto keep = LaneShown > 0 && LaneEmptyTicks && now - LaneEmptyTicks < FoldDelayMs;
+	auto target = wanted || keep ? 1.0f : 0.0f;
 	auto step = seconds / FoldSeconds;
 	auto shown = LaneShown < target ? std::min(LaneShown + step, target) : std::max(LaneShown - step, target);
 	if (shown != LaneShown)
@@ -269,8 +279,11 @@ void TouchControls::FingerDown(const FingerKey& key, const SDL_FPoint& position)
 	SDL_Point point{static_cast<int>(position.x), static_cast<int>(position.y)};
 	if (SDL_PointInRect(&point, &Rects.Pause))
 	{
-		// The pause binding itself: a made-up Escape would reach the pause screen in the frame it opens and close it
+		// The pause binding itself: a made-up Escape would reach the pause screen in the frame it opens and close it.
+		// SDL reports the tap as a click too, which the pause screen would take as a tap on the game and resume.
 		winmain::HandleGameBinding(GameBindings::TogglePause, true);
+		if (DefinitiveFrontEnd::ScreenOpen())
+			DefinitiveFrontEnd::SwallowPauseTap();
 		return;
 	}
 	GameBindings binding;

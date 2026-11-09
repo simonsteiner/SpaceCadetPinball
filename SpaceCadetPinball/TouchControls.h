@@ -65,7 +65,7 @@ private:
 	static Layout Rects;
 	static Row PadRow;
 	static bool IsActive, HasNudged;
-	static Uint64 PlungerTicks, AnimateTicks;
+	static Uint64 PlungerTicks, AnimateTicks, LaneEmptyTicks;
 	// 1 while the lane shows, 0 once folded away
 	static float LaneShown;
 };

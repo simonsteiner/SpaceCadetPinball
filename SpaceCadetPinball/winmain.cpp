@@ -2058,6 +2058,8 @@ int winmain::event_handler(const SDL_Event* event)
 		break;
 	case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
 	case SDL_EVENT_WINDOW_RESIZED:
+	// The deck and the table keep clear of the system bars and a cutout, which can move without the window resizing
+	case SDL_EVENT_WINDOW_SAFE_AREA_CHANGED:
 		fullscrn::window_size_changed();
 		break;
 	case SDL_EVENT_GAMEPAD_ADDED:
