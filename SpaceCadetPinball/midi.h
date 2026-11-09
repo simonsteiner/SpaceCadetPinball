@@ -111,6 +111,8 @@ class midi
 {
 public:
 	static int music_init(MIX_Mixer* mixer, int volume);
+	// Once a frame: starts the music when the SoundFont, which loads on a thread of its own, is ready
+	static void music_update();
 	static void music_shutdown();
 	static void music_play();
 	static void music_stop();

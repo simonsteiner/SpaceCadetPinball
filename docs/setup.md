@@ -249,7 +249,7 @@ SDL3_mixer can't be relied on for the MIDI music: it has no native MIDI, and som
 2. **TinySoundFont** (vendored) with a SoundFont: the files in `SDL_SOUNDFONTS` (separated by `;`, or also `:` outside Windows), then `/usr/share/sounds/sf3/default-GM.sf3`, `/usr/share/sounds/sf2/default-GM.sf2`, `/usr/share/sounds/sf2/FluidR3_GM.sf2`, `/usr/share/soundfonts/default.sf2`, `/usr/share/soundfonts/FluidR3_GM.sf2` and `/usr/share/sounds/sf2/TimGM6mb.sf2`. SF2 and SF3 (compressed) files both load; Debian's newer default `/usr/share/sounds/sf3/default-GM.sf3` comes first. The whole SoundFont is held in memory as floating point, so FluidR3 (148 MB on disk) takes about 400 MB (loading `FluidR3_GM.sf2` with SF3 support on peaks at 570 MB before settling back to 288 MB, because TinySoundFont keeps the raw copy while sizing its first float buffer); TimGM6mb (6 MB) is lighter.
 3. **SDL3_mixer's own MIDI decoders,** if it has any: Timidity in the vendored build (needs a `timidity.cfg` with GUS patches; set `TIMIDITY_CFG` if it isn't in `/etc/timidity.cfg` or `/etc/timidity/`), FluidSynth in some distribution builds.
 
-No SoundFont ships with the game. Music needs an audio device, so `-noaudio` and `-quick` turn it off.
+The SoundFont loads on a thread of its own while the game starts, so the music begins a moment after the table shows (about a second on a PC, several on a phone), and the console's `Playing music with SoundFont` line says how long the load took. No SoundFont ships with the game. Music needs an audio device, so `-noaudio` and `-quick` turn it off.
 
 ## Git hooks
 

@@ -65,6 +65,22 @@ On the Windows host's Android Emulator (WHPX; WSL has no `/dev/kvm`) with the x8
 - **Two logged errors, explained:** `SDL Error: That operation is not supported` once at startup came from sizing and placing the window, which SDL's Android driver can't do, and from `SDL_ShowWindow`, which calls `SDL_RestoreWindow`, which the driver lacks too. `No OpenGL context has been made current` on coming back came from SDL's Android resume, which restores an EGL context and sets its swap interval even when the GPU renderer draws through Vulkan. #179 skips the sizing on Android and stops reporting the two messages that are SDL's own; neither stopped the game.
 - **Touch hints named keys:** the title menu and the pause screen showed Enter, Esc and the arrows, which a phone doesn't have. Fixed in #178: with the deck on, or after a touch, the screens show no key hints, and Back, which arrives as Escape, doesn't bring them back.
 
+## Speed on the A54 (2026-11-09)
+
+Measured on the Galaxy A54 (SM-A546B, Exynos 1380, Mali-G68, Android 16, 1080×2340 at 120 Hz) with the test APK of main `70d5f74`, Space Cadet 2026, renderer `gpu` (Vulkan). No code was changed to measure: logcat's timestamps of the game's own lines, `screenrecord` for when the menu shows, `dumpsys SurfaceFlinger --timestats` for the frame rate, `/sys/kernel/gpu/gpu_busy` and `gpu_clock`, and `dumpsys meminfo`.
+
+| What | Value at `70d5f74` |
+| --- | --- |
+| Cold start to the title menu | about 6.4 s: 0.2 s to `SDL_main`, 0.7 s to the loading screen, 5.4 to 6.2 s in the SoundFont, under 0.3 s for the table |
+| Memory | about 555 MB PSS, 370 MB of it native heap; loading the SoundFont alone peaks near 300 MB on the PC |
+| Frame rate, title with the demo behind it | 39 fps on average on the 120 Hz panel, in gaps of 16, 25 and 33 ms; GPU about 80 % busy at 455 of 949 MHz, the game's thread at about 44 % of a core, so the GPU is the limit |
+
+Three pull requests follow from it:
+
+1. **The SoundFont loads on a thread of its own.** `midi::music_init` used to decode every Vorbis sample of `FluidR3Mono_GM.sf3` on the main thread before the table loaded (`tsf_load_memory`; 0.9 s on the PC, about 6 s on the phone). Now a thread loads it once per process; the table and the menu come up meanwhile, and `midi::music_update`, once a frame, starts the track that was asked for when the synth is ready. The synth outlives `midi::music_shutdown`, so changing the table or the edition no longer loads the SoundFont again, and a restart during the load doesn't wait for it. Quitting during the load still waits for it to end, after the window has closed. The web build has no threads and loads as before. Two log lines help measuring: `First frame … ms after start` and the load time on the `Playing music with SoundFont` line. On the PC the first frame comes after 0.25 s instead of 1.2 s.
+2. **The frame rate:** not done yet.
+3. **The SoundFont's memory:** not done yet.
+
 ## The rest of G5, as pull requests
 
 In order; each is small enough to review on its own. Sizes: S is up to a day, M a few days, L about a week.

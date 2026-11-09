@@ -1031,6 +1031,8 @@ void winmain::MainLoop()
 		if (TakeChosenFolder())
 			Restart();
 
+		midi::music_update();
+
 		if (DispFrameRate)
 		{
 			auto curTime = Clock::now();
@@ -1169,6 +1171,12 @@ void winmain::MainLoop()
 				fullscrn::EndFrame();
 
 				SDL_RenderPresent(Renderer);
+				if (static auto logged = false; !logged)
+				{
+					// For measuring a cold start: SDL's clock starts when the game does
+					logged = true;
+					printf("First frame %u ms after start\n", static_cast<unsigned>(SDL_GetTicks()));
+				}
 				frameCounter++;
 				UpdateToFrameCounter -= UpdateToFrameRatio;
 			}
