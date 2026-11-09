@@ -637,7 +637,7 @@ void render::PresentVScreen(float ballAlpha)
 		unpaint_balls();
 		paint_balls(true);
 	}
-	screen->BlitToTexture();
+	screen->BlitChangesToTexture();
 	if (hideBalls)
 	{
 		unpaint_balls();
@@ -652,7 +652,7 @@ void render::PresentVScreen(float ballAlpha)
 		if (auto composed = Compositor::Compose(screen->Texture, UpdateDepthTexture(), scale, *scene))
 			table = composed;
 		else if (hideBalls)
-			screen->BlitToTexture();
+			screen->BlitChangesToTexture();
 	}
 	// Only the table goes through the post-processing effect, not the backdrop or the overlays
 	PostEffect::Begin(static_cast<float>(screen->Width), static_cast<float>(screen->Height),
