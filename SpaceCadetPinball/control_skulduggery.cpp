@@ -323,6 +323,7 @@ namespace
 	void TableHook(MessageCode code, TPinballComponent* caller);
 	void StateControl(int state, MessageCode code, const TPinballComponent* caller);
 
+	// Starts the music track unless it's the one already active
 	void PlayTrack(MidiTracks track)
 	{
 		// PIRATES.EXE starts a track only if another one plays
@@ -503,6 +504,7 @@ namespace
 		PickedMode() = 0;
 	}
 
+	// Whether the light is neither on, toggled on nor flashing
 	bool LightIdle(const TLight& light)
 	{
 		return !light.LightOnFlag && !light.ToggledOnFlag && !light.FlasherOnFlag;
@@ -545,6 +547,7 @@ namespace
 		return pick;
 	}
 
+	// The light of the mode with this state, by its place in PickedModeStates; nullptr for any other state
 	TLight* ModeLight(int state)
 	{
 		auto pick = std::ranges::find(PickedModeStates, state);
@@ -684,6 +687,7 @@ namespace
 			light->Message(MessageCode::TLightResetAndTurnOff, 0.0f);
 	}
 
+	// The captive ball's lights go out
 	void CaptiveLightsOff()
 	{
 		for (auto light : captive_lights)
@@ -3533,6 +3537,7 @@ namespace
 	// deque keeps each link where it is as more are added, since the components point to them
 	std::deque<component_control> Links;
 
+	// Links the component to its rule handler, with the scores ComponentScores lists for its group name, or none
 	void Link(TPinballComponent& component, void (&handler)(MessageCode, TPinballComponent*))
 	{
 		static const std::vector<int> none;
@@ -3603,6 +3608,8 @@ namespace
 								   { return std::ranges::find(bank.Targets, component) != bank.Targets.end(); });
 	}
 
+	// Finds the components the rules use by group name and links every component of the table to its rule handler. If
+	// one of them is missing, the table stays without rules, and info_text_box is null
 	void MakeLinks(TPinballTable* table)
 	{
 		Table = table;
@@ -4023,6 +4030,7 @@ namespace
 			Cheats.Key(key, *Table, *info_text_box);
 	}
 
+	// Stops the cheats' scroller, if info_text_box was found
 	void EndScroll()
 	{
 		if (info_text_box)

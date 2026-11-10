@@ -843,6 +843,8 @@ std::reference_wrapper<TLight*> control::WormholeLightArray2[3] =
 };
 
 
+// Binds every tag in score_components and simple_components to the table's component of that group name, and gives
+// the scoring components their handler and scores
 void control::make_links(TPinballTable* table)
 {
 	TableG = table;
@@ -860,6 +862,7 @@ void control::make_links(TPinballTable* table)
 		make_component_link(*simple_component);
 }
 
+// Forgets the table and every tag's component
 void control::ClearLinks()
 {
 	TableG = nullptr;
@@ -869,6 +872,7 @@ void control::ClearLinks()
 		component->SetComponent(nullptr);
 }
 
+// Returns the table's component whose group name is the tag's and keeps it in the tag; null when the table has none
 TPinballComponent* control::make_component_link(component_tag_base& tag)
 {
 	if (tag.GetComponent())
@@ -889,6 +893,7 @@ TPinballComponent* control::make_component_link(component_tag_base& tag)
 	return nullptr;
 }
 
+// Passes a component's message to that component's own handler, if it has one, then to the mission state machine
 void control::handler(MessageCode code, TPinballComponent* cmp)
 {
 	component_control* control = cmp->Control;
@@ -900,6 +905,8 @@ void control::handler(MessageCode code, TPinballComponent* cmp)
 	MissionControl(code, cmp);
 }
 
+// Takes a typed character and applies a cheat once the last characters spell its word: hidden test, gmax, 1max,
+// bmax, rmax, easy mode, and with Full Tilt data quote and credits. All but those two mark the game as cheated
 void control::pbctrl_bdoor_controller(char key)
 {
 	// Buffer large enough for longest cheat + null
@@ -1052,6 +1059,8 @@ void control::table_set_flag_lights()
 	info_text_box->Display(pb::get_rc_string(Msg::STRING152), 2.0);
 }
 
+// Starts multiball unless it runs already: adds 3 to the multiball count, restarts the three wormhole sinks' timers
+// with <time>, flashes lite38 to lite40 and plays the multiball text and music
 void control::table_set_multiball(float time)
 {
 	if (TableG->MultiballCount <= 1)
@@ -1068,6 +1077,8 @@ void control::table_set_multiball(float time)
 	}
 }
 
+// Locks a ball, outside multiball: the third locked ball starts multiball, an earlier one is counted, shown as
+// "Ball Locked" and replaced by a ball from the plunger
 void control::table_bump_ball_sink_lock()
 {
 	if (TableG->MultiballCount <= 1)
@@ -1095,6 +1106,7 @@ void control::table_set_replay(float value)
 	info_text_box->Display(pb::get_rc_string(Msg::STRING101), value);
 }
 
+// The rmax cheat: lights the next rank light in middle_circle and announces the rank; does nothing at the ninth rank
 void control::cheat_bump_rank()
 {
 	char Buffer[64]{};
@@ -1110,6 +1122,8 @@ void control::cheat_bump_rank()
 	}
 }
 
+// Frees a ball the engine found not moving, unless it lies within the bounds of a flipper or the plunger: throws it
+// towards negative Y, and once its stuck counter is above 20 disables it and has the plunger relaunch a ball
 void control::UnstuckBall(TBall& ball, int dt)
 {
 	if (!CheckBallInControlBounds(ball, *flip1) &&
@@ -1130,6 +1144,8 @@ void control::UnstuckBall(TBall& ball, int dt)
 	}
 }
 
+// Returns whether an active ball's centre is inside the component's bounding box, widened by half the table's
+// collision offset
 bool control::CheckBallInControlBounds(const TBall& ball, const TCollisionComponent& cmp)
 {
 	auto offset = TableG->CollisionCompOffset / 2.0f;
@@ -1140,6 +1156,8 @@ bool control::CheckBallInControlBounds(const TBall& ball, const TCollisionCompon
 		ball.Position.Y <= cmp.AABB.YMax + offset;
 }
 
+// Adds a score that the multiplier and the lit bonus and jackpot leave as it is, and returns what was added. With
+// Full Tilt data a mission's score also takes the jackpot, which then restarts at 500,000
 int control::SpecialAddScore(int score, bool mission)
 {
 	// FT: mission completion applies current jackpot
@@ -1165,6 +1183,8 @@ int control::SpecialAddScore(int score, bool mission)
 	return addedScore;
 }
 
+// Lights lite16 and <rank> more lights of outer_circle. A full circle starts over and lights the next rank light in
+// middle_circle, announcing the rank unless all nine were lit: returns 1 then, else 0
 int control::AddRankProgress(int rank)
 {
 	char Buffer[64];
@@ -1200,6 +1220,8 @@ int control::AddRankProgress(int rank)
 	return result;
 }
 
+// Moves the wormhole destination, lite4's message field (1 to 3, 0 for none), to the next one and shows it on the
+// arrow lights; with <flag> 0 only if one is set. Does nothing in the secret mission's states (16, 22, 23)
 void control::AdvanceWormHoleDestination(int flag)
 {
 	int lite198Msg = lite198->MessageField;
@@ -1226,6 +1248,7 @@ void control::AdvanceWormHoleDestination(int flag)
 	}
 }
 
+// v_rebo1's handler: a hit lights lite84 for a moment and scores
 void control::FlipperRebounderControl1(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -1236,6 +1259,7 @@ void control::FlipperRebounderControl1(MessageCode code, TPinballComponent* call
 	}
 }
 
+// v_rebo2's handler: a hit lights lite85 for a moment and scores
 void control::FlipperRebounderControl2(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -1246,6 +1270,7 @@ void control::FlipperRebounderControl2(MessageCode code, TPinballComponent* call
 	}
 }
 
+// v_rebo3's and v_rebo4's handler: a hit scores
 void control::RebounderControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -1254,6 +1279,7 @@ void control::RebounderControl(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// The bumpers' handler (a_bump1 to a_bump7): a hit scores by the bumper's current bitmap index
 void control::BumperControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -1262,18 +1288,22 @@ void control::BumperControl(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// a_kick1's handler: when its timer expires, v_gate1 is enabled again, except in easy mode
 void control::LeftKickerControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlTimerExpired && !easyMode)
 		gate1->Message(MessageCode::TGateEnable, 0.0);
 }
 
+// a_kick2's handler: when its timer expires, v_gate2 is enabled again, except in easy mode
 void control::RightKickerControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlTimerExpired && !easyMode)
 		gate2->Message(MessageCode::TGateEnable, 0.0);
 }
 
+// v_gate1's handler: disabling the gate flashes lite30 and lite196 for 5 seconds, after which lite30 stays on;
+// enabling it turns both off
 void control::LeftKickerGateControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::TGateDisable)
@@ -1288,6 +1318,8 @@ void control::LeftKickerGateControl(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// v_gate2's handler: disabling the gate flashes lite29 and lite195 for 5 seconds, after which lite29 stays on;
+// enabling it turns both off
 void control::RightKickerGateControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::TGateDisable)
@@ -1302,6 +1334,8 @@ void control::RightKickerGateControl(MessageCode code, TPinballComponent* caller
 	}
 }
 
+// s_onewy4's handler, the skill shot: a ball passing while skill shot lights are on scores by how many are, shows
+// the score and flashes those lights; unless lite56 is lit, it also resets the trek lights
 void control::DeploymentChuteToEscapeChuteOneWayControl(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -1326,12 +1360,15 @@ void control::DeploymentChuteToEscapeChuteOneWayControl(MessageCode code, TPinba
 	}
 }
 
+// s_onewy10's handler: a ball passing turns the skill shot lights off
 void control::DeploymentChuteToTableOneWayControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
 		skill_shot_lights->Message(MessageCode::TLightResetAndTurnOff, 0.0);
 }
 
+// v_bloc1's handler, the blocker above the drain. TBlockerEnable switches it on for its initial duration (without
+// end in easy mode) with lite1 lit; its first timer expiry extends it with lite1 flashing, the second switches it off
 void control::DrainBallBlockerControl(MessageCode code, TPinballComponent* caller)
 {
 	auto block = static_cast<TBlocker*>(caller);
@@ -1366,6 +1403,8 @@ void control::DrainBallBlockerControl(MessageCode code, TPinballComponent* calle
 	}
 }
 
+// The ramp's handler: a ball on it gets the reflex shot award while lite54 is lit, else the ramp's score, and a
+// sound chosen by which of lite54, lite55 and lite56 are lit
 void control::LaunchRampControl(MessageCode code, TPinballComponent* caller)
 {
 	TSound* sound;
@@ -1409,12 +1448,14 @@ void control::LaunchRampControl(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// ramp_hole's handler: a ball it releases starts lite54 flashing for 5 seconds
 void control::LaunchRampHoleControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlBallReleased)
 		lite54->Message(MessageCode::TLightFlasherStartTimed, 5.0);
 }
 
+// a_roll9's handler: a ball rolling over it lights lite27 and lite28, the return lanes' lights
 void control::SpaceWarpRolloverControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -1424,6 +1465,9 @@ void control::SpaceWarpRolloverControl(MessageCode code, TPinballComponent* call
 	}
 }
 
+// The reentry lanes' handler (a_roll1 to a_roll3): a ball lights its lane's light, or with 3D Pinball's data turns
+// a lit one off, and scores. All three lit raise the attack bumpers one level ("Weapons Upgraded"), up to level 3,
+// and restart the bumper group's 60 second timer
 void control::ReentryLanesRolloverControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -1479,6 +1523,8 @@ void control::ReentryLanesRolloverControl(MessageCode code, TPinballComponent* c
 	}
 }
 
+// The attack and launch bumper groups' handler: when the notify timer expires, the group's bumpers drop one bitmap
+// index and the timer starts again at 60 seconds
 void control::BumperGroupControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlNotifyTimerExpired)
@@ -1488,6 +1534,9 @@ void control::BumperGroupControl(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// The launch lanes' handler (a_roll110 to a_roll112): a ball lights its lane's light, or with 3D Pinball's data
+// turns a lit one off, and scores. All three lit raise the launch bumpers one level ("Engine Upgraded"), up to
+// level 3, and restart the bumper group's 60 second timer
 void control::LaunchLanesRolloverControl(MessageCode code, TPinballComponent* caller)
 {
 	TLight* light;
@@ -1534,6 +1583,8 @@ void control::LaunchLanesRolloverControl(MessageCode code, TPinballComponent* ca
 	}
 }
 
+// The outlanes' handler (a_roll4, a_roll8): a ball gives an extra ball while lite17 or lite18 is lit, which then go
+// off, and scores; a lit kicker light of its side (lite30 for a_roll4, else lite29) starts flashing
 void control::OutLaneRolloverControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -1565,6 +1616,8 @@ void control::OutLaneRolloverControl(MessageCode code, TPinballComponent* caller
 	}
 }
 
+// lite17's handler, also called directly: TLightResetAndTurnOn lights the extra ball lights lite17 and lite18 for
+// 55 seconds, and the timer's expiry then flashes them for 5 more
 void control::ExtraBallLightControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::TLightResetAndTurnOn)
@@ -1584,6 +1637,8 @@ void control::ExtraBallLightControl(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// The return lanes' handler (a_roll6, a_roll7): a ball scores, and more while the lane's light (lite27, lite28) is
+// lit, which then goes off together with lite59
 void control::ReturnLaneRolloverControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -1613,6 +1668,8 @@ void control::ReturnLaneRolloverControl(MessageCode code, TPinballComponent* cal
 	}
 }
 
+// a_roll5's handler: a ball collects the bonus while lite16 is lit, which then goes off, else scores, and either
+// way sets the fuel bargraph to 11
 void control::BonusLaneRolloverControl(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -1637,6 +1694,8 @@ void control::BonusLaneRolloverControl(MessageCode code, TPinballComponent* call
 	}
 }
 
+// a_roll179's handler, a fuel lane rollover: a ball sets the fuel bargraph to 1 ("Ship Re-Fueled"), or with more
+// than 1 of its lights on already blinks the rollover's light, and scores
 void control::FuelRollover1Control(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -1654,6 +1713,8 @@ void control::FuelRollover1Control(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// a_roll180's handler, a fuel lane rollover: a ball sets the fuel bargraph to 3 ("Ship Re-Fueled"), or with more
+// than 3 of its lights on already blinks the rollover's light, and scores
 void control::FuelRollover2Control(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -1671,6 +1732,8 @@ void control::FuelRollover2Control(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// a_roll181's handler, a fuel lane rollover: a ball sets the fuel bargraph to 5 ("Ship Re-Fueled"), or with more
+// than 5 of its lights on already blinks the rollover's light, and scores
 void control::FuelRollover3Control(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -1688,6 +1751,8 @@ void control::FuelRollover3Control(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// a_roll182's handler, a fuel lane rollover: a ball sets the fuel bargraph to 7 ("Ship Re-Fueled"), or with more
+// than 7 of its lights on already blinks the rollover's light, and scores
 void control::FuelRollover4Control(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -1705,6 +1770,8 @@ void control::FuelRollover4Control(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// a_roll183's handler, a fuel lane rollover: a ball sets the fuel bargraph to 9 ("Ship Re-Fueled"), or with more
+// than 9 of its lights on already blinks the rollover's light, and scores
 void control::FuelRollover5Control(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -1722,6 +1789,8 @@ void control::FuelRollover5Control(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// a_roll184's handler, a fuel lane rollover: a ball sets the fuel bargraph to 11 ("Ship Re-Fueled"), or with more
+// than 11 of its lights on already blinks the rollover's light, and scores
 void control::FuelRollover6Control(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -1739,6 +1808,8 @@ void control::FuelRollover6Control(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// hyperspace_lights' handler, also called directly: TLightGroupResetAndTurnOn lights the next light and restarts
+// the 60 second notify timer, whose expiry takes one light away; code 0 turns the lights off
 void control::HyperspaceLightGroupControl(MessageCode code, TPinballComponent* caller)
 {
 	switch (code)
@@ -1759,6 +1830,9 @@ void control::HyperspaceLightGroupControl(MessageCode code, TPinballComponent* c
 	}
 }
 
+// The wormholes' handler (v_sink1 to v_sink3). Without a destination set, the ball scores and comes out of the same
+// wormhole; with one, it comes out of the destination. Entering the destination itself gives a replay, or with
+// Full Tilt's multiball and one ball in play locks the ball. A set destination is cleared either way
 void control::WormHoleControl(MessageCode code, TPinballComponent* caller)
 {
 	int sinkFlag2;
@@ -1827,6 +1901,8 @@ void control::WormHoleControl(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// a_flip1's handler: extending the flipper (code 1, spelled TLightTurnOn here) steps the reentry and launch lanes'
+// lights backward
 void control::LeftFlipperControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::TLightTurnOn)
@@ -1836,6 +1912,8 @@ void control::LeftFlipperControl(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// a_flip2's handler: extending the flipper (code 1, spelled TLightTurnOn here) steps the reentry and launch lanes'
+// lights forward
 void control::RightFlipperControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::TLightTurnOn)
@@ -1845,18 +1923,23 @@ void control::RightFlipperControl(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// lite60's handler: when the light's timer expires, the jackpot is no longer lit
 void control::JackpotLightControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlTimerExpired)
 		TableG->JackpotScoreFlag = false;
 }
 
+// lite59's handler: when the light's timer expires, the bonus is no longer lit
 void control::BonusLightControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlTimerExpired)
 		TableG->BonusScoreFlag = false;
 }
 
+// The booster targets' handler (a_targ1 to a_targ3): a target scores once until all three are hit; then they come
+// back, score more and give the first booster not lit yet, in the order flags upgraded (not in mission states 15
+// and 29), jackpot, bonus, bonus hold, and after those a further score
 void control::BoosterTargetControl(MessageCode code, TPinballComponent* caller)
 {
 	TSound* sound = nullptr;
@@ -1921,6 +2004,8 @@ void control::BoosterTargetControl(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// bumper_target_lights' handler, also called directly: TLightGroupResetAndTurnOn lights the next medal light and
+// restarts the 30 second notify timer, whose expiry takes one light away; code 0 turns the lights off
 void control::MedalLightGroupControl(MessageCode code, TPinballComponent* caller)
 {
 	switch (code)
@@ -1941,6 +2026,9 @@ void control::MedalLightGroupControl(MessageCode code, TPinballComponent* caller
 	}
 }
 
+// top_target_lights' handler, also called directly: TLightGroupResetAndTurnOn lights the next multiplier light and
+// restarts the 30 second notify timer, whose expiry takes one light and one step of the score multiplier away.
+// ControlEnableMultiplier sets the multiplier to its highest step with all lights on, ControlDisableMultiplier to 0
 void control::MultiplierLightGroupControl(MessageCode code, TPinballComponent* caller)
 {
 	switch (code)
@@ -1975,6 +2063,8 @@ void control::MultiplierLightGroupControl(MessageCode code, TPinballComponent* c
 	}
 }
 
+// a_targ10 to a_targ12's handler: a hit lights the target's light (lite70 to lite72) and scores; all three lit go
+// off and set the fuel bargraph to 11 ("Ship Re-Fueled")
 void control::FuelSpotTargetControl(MessageCode code, TPinballComponent* caller)
 {
 	TPinballComponent* liteComp;
@@ -2007,6 +2097,8 @@ void control::FuelSpotTargetControl(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// The mission targets' handler (a_targ13 to a_targ15): a hit lights the target's light (lite101 to lite103), sets
+// its bit in lite101's message field, which mission selection reads, and scores; all three lit go off
 void control::MissionSpotTargetControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -2049,6 +2141,8 @@ void control::MissionSpotTargetControl(MessageCode code, TPinballComponent* call
 	}
 }
 
+// a_targ16 to a_targ18's handler: a hit lights the target's light (lite104 to lite106), sets its bit in lite104's
+// message field and scores; all three lit go off and disable v_gate1
 void control::LeftHazardSpotTargetControl(MessageCode code, TPinballComponent* caller)
 {
 	TPinballComponent* lite;
@@ -2085,6 +2179,8 @@ void control::LeftHazardSpotTargetControl(MessageCode code, TPinballComponent* c
 	}
 }
 
+// a_targ19 to a_targ21's handler: a hit lights the target's light (lite107 to lite109), sets its bit in lite107's
+// message field and scores; all three lit go off and disable v_gate2
 void control::RightHazardSpotTargetControl(MessageCode code, TPinballComponent* caller)
 {
 	TPinballComponent* light;
@@ -2121,6 +2217,8 @@ void control::RightHazardSpotTargetControl(MessageCode code, TPinballComponent* 
 	}
 }
 
+// a_targ22's handler: a hit scores, lights lite110 with "Wormhole Opened" if it was off, and moves the wormhole
+// destination on
 void control::WormHoleDestinationControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -2135,6 +2233,7 @@ void control::WormHoleDestinationControl(MessageCode code, TPinballComponent* ca
 	}
 }
 
+// a_kout3's handler, the black hole: a ball scores, shows the score and restarts the kickout's timer
 void control::BlackHoleKickoutControl(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -2148,6 +2247,8 @@ void control::BlackHoleKickoutControl(MessageCode code, TPinballComponent* calle
 	}
 }
 
+// The flags' handler (a_flag1, a_flag2): ControlCollision scores, more while lite20 is lit, and
+// ControlSpinnerLoopReset moves a set wormhole destination on
 void control::FlagControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlSpinnerLoopReset)
@@ -2161,6 +2262,9 @@ void control::FlagControl(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// a_kout1's handler, the gravity well, also called directly. ControlEnableMultiplier opens it with lite62 flashing;
+// <caller> is then not a component but a score to show, or null for the plain text. A ball falling in scores,
+// closes it and restarts the kickout's timer with its sound's length; Reset closes it too
 void control::GravityWellKickoutControl(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -2201,6 +2305,8 @@ void control::GravityWellKickoutControl(MessageCode code, TPinballComponent* cal
 	}
 }
 
+// s_onewy1's handler: a ball passing lights lite200 for 5 seconds and, while lite67 is lit, turns the other skill
+// shot lights off, flashes lite54 and lite25 for 5 seconds and sets the fuel bargraph to 11
 void control::SkillShotGate1Control(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -2219,6 +2325,7 @@ void control::SkillShotGate1Control(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// s_trip1's handler: a ball passing while lite67 is lit lights the skill shot light lite68, with a sound
 void control::SkillShotGate2Control(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -2231,6 +2338,7 @@ void control::SkillShotGate2Control(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// s_trip2's handler: a ball passing while lite67 is lit lights the skill shot light lite69, with a sound
 void control::SkillShotGate3Control(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -2243,6 +2351,7 @@ void control::SkillShotGate3Control(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// s_trip3's handler: a ball passing while lite67 is lit lights the skill shot light lite131, with a sound
 void control::SkillShotGate4Control(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -2255,6 +2364,7 @@ void control::SkillShotGate4Control(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// s_trip4's handler: a ball passing while lite67 is lit lights the skill shot light lite132, with a sound
 void control::SkillShotGate5Control(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -2267,6 +2377,7 @@ void control::SkillShotGate5Control(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// s_trip5's handler: a ball passing while lite67 is lit lights the skill shot light lite133, with a sound
 void control::SkillShotGate6Control(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -2279,6 +2390,8 @@ void control::SkillShotGate6Control(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// lite200's handler: the light's first timer expiry flashes it for 5 more seconds, the second one ends that; its
+// message field tells the two apart
 void control::ShootAgainLightControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlTimerExpired)
@@ -2295,6 +2408,7 @@ void control::ShootAgainLightControl(MessageCode code, TPinballComponent* caller
 	}
 }
 
+// v_sink7's handler: a ball falling in restarts the sink's timer with -1
 void control::EscapeChuteSinkControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -2337,6 +2451,10 @@ void control::CompleteMission(TTextBox* doneBox, Msg doneText, int score, int ra
 	}
 }
 
+// The mission state machine, which gets every message after the component's own handler. The state is lite198's
+// message field: 0 awaiting deployment, 1 mission selection, 2 to 31 the missions and their parts, 32 game over.
+// Running out of fuel aborts a mission. A state's controller gets ControlMissionComplete when its state is entered
+// and ControlMissionStarted, also made from Resume and the mission text box's timer, to show its text
 void control::MissionControl(MessageCode code, TPinballComponent* caller)
 {
 	if (!lite198)
@@ -2481,6 +2599,10 @@ void control::MissionControl(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// a_kout2's handler, the hyperspace chute. A ball lights the next hyperspace light and gets that step's award:
+// hyperspace bonus, jackpot (doubled instead with Full Tilt data), center post, extra ball lights, gravity well.
+// It also gets the reflex shot award while lite25 is lit and, while lite130 is lit, all boosters and awards at
+// once. The kickout's timer is restarted with the length of the sound picked for all this
 void control::HyperspaceKickOutControl(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -2628,6 +2750,9 @@ void control::HyperspaceKickOutControl(MessageCode code, TPinballComponent* call
 	caller->Message(MessageCode::TKickoutRestartTimer, duration);
 }
 
+// The plunger's handler. PlungerFeedBall shows the mission state's text again. PlungerStartFeedTimer ends the
+// unlimited balls cheat and, unless lite200 is lit, sets up a new ball: skill shot and trek lights, the reflex
+// shot score, no multiplier, full fuel, both kicker gates disabled and lite200 lit
 void control::PlungerControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::PlungerFeedBall)
@@ -2663,6 +2788,8 @@ void control::PlungerControl(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// The medal targets' handler (a_targ4 to a_targ6): a target scores once until all three are hit; then they come
+// back and light the next medal light, which gives a score for the first two and an extra ball from the third on
 void control::MedalTargetControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision && !caller->MessageField)
@@ -2703,6 +2830,8 @@ void control::MedalTargetControl(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// The multiplier targets' handler (a_targ7 to a_targ9): a target scores once until all three are hit; then they
+// come back, score more and light the next multiplier light, which sets the score multiplier's step (1 to 4)
 void control::MultiplierTargetControl(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision && !caller->MessageField)
@@ -2749,6 +2878,10 @@ void control::MultiplierTargetControl(MessageCode code, TPinballComponent* calle
 	}
 }
 
+// The drain's handler. A drained ball comes back while lite200 ("Re-Deploy") or lite199 ("Replay Ball") is lit and
+// with the unlimited balls cheat; during multiball it only puts out multiball lights. Otherwise the bonus is added
+// unless the table is tilted, an extra ball, the next ball or the next player follows, and the lights, targets and
+// mission state are reset. The drain's timer then serves the ball, or ends the game after the last one
 void control::BallDrainControl(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -2941,6 +3074,7 @@ void control::BallDrainControl(MessageCode code, TPinballComponent* caller)
 }
 
 
+// Takes the table's own messages: a tilt ends the unlimited balls cheat and starts lite77 flashing
 void control::table_control_handler(MessageCode code)
 {
 	if (code == MessageCode::SetTiltLock)
@@ -2951,6 +3085,8 @@ void control::table_control_handler(MessageCode code)
 }
 
 
+// State 10, Alien Menace: on entry sets the attack bumpers back to bitmap index 0; when a_bump1's index is set
+// above 0 again, part two (state 20) follows
 void control::AlienMenaceController(MessageCode code, TPinballComponent* caller)
 {
 	if (code != MessageCode::TBumperSetBmpIndex)
@@ -2984,6 +3120,8 @@ void control::AlienMenaceController(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// State 20, Alien Menace's second part: 8 hits on the attack bumpers (a_bump1 to a_bump4) complete the mission
+// (750,000, rank progress 7)
 void control::AlienMenacePartTwoController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -3028,6 +3166,9 @@ void control::AlienMenacePartTwoController(MessageCode code, TPinballComponent* 
 	}
 }
 
+// State 7, Black Hole Threat: on entry sets the launch bumpers back to bitmap index 0; once a_bump5's index is
+// above 0 again, a ball in a_kout3 completes the mission (1,000,000, rank progress 8). The text and the flashing
+// light (lite316, then lite314) follow the step
 void control::BlackHoleThreatController(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::TBumperSetBmpIndex)
@@ -3080,6 +3221,8 @@ void control::BlackHoleThreatController(MessageCode code, TPinballComponent* cal
 	}
 }
 
+// State 9, Bug Hunt: on entry brings the nine popup targets back and turns the spot targets' lights off; 15 hits
+// on any of a_targ1 to a_targ22 complete the mission (750,000, rank progress 7)
 void control::BugHuntController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -3165,6 +3308,8 @@ void control::BugHuntController(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// State 15, Cosmic Plague: lights lite19 and lite20; 75 ControlCollision messages from the flags (a_flag1, a_flag2)
+// lead to part two (state 21)
 void control::CosmicPlagueController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -3206,6 +3351,7 @@ void control::CosmicPlagueController(MessageCode code, TPinballComponent* caller
 	}
 }
 
+// State 21, Cosmic Plague's second part: a ball over a_roll9 completes the mission (1,750,000, rank progress 11)
 void control::CosmicPlaguePartTwoController(MessageCode code, TPinballComponent* caller)
 {
 	if (code != MessageCode::ControlCollision)
@@ -3228,6 +3374,8 @@ void control::CosmicPlaguePartTwoController(MessageCode code, TPinballComponent*
 	}
 }
 
+// State 14, Doomsday Machine: 3 balls over the outlane rollovers (a_roll4, a_roll8) complete the mission
+// (1,250,000, rank progress 9)
 void control::DoomsdayMachineController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -3264,6 +3412,9 @@ void control::DoomsdayMachineController(MessageCode code, TPinballComponent* cal
 	}
 }
 
+// State 32, game over: on entry switches the game to game over mode and plays the main track. Each
+// ControlMissionStarted then shows the next text in the mission text box, whose message field keeps the position:
+// the game over text, each player's score (0x100 + player), then the high scores above 0 (0x200 + place)
 void control::GameoverController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[128];
@@ -3362,6 +3513,7 @@ void control::GameoverController(MessageCode code, TPinballComponent* caller)
 	mission_text_box->Display(pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_GameOver : Msg::STRING272), 10.0);
 }
 
+// State 3, Launch Training: 3 ramp collisions complete the mission (500,000, rank progress 6)
 void control::LaunchTrainingController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -3396,6 +3548,7 @@ void control::LaunchTrainingController(MessageCode code, TPinballComponent* call
 	}
 }
 
+// State 18, Maelstrom: 3 hits on the popup targets (a_targ1 to a_targ9) lead to part two (state 25)
 void control::MaelstromController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -3443,6 +3596,8 @@ void control::MaelstromController(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// State 31, Maelstrom's last part: lights lite130; a ball in a_kout2 completes the mission (5,000,000, rank
+// progress 18)
 void control::MaelstromPartEightController(MessageCode code, TPinballComponent* caller)
 {
 	if (code != MessageCode::ControlCollision)
@@ -3467,6 +3622,7 @@ void control::MaelstromPartEightController(MessageCode code, TPinballComponent* 
 	}
 }
 
+// State 28, Maelstrom's fifth part: a ramp collision leads to part six (state 29)
 void control::MaelstromPartFiveController(MessageCode code, TPinballComponent* caller)
 {
 	if (code != MessageCode::ControlCollision)
@@ -3490,6 +3646,7 @@ void control::MaelstromPartFiveController(MessageCode code, TPinballComponent* c
 	}
 }
 
+// State 27, Maelstrom's fourth part: a ball over a_roll184 leads to part five (state 28)
 void control::MaelstromPartFourController(MessageCode code, TPinballComponent* caller)
 {
 	if (code != MessageCode::ControlCollision)
@@ -3514,6 +3671,8 @@ void control::MaelstromPartFourController(MessageCode code, TPinballComponent* c
 	}
 }
 
+// State 30, Maelstrom's seventh part: on entry moves the wormhole destination on and sends the three wormhole
+// sinks code 7; a ball in any of them leads to part eight (state 31)
 void control::MaelstromPartSevenController(MessageCode code, TPinballComponent* caller)
 {
 	if (code != MessageCode::ControlCollision)
@@ -3541,6 +3700,8 @@ void control::MaelstromPartSevenController(MessageCode code, TPinballComponent* 
 	}
 }
 
+// State 29, Maelstrom's sixth part: lights lite19 and lite20; a ControlCollision from a flag (a_flag1, a_flag2)
+// leads to part seven (state 30)
 void control::MaelstromPartSixController(MessageCode code, TPinballComponent* caller)
 {
 	if (code != MessageCode::ControlCollision)
@@ -3570,6 +3731,8 @@ void control::MaelstromPartSixController(MessageCode code, TPinballComponent* ca
 	}
 }
 
+// State 26, Maelstrom's third part: 5 balls over the reentry, launch, out, return and bonus lane rollovers lead to
+// part four (state 27)
 void control::MaelstromPartThreeController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -3625,6 +3788,7 @@ void control::MaelstromPartThreeController(MessageCode code, TPinballComponent* 
 	}
 }
 
+// State 25, Maelstrom's second part: 3 hits on the spot targets (a_targ10 to a_targ22) lead to part three (state 26)
 void control::MaelstromPartTwoController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -3680,6 +3844,8 @@ void control::MaelstromPartTwoController(MessageCode code, TPinballComponent* ca
 	}
 }
 
+// State 2, Target Practice: 8 hits on the attack bumpers (a_bump1 to a_bump4) complete the mission (500,000, rank
+// progress 6)
 void control::PracticeMissionController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -3720,6 +3886,8 @@ void control::PracticeMissionController(MessageCode code, TPinballComponent* cal
 	}
 }
 
+// State 13, Reconnaissance: 15 balls over the reentry, launch, out, return and bonus lane rollovers complete the
+// mission (1,250,000, rank progress 9)
 void control::ReconnaissanceController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -3774,6 +3942,8 @@ void control::ReconnaissanceController(MessageCode code, TPinballComponent* call
 	}
 }
 
+// State 4, Re-entry Training: 3 balls over the reentry lanes' rollovers (a_roll1 to a_roll3) complete the mission
+// (500,000, rank progress 6)
 void control::ReentryTrainingController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -3816,6 +3986,9 @@ void control::ReentryTrainingController(MessageCode code, TPinballComponent* cal
 	}
 }
 
+// State 11, Rescue Mission: on entry turns the flag lights lite19 and lite20 off; once lite20 is lit again, a ball
+// in a_kout2 completes the mission (750,000, rank progress 7). The text and the flashing light (lite303, then
+// lite304) follow the step, and a booster target hit shows them again
 void control::RescueMissionController(MessageCode code, TPinballComponent* caller)
 {
 	switch (code)
@@ -3876,6 +4049,7 @@ void control::RescueMissionController(MessageCode code, TPinballComponent* calle
 	}
 }
 
+// State 12, Satellite Retrieval: 3 hits on a_bump4 complete the mission (1,250,000, rank progress 9)
 void control::SatelliteController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -3910,6 +4084,8 @@ void control::SatelliteController(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// State 5, Science Mission: on entry brings the nine popup targets back; 9 hits on them (a_targ1 to a_targ9)
+// complete the mission (750,000, rank progress 9)
 void control::ScienceMissionController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -3974,6 +4150,8 @@ void control::ScienceMissionController(MessageCode code, TPinballComponent* call
 	}
 }
 
+// State 23, the secret mission's last part: lights lite6 and flashes lite2; a ball in v_sink2 completes the mission
+// (1,500,000, rank progress 10)
 void control::SecretMissionGreenController(MessageCode code, TPinballComponent* caller)
 {
 	if (code != MessageCode::ControlCollision)
@@ -3999,6 +4177,8 @@ void control::SecretMissionGreenController(MessageCode code, TPinballComponent* 
 	}
 }
 
+// State 22, the secret mission's second part: lights lite5 and flashes lite4; a ball in v_sink1 leads to the last
+// part (state 23)
 void control::SecretMissionRedController(MessageCode code, TPinballComponent* caller)
 {
 	if (code != MessageCode::ControlCollision)
@@ -4024,6 +4204,8 @@ void control::SecretMissionRedController(MessageCode code, TPinballComponent* ca
 	}
 }
 
+// State 16, the secret mission: on entry clears the wormhole destination, lights lite7 and flashes lite3; a ball in
+// v_sink3 leads to the second part (state 22)
 void control::SecretMissionYellowController(MessageCode code, TPinballComponent* caller)
 {
 	if (code != MessageCode::ControlCollision)
@@ -4053,6 +4235,10 @@ void control::SecretMissionYellowController(MessageCode code, TPinballComponent*
 	}
 }
 
+// State 1, mission selection. A hit mission target (a_targ13 to a_targ15) picks a mission by the rank and the
+// target, or with all three targets' bits set in lite101's message field the rank's fourth one, and keeps it in
+// lite56's message field; a ramp collision then starts it if fuel is left. On entry it ends the last mission's
+// lights and music. It shows what to do next: refuel, hit the mission targets, or take the ramp
 void control::SelectMissionController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -4271,6 +4457,9 @@ void control::SelectMissionController(MessageCode code, TPinballComponent* calle
 	}
 }
 
+// State 8, Space Radiation: with all three bits set in lite104's message field (a_targ16 to a_targ18), a hit on
+// one of those targets opens the second step, where a ball in any wormhole completes the mission (1,000,000, rank
+// progress 8)
 void control::SpaceRadiationController(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -4316,6 +4505,8 @@ void control::SpaceRadiationController(MessageCode code, TPinballComponent* call
 	}
 }
 
+// State 6, Stray Comet: with all three bits set in lite107's message field (a_targ19 to a_targ21), a hit on one of
+// those targets opens the second step, where a ball in a_kout2 completes the mission (1,000,000, rank progress 8)
 void control::StrayCometController(MessageCode code, TPinballComponent* caller)
 {
 	if (code == MessageCode::ControlCollision)
@@ -4358,6 +4549,7 @@ void control::StrayCometController(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// State 17, Time Warp: 25 hits on the rebounds (v_rebo1 to v_rebo4) lead to part two (state 24)
 void control::TimeWarpController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -4398,6 +4590,9 @@ void control::TimeWarpController(MessageCode code, TPinballComponent* caller)
 	}
 }
 
+// State 24, Time Warp's second part: a ramp collision warps forward, lighting the next rank light and adding rank
+// progress 12; a ball in a_kout2 warps backward, taking one rank light away if more than one is lit. Both add
+// 2,000,000 and go back to mission selection
 void control::TimeWarpPartTwoController(MessageCode code, TPinballComponent* caller)
 {
 	char Buffer[64];
@@ -4462,6 +4657,8 @@ void control::UnselectMissionController(MessageCode code, TPinballComponent* cal
 	MissionControl(MessageCode::ControlMissionComplete, nullptr);
 }
 
+// State 0, awaiting deployment: shows that text until a ball passes s_onewy4 or s_onewy10, which leads to mission
+// selection (state 1)
 void control::WaitingDeploymentController(MessageCode code, TPinballComponent* caller)
 {
 	switch (code)

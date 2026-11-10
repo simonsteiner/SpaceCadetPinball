@@ -347,6 +347,7 @@ namespace
 
 	void TableHook(MessageCode code, TPinballComponent* caller);
 
+	// Starts the music track unless it's the one already active
 	void PlayTrack(MidiTracks track)
 	{
 		// DRAGON.EXE starts a track only if another one plays
@@ -524,12 +525,15 @@ namespace
 		return index + 4;
 	}
 
+	// The light of the picked quest, which a_rockb's message field indexes in quest_lights; nullptr if it's out of
+	// range
 	TLight* PickedQuestLight()
 	{
 		auto index = a_rockb->MessageField;
 		return index >= 0 && index < static_cast<int>(quest_lights.size()) ? quest_lights[index] : nullptr;
 	}
 
+	// The picked quest's light goes out, and none is picked; nothing happens without a picked quest
 	void ClearPickedQuest() // 0x423e50
 	{
 		if (!a_kout2->MessageField)
@@ -580,6 +584,7 @@ namespace
 		PickQuest();
 	}
 
+	// Whether <state> is one of the five quests', Dragon Hoard to Wizard's Fury
 	bool QuestPorted(int state)
 	{
 		return state >= DragonHoardState && state <= WizardsFuryState;
@@ -737,6 +742,7 @@ namespace
 		ShowPicture("$", 2.0f, Msg::Definitive_PictureSpell);
 	}
 
+	// Casts a random spell whose light is off, if there is one
 	void CastRandomSpell() // 0x4237f0
 	{
 		auto spell = PickSpell();
@@ -3251,6 +3257,9 @@ namespace
 		LockLights();
 	}
 
+	// Handles a ball in one of the tower's sinks (ControlCollision): it's trapped where the lock's light is armed, else
+	// it comes out of the lock's sink. In Rescue Maiden a_sink15 and a_sink18 send it out of a_sink1 or a_sink2, at
+	// random; outside Tower Barrage a_sink9 and a_sink10 also set diverters and lights
 	void TowerSinkControl(MessageCode code, TPinballComponent* caller)
 	{
 		using enum MessageCode;
@@ -3660,6 +3669,7 @@ namespace
 		}
 	}
 
+	// Links the component to its rule handler, with the scores ComponentScores lists for its group name, or none
 	void Link(TPinballComponent* component, void (&handler)(MessageCode, TPinballComponent*))
 	{
 		static const std::vector<int> none;
@@ -3668,6 +3678,7 @@ namespace
 		component->Control = &Links.emplace_back(handler, static_cast<unsigned>(list.size()), list.data());
 	}
 
+	// Whether the component is a TKickout or a TSink, which get StandInControl when no other handler serves them
 	bool IsKickoutOrSink(const TPinballComponent& component)
 	{
 		return dynamic_cast<const TKickout*>(&component) || dynamic_cast<const TSink*>(&component);
@@ -3678,6 +3689,8 @@ namespace
 		return dynamic_cast<const TSoloTarget*>(&component);
 	}
 
+	// Finds the components the rules use by group name and links every component of the table to its rule handler. If
+	// one of them is missing, the table stays without rules, and info_text_box is null
 	void MakeLinks(TPinballTable* table)
 	{
 		Table = table;
@@ -4266,6 +4279,7 @@ namespace
 			Cheats.Key(key, *Table, *info_text_box);
 	}
 
+	// Stops the cheats' scroller, if info_text_box was found
 	void EndScroll()
 	{
 		if (info_text_box)

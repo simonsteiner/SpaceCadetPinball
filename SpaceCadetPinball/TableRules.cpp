@@ -29,6 +29,7 @@ namespace
 		[](bool) { return false; },
 	};
 
+	// Whether the ball is active and within the component's bounds, widened by half of CollisionCompOffset
 	bool InBounds(const TPinballTable& table, const TBall& ball, const TCollisionComponent& component)
 	{
 		auto offset = table.CollisionCompOffset / 2.0f;
@@ -38,6 +39,7 @@ namespace
 	}
 }
 
+// Returns the rules of the loaded table (pb::Table): Space Cadet's unless it's a bonus table
 const TableRules& TableRules::Current()
 {
 	switch (pb::Table)
@@ -51,6 +53,8 @@ const TableRules& TableRules::Current()
 	}
 }
 
+// Frees a stuck ball unless it lies at the plunger, a flipper or one of <resting>: throws it up the table, or after
+// more than 20 tries takes it out and has the plunger serve it again
 void TableRules::UnstuckBonusTableBall(TPinballTable& table, TBall& ball,
 									   std::initializer_list<const TCollisionComponent*> resting)
 {
