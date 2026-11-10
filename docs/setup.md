@@ -187,6 +187,8 @@ The script checks the lines changed since the branch left `main` (their merge ba
 
 The `lint` job also runs `tools/check-bidi.sh build/lint`, which builds a small harness around `DefinitiveText::Shape` and compares its right-to-left text with python-bidi and arabic-reshaper, pinned in `tools/bidi/requirements.txt`, on every Hebrew and Arabic string in `translations.cpp`, the edition hint and a few made-up cases. It needs no game data; locally it fetches the packages through `uv`. Run it after changing `DefinitiveText.cpp` or a Hebrew or Arabic string.
 
+CodeRabbit reviews the fork's pull requests too, and its Docstring Coverage check warns when fewer than 80 % of the functions a pull request touches have a comment. It counts functions of cyclomatic complexity 2 or more, that is, with a branch or a loop, and looks for the comment above the definition. `tools/check-function-comments.sh` lists such functions without one, in the whole project or in the files named; it measures the complexity with [lizard](https://github.com/terryyin/lizard), which `uvx` fetches at the version pinned in the script. No job runs it; the check stays CodeRabbit's.
+
 The LLVM version is set once, in `tools/llvm-requirements.txt`: CI installs it from there with hashes, and the script reads it for `uvx`. To bump it, regenerate that file's hashes, then update the version in the `uvx` commands above and in `AGENTS.md`.
 
 SonarCloud analyses the fork's pull requests automatically, with `.sonarcloud.properties`. That file only sets what is analysed, so the rules it ignores are set in SonarCloud's project settings (Analysis Scope, "Ignore Issues on Multiple Criteria") and are listed here, because git doesn't record them:
