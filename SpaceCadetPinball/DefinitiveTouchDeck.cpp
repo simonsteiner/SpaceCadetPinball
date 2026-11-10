@@ -14,7 +14,7 @@ namespace
 	constexpr float RestAngle = 0.5f, HeldAngle = -0.38f;
 	// Radians per second it swings, so a tap still shows
 	constexpr float SwingSpeed = 14;
-	// The knob reaches the bottom of the lane after this long; the table's plunger pulls back at its own pace
+	// The lane's tip is pulled all the way after this long; the table's plunger pulls back at its own pace
 	constexpr float PullSeconds = 1.0f;
 	constexpr int MeterLamps = 6;
 
@@ -93,6 +93,8 @@ namespace
 		float ShotFrom = 0, ShotTravel = 0, ShotSpeed = 0, ShotLeft = 0;
 	};
 	PlungerState Lane{};
+	// The ImGui frame the lane was last drawn in
+	int LaneFrame = -1;
 
 	// A steel ball: a light sphere with a shine up and to the left and a dark rim
 	void DrawBall(ImDrawList* drawList, ImVec2 centre, float radius)
@@ -111,6 +113,13 @@ namespace
 		auto held = deck.PlungerHeld;
 		auto pull = held ? std::clamp(deck.PlungerSeconds / PullSeconds, 0.0f, 1.0f) : 0.0f;
 		auto delta = ImGui::GetIO().DeltaTime;
+
+		// The lane only moves while it is drawn. Behind a screen or in Classic it isn't, and what it remembers of a
+		// hold is old by then: a finger lifted meanwhile is no shot.
+		auto frame = ImGui::GetFrameCount();
+		if (frame != LaneFrame + 1)
+			Lane = PlungerState{};
+		LaneFrame = frame;
 
 		// Letting go with a ball on the tip shoots it from where the tip was, the faster the further it had come.
 		// A new hold ends the wait for the last shot.
