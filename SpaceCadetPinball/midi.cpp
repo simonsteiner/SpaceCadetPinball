@@ -29,7 +29,13 @@ struct MidiSong
 };
 
 std::vector<MidiSong*> midi::LoadedTracks{};
-MidiSong *midi::track1, *midi::track2, *midi::track3, *midi::track4, *midi::track5, *midi::track6, *midi::track7;
+MidiSong* midi::track1;
+MidiSong* midi::track2;
+MidiSong* midi::track3;
+MidiSong* midi::track4;
+MidiSong* midi::track5;
+MidiSong* midi::track6;
+MidiSong* midi::track7;
 MidiTracks midi::active_track, midi::NextTrack;
 int midi::Volume = options::MaxVolume;
 bool midi::IsPlaying = false;
@@ -109,12 +115,12 @@ namespace
 
 	// The synth stream's callback, on the audio thread: sends the song's messages that are due and renders the audio
 	// asked for in blocks, soft clipped, starting the song over at its end; nothing while no song is set
-	void SDLCALL RenderSynth(void* userdata, SDL_AudioStream* stream, int additionalAmount, int totalAmount)
+	void SDLCALL RenderSynth(void*, SDL_AudioStream* stream, int additionalAmount, int)
 	{
 		if (!SynthSong || !Synth)
 			return;
 
-		float buffer[SynthBlock * 2];
+		std::array<float, SynthBlock * 2> buffer;
 		for (auto frames = additionalAmount / static_cast<int>(sizeof buffer[0] * 2); frames > 0;)
 		{
 			auto block = std::min(frames, SynthBlock);
@@ -130,10 +136,10 @@ namespace
 				SynthMsec = 0;
 			}
 
-			tsf_render_float(Synth, buffer, block, 0);
+			tsf_render_float(Synth, buffer.data(), block, 0);
 			for (auto i = 0; i < block * 2; i++)
 				buffer[i] = Sound::SoftClip(buffer[i], SoftClipKnee, SoftClipCeiling);
-			SDL_PutAudioStreamData(stream, buffer, block * static_cast<int>(sizeof buffer[0] * 2));
+			SDL_PutAudioStreamData(stream, buffer.data(), block * static_cast<int>(sizeof buffer[0] * 2));
 			frames -= block;
 		}
 	}
@@ -151,7 +157,8 @@ namespace
 		}
 		else
 			song = nullptr;
-		SynthSong = SynthNext = song;
+		SynthNext = song;
+		SynthSong = song;
 		SynthMsec = 0;
 		SDL_ClearAudioStream(SynthStream);
 		SDL_UnlockAudioStream(SynthStream);
@@ -165,13 +172,15 @@ namespace
 		if (auto envPaths = SDL_getenv("SDL_SOUNDFONTS"))
 		{
 			std::string list = envPaths;
-			for (size_t start = 0, end; start <= list.size(); start = end + 1)
+			size_t start = 0;
+			while (start <= list.size())
 			{
-				end = list.find_first_of(PathSeparator == '/' ? ";:" : ";", start);
+				auto end = list.find_first_of(PathSeparator == '/' ? ";:" : ";", start);
 				if (end == std::string::npos)
 					end = list.size();
 				if (end > start)
 					paths.push_back(list.substr(start, end - start));
+				start = end + 1;
 			}
 		}
 		for (auto path : {
@@ -628,7 +637,8 @@ void midi::ShutdownBackend()
 	if (SynthStream)
 		SDL_DestroyAudioStream(SynthStream);
 	SynthStream = nullptr;
-	SynthSong = SynthNext = nullptr;
+	SynthNext = nullptr;
+	SynthSong = nullptr;
 	// SoundFontLoader keeps the synth for the next music_init
 	Synth = nullptr;
 	Backend = MidiBackend::None;
@@ -745,14 +755,7 @@ std::vector<uint8_t>* midi::load_track_sub(std::string fileName, bool isMidi)
 		auto filePath = pb::make_path_name(fileName);
 		auto midi = isMidi ? ReadFile(filePath) : MdsToMidi(filePath);
 		if (midi)
-		{
-			// Dump converted MIDI file
-			/*auto filePath = fileName + ".midi";
-			FILE* fileHandle = fopenu(filePath.c_str(), "wb");
-			fwrite(midi->data(), 1, midi->size(), fileHandle);
-			fclose(fileHandle);*/
 			return midi;
-		}
 	}
 
 	return nullptr;

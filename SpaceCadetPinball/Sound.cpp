@@ -22,12 +22,14 @@ static constexpr const char* SoundTag = "sound";
 
 // Sound effects are full scale, so a loud effect over the music or another effect goes past full scale; the final mix
 // passes through a soft clipper instead of being cut off flat. Below the knee it passes unchanged.
-static constexpr float MixClipKnee = 0.9f, MixClipCeiling = 0.999f;
+static constexpr float MixClipKnee = 0.9f;
+static constexpr float MixClipCeiling = 0.999f;
 
 namespace
 {
 	// Space Cadet 2026's effects, switched from the main thread and read on the audio thread
-	std::atomic<bool> ReverbOn{false}, WideOn{false};
+	std::atomic ReverbOn{false};
+	std::atomic WideOn{false};
 
 	// How much wider the stereo image gets: the difference between the channels is scaled by this
 	constexpr float StereoWidth = 1.7f;
@@ -45,15 +47,15 @@ namespace
 			if (rate == Rate)
 				return;
 			Rate = rate;
-			constexpr int CombTuning[] = {1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617};
-			constexpr int AllpassTuning[] = {556, 441, 341, 225};
+			constexpr std::array CombTuning{1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617};
+			constexpr std::array AllpassTuning{556, 441, 341, 225};
 			constexpr int StereoSpread = 23;
 			auto scale = static_cast<float>(rate) / 44100.0f;
 			for (auto channel = 0; channel < 2; channel++)
 			{
-				for (size_t index = 0; index < std::size(CombTuning); index++)
+				for (size_t index = 0; index < CombTuning.size(); index++)
 					Combs[channel][index].Resize(Scaled(CombTuning[index] + channel * StereoSpread, scale));
-				for (size_t index = 0; index < std::size(AllpassTuning); index++)
+				for (size_t index = 0; index < AllpassTuning.size(); index++)
 					Allpasses[channel][index].Resize(Scaled(AllpassTuning[index] + channel * StereoSpread, scale));
 			}
 		}
@@ -91,7 +93,10 @@ namespace
 		}
 
 	private:
-		static constexpr float InputGain = 0.015f, Feedback = 0.74f, Damping = 0.35f, Wet = 1.4f;
+		static constexpr float InputGain = 0.015f;
+		static constexpr float Feedback = 0.74f;
+		static constexpr float Damping = 0.35f;
+		static constexpr float Wet = 1.4f;
 
 		struct Comb
 		{
@@ -210,7 +215,8 @@ static MIX_StereoGains PositionGains(int angle, int distance)
 	if (angle < 0)
 		angle += 360;
 
-	int left = 255, right = 255;
+	int left = 255;
+	int right = 255;
 	if (angle < 90)
 		left = 255 - static_cast<int>(255.0f * (static_cast<float>(angle) / 89.0f));
 	else if (angle < 180)
@@ -353,7 +359,7 @@ void Sound::PlaySound(MIX_Audio* wavePtr, int time, TPinballComponent* soundSour
 			{
 				soundPos = {0.5f, 1.0f, 0.0f};
 			}
-			Channels[channel].Position = soundPos;
+			Channels[channel].Position = static_cast<const vector2&>(soundPos);
 
 			// Listener is positioned at the bottom center of the table,
 			// at 0.5 height, so roughly a table half - length.
@@ -485,7 +491,7 @@ void Sound::SetEffects(bool reverb, bool wide, bool packs)
 }
 
 // A path from UTF-8, as the game keeps paths, also on Windows
-static std::filesystem::path Utf8Path(const std::string& text)
+static std::filesystem::path Utf8Path(std::string_view text)
 {
 	return std::u8string{text.begin(), text.end()};
 }
@@ -550,12 +556,12 @@ void Sound::LoadReplacement(MIX_Audio* original)
 	{
 		if (lower(entry.path().filename().u8string()) != lower(name))
 			continue;
-		auto path = entry.path().u8string();
-		if (auto audio = MIX_LoadAudio(Mixer, reinterpret_cast<const char*>(path.c_str()), true))
+		auto u8Path = entry.path().u8string();
+		std::string path{u8Path.begin(), u8Path.end()};
+		if (auto audio = MIX_LoadAudio(Mixer, path.c_str(), true))
 			Replacements[original] = audio;
 		else
-			printf("Sound pack %s: could not load %s: %s\n", Pack.c_str(), reinterpret_cast<const char*>(path.c_str()),
-				   SDL_GetError());
+			printf("Sound pack %s: could not load %s: %s\n", Pack.c_str(), path.c_str(), SDL_GetError());
 		break;
 	}
 }
