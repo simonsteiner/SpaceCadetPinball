@@ -11,8 +11,10 @@ namespace
 		return (input[8] << 24) + (input[9] << 16) + (input[10] << 8) + input[11];
 	}
 
-	unsigned char *stb__barrier_out_e, *stb__barrier_out_b;
-	const unsigned char *stb__barrier_in_b, *stb__barrier_in_e;
+	unsigned char* stb__barrier_out_e;
+	unsigned char* stb__barrier_out_b;
+	const unsigned char* stb__barrier_in_b;
+	const unsigned char* stb__barrier_in_e;
 	unsigned char* stb__dout;
 
 	// Copies length bytes from earlier in the output to its end, byte by byte so the two may overlap; a copy that would
@@ -60,7 +62,7 @@ namespace
 	}
 
 	// Continues the Adler-32 checksum adler32 over buflen bytes of buffer; a new checksum starts from 1
-	unsigned int stb_adler32(unsigned int adler32, unsigned char* buffer, unsigned int buflen)
+	unsigned int stb_adler32(unsigned int adler32, const unsigned char* buffer, unsigned int buflen)
 	{
 		const unsigned long ADLER_MOD = 65521;
 		unsigned long s1 = adler32 & 0xffff, s2 = adler32 >> 16;

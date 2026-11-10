@@ -56,11 +56,12 @@ namespace
 			uint32_t peOffset;
 			if (!U16(0, dosMagic) || dosMagic != 0x5A4D || !U32(0x3C, peOffset))
 				return false;
-			uint32_t signature;
-			if (!U32(peOffset, signature) || signature != 0x00004550)
+			if (uint32_t signature; !U32(peOffset, signature) || signature != 0x00004550)
 				return false;
 
-			uint16_t sectionCount, optionalHeaderSize, magic;
+			uint16_t sectionCount;
+			uint16_t optionalHeaderSize;
+			uint16_t magic;
 			uint64_t optionalHeader = uint64_t{peOffset} + 24;
 			if (!U16(uint64_t{peOffset} + 6, sectionCount) || !U16(uint64_t{peOffset} + 20, optionalHeaderSize) ||
 				!U16(optionalHeader, magic))
@@ -87,7 +88,7 @@ namespace
 			uint64_t sectionTable = optionalHeader + optionalHeaderSize;
 			for (uint16_t index = 0; index < sectionCount; index++)
 			{
-				uint64_t header = sectionTable + 40ull * index;
+				uint64_t header = sectionTable + 40ULL * index;
 				Section section{};
 				if (!U32(header + 12, section.VirtualAddress) || !U32(header + 16, section.RawSize) ||
 					!U32(header + 20, section.RawOffset))
@@ -124,16 +125,19 @@ namespace
 			ResourceLength = std::min<uint64_t>(ResourceSize, available);
 
 			// Type and name levels lead to subdirectories, the language level to a data entry
-			auto isType = [&](uint32_t id) { return id == type; };
-			auto isName = [&](uint32_t id) { return NameEquals(id, name); };
+			auto isType = [type](uint32_t id) { return id == type; };
+			auto isName = [this, &name](uint32_t id) { return NameEquals(id, name); };
 			auto anyLanguage = [](uint32_t) { return true; };
-			uint32_t nameDirectory, languageDirectory, dataEntry;
+			uint32_t nameDirectory;
+			uint32_t languageDirectory;
+			uint32_t dataEntry;
 			if (!FindEntry(0, isType, true, nameDirectory) ||
 				!FindEntry(nameDirectory, isName, true, languageDirectory) ||
 				!FindEntry(languageDirectory, anyLanguage, false, dataEntry))
 				return {};
 
-			uint32_t dataRva, dataSize;
+			uint32_t dataRva;
+			uint32_t dataSize;
 			if (!InResource(dataEntry, 16) || !U32(ResourceBase + dataEntry, dataRva) ||
 				!U32(ResourceBase + dataEntry + 4, dataSize))
 				return {};
@@ -147,13 +151,17 @@ namespace
 	private:
 		struct Section
 		{
-			uint32_t VirtualAddress, RawSize, RawOffset;
+			uint32_t VirtualAddress;
+			uint32_t RawSize;
+			uint32_t RawOffset;
 		};
 
 		const std::vector<uint8_t>& Data;
 		std::vector<Section> Sections;
-		uint32_t ResourceRva{}, ResourceSize{};
-		uint64_t ResourceBase{}, ResourceLength{};
+		uint32_t ResourceRva{};
+		uint32_t ResourceSize{};
+		uint64_t ResourceBase{};
+		uint64_t ResourceLength{};
 
 		// Resource offsets are relative to the start of the resource directory and must stay inside it
 		bool InResource(uint64_t offset, uint64_t size) const
@@ -165,14 +173,16 @@ namespace
 		template <typename Matches>
 		bool FindEntry(uint32_t directory, Matches matches, bool wantSubdirectory, uint32_t& target) const
 		{
-			uint16_t namedCount, idCount;
+			uint16_t namedCount;
+			uint16_t idCount;
 			if (!InResource(directory, 16) || !U16(ResourceBase + directory + 12, namedCount) ||
 				!U16(ResourceBase + directory + 14, idCount))
 				return false;
 			for (uint32_t index = 0; index < uint32_t{namedCount} + idCount; index++)
 			{
-				uint64_t entry = uint64_t{directory} + 16 + 8ull * index;
-				uint32_t id, pointer;
+				uint64_t entry = uint64_t{directory} + 16 + 8ULL * index;
+				uint32_t id;
+				uint32_t pointer;
 				if (!InResource(entry, 8) || !U32(ResourceBase + entry, id) || !U32(ResourceBase + entry + 4, pointer))
 					return false;
 				if (!matches(id))
@@ -193,12 +203,12 @@ namespace
 			uint32_t offset = id & ~SubdirectoryFlag;
 			uint16_t length;
 			if (!InResource(offset, 2) || !U16(ResourceBase + offset, length) || length != name.size() ||
-				!InResource(uint64_t{offset} + 2, 2ull * length))
+				!InResource(uint64_t{offset} + 2, 2ULL * length))
 				return false;
 			for (uint16_t index = 0; index < length; index++)
 			{
 				uint16_t c;
-				if (!U16(ResourceBase + offset + 2 + 2ull * index, c) || c >= 128 ||
+				if (!U16(ResourceBase + offset + 2 + 2ULL * index, c) || c >= 128 ||
 					std::toupper(c) != std::toupper(static_cast<unsigned char>(name[index])))
 					return false;
 			}
