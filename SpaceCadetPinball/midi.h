@@ -114,6 +114,8 @@ public:
 	// Once a frame: starts the music when the SoundFont, which loads on a thread of its own, is ready
 	static void music_update();
 	static void music_shutdown();
+	// Waits for the SoundFont's thread, which calls into SDL, to end. Before SDL_Quit
+	static void WaitForSoundFont();
 	static void music_play();
 	static void music_stop();
 	static void SetVolume(int volume);

@@ -6,6 +6,8 @@
 #include "pb.h"
 #include "Sound.h"
 
+#include <atomic>
+
 #include "tml.h"
 #include "tsf.h"
 #ifdef SCP_NATIVE_MIDI
@@ -222,10 +224,16 @@ namespace
 
 		~SoundFontLoader()
 		{
-			if (Worker.joinable())
-				Worker.join();
+			Join();
 			if (Font)
 				tsf_close(Font);
+		}
+
+		// Waits for a load in progress to end
+		void Join()
+		{
+			if (Worker.joinable())
+				Worker.join();
 		}
 
 		void Start()
@@ -455,8 +463,13 @@ void midi::music_update()
 		{
 			Backend = MidiBackend::Mixer;
 			for (auto song : LoadedTracks)
+			{
 				song->Audio =
 					MIX_LoadAudio_IO(Mixer, SDL_IOFromConstMem(song->Data.data(), song->Data.size()), false, true);
+				// As load_track says it when nothing can play a track
+				if (!song->Audio)
+					printf("Could not load a music track.\nSDL Error: %s\n", SDL_GetError());
+			}
 			SDL_ClearError();
 		}
 	}
@@ -487,6 +500,11 @@ void midi::music_shutdown()
 	LoadedTracks.clear();
 	ShutdownBackend();
 	Mixer = nullptr;
+}
+
+void midi::WaitForSoundFont()
+{
+	SoundFont.Join();
 }
 
 void midi::ShutdownBackend()
