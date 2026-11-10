@@ -12,7 +12,7 @@ dxc_dir=${XDG_CACHE_HOME:-$HOME/.cache}/SpaceCadetPinball/dxc-$dxc_version
 
 if [[ ! -x "$dxc_dir/bin/dxc" ]]; then
 	mkdir -p "$dxc_dir"
-	curl --proto '=https' --tlsv1.2 -sSfL -o "$dxc_dir/$dxc_archive" \
+	curl --proto '=https' --proto-redir '=https' --tlsv1.2 -sSfL -o "$dxc_dir/$dxc_archive" \
 		"https://github.com/microsoft/DirectXShaderCompiler/releases/download/$dxc_version/$dxc_archive"
 	echo "$dxc_sha256  $dxc_dir/$dxc_archive" | sha256sum -c --quiet
 	tar xzf "$dxc_dir/$dxc_archive" -C "$dxc_dir"
