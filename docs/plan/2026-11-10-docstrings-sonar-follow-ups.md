@@ -27,13 +27,13 @@ Each item keeps the replays matching. One that would change gameplay stops and a
 
 ## Code fixes
 
-2. **Polygon walls read two floats past what `wall_length` checks.** `TEdgeSegment::install_wall` (upstream's code) ends each polygon line at `floatArrPtr[2]` and `[3]`. For the last of `n` points those are `floatArr[2n + 1]` and `floatArr[2n + 2]`, while `wall_length` accepts an array of `2n + 1` floats. The replays run clean under the sanitizers, so the tables' arrays evidently hold the two floats; a damaged table with exactly `2n + 1` would be read out of bounds. CodeRabbit found it on #191. To do:
-   - Look at what the four tables' DAT files hold after a polygon's last point (a repeat of the first point, or something else).
-   - If it is the first point repeated: require `2n + 3` in `wall_length`, which changes nothing for valid data.
-   - Otherwise ending the last line at the first point (`centerX2`, `centerY2`) would change wall geometry: ask first.
+2. **Polygon walls read two floats past what `wall_length` checks.** `TEdgeSegment::install_wall` (upstream's code) ends each polygon line at `floatArrPtr[2]` and `[3]`. For the last of `n` points those are `floatArr[2n + 1]` and `floatArr[2n + 2]`, while `wall_length` accepts an array of `2n + 1` floats. CodeRabbit found it on #191. The replays running clean under the sanitizers don't show that the tables hold the two floats: `partman::ReadField` puts 64 zero bytes after each field, so a polygon of exactly `2n + 1` floats reads zeros there, and its last line ends at (0, 0) without a sanitizer noticing. To do:
+   - Read the field length of every polygon wall in the four tables' DAT files and, where it is longer, what follows the last point (a repeat of the first point, or something else).
+   - If every polygon repeats its first point there: require `2n + 3` in `wall_length`, which changes nothing for that data.
+   - Otherwise (a polygon of exactly `2n + 1`, whose last line ends at (0, 0) today, or other values) any fix changes wall geometry: ask first.
 3. **`TableView::Hash` leaves out `Pirates.LastBallRelease`.** The comment on `Hash` now says so (#193). Adding the field changes Skulduggery's view hashes, so check what compares them (`docs/replays.md`) and record again if a reference stores one.
-4. **Picking game files twice in the web page can interleave.** `Platform/Web/shell.html` handles each `change` event in its own async run; a second selection made while the first is still being written runs alongside it. It was so before the stack. A guard that queues the second selection, or disables the input while one runs, fixes it.
-5. **No CI job compiles `BundledData.cpp`'s Windows block.** It sits behind `SCP_BUNDLED_DATA_HASH && _WIN32`, which only `tools/make-test-build.sh` sets, because it needs game data. #198 changed lines there that were checked by reading only. Either build it in CI with a folder of dummy files (never game data), or build a Windows test build locally after the merge and start it once.
+4. **Picking game files twice in the web page can interleave.** `Platform/Web/shell.html` handles each `change` event in its own async run; a second selection made while the first is still being written runs alongside it. It was so before the stack. There are two inputs, `pickFiles` and `pickFolder`, so the guard has to cover both: one shared queue for every selection, or both inputs disabled until the write and the sync finish.
+5. **No CI job compiles `BundledData.cpp`'s Windows block.** It sits behind `SCP_BUNDLED_DATA_HASH && _WIN32`, which only `tools/make-test-build.sh` sets, because it needs game data. #199 changed lines there that were checked by reading only. Either build it in CI with a folder of dummy files (never game data), or build a Windows test build locally after the merge and start it once.
 
 ## Checks and tooling
 
