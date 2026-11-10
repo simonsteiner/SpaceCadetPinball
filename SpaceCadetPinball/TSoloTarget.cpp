@@ -21,7 +21,7 @@ TSoloTarget::TSoloTarget(TPinballTable* table, int groupIndex) : TCollisionCompo
 }
 
 // Handles the target's messages: enable and disable set whether it is active, Reset enables it, and the sprite
-// follows; other codes change nothing
+// follows; other codes change nothing, but on the bonus tables the message field is kept per player
 int TSoloTarget::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())
