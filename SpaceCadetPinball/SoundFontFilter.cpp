@@ -107,7 +107,7 @@ SoundFontFilter::Result SoundFontFilter::KeepPresets(uint8_t* data, size_t size,
 	size_t firstPreset = 0;
 	auto firstKey = std::numeric_limits<uint32_t>::max();
 	std::bitset<128> programsFound;
-	auto kitFound = false;
+	auto firstKitFound = false;
 	for (size_t preset = 0; preset < presetCount; preset++)
 	{
 		auto header = presetHeaders.Data + preset * PresetSize;
@@ -120,13 +120,14 @@ SoundFontFilter::Result SoundFontFilter::KeepPresets(uint8_t* data, size_t size,
 		}
 		if (program >= presets.Programs.size())
 			continue;
-		if (bank >= DrumBank)
-			kitFound = kitFound || presets.DrumKits[program];
-		else if (presets.Programs[program])
+		// TinySoundFont looks for a program in the channel's bank, which stays 0 here, and nowhere else
+		if (bank == 0 && presets.Programs[program])
 			programsFound[program] = true;
+		firstKitFound = firstKitFound || (bank == DrumBank && program == 0);
 	}
-	// Without a drum kit, TinySoundFont plays the drums with a melodic preset; nothing is taken out then
-	if (presets.DrumKits.any() && !kitFound)
+	// The drums start on kit 0 of the drum bank and fall back to it from a kit the SoundFont doesn't have. Without
+	// it TinySoundFont plays them with another preset; nothing is taken out then. Nor when the music chooses banks.
+	if (presets.Whole || (presets.DrumKits.any() && !firstKitFound))
 		return {};
 	auto wantFirst = presets.First || programsFound != presets.Programs;
 
