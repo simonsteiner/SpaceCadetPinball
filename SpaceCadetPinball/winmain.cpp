@@ -1011,6 +1011,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	fullscrn::ReleaseFrame();
 	SDL_DestroyRenderer(Renderer);
 	SDL_DestroyWindow(window);
+	midi::WaitForSoundFont();
 	SDL_Quit();
 
 	return return_value;

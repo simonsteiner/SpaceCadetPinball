@@ -13,10 +13,13 @@ struct SoundFontPresets
 	std::bitset<128> DrumKits;
 	// A melodic channel plays without choosing a program, so it plays the SoundFont's first preset
 	bool First = false;
+	// A channel chooses a bank, so its programs aren't the General MIDI ones: the music needs the whole SoundFont
+	bool Whole = false;
 
 	bool Covers(const SoundFontPresets& other) const
 	{
-		return (other.Programs & ~Programs).none() && (other.DrumKits & ~DrumKits).none() && (First || !other.First);
+		return Whole || (!other.Whole && (other.Programs & ~Programs).none() && (other.DrumKits & ~DrumKits).none() &&
+						 (First || !other.First));
 	}
 
 	void Add(const SoundFontPresets& other)
@@ -24,12 +27,13 @@ struct SoundFontPresets
 		Programs |= other.Programs;
 		DrumKits |= other.DrumKits;
 		First = First || other.First;
+		Whole = Whole || other.Whole;
 	}
 };
 
 // Leaves a SoundFont only the samples its wanted presets play, before TinySoundFont loads it. TinySoundFont decodes
-// every compressed (SF3, Ogg Vorbis) sample when it loads the file, which for FluidR3Mono took 0.9 s and 280 MB on a
-// PC and several seconds on a phone, while one table's music plays about a tenth of them.
+// every compressed (SF3, Ogg Vorbis) sample when it loads the file, which for FluidR3Mono took 0.9 s and 298 MB on a
+// PC and several seconds on a phone, while one table's music plays about a fifth of them.
 namespace SoundFontFilter
 {
 	struct Result
@@ -44,7 +48,7 @@ namespace SoundFontFilter
 	// has it, as TinySoundFont falls back from a bank without it to bank 0, and a drum kit in every drum bank. The
 	// SoundFont's first preset is wanted too when a wanted program is missing, since a channel then keeps the preset
 	// it had. The sample that follows a wanted one in the file stays too, because TinySoundFont reads a little past a
-	// sample's end. Uncompressed samples aren't decoded and stay. A file this can't read, or one without any of the
-	// wanted drum kits, stays as it is.
+	// sample's end. Uncompressed samples aren't decoded and stay. A file this can't read, one without kit 0 of the
+	// drum bank when drums play, and any file when the music chooses banks, stays as it is.
 	Result KeepPresets(uint8_t* data, size_t size, const SoundFontPresets& presets);
 } // namespace SoundFontFilter
