@@ -25,11 +25,13 @@ int render::zmap_offsetX, render::zmap_offsetY, render::offset_x, render::offset
 rectangle_type render::vscreen_rect;
 gdrv_bitmap8 *render::vscreen, *render::background_bitmap, *render::ball_bitmap[20];
 zmap_header_type* render::zscreen;
-SDL_Rect render::BoardRect{}, render::SidebarRect{};
+SDL_Rect render::BoardRect{};
+SDL_Rect render::SidebarRect{};
 SDL_Texture* render::BackdropTexture = nullptr;
 bool render::BallsInterpolated = false;
 gdrv_bitmap8* render::InitialBackground = nullptr;
-gdrv_bitmap8 *render::vscreenHi = nullptr, *render::ball_bitmap_hi[20]{};
+gdrv_bitmap8* render::vscreenHi = nullptr;
+std::array<gdrv_bitmap8*, 20> render::ball_bitmap_hi{};
 zmap_header_type* render::zscreenHi = nullptr;
 int render::HiScale = 0;
 std::vector<ColorRgba> render::SidebarCopy{};
@@ -43,7 +45,8 @@ namespace
 	// What the depth texture holds, so only the tiles whose depths changed go up again
 	std::vector<uint16_t> DepthUploaded;
 	// The parts of the frame's texture and of the depth texture that changed since the compositor last composed
-	std::vector<SDL_Rect> FrameChanges, DepthChanges;
+	std::vector<SDL_Rect> FrameChanges;
+	std::vector<SDL_Rect> DepthChanges;
 
 	// While the compositor isn't composing, the lists would grow without end; one rectangle for all of it does
 	void LimitChanges(std::vector<SDL_Rect>& changes, int width, int height)
@@ -312,8 +315,8 @@ void render::InterpolateBalls(float alpha)
 			continue;
 
 		// A ball that jumped, such as into a hole or back to the plunger, isn't drawn in between
-		auto& from = interp.PrevPaintedRect;
-		auto& to = interp.PaintedRect;
+		const auto& from = interp.PrevPaintedRect;
+		const auto& to = interp.PaintedRect;
 		constexpr int MaxStep = 24;
 		if (std::abs(to.XPosition - from.XPosition) > MaxStep || std::abs(to.YPosition - from.YPosition) > MaxStep)
 			continue;
@@ -465,7 +468,7 @@ void render::paint_balls_hi()
 		auto& dirty = ball->DirtyRectHi;
 		if (ball->Bmp && ball->DirtyRect.Width > 0)
 		{
-			auto& lowDirty = ball->DirtyRect;
+			const auto& lowDirty = ball->DirtyRect;
 			dirty = {lowDirty.XPosition * s, lowDirty.YPosition * s, lowDirty.Width * s, lowDirty.Height * s};
 			gdrv::copy_bitmap(ball_bitmap_hi[index], dirty.Width, dirty.Height, 0, 0, vscreenHi, dirty.XPosition,
 							  dirty.YPosition);
@@ -487,7 +490,7 @@ void render::unpaint_balls()
 	// Restore portions of vScreen saved during previous paint_balls call.
 	for (int index = static_cast<int>(ball_list.size()) - 1; index >= 0 && HiScale; index--)
 	{
-		auto& dirty = ball_list[index]->DirtyRectHi;
+		const auto& dirty = ball_list[index]->DirtyRectHi;
 		if (dirty.Width > 0)
 			gdrv::copy_bitmap(vscreenHi, dirty.Width, dirty.Height, dirty.XPosition, dirty.YPosition,
 							  ball_bitmap_hi[index], 0, 0);
@@ -722,7 +725,9 @@ void render::PresentVScreen(float ballAlpha)
 int render::BoardWidth()
 {
 	// The table is the left part of the frame, the score panel the rest
-	return pb::MainTable ? pb::MainTable->Width : vscreen ? vscreen->Width : 0;
+	if (pb::MainTable)
+		return pb::MainTable->Width;
+	return vscreen ? vscreen->Width : 0;
 }
 
 // Draws the texture's table part into BoardRect, shifted by the offset in frame pixels, and its panel part into
@@ -738,7 +743,8 @@ void render::DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, int t
 	auto srcBoardRect = SDL_FRect{0, 0, boardWidth, height};
 	auto srcSidebarRect = SDL_FRect{boardWidth, 0, width - boardWidth, height};
 
-	SDL_FRect dstBoardRect, dstSidebarRect;
+	SDL_FRect dstBoardRect;
+	SDL_FRect dstSidebarRect;
 	SDL_RectToFRect(&BoardRect, &dstBoardRect);
 	SDL_RectToFRect(&SidebarRect, &dstSidebarRect);
 	dstBoardRect.x += offsetX * fullscrn::ScaleX;
@@ -761,8 +767,10 @@ void render::DrawBackdrop()
 		return;
 
 	// Cover the whole window, keeping the art's proportions
-	int width, height;
-	float textureWidth, textureHeight;
+	int width;
+	int height;
+	float textureWidth;
+	float textureHeight;
 	fullscrn::OutputSize(width, height);
 	SDL_GetTextureSize(BackdropTexture, &textureWidth, &textureHeight);
 	auto scale = std::max(width / textureWidth, height / textureHeight);
@@ -779,13 +787,16 @@ void render::CreateBackdrop()
 	constexpr int Block = 16;
 	constexpr unsigned Brightness = 90; // Out of 255
 	auto boardWidth = BoardWidth();
-	auto width = std::max(1, boardWidth / Block), height = std::max(1, vscreen->Height / Block);
+	auto width = std::max(1, boardWidth / Block);
+	auto height = std::max(1, vscreen->Height / Block);
 	std::vector<ColorRgba> pixels(width * height);
 	for (int y = 0; y < height; y++)
 	{
 		for (int x = 0; x < width; x++)
 		{
-			unsigned red = 0, green = 0, blue = 0;
+			unsigned red = 0;
+			unsigned green = 0;
+			unsigned blue = 0;
 			for (int j = 0; j < Block; j++)
 			{
 				auto src = &vscreen->BmpBufPtr1[(y * Block + j) * vscreen->Stride + x * Block];
@@ -968,8 +979,7 @@ SDL_Texture* render::UpdateDepthTexture()
 		SDL_UpdateTexture(DepthTexture, &run, DepthRows.data(), run.w * static_cast<int>(sizeof(ColorRgba)));
 		DepthChanges.push_back(run);
 	};
-	const auto texels = static_cast<size_t>(zmap->Width) * zmap->Height;
-	if (all || DepthUploaded.size() != texels)
+	if (const auto texels = static_cast<size_t>(zmap->Width) * zmap->Height; all || DepthUploaded.size() != texels)
 	{
 		DepthUploaded.resize(texels);
 		for (int y = 0; y < zmap->Height; y++)

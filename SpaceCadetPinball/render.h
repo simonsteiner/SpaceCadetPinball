@@ -28,8 +28,11 @@ struct render_sprite
 	// Balls only: where the last two updates painted the ball, for drawing frames in between
 	struct
 	{
-		rectangle_type PaintedRect{}, PrevPaintedRect{}, SavedBmpRect{};
-		bool Painted{}, PrevPainted{};
+		rectangle_type PaintedRect{};
+		rectangle_type PrevPaintedRect{};
+		rectangle_type SavedBmpRect{};
+		bool Painted{};
+		bool PrevPainted{};
 	} Interp{};
 	// Balls only: the part of the upscaled frame the ball covers
 	rectangle_type DirtyRectHi{};
@@ -52,7 +55,8 @@ public:
 	static zmap_header_type* background_zmap;
 	static int zmap_offsetX, zmap_offsetY;
 	// Where the table and its score panel are drawn, in pixels
-	static SDL_Rect BoardRect, SidebarRect;
+	static SDL_Rect BoardRect;
+	static SDL_Rect SidebarRect;
 
 	static void init(gdrv_bitmap8* bmp, int width, int height);
 	static void uninit();
@@ -88,7 +92,8 @@ private:
 	static zmap_header_type* zscreen;
 	static SDL_Texture* BackdropTexture;
 	static bool BallsInterpolated;
-	static gdrv_bitmap8 *vscreenHi, *ball_bitmap_hi[20];
+	static gdrv_bitmap8* vscreenHi;
+	static std::array<gdrv_bitmap8*, 20> ball_bitmap_hi;
 	static zmap_header_type* zscreenHi;
 	static int HiScale;
 	static std::vector<ColorRgba> SidebarCopy;

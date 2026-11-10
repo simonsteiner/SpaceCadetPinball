@@ -24,7 +24,7 @@ gdrv_bitmap8* DebugOverlay::dbScreen = nullptr;
 // Draws a circle's outline point by point, in batches; returns false when SDL fails to draw them
 static bool DrawCircle(SDL_Renderer* renderer, int x, int y, int radius)
 {
-	SDL_FPoint points[256];
+	std::array<SDL_FPoint, 256> points;
 	int pointCount = 0;
 	int offsetx, offsety, d;
 	bool status;
@@ -43,7 +43,7 @@ static bool DrawCircle(SDL_Renderer* renderer, int x, int y, int radius)
 	{
 		if (pointCount + 8 > 256)
 		{
-			status = SDL_RenderPoints(renderer, points, pointCount);
+			status = SDL_RenderPoints(renderer, points.data(), pointCount);
 			pointCount = 0;
 
 			if (!status)
@@ -75,7 +75,7 @@ static bool DrawCircle(SDL_Renderer* renderer, int x, int y, int radius)
 	}
 
 	if (pointCount > 0)
-		status = SDL_RenderPoints(renderer, points, pointCount);
+		status = SDL_RenderPoints(renderer, points.data(), pointCount);
 
 	return status;
 }

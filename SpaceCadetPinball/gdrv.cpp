@@ -199,7 +199,7 @@ void gdrv_bitmap8::BlitChangesToTexture(std::vector<SDL_Rect>* changes)
 	}
 
 	ChangedTiles::ForEachRun(BmpBufPtr1, Width, Uploaded.data(), Width, Height, all,
-							 [&](const SDL_Rect& run)
+							 [this, changes, pitch](const SDL_Rect& run)
 							 {
 								 SDL_UpdateTexture(Texture, &run,
 												   &BmpBufPtr1[static_cast<size_t>(run.y) * Width + run.x], pitch);

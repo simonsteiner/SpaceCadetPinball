@@ -232,7 +232,7 @@ void TTextBox::DrawImGui()
 	if (ImGui::Begin(windowName, nullptr, window_flags))
 	{
 		// Sized with the table; FontScaleDpi would scale it a second time
-		auto& style = ImGui::GetStyle();
+		const auto& style = ImGui::GetStyle();
 		ImGui::PushFont(nullptr, style.FontSizeBase * fullscrn::GetScreenToPinballRatio() / style.FontScaleDpi);
 
 		// ToDo: centered text in FT
@@ -279,8 +279,7 @@ void TTextBox::Draw()
 // to the box and centered on Full Tilt's data
 void TTextBox::Paint(bool display)
 {
-	auto bmp = BgBmp;
-	if (bmp)
+	if (auto bmp = BgBmp)
 		gdrv::copy_bitmap(render::vscreen, Width, Height, OffsetX, OffsetY, bmp, OffsetX, OffsetY);
 	else
 		gdrv::fill_bitmap(render::vscreen, Width, Height, OffsetX, OffsetY, 0);

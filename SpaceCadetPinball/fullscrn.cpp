@@ -61,13 +61,10 @@ int fullscrn::set_screen_mode(int isFullscreen)
 // Makes the window full screen unless the game already did; returns 1 if it did so now, else 0
 int fullscrn::enableFullscreen()
 {
-	if (!display_changed)
+	if (!display_changed && SDL_SetWindowFullscreen(winmain::MainWindow, true))
 	{
-		if (SDL_SetWindowFullscreen(winmain::MainWindow, true))
-		{
-			display_changed = 1;
-			return 1;
-		}
+		display_changed = 1;
+		return 1;
 	}
 	return 0;
 }
@@ -75,11 +72,8 @@ int fullscrn::enableFullscreen()
 // Takes the window out of full screen if the game put it there; always returns 0
 int fullscrn::disableFullscreen()
 {
-	if (display_changed)
-	{
-		if (SDL_SetWindowFullscreen(winmain::MainWindow, false))
-			display_changed = 0;
-	}
+	if (display_changed && SDL_SetWindowFullscreen(winmain::MainWindow, false))
+		display_changed = 0;
 
 	return 0;
 }
@@ -171,7 +165,8 @@ void fullscrn::window_size_changed()
 	// Stacked: the panel under the table, when that makes the table larger, as in a portrait window
 	if (options::Options.StackedLayout && options::Options.UniformScaling && sidebarWidth > 0)
 	{
-		float stackedX, stackedY;
+		float stackedX;
+		float stackedY;
 		FitScale(width, height, std::max(boardWidth, sidebarWidth), res->TableHeight * 2, stackedX, stackedY);
 		if (stackedX > ScaleX)
 		{
@@ -216,7 +211,8 @@ void fullscrn::FitScale(int width, int height, int contentWidth, int contentHeig
 
 	if (options::Options.UniformScaling)
 	{
-		scaleY = scaleX = std::min(scaleX, scaleY);
+		scaleX = std::min(scaleX, scaleY);
+		scaleY = scaleX;
 	}
 }
 
@@ -282,7 +278,7 @@ SDL_Rect fullscrn::GetScreenRectFromPinballRect(SDL_Rect rect)
 	auto density = PixelDensity();
 	auto boardWidth = render::BoardWidth();
 	auto inSidebar = rect.x >= boardWidth;
-	auto& dst = inSidebar ? render::SidebarRect : render::BoardRect;
+	const auto& dst = inSidebar ? render::SidebarRect : render::BoardRect;
 	auto srcX = inSidebar ? rect.x - boardWidth : rect.x;
 	auto srcWidth = inSidebar ? render::vscreen->Width - boardWidth : boardWidth;
 	SDL_Rect converted_rect;

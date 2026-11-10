@@ -11,8 +11,11 @@
 std::map<TouchControls::FingerKey, TouchControls::FingerState> TouchControls::Fingers{};
 TouchControls::Layout TouchControls::Rects{};
 TouchControls::Row TouchControls::PadRow{};
-bool TouchControls::IsActive = false, TouchControls::HasNudged = false;
-Uint64 TouchControls::PlungerTicks = 0, TouchControls::AnimateTicks = 0, TouchControls::LaneEmptyTicks = 0;
+bool TouchControls::IsActive = false;
+bool TouchControls::HasNudged = false;
+Uint64 TouchControls::PlungerTicks = 0;
+Uint64 TouchControls::AnimateTicks = 0;
+Uint64 TouchControls::LaneEmptyTicks = 0;
 float TouchControls::LaneShown = 1;
 bool TouchControls::Waiting = false;
 
@@ -21,10 +24,14 @@ namespace
 	// Shares of the safe area. Upright: the deck takes the bottom, the score panel at least a band at the top. On its
 	// side: the table takes the full height, the left pad the margin before it, and the score panel the top of the
 	// margin after it, over the right pad and the plunger.
-	constexpr float DeckShare = 0.22f, BandShare = 0.12f;
-	constexpr float LeftShare = 0.38f, MinMargins = 0.3f, SidePanelShare = 0.42f;
+	constexpr float DeckShare = 0.22f;
+	constexpr float BandShare = 0.12f;
+	constexpr float LeftShare = 0.38f;
+	constexpr float MinMargins = 0.3f;
+	constexpr float SidePanelShare = 0.42f;
 	// The plunger lane's width and the gaps, as shares of the deck's width (upright) or the column's (on its side)
-	constexpr float PlungerShare = 0.17f, GapShare = 0.025f;
+	constexpr float PlungerShare = 0.17f;
+	constexpr float GapShare = 0.025f;
 	// The strip at the top of the deck for the pause button and the nudge hint, as a share of the deck's height
 	constexpr float HintShare = 0.2f;
 	// A flick: up by this share of the pad's height within this time
@@ -60,7 +67,8 @@ namespace
 	// The nudge from the flipper's side of the table
 	GameBindings BumpFor(GameBindings flipper)
 	{
-		return flipper == GameBindings::LeftFlipper ? GameBindings::LeftTableBump : GameBindings::RightTableBump;
+		using enum GameBindings;
+		return flipper == LeftFlipper ? LeftTableBump : RightTableBump;
 	}
 
 } // namespace
@@ -101,7 +109,8 @@ bool TouchControls::Place(int width, int height, int boardWidth, int tableHeight
 		return false;
 
 	auto safe = SafeArea(width, height);
-	auto boardW = static_cast<float>(boardWidth), tableH = static_cast<float>(tableHeight);
+	auto boardW = static_cast<float>(boardWidth);
+	auto tableH = static_cast<float>(tableHeight);
 	Layout layout;
 	if (safe.h > safe.w)
 	{
@@ -112,14 +121,16 @@ bool TouchControls::Place(int width, int height, int boardWidth, int tableHeight
 		auto full = static_cast<float>(width);
 		auto deckH = safe.h * DeckShare;
 		scale = std::min(full / boardW, (safe.h - deckH - safe.h * BandShare) / tableH);
-		auto w = boardW * scale, h = tableH * scale;
+		auto w = boardW * scale;
+		auto h = tableH * scale;
 		auto deckY = safe.y + safe.h - deckH;
 		layout.Board = Rect((full - w) / 2, deckY - h, w, h);
 		layout.Panel = Rect(0, safe.y, full, deckY - h - safe.y);
 
 		auto gap = full * GapShare;
 		auto hintH = deckH * HintShare;
-		auto padsY = deckY + hintH, padsH = deckH - hintH - gap;
+		auto padsY = deckY + hintH;
+		auto padsH = deckH - hintH - gap;
 		PadRow = Row{SDL_FRect{gap, padsY, full - gap * 2, padsH}, full * PlungerShare, gap, true};
 		layout.Pause = Rect(full - gap - hintH, deckY, hintH, hintH);
 		layout.Hint = Rect(gap, deckY, full - gap * 3 - hintH, hintH);
@@ -128,11 +139,13 @@ bool TouchControls::Place(int width, int height, int boardWidth, int tableHeight
 	{
 		// On its side: the table as tall as it fits with room for the pads beside it
 		scale = std::min(safe.h / tableH, safe.w * (1 - MinMargins) / boardW);
-		auto w = boardW * scale, h = tableH * scale;
+		auto w = boardW * scale;
+		auto h = tableH * scale;
 		auto margins = safe.w - w;
 		if (margins < safe.w * MinMargins * 0.99f)
 			return false;
-		auto leftW = margins * LeftShare, rightW = margins - leftW;
+		auto leftW = margins * LeftShare;
+		auto rightW = margins - leftW;
 		layout.Board = Rect(safe.x + leftW, safe.y + (safe.h - h) / 2, w, h);
 
 		// Left: the pause button and the hint over the left pad
@@ -158,7 +171,7 @@ bool TouchControls::Place(int width, int height, int boardWidth, int tableHeight
 void TouchControls::PlaceRow(float shown)
 {
 	// The lane keeps to the outer edge and narrows as it folds; the pads share what it leaves
-	auto& area = PadRow.Area;
+	const auto& area = PadRow.Area;
 	auto plungerW = PadRow.PlungerWidth * shown;
 	auto padsW = area.w - (plungerW + PadRow.Gap) * std::min(1.0f, shown * 4);
 	Rects.Plunger = Rect(area.x + area.w - plungerW, area.y, plungerW, area.h);
@@ -225,7 +238,8 @@ const TouchControls::Layout& TouchControls::Current()
 void TouchControls::Finger(const SDL_TouchFingerEvent& event)
 {
 	FingerKey key{event.touchID, event.fingerID};
-	int width, height;
+	int width;
+	int height;
 	fullscrn::OutputSize(width, height);
 	SDL_FPoint position{event.x * static_cast<float>(width), event.y * static_cast<float>(height)};
 
@@ -278,6 +292,7 @@ void TouchControls::FingerLifted(const FingerKey& key)
 // Pauses from the pause button, or holds the control under the finger, pressing it if no other finger holds it
 void TouchControls::FingerDown(const FingerKey& key, const SDL_FPoint& position)
 {
+	using enum GameBindings;
 	// A screen hides the deck and takes every new touch, also outside its panel, where ImGui's capture flag is false
 	if (Fingers.contains(key) || winmain::ImIO->WantCaptureMouse || DefinitiveFrontEnd::ScreenOpen())
 		return;
@@ -287,20 +302,20 @@ void TouchControls::FingerDown(const FingerKey& key, const SDL_FPoint& position)
 	{
 		// The pause binding itself: a made-up Escape would reach the pause screen in the frame it opens and close it.
 		// SDL reports the tap as a click too, which the pause screen would take as a tap on the game and resume.
-		winmain::HandleGameBinding(GameBindings::TogglePause, true);
+		winmain::HandleGameBinding(TogglePause, true);
 		if (DefinitiveFrontEnd::ScreenOpen())
 			DefinitiveFrontEnd::SwallowPauseTap();
 		return;
 	}
 	GameBindings binding;
 	if (SDL_PointInRect(&point, &Rects.LeftPad))
-		binding = GameBindings::LeftFlipper;
+		binding = LeftFlipper;
 	else if (SDL_PointInRect(&point, &Rects.RightPad))
-		binding = GameBindings::RightFlipper;
+		binding = RightFlipper;
 	else if (SDL_PointInRect(&point, &Rects.Plunger))
-		binding = GameBindings::Plunger;
+		binding = Plunger;
 	else if (SDL_PointInRect(&point, &Rects.Board))
-		binding = point.x < Rects.Board.x + Rects.Board.w / 2 ? GameBindings::LeftFlipper : GameBindings::RightFlipper;
+		binding = point.x < Rects.Board.x + Rects.Board.w / 2 ? LeftFlipper : RightFlipper;
 	else
 		return;
 	auto onPad = SDL_PointInRect(&point, &Rects.LeftPad) || SDL_PointInRect(&point, &Rects.RightPad);
@@ -309,7 +324,7 @@ void TouchControls::FingerDown(const FingerKey& key, const SDL_FPoint& position)
 	Fingers[key] = FingerState{binding, position.y, SDL_GetTicks(), onPad, false};
 	if (first)
 	{
-		if (binding == GameBindings::Plunger)
+		if (binding == Plunger)
 			PlungerTicks = SDL_GetTicks();
 		pb::BindingDown(binding);
 	}

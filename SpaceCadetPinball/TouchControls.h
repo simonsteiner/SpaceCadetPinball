@@ -11,7 +11,13 @@ public:
 	// In pixels, like render::BoardRect
 	struct Layout
 	{
-		SDL_Rect Board{}, Panel{}, LeftPad{}, RightPad{}, Plunger{}, Pause{}, Hint{};
+		SDL_Rect Board{};
+		SDL_Rect Panel{};
+		SDL_Rect LeftPad{};
+		SDL_Rect RightPad{};
+		SDL_Rect Plunger{};
+		SDL_Rect Pause{};
+		SDL_Rect Hint{};
 	};
 
 	// Lays the window out around the deck, with the table at the largest scale that leaves the deck and the score panel
@@ -57,7 +63,8 @@ private:
 	struct Row
 	{
 		SDL_FRect Area{};
-		float PlungerWidth = 0, Gap = 0;
+		float PlungerWidth = 0;
+		float Gap = 0;
 		bool BothPads = false;
 	};
 	// Arrange's layout, false where the deck doesn't apply
@@ -67,8 +74,11 @@ private:
 	static void PlaceRow(float shown);
 	static Layout Rects;
 	static Row PadRow;
-	static bool IsActive, HasNudged;
-	static Uint64 PlungerTicks, AnimateTicks, LaneEmptyTicks;
+	static bool IsActive;
+	static bool HasNudged;
+	static Uint64 PlungerTicks;
+	static Uint64 AnimateTicks;
+	static Uint64 LaneEmptyTicks;
 	// 1 while the lane shows, 0 once folded away
 	static float LaneShown;
 	static bool Waiting;
