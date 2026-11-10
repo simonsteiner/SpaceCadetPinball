@@ -14,7 +14,7 @@ public:
 	class Scope
 	{
 	public:
-		Scope(const char* format, ...);
+		explicit Scope(const char* format, ...);
 		// For pb::frame: records the time step and the resulting state when the scope ends
 		explicit Scope(float frameDtMilliSec);
 		~Scope();
@@ -83,7 +83,8 @@ public:
 	static bool PlayStep();
 	static bool PlaybackFailed() { return Failed; }
 private:
-	static FILE *Output, *Input;
+	static FILE* Output;
+	static FILE* Input;
 	static int Depth;
 	static unsigned FrameIndex;
 	static unsigned HeaderSeed;
