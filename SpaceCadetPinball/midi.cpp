@@ -5,6 +5,10 @@
 #include "options.h"
 #include "pb.h"
 #include "Sound.h"
+#include "SoundFontFilter.h"
+
+#include <atomic>
+#include <mutex>
 
 #include "tml.h"
 #include "tsf.h"
@@ -20,6 +24,8 @@ struct MidiSong
 	NativeMidi_Song* Native = nullptr;
 	tml_message* Messages = nullptr;
 	MIX_Audio* Audio = nullptr;
+	// The MIDI file, kept only while the SoundFont still loads, in case none loads and SDL_mixer has to decode it
+	std::vector<uint8_t> Data;
 };
 
 std::vector<MidiSong*> midi::LoadedTracks{};
@@ -100,7 +106,7 @@ namespace
 
 	void SDLCALL RenderSynth(void* userdata, SDL_AudioStream* stream, int additionalAmount, int totalAmount)
 	{
-		if (!SynthSong)
+		if (!SynthSong || !Synth)
 			return;
 
 		float buffer[SynthBlock * 2];
@@ -130,16 +136,23 @@ namespace
 	void SetSynthSong(tml_message* song)
 	{
 		SDL_LockAudioStream(SynthStream);
-		tsf_reset(Synth);
-		tsf_channel_set_bank_preset(Synth, 9, 128, 0);
+		// No synth while the SoundFont still loads; midi::music_update starts the song then
+		if (Synth)
+		{
+			tsf_reset(Synth);
+			tsf_channel_set_bank_preset(Synth, 9, 128, 0);
+		}
+		else
+			song = nullptr;
 		SynthSong = SynthNext = song;
 		SynthMsec = 0;
 		SDL_ClearAudioStream(SynthStream);
 		SDL_UnlockAudioStream(SynthStream);
 	}
 
-	// SDL_SOUNDFONTS first, as SDL2_mixer read it, then where Linux distributions install a General MIDI SoundFont
-	tsf* LoadSoundFont()
+	// SDL_SOUNDFONTS first, as SDL2_mixer read it, then where Linux distributions install a General MIDI SoundFont.
+	// Only the samples of the presets given are decoded.
+	tsf* LoadSoundFont(const SoundFontPresets& presets)
 	{
 		std::vector<std::string> paths;
 		if (auto envPaths = SDL_getenv("SDL_SOUNDFONTS"))
@@ -181,16 +194,168 @@ namespace
 				SDL_ClearError();
 				continue;
 			}
+			auto start = std::chrono::steady_clock::now();
+			auto filtered = SoundFontFilter::KeepPresets(static_cast<uint8_t*>(data), size, presets);
 			auto synth = tsf_load_memory(data, static_cast<int>(size));
 			SDL_free(data);
 			if (synth)
 			{
-				printf("Playing music with SoundFont: %s\n", path.c_str());
-				return synth;
+				tsf_set_output(synth, TSF_STEREO_INTERLEAVED, SynthRate, SynthGainDb);
+				if (tsf_set_max_voices(synth, SynthMaxVoices))
+				{
+					auto elapsed = std::chrono::steady_clock::now() - start;
+					printf("Playing music with SoundFont: %s (loaded in %d ms, %d of %d compressed samples)\n",
+						   path.c_str(),
+						   static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()),
+						   filtered.Kept, filtered.Samples);
+					return synth;
+				}
+				tsf_close(synth);
 			}
 			printf("Could not load SoundFont: %s\n", path.c_str());
 		}
 		return nullptr;
+	}
+
+	// Loads the SoundFont on a thread of its own: decoding its Vorbis samples takes time the table and the menu
+	// shouldn't wait for, about a second on a PC and seven on a phone for all of FluidR3Mono. Only the presets asked
+	// for are decoded, a fifth of the samples for one table's music. The synth outlives midi::music_shutdown, so a
+	// restart for another table or edition doesn't wait for a load in progress, and loads again only when the new
+	// table's music needs presets the synth doesn't have; it then gets those on top of the ones it had. The web build
+	// has no threads and loads within Request.
+	class SoundFontLoader
+	{
+	public:
+		SoundFontLoader() = default;
+		SoundFontLoader(const SoundFontLoader&) = delete;
+		SoundFontLoader& operator=(const SoundFontLoader&) = delete;
+
+		~SoundFontLoader()
+		{
+			Join();
+			if (Font)
+				tsf_close(Font);
+		}
+
+		// Waits for a load in progress to end
+		void Join()
+		{
+			if (Worker.joinable())
+				Worker.join();
+		}
+
+		// Asks for a synth with these presets. Only while nothing uses the synth Get returned: a load replaces it.
+		void Request(const SoundFontPresets& presets)
+		{
+			{
+				std::scoped_lock lock(Mutex);
+				if (Started && Wanted.Covers(presets))
+					return;
+				Wanted.Add(presets);
+				Started = true;
+				Done.store(false);
+				// A load in progress sees what is wanted now when it ends, and loads again
+				if (Loading)
+					return;
+				Loading = true;
+			}
+#if defined(__EMSCRIPTEN__) && !defined(__EMSCRIPTEN_PTHREADS__)
+			Load();
+#else
+			if (Worker.joinable())
+				Worker.join();
+			Worker = std::thread{&SoundFontLoader::LoadOnThread, this};
+#endif
+		}
+
+		bool Ready() const
+		{
+			return Done.load();
+		}
+
+		// The synth, or null when no SoundFont loaded. Only once Ready
+		tsf* Get() const
+		{
+			return Ready() ? Font : nullptr;
+		}
+
+	private:
+		void Load()
+		{
+			while (true)
+			{
+				SoundFontPresets presets;
+				{
+					std::scoped_lock lock(Mutex);
+					presets = Wanted;
+				}
+				auto font = LoadSoundFont(presets);
+
+				std::scoped_lock lock(Mutex);
+				if (!Wanted.Covers(presets) || !presets.Covers(Wanted))
+				{
+					// More was asked for meanwhile
+					if (font)
+						tsf_close(font);
+					continue;
+				}
+				if (Font)
+					tsf_close(Font);
+				Font = font;
+				Loading = false;
+				Done.store(true);
+				return;
+			}
+		}
+
+		void LoadOnThread()
+		{
+			Load();
+			// SDL keeps its error and environment per thread, and frees them only for threads it made
+			SDL_CleanupTLS();
+		}
+
+		std::thread Worker;
+		std::atomic<bool> Done{false};
+		// Guards Wanted, Started and Loading, which the loading thread reads when it ends
+		std::mutex Mutex;
+		SoundFontPresets Wanted;
+		bool Started = false;
+		bool Loading = false;
+		tsf* Font = nullptr;
+	};
+
+	SoundFontLoader SoundFont;
+
+	// The presets a song plays: each melodic channel's programs, the SoundFont's first preset for a channel that
+	// plays without choosing one, and the kits of the drums on channel 10, which starts with kit 0. A song that
+	// chooses a bank, which the synth follows, needs the whole SoundFont.
+	void AddPresets(const tml_message* song, SoundFontPresets& presets)
+	{
+		std::bitset<16> chose;
+		for (auto message = song; message; message = message->next)
+		{
+			// Bank 0 is the one every channel starts in
+			if (message->type == TML_CONTROL_CHANGE && message->control_value != 0 &&
+				(message->control == TML_BANK_SELECT_MSB || message->control == TML_BANK_SELECT_LSB))
+				presets.Whole = true;
+			if (message->type != TML_PROGRAM_CHANGE && message->type != TML_NOTE_ON)
+				continue;
+			auto channel = static_cast<unsigned>(message->channel) % chose.size();
+			if (channel == 9)
+			{
+				presets.DrumKits[0] = true;
+				if (message->type == TML_PROGRAM_CHANGE)
+					presets.DrumKits[static_cast<unsigned>(message->program) % presets.DrumKits.size()] = true;
+			}
+			else if (message->type == TML_PROGRAM_CHANGE)
+			{
+				chose[channel] = true;
+				presets.Programs[static_cast<unsigned>(message->program) % presets.Programs.size()] = true;
+			}
+			else if (!chose[channel])
+				presets.First = true;
+		}
 	}
 }
 
@@ -251,6 +416,9 @@ bool midi::StartPlayback(MidiSong* song)
 		return false;
 #endif
 	case MidiBackend::SoundFont:
+		// While the SoundFont loads, the track counts as playing; music_update starts it
+		if (!Synth)
+			return true;
 		SetSynthSong(song->Messages);
 		return MIX_PlayTrack(MusicTrack, 0);
 	case MidiBackend::Mixer:
@@ -299,22 +467,7 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 		}
 #endif
 		if (Backend == MidiBackend::None)
-			Synth = LoadSoundFont();
-		if (Synth)
-		{
-			tsf_set_output(Synth, TSF_STEREO_INTERLEAVED, SynthRate, SynthGainDb);
-			const SDL_AudioSpec synthSpec{SDL_AUDIO_F32, 2, SynthRate};
-			SynthStream = SDL_CreateAudioStream(&synthSpec, nullptr);
-			MusicTrack = MIX_CreateTrack(Mixer);
-			if (tsf_set_max_voices(Synth, SynthMaxVoices) && SynthStream && MusicTrack &&
-			    MIX_SetTrackAudioStream(MusicTrack, SynthStream))
-			{
-				SDL_SetAudioStreamGetCallback(SynthStream, RenderSynth, nullptr);
-				Backend = MidiBackend::SoundFont;
-			}
-			else
-				ShutdownBackend();
-		}
+			StartSoundFontBackend();
 		// Last, whatever MIDI decoder SDL_mixer has, if any
 		if (Backend == MidiBackend::None)
 		{
@@ -345,7 +498,71 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 		track1 = load_track("PINBALL");
 	}
 
+	if (Backend == MidiBackend::SoundFont)
+	{
+		SoundFontPresets presets;
+		for (auto song : LoadedTracks)
+			AddPresets(song->Messages, presets);
+		SoundFont.Request(presets);
+		// At once when the synth has them already
+		music_update();
+	}
 	return track1 != nullptr;
+}
+
+void midi::StartSoundFontBackend()
+{
+	// Without a synth yet: the tracks load first, since they say which presets to load, and count as playing;
+	// music_update starts the music, or falls back, when the SoundFont has loaded. Not after a load found none.
+	if (SoundFont.Ready() && !SoundFont.Get())
+		return;
+
+	const SDL_AudioSpec synthSpec{SDL_AUDIO_F32, 2, SynthRate};
+	SynthStream = SDL_CreateAudioStream(&synthSpec, nullptr);
+	MusicTrack = MIX_CreateTrack(Mixer);
+	if (SynthStream && MusicTrack && MIX_SetTrackAudioStream(MusicTrack, SynthStream))
+	{
+		SDL_SetAudioStreamGetCallback(SynthStream, RenderSynth, nullptr);
+		Backend = MidiBackend::SoundFont;
+	}
+	else
+		ShutdownBackend();
+}
+
+void midi::music_update()
+{
+	if (Backend != MidiBackend::SoundFont || Synth || !SoundFont.Ready())
+		return;
+
+	// The track asked for while the SoundFont loaded
+	auto track = IsPlaying ? active_track : MidiTracks::None;
+	active_track = MidiTracks::None;
+	Synth = SoundFont.Get();
+	if (!Synth)
+	{
+		// No SoundFont: whatever MIDI decoder SDL_mixer has, as music_init falls back
+		ShutdownBackend();
+		MusicTrack = MIX_CreateTrack(Mixer);
+		if (MusicTrack)
+		{
+			Backend = MidiBackend::Mixer;
+			for (auto song : LoadedTracks)
+			{
+				song->Audio =
+					MIX_LoadAudio_IO(Mixer, SDL_IOFromConstMem(song->Data.data(), song->Data.size()), false, true);
+				// As load_track says it when nothing can play a track
+				if (!song->Audio)
+					printf("Could not load a music track.\nSDL Error: %s\n", SDL_GetError());
+			}
+			SDL_ClearError();
+		}
+	}
+	for (auto song : LoadedTracks)
+		song->Data = {};
+
+	SetVolume(Volume);
+	if (track != MidiTracks::None)
+		play_track(track, true);
 }
 
 void midi::music_shutdown()
@@ -369,6 +586,11 @@ void midi::music_shutdown()
 	Mixer = nullptr;
 }
 
+void midi::WaitForSoundFont()
+{
+	SoundFont.Join();
+}
+
 void midi::ShutdownBackend()
 {
 #ifdef SCP_NATIVE_MIDI
@@ -382,8 +604,7 @@ void midi::ShutdownBackend()
 		SDL_DestroyAudioStream(SynthStream);
 	SynthStream = nullptr;
 	SynthSong = SynthNext = nullptr;
-	if (Synth)
-		tsf_close(Synth);
+	// SoundFontLoader keeps the synth for the next music_init
 	Synth = nullptr;
 	Backend = MidiBackend::None;
 }
@@ -455,6 +676,8 @@ MidiSong* midi::load_track(std::string fileName)
 		break;
 	case MidiBackend::SoundFont:
 		song->Messages = tml_load_memory(data->data(), static_cast<int>(data->size()));
+		if (song->Messages && !Synth)
+			song->Data = *data;
 		break;
 	case MidiBackend::Mixer:
 		// SDL_mixer keeps its own copy of the data

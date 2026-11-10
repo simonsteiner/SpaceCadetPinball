@@ -142,7 +142,7 @@ cmake --build --preset web
 To try it, copy the three files into a folder, rename the page to `index.html`, add `FluidR3Mono_GM.sf3` for music if you like, and serve the folder over HTTP (`python3 -m http.server`); browsers don't run it from a `file:` URL. The page asks for the game data with a file picker, including `PINBALL.EXE` for the message font. The files are kept in the browser's IndexedDB, so they are only asked for once, and are never uploaded; "Forget the game data" removes them. Settings and high scores are kept the same way. A test build carries the data and skips the picker ([deployment.md](deployment.md#test-builds)).
 
 - The game's loop yields to the browser after every frame (`-sASYNCIFY` and `emscripten_sleep`), so the browser shows the frame and delivers input in between. It runs without threads, because GitHub Pages can't send the headers that threads need.
-- Music plays with TinySoundFont and the SoundFont the player adds with the game files (`.sf2` or `.sf3`), or else the free `FluidR3Mono_GM.sf3` that the page offers to download. It takes about 400 MB of memory once loaded.
+- Music plays with TinySoundFont and the SoundFont the player adds with the game files (`.sf2` or `.sf3`), or else the free `FluidR3Mono_GM.sf3` that the page offers to download. Of an SF3 SoundFont, only the samples the table's music plays are decoded; all of FluidR3Mono took about 400 MB of memory, which wasn't measured again in a browser since.
 - The browser lets the game start audio only after a click, so the game starts from the Play button.
 - There is no Exit in the menu; closing the tab ends the game. Post-processing isn't available, because SDL's GPU renderer doesn't run in browsers.
 
@@ -249,7 +249,7 @@ SDL3_mixer can't be relied on for the MIDI music: it has no native MIDI, and som
 2. **TinySoundFont** (vendored) with a SoundFont: the files in `SDL_SOUNDFONTS` (separated by `;`, or also `:` outside Windows), then `/usr/share/sounds/sf3/default-GM.sf3`, `/usr/share/sounds/sf2/default-GM.sf2`, `/usr/share/sounds/sf2/FluidR3_GM.sf2`, `/usr/share/soundfonts/default.sf2`, `/usr/share/soundfonts/FluidR3_GM.sf2` and `/usr/share/sounds/sf2/TimGM6mb.sf2`. SF2 and SF3 (compressed) files both load; Debian's newer default `/usr/share/sounds/sf3/default-GM.sf3` comes first. The whole SoundFont is held in memory as floating point, so FluidR3 (148 MB on disk) takes about 400 MB (loading `FluidR3_GM.sf2` with SF3 support on peaks at 570 MB before settling back to 288 MB, because TinySoundFont keeps the raw copy while sizing its first float buffer); TimGM6mb (6 MB) is lighter.
 3. **SDL3_mixer's own MIDI decoders,** if it has any: Timidity in the vendored build (needs a `timidity.cfg` with GUS patches; set `TIMIDITY_CFG` if it isn't in `/etc/timidity.cfg` or `/etc/timidity/`), FluidSynth in some distribution builds.
 
-No SoundFont ships with the game. Music needs an audio device, so `-noaudio` and `-quick` turn it off.
+The SoundFont loads on a thread of its own while the game starts, so the music begins a moment after the table shows. Of an SF3 SoundFont, whose samples are compressed, only those the table's music plays are decoded, about a fifth of FluidR3Mono; an SF2 SoundFont loads whole. The console's `Playing music with SoundFont` line says how long the load took and how many compressed samples it decoded. No SoundFont ships with the game. Music needs an audio device, so `-noaudio` and `-quick` turn it off.
 
 ## Git hooks
 

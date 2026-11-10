@@ -65,6 +65,60 @@ On the Windows host's Android Emulator (WHPX; WSL has no `/dev/kvm`) with the x8
 - **Two logged errors, explained:** `SDL Error: That operation is not supported` once at startup came from sizing and placing the window, which SDL's Android driver can't do, and from `SDL_ShowWindow`, which calls `SDL_RestoreWindow`, which the driver lacks too. `No OpenGL context has been made current` on coming back came from SDL's Android resume, which restores an EGL context and sets its swap interval even when the GPU renderer draws through Vulkan. #179 skips the sizing on Android and stops reporting the two messages that are SDL's own; neither stopped the game.
 - **Touch hints named keys:** the title menu and the pause screen showed Enter, Esc and the arrows, which a phone doesn't have. Fixed in #178: with the deck on, or after a touch, the screens show no key hints, and Back, which arrives as Escape, doesn't bring them back.
 
+## Speed on the A54 (2026-11-09)
+
+Measured on the Galaxy A54 (SM-A546B, Exynos 1380, Mali-G68, Android 16, 1080×2340 at 120 Hz) with the test APK of main `70d5f74`, Space Cadet 2026, renderer `gpu` (Vulkan). No code was changed to measure: logcat's timestamps of the game's own lines, `screenrecord` for when the menu shows, `dumpsys SurfaceFlinger --timestats` for the frame rate, `/sys/kernel/gpu/gpu_busy` and `gpu_clock`, and `dumpsys meminfo`.
+
+| What | Value at `70d5f74` |
+| --- | --- |
+| Cold start to the title menu | about 6.4 s: 0.2 s to `SDL_main`, 0.7 s to the loading screen, 5.4 to 6.2 s in the SoundFont, under 0.3 s for the table |
+| Memory | about 555 MB PSS, 370 MB of it native heap; loading the SoundFont alone peaks near 300 MB on the PC |
+| Frame rate, title with the demo behind it | 39 fps on average on the 120 Hz panel, in gaps of 16, 25 and 33 ms; GPU about 80 % busy at 455 of 949 MHz, the game's thread at about 44 % of a core, so the GPU is the limit |
+
+Three pull requests follow from it:
+
+1. **The SoundFont loads on a thread of its own.** `midi::music_init` used to decode every Vorbis sample of `FluidR3Mono_GM.sf3` on the main thread before the table loaded (`tsf_load_memory`; 0.9 s on the PC, about 6 s on the phone). Now a thread loads it once per process; the table and the menu come up meanwhile, and `midi::music_update`, once a frame, starts the track that was asked for when the synth is ready. The synth outlives `midi::music_shutdown`, so changing the table or the edition no longer loads the SoundFont again, and a restart during the load doesn't wait for it. Quitting during the load still waits for it to end, after the window has closed. The web build has no threads and loads as before. Two log lines help measuring: `First frame … ms after start` and the load time on the `Playing music with SoundFont` line. On the PC the first frame comes after 0.25 s instead of 1.2 s. On the A54 it comes 1.2 to 1.5 s after the launch instead of about 6.4 s (three cold starts of `581a718`). The load itself takes longer beside the running game, 7.5 to 8.5 s instead of 5.4 to 6.2 s, so the music starts 8.5 to 9.5 s after the launch, 2 to 3 s later than before; a higher priority for the thread didn't change that (7.1 to 7.5 s), so it stays as it is until the third pull request cuts the decoding. Memory is unchanged, 563 MB PSS with 376 MB native heap.
+2. **The frame rate.** A diagnostic build (never merged) logged each frame's sections and switched single passes off over `adb shell setprop`. GPU work per frame is the GPU's busy share times its clock times the frame time, in million clock cycles (Mcyc), because the A54 keeps changing its GPU clock between 221 and 650 MHz. At 2x art (a 1200×832 frame on the 1080×2340 screen), before the change:
+
+   | What | fps | GPU work per frame | Upload on the main thread |
+   | --- | --- | --- | --- |
+   | Title with the demo | 38 to 41 | 7.1 Mcyc | 7 ms |
+   | A game | 43 to 57 | 6.0 to 6.3 Mcyc | 5 to 7 ms |
+   | Without the compositor's passes | 59 to 60 | 3.1 (title), 2.6 (game) | 5 ms |
+   | Without the frame's upload | 43 to 48 | 5.3 (title), 4.1 (game) | 0.1 ms |
+   | Without the HUD | 58 (title) | 5.5 (title), the same in a game | |
+   | 1x art | 54 | 3.2 | 2 ms |
+   | 4x art | 29 | 18.9 | 18 ms |
+   | Only clearing and presenting | 60 | 0.9 | |
+
+   So the glow and lighting passes were 55 to 60 % of the GPU's work and the upload of the whole frame, every frame, a quarter of it and 5 to 7 ms of the main thread, during which the GPU idled; the GPU read about 80 % busy and kept its clock near 330 of 949 MHz. The passes already ran below the screen's resolution, so drawing them smaller wasn't the lever. What changed:
+   - **The frame and the depth map upload only their changed tiles** (`gdrv_bitmap8::BlitChangesToTexture`, `render::UpdateDepthTexture`, `ChangedTiles.h`): each is compared with a copy of what its texture holds, in 64-texel tiles. Behind the title the demo changes under 2 % of the frame per frame.
+   - **The compositor keeps its picture and composes only stale tiles** (`Compositor::Compose`): those whose frame or depth texels changed, where a lamp's glow changed, and under the last frame's balls; all of it when the lighting or the textures change. The glows' pulse moved from the glow texture into the lighting pass, so the glow texture is drawn again only when a lamp changes. A temporary check that composed every frame both ways found no differing texel in over 6000 frames on the four tables, in a game and across an edition switch. With the pulse, 20 to 30 % of the tiles are composed per frame instead of all, and the glow shader runs on 1 to 8 % of them.
+   - **The manifest declares the app a game** (`android:appCategory`).
+
+   On the A54 afterwards, at 2x art:
+
+   | What | fps before | fps after | GPU work per frame before | after |
+   | --- | --- | --- | --- | --- |
+   | Title with the demo | 38 to 41 | 59 to 60 | 7.1 Mcyc | 2.6 to 3.1 |
+   | A game | 43 to 57 | 60 | 6.0 to 6.3 | 2.3 |
+   | Title at 4x art | 29 | 51 | 18.9 | 4.2 |
+
+   The GPU now stays at its lowest clock, 221 MHz, 63 to 78 % busy, and the table runs at real speed. In a game SurfaceFlinger shows 87 to 91 % of the frames 16 to 17 ms after the one before, about 5 % after 8 ms and 5 % after 24 to 25 ms; before, they jumped between 16, 25 and 33 ms. Turning vsync on (`SDL_SetRenderVSync`) changed neither the rate nor that spread, so the pacing stays as it is: the off-beat frames come from the loop sleeping by its own clock on a 120 Hz panel, and telling Android the game's rate (`ANativeWindow_setFrameRate`) would be the way to remove them, if they show. Comparing the frame still takes 4 to 5 ms of the main thread at 2x and 14 ms at 4x, which is what holds 4x at 51 fps; comparing the 1x frame instead would cut that. Also found: below 60 fps the table ran slow, at 64 % of real speed at 38 fps, because the main loop dropped the time a loop pass took beyond 16.7 ms. A fourth pull request keeps that time, up to 100 ms, and pays it back in further steps of the table, none longer than a step could be before and at most three more per loop pass. With frames slowed on purpose on the PC, the table runs at 100 % of real speed at 57, 36, 21 and 10 fps. Nothing changes at the full frame rate, and recordings play as before, since they hold each step's time.
+3. **Only the samples the music plays are decoded.** TinySoundFont decodes every Vorbis sample of an SF3 file when it loads it, and one table's music plays three to five programs and a drum kit. Three ways were open: a smaller SoundFont, which would change how the music sounds, on the web too; decoding on demand inside TinySoundFont, which means maintaining a change to vendored code; or leaving TinySoundFont alone and handing it a file in which the unused samples have no length, which it already treats as empty. The third is what `SoundFontFilter` does, in the file's bytes in memory: it follows the wanted presets through the SoundFont's tables to their samples and empties the headers of the other compressed ones. `midi.cpp` loads the table's tracks first, collects their programs and drum kits, and asks the loader for those; a table whose music needs more makes it load again, in the background, with the new presets on top of the old.
+
+   TinySoundFont's interpolation reads a little past a sample's end, into the sample that follows it in the file, so a kept sample's follower is kept too. With that, a 90 s render of 3D Pinball's theme and of each of Skulduggery's six MIDI tracks differs from the whole SoundFont's by at most 0.000001 of full scale; without it by up to 0.06, in how a few notes end. Dragon's Keep's and Full Tilt! Space Cadet's tracks are MDS and were only heard in the game.
+
+   | What | Whole SoundFont | Only the music's samples |
+   | --- | --- | --- |
+   | PC, 3D Pinball: load, memory at its peak | 916 ms, 298 MB | 181 ms, 94 MB (193 of 1037 samples) |
+   | PC, Skulduggery | the same | 199 ms, 105 MB (230 samples) |
+   | A54, Full Tilt! Space Cadet: the load, beside the running game | 7.5 to 8.5 s | 0.47 to 0.52 s (256 samples) |
+   | A54: launch to the music | 8.5 to 9.5 s (6.4 s before the first pull request) | 1.4 to 2.1 s |
+   | A54: memory (PSS), native heap | 563 MB, 376 MB | 347 MB, 190 MB |
+
+   An SF2 SoundFont, whose samples aren't compressed, loads whole as before; taking its unused samples out would mean moving sample data, which this doesn't do. The filter was run on 3000 damaged copies of the SoundFont's tables under AddressSanitizer without a fault; a file it can't read stays as it is.
+
 ## The rest of G5, as pull requests
 
 In order; each is small enough to review on its own. Sizes: S is up to a day, M a few days, L about a week.

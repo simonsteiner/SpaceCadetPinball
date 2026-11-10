@@ -16,6 +16,8 @@
 
     <!-- No backup: the test build's game data lives in the app's files. No network at all, so no clear text either -->
     <application android:label="@string/app_name"
+        android:appCategory="game"
+        android:isGame="true"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"
         android:usesCleartextTraffic="false"

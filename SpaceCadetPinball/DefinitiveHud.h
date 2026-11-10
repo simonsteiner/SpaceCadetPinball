@@ -28,7 +28,8 @@ public:
 
 private:
 	static float DrawContents(ImDrawList* drawList, const TableView& view, ImVec2 min, ImVec2 max);
-	// The same in a band under the table, wider than high, for a window taller than wide
+	// The same in a band under the table, or over it with the touch deck, wider than high, for a window taller than
+	// wide
 	static float DrawBand(ImDrawList* drawList, const TableView& view, ImVec2 min, ImVec2 max);
-	static void RenderBand(const TableView& view, SDL_FRect panel);
+	static void RenderBand(const TableView& view, SDL_FRect board, SDL_FRect panel);
 };

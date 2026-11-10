@@ -111,7 +111,11 @@ class midi
 {
 public:
 	static int music_init(MIX_Mixer* mixer, int volume);
+	// Once a frame: starts the music when the SoundFont, which loads on a thread of its own, is ready
+	static void music_update();
 	static void music_shutdown();
+	// Waits for the SoundFont's thread, which calls into SDL, to end. Before SDL_Quit
+	static void WaitForSoundFont();
 	static void music_play();
 	static void music_stop();
 	static void SetVolume(int volume);
@@ -136,6 +140,8 @@ private:
 	static void StopPlayback();
 	static bool StartPlayback(MidiSong* song);
 	static void ShutdownBackend();
+	// Sets up the SoundFont backend, still without a synth, unless a load has found no SoundFont
+	static void StartSoundFontBackend();
 	static MidiSong* load_track(std::string fileName);
 	// Dragon's Keep's or Skulduggery's tracks, as their EXEs load them
 	static void load_bonus_table_tracks();

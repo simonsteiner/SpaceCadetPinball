@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "gdrv.h"
 
+#include "ChangedTiles.h"
+
 #include "GroupData.h"
 #include "partman.h"
 #include "pb.h"
@@ -145,6 +147,7 @@ void gdrv_bitmap8::CreateTexture(SDL_ScaleMode scaleMode, SDL_TextureAccess acce
 		SDL_SetTextureScaleMode(Texture, SDL_SCALEMODE_NEAREST);
 	}
 	SDL_SetTextureBlendMode(Texture, SDL_BLENDMODE_NONE);
+	Uploaded.clear();
 }
 
 void gdrv_bitmap8::BlitToTexture()
@@ -165,6 +168,34 @@ void gdrv_bitmap8::BlitToTexture()
 	std::memcpy(lockedPixels, BmpBufPtr1, Width * Height * sizeof(ColorRgba));
 
 	SDL_UnlockTexture(Texture);
+	Uploaded.clear();
+}
+
+void gdrv_bitmap8::BlitChangesToTexture(std::vector<SDL_Rect>* changes)
+{
+	// Between two frames little of the table changes: lights, flippers, the score. Uploading all of it every frame
+	// took 5 to 7 ms of a phone's frame at twice the original size, and a quarter of its GPU's work. So the frame is
+	// compared with a copy of what the texture holds, and only the changed tiles are uploaded.
+	assertm(Texture, "Updating null texture");
+	const auto pitch = static_cast<int>(Width * sizeof(ColorRgba));
+	const SDL_Rect all{0, 0, Width, Height};
+	if (Uploaded.size() != static_cast<size_t>(Width) * Height)
+	{
+		Uploaded.assign(BmpBufPtr1, BmpBufPtr1 + static_cast<size_t>(Width) * Height);
+		SDL_UpdateTexture(Texture, nullptr, BmpBufPtr1, pitch);
+		if (changes)
+			changes->push_back(all);
+		return;
+	}
+
+	ChangedTiles::ForEachRun(BmpBufPtr1, Width, Uploaded.data(), Width, Height, all,
+							 [&](const SDL_Rect& run)
+							 {
+								 SDL_UpdateTexture(Texture, &run,
+												   &BmpBufPtr1[static_cast<size_t>(run.y) * Width + run.x], pitch);
+								 if (changes)
+									 changes->push_back(run);
+							 });
 }
 
 int gdrv::display_palette(ColorRgba* plt)

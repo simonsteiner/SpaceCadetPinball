@@ -14,13 +14,14 @@ TouchControls::Row TouchControls::PadRow{};
 bool TouchControls::IsActive = false, TouchControls::HasNudged = false;
 Uint64 TouchControls::PlungerTicks = 0, TouchControls::AnimateTicks = 0, TouchControls::LaneEmptyTicks = 0;
 float TouchControls::LaneShown = 1;
+bool TouchControls::Waiting = false;
 
 namespace
 {
-	// Shares of the safe area. Upright: the deck takes the bottom, the score panel at least a band over it. On its
+	// Shares of the safe area. Upright: the deck takes the bottom, the score panel at least a band at the top. On its
 	// side: the table takes the full height, the left pad the margin before it, and the score panel the top of the
 	// margin after it, over the right pad and the plunger.
-	constexpr float DeckShare = 0.24f, BandShare = 0.12f;
+	constexpr float DeckShare = 0.22f, BandShare = 0.12f;
 	constexpr float LeftShare = 0.38f, MinMargins = 0.3f, SidePanelShare = 0.42f;
 	// The plunger lane's width and the gaps, as shares of the deck's width (upright) or the column's (on its side)
 	constexpr float PlungerShare = 0.17f, GapShare = 0.025f;
@@ -104,20 +105,24 @@ bool TouchControls::Place(int width, int height, int boardWidth, int tableHeight
 	Layout layout;
 	if (safe.h > safe.w)
 	{
-		// Upright: the table as wide as it fits over the band and the deck
+		// Upright: the score panel at the top, the table under it and the deck at the bottom, where the thumbs are, so
+		// the flippers are next to their pads. Across, they take the whole window: a phone counts the strips at its
+		// sides where a swipe goes back as unsafe, which would cost the table an eighth of its size, and nothing here
+		// is swiped sideways. Up and down they keep to the safe area, clear of the status bar and the gesture bar.
+		auto full = static_cast<float>(width);
 		auto deckH = safe.h * DeckShare;
-		scale = std::min(safe.w / boardW, (safe.h - deckH - safe.h * BandShare) / tableH);
+		scale = std::min(full / boardW, (safe.h - deckH - safe.h * BandShare) / tableH);
 		auto w = boardW * scale, h = tableH * scale;
-		layout.Board = Rect(safe.x + (safe.w - w) / 2, safe.y, w, h);
 		auto deckY = safe.y + safe.h - deckH;
-		layout.Panel = Rect(safe.x, safe.y + h, safe.w, deckY - safe.y - h);
+		layout.Board = Rect((full - w) / 2, deckY - h, w, h);
+		layout.Panel = Rect(0, safe.y, full, deckY - h - safe.y);
 
-		auto gap = safe.w * GapShare;
+		auto gap = full * GapShare;
 		auto hintH = deckH * HintShare;
 		auto padsY = deckY + hintH, padsH = deckH - hintH - gap;
-		PadRow = Row{SDL_FRect{safe.x + gap, padsY, safe.w - gap * 2, padsH}, safe.w * PlungerShare, gap, true};
-		layout.Pause = Rect(safe.x + safe.w - gap - hintH, deckY, hintH, hintH);
-		layout.Hint = Rect(safe.x + gap, deckY, safe.w - gap * 3 - hintH, hintH);
+		PadRow = Row{SDL_FRect{gap, padsY, full - gap * 2, padsH}, full * PlungerShare, gap, true};
+		layout.Pause = Rect(full - gap - hintH, deckY, hintH, hintH);
+		layout.Hint = Rect(gap, deckY, full - gap * 3 - hintH, hintH);
 	}
 	else
 	{
@@ -189,6 +194,7 @@ void TouchControls::Animate()
 											   .XMin = feed.X - margin,
 											   .YMin = feed.Y - margin}) > 0;
 	}
+	Waiting = waiting;
 	auto wanted = waiting || Held(GameBindings::Plunger);
 	if (wanted)
 		LaneEmptyTicks = 0;
@@ -320,6 +326,11 @@ bool TouchControls::Held(GameBindings binding)
 float TouchControls::PlungerSeconds()
 {
 	return PlungerTicks ? static_cast<float>(SDL_GetTicks() - PlungerTicks) / 1000.0f : 0.0f;
+}
+
+bool TouchControls::BallWaiting()
+{
+	return Waiting;
 }
 
 float TouchControls::PlungerWidth()
