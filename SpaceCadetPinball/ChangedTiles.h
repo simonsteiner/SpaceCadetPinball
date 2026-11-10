@@ -27,10 +27,14 @@ namespace ChangedTiles
 			{
 				auto differs = false;
 				const auto columns = tileX < right ? std::min(Size, width - tileX) : 0;
-				for (int y = tileY; columns > 0 && y < tileY + rows && !differs; y++)
+				for (int y = tileY; columns > 0 && y < tileY + rows; y++)
 				{
-					differs = std::memcmp(&picture[static_cast<size_t>(y) * stride + tileX],
-										  &copy[static_cast<size_t>(y) * width + tileX], columns * sizeof(Pixel)) != 0;
+					if (std::memcmp(&picture[static_cast<size_t>(y) * stride + tileX],
+									&copy[static_cast<size_t>(y) * width + tileX], columns * sizeof(Pixel)) != 0)
+					{
+						differs = true;
+						break;
+					}
 				}
 				if (differs)
 				{

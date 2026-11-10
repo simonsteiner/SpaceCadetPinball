@@ -114,7 +114,10 @@ namespace
 		void Add(const TileSet& other)
 		{
 			for (auto i = 0u; i < Tiles.size(); i++)
-				Tiles[i] |= other.Tiles[i];
+			{
+				if (other.Tiles[i])
+					Tiles[i] = 1;
+			}
 			Some = Some || other.Some;
 		}
 
@@ -148,7 +151,8 @@ namespace
 	};
 
 	// What the kept textures hold: the tiles to draw again this frame, and the scene they were drawn from
-	TileSet StaleTiles, StaleGlowTiles;
+	TileSet StaleTiles;
+	TileSet StaleGlowTiles;
 	bool AllStale = true;
 	std::vector<DefinitiveScene::Glow> DrawnGlows;
 	std::vector<SDL_Rect> DrawnBalls;
@@ -326,8 +330,7 @@ SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int fra
 
 	// What has to be drawn again. Everything, when the textures are new or the lighting changed
 	auto texelsAcross = static_cast<int>(width);
-	auto texelsDown = static_cast<int>(height);
-	if (!StaleTiles.SizeIs(texelsAcross, texelsDown))
+	if (auto texelsDown = static_cast<int>(height); !StaleTiles.SizeIs(texelsAcross, texelsDown))
 	{
 		StaleTiles.Resize(texelsAcross, texelsDown);
 		StaleGlowTiles.Resize(texelsAcross, texelsDown);
@@ -576,7 +579,7 @@ void Compositor::DrawGlows(SDL_Texture* frame, int frameScale, const DefinitiveS
 	SDL_SetTextureBlendMode(frame, blend);
 	// Each stale part is emptied and gets every glow that reaches into it, cut to it
 	StaleGlowTiles.ForEachRun(
-		[&](const SDL_Rect& run)
+		[frame, &vertices, &indices](const SDL_Rect& run)
 		{
 			SDL_SetRenderClipRect(Renderer, &run);
 			SDL_RenderFillRect(Renderer, nullptr);

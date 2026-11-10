@@ -9,9 +9,13 @@ struct TableView
 	{
 		bool Active;
 		// Table coordinates; Z is the ball's height
-		float X, Y, Z;
+		float X;
+		float Y;
+		float Z;
 		// The direction is a unit vector
-		float DirectionX, DirectionY, Speed;
+		float DirectionX;
+		float DirectionY;
+		float Speed;
 		// The depth the renderer tests the ball's sprite against the depth maps with, on their 0 to 0xFFFF scale
 		// (proj::NormalizeDepth of the ball's distance from the camera); 0 while the ball has no sprite
 		int Depth;
@@ -24,7 +28,8 @@ struct TableView
 	struct Flipper
 	{
 		// Radians from the rest position; AngleMax when fully extended
-		float Angle, AngleMax;
+		float Angle;
+		float AngleMax;
 	};
 
 	// The tables, as presentation tells them apart
@@ -130,7 +135,8 @@ struct TableView
 	{
 		// The light's group name in the DAT file, such as "lite198"
 		std::string Name;
-		bool On, Flashing;
+		bool On;
+		bool Flashing;
 		// Where the light's sprite is in the 1x frame, in pixels; empty while it has none
 		SDL_Rect Sprite;
 	};

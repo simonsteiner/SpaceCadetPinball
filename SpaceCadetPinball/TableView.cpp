@@ -64,7 +64,7 @@ namespace
 	// FNV-1a, fed field by field so padding never counts
 	struct Hasher
 	{
-		uint64_t Value = 14695981039346656037ull;
+		uint64_t Value = 14695981039346656037ULL;
 
 		// Feeds the bytes into the hash, one at a time
 		void Bytes(const void* data, size_t size)
@@ -73,7 +73,7 @@ namespace
 			for (size_t index = 0; index < size; index++)
 			{
 				Value ^= bytes[index];
-				Value *= 1099511628211ull;
+				Value *= 1099511628211ULL;
 			}
 		}
 
@@ -90,7 +90,7 @@ namespace
 			Bytes(&value, sizeof value);
 		}
 
-		void Add(const std::string& text)
+		void Add(std::string_view text)
 		{
 			Add(static_cast<int>(text.size()));
 			Bytes(text.data(), text.size());

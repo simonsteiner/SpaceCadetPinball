@@ -1,5 +1,8 @@
 #pragma once
 
+#include <array>
+#include <utility>
+
 // The optional post-processing of the table, set by Options.PostProcessing
 enum class PostEffects : int
 {
@@ -47,6 +50,6 @@ private:
 	static bool GpuFailed;
 	static SDL_Renderer* Renderer;
 	static PostEffects Effect;
-	static struct SDL_GPUShader* Shaders[static_cast<int>(PostEffects::Max)];
-	static struct SDL_GPURenderState* States[static_cast<int>(PostEffects::Max)];
+	static std::array<struct SDL_GPUShader*, std::to_underlying(PostEffects::Max)> Shaders;
+	static std::array<struct SDL_GPURenderState*, std::to_underlying(PostEffects::Max)> States;
 };

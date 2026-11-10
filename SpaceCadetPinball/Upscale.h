@@ -8,7 +8,8 @@
 class Upscale
 {
 public:
-	static constexpr int MinFactor = 2, MaxFactor = 4;
+	static constexpr int MinFactor = 2;
+	static constexpr int MaxFactor = 4;
 
 	static void Init(int factor);
 	static void Clear();

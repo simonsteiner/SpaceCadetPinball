@@ -36,7 +36,8 @@ void Upscale::Clear()
 std::vector<ColorRgba> Upscale::Magnify(const ColorRgba* pixels, int width, int height, int factor)
 {
 	// MMPX doubles the size; 4x is two passes
-	std::vector<ColorRgba> src(pixels, pixels + width * height), dst;
+	std::vector<ColorRgba> src(pixels, pixels + width * height);
+	std::vector<ColorRgba> dst;
 	for (; factor > 1; factor /= 2, width *= 2, height *= 2)
 	{
 		dst.resize(static_cast<size_t>(width) * height * 4);
@@ -53,8 +54,7 @@ gdrv_bitmap8* Upscale::Bitmap(gdrv_bitmap8* bmp)
 {
 	if (!bmp || !CurrentFactor)
 		return bmp;
-	auto found = Bitmaps.find(bmp);
-	if (found != Bitmaps.end())
+	if (auto found = Bitmaps.find(bmp); found != Bitmaps.end())
 		return found->second.get();
 
 	auto result = LoadOverride(*bmp);
@@ -79,8 +79,7 @@ zmap_header_type* Upscale::ZMap(zmap_header_type* zMap)
 {
 	if (!zMap || !CurrentFactor)
 		return zMap;
-	auto found = ZMaps.find(zMap);
-	if (found != ZMaps.end())
+	if (auto found = ZMaps.find(zMap); found != ZMaps.end())
 		return found->second.get();
 
 	// Nearest neighbour, so every depth step stays where the original has it
@@ -143,9 +142,7 @@ static std::string SpriteFileName(int groupId, std::string name, int resolution)
 		if (!std::isalnum(static_cast<unsigned char>(ch)) && ch != '_' && ch != '-')
 			ch = '_';
 	}
-	char prefix[16];
-	snprintf(prefix, sizeof prefix, "%04d-", groupId);
-	return prefix + name + "-r" + std::to_string(resolution) + ".png";
+	return std::format("{:04d}-{}-r{}.png", groupId, name, resolution);
 }
 
 // The names an override of a group's bitmap may have: with stateOwner, the component's name and the bitmap's index
@@ -212,7 +209,7 @@ gdrv_bitmap8* Upscale::LoadOverride(const gdrv_bitmap8& bmp)
 	auto folder = OverrideFolder();
 	std::string path;
 	SDL_IOStream* io = nullptr;
-	for (auto& name : names->second)
+	for (const auto& name : names->second)
 	{
 		path = folder + name;
 		io = SDL_IOFromFile(path.c_str(), "rb");
@@ -240,8 +237,9 @@ gdrv_bitmap8* Upscale::LoadOverride(const gdrv_bitmap8& bmp)
 		result = new gdrv_bitmap8(converted->w, converted->h, false);
 		for (int y = 0; y < converted->h; y++)
 		{
-			auto row = reinterpret_cast<const ColorRgba*>(static_cast<const uint8_t*>(converted->pixels) +
-														  static_cast<size_t>(y) * converted->pitch);
+			const void* rowStart =
+				static_cast<const uint8_t*>(converted->pixels) + static_cast<size_t>(y) * converted->pitch;
+			auto row = static_cast<const ColorRgba*>(rowStart);
 			// The frame has no blending and paint_flat skips only colour 0, so a pixel is either transparent or
 			// opaque: mostly transparent becomes 0, whatever colour it hides, the rest is drawn solid
 			auto dst = &result->BmpBufPtr1[y * result->Stride];
