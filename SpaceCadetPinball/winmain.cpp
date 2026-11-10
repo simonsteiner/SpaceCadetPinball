@@ -1021,6 +1021,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 // many steps of the longest size one loop pass pays back
 constexpr double MaxTimeOwedMs = 100.0;
 constexpr int MaxCatchUpSteps = 3;
+// Less than this stays owed until more comes: a step of almost no time is still a step of the table
+constexpr double MinCatchUpMs = 1.0;
 
 // For measuring a cold start: SDL's clock starts when the game does
 static void LogFirstFrame()
@@ -1101,13 +1103,18 @@ void winmain::MainLoop()
 				last_mouse_y = y;
 			}
 			auto ballAlpha = 1.0f;
+			// Whether the time of this pass is the table's: not while a recording plays at its own pace, not while
+			// paused, and not when the pass was marked, as the first one is after the window was away or dragged.
+			// Such a pass owes the table nothing, neither what was owed before it nor the time it takes itself.
+			const auto timeCounts = !replay::IsViewing() && !single_step && !no_time_loss;
+			if (!timeCounts)
+				timeOwed = DurationMs::zero();
 			// A recording plays at its own pace, and nothing else moves the table
 			if (replay::IsViewing())
 			{
 				RecordingViewer::Advance(static_cast<double>(frameDuration.count()));
-				timeOwed = DurationMs::zero();
 			}
-			else if (!single_step && !no_time_loss)
+			else if (timeCounts)
 			{
 				// Normally one update per loop. With more frames than updates per second, the loop runs at the frame
 				// rate and the table still advances in steps of 1000/UPS ms, so the physics see the same time steps.
@@ -1117,9 +1124,10 @@ void winmain::MainLoop()
 				// hold the frame rate, used to lose the rest, and the table ran slow. It is caught up in further
 				// steps, each no longer than the one step was allowed to be, a few per pass.
 				auto catchUp = std::min(timeOwed, MaxCatchUpSteps * StepLimit());
-				timeOwed -= catchUp;
+				auto catchUpSteps = 0;
 				if (HighRefresh)
 				{
+					timeOwed -= catchUp;
 					dt = static_cast<float>(UpdateTime.count());
 					UpdateTimeAccumulator += frameDuration + catchUp;
 					catchUp = DurationMs::zero();
@@ -1129,14 +1137,17 @@ void winmain::MainLoop()
 					UpdateTimeAccumulator -= UpdateTime * updates;
 					ballAlpha = static_cast<float>(UpdateTimeAccumulator / UpdateTime);
 				}
-				for (auto update = 0; update < updates || catchUp > DurationMs::zero(); update++)
+				else if (catchUp >= DurationMs(MinCatchUpMs))
 				{
-					if (update >= updates)
-					{
-						auto step = std::min(catchUp, StepLimit());
-						catchUp -= step;
-						dt = static_cast<float>(step.count());
-					}
+					// The steps are counted and share the time. Taking them off it one by one left a remainder of
+					// rounding at many frame rates, which then was one more step of no time.
+					timeOwed -= catchUp;
+					catchUpSteps = std::min(MaxCatchUpSteps, static_cast<int>(std::ceil(catchUp / StepLimit())));
+				}
+				for (auto update = 0; update < updates + catchUpSteps; update++)
+				{
+					if (update == updates)
+						dt = static_cast<float>((catchUp / catchUpSteps).count());
 					TableFrame(dt);
 					if (DispGRhistory)
 					{
@@ -1157,7 +1168,6 @@ void winmain::MainLoop()
 			{
 				// Paused, or time that doesn't count, such as after the window was dragged
 				UpdateTimeAccumulator = DurationMs::zero();
-				timeOwed = DurationMs::zero();
 			}
 			no_time_loss = false;
 
@@ -1265,12 +1275,15 @@ void winmain::MainLoop()
 #endif
 
 			// Limit duration to 2 * target time; the rest is owed to the table, up to a limit, so a real stall still
-			// doesn't make the game jump ahead
+			// doesn't make the game jump ahead. A pass whose time doesn't count owes nothing: the pass after the
+			// window was away measures all of that time here.
 			sleepRemainder = Clamp(DurationMs(frameEnd - updateEnd) - targetTimeDelta, -TargetFrameTime,
 			                       TargetFrameTime);
 			auto passDuration = DurationMs(frameEnd - frameStart);
 			frameDuration = std::min<DurationMs>(passDuration, StepLimit());
-			timeOwed = std::min<DurationMs>(timeOwed + (passDuration - frameDuration), DurationMs(MaxTimeOwedMs));
+			timeOwed = timeCounts
+						   ? std::min<DurationMs>(timeOwed + (passDuration - frameDuration), DurationMs(MaxTimeOwedMs))
+						   : DurationMs::zero();
 			frameStart = frameEnd;
 			UpdateToFrameCounter++;
 
