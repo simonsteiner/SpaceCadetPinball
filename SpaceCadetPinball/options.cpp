@@ -333,8 +333,8 @@ void options::set_float(LPCSTR lpValueName, float data)
 	SetSetting(lpValueName, std::to_string(data));
 }
 
-// Reads a control's three inputs from the settings into values; a slot with no input saved or an unknown type keeps
-// its value
+// Reads a control's three inputs from the settings into values; a slot with no input saved or a type above
+// GameController keeps its value
 void options::GetInput(const std::string& rowName, GameInput (&values)[3])
 {
 	for (auto i = 0u; i <= 2; i++)
