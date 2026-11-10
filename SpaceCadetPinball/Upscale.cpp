@@ -16,6 +16,7 @@ std::unordered_map<const gdrv_bitmap8*, std::vector<std::string>> Upscale::Sprit
 
 static_assert(sizeof(ColorRgba) == sizeof(uint32_t), "MMPX works on 32-bit ARGB pixels");
 
+// Sets the factor the art is upscaled by, 0 for none, and drops the copies made at another factor
 void Upscale::Init(int factor)
 {
 	if (factor != CurrentFactor)
@@ -31,6 +32,7 @@ void Upscale::Clear()
 	CurrentFactor = 0;
 }
 
+// Returns the pixels enlarged by the factor, one MMPX doubling for each factor of two
 std::vector<ColorRgba> Upscale::Magnify(const ColorRgba* pixels, int width, int height, int factor)
 {
 	// MMPX doubles the size; 4x is two passes
@@ -45,6 +47,8 @@ std::vector<ColorRgba> Upscale::Magnify(const ColorRgba* pixels, int width, int 
 	return src;
 }
 
+// The upscaled copy of a bitmap, made on first use from its override PNG or else with MMPX, and kept until Clear; the
+// bitmap itself when it is null or upscaling is off
 gdrv_bitmap8* Upscale::Bitmap(gdrv_bitmap8* bmp)
 {
 	if (!bmp || !CurrentFactor)
@@ -69,6 +73,8 @@ gdrv_bitmap8* Upscale::Bitmap(gdrv_bitmap8* bmp)
 	return result;
 }
 
+// The upscaled copy of a depth map and its holes, made on first use and kept until Clear; the map itself when it is
+// null or upscaling is off
 zmap_header_type* Upscale::ZMap(zmap_header_type* zMap)
 {
 	if (!zMap || !CurrentFactor)
@@ -98,6 +104,7 @@ zmap_header_type* Upscale::ZMap(zmap_header_type* zMap)
 	return result;
 }
 
+// Copies the rectangle out of src, magnifies it and writes it into dst at Factor() times its position
 void Upscale::Region(const gdrv_bitmap8& src, int x, int y, int width, int height, gdrv_bitmap8& dst)
 {
 	if (width <= 0 || height <= 0)
@@ -113,6 +120,7 @@ void Upscale::Region(const gdrv_bitmap8& src, int x, int y, int width, int heigh
 					&dst.BmpBufPtr1[(y * factor + row) * dst.Stride + x * factor]);
 }
 
+// The sprites folder in the user preferences folder, ending in a separator, where override PNGs are looked for
 std::string Upscale::OverrideFolder()
 {
 	auto prefPath = SDL_GetPrefPath("", "SpaceCadetPinball");
@@ -126,6 +134,8 @@ std::string Upscale::OriginalsFolder()
 	return OverrideFolder() + "originals" + PathSeparator;
 }
 
+// A sprite's file name: the group's number in four digits, the name with anything but letters, digits, _ and -
+// replaced by _, and the resolution, such as 0108-ball-r0.png
 static std::string SpriteFileName(int groupId, std::string name, int resolution)
 {
 	for (auto& ch : name)
@@ -151,6 +161,7 @@ static void AddSpriteNames(std::vector<std::string>& names, const GroupData& gro
 		names.push_back(SpriteFileName(group.GroupId, std::format("{}{}", group.GroupName, suffix), resolution));
 }
 
+// Works out the file names of every group's bitmaps at the current resolution, once until Clear
 void Upscale::FindSpriteNames()
 {
 	// A sprite's file name is its group's number and name and the table resolution, such as 0108-ball-r0.png.
@@ -188,6 +199,8 @@ void Upscale::FindSpriteNames()
 	}
 }
 
+// Loads the bitmap's override PNG, under the first of its names found in the override folder; null when there is
+// none, it can't be read or its size isn't the bitmap's times the factor
 gdrv_bitmap8* Upscale::LoadOverride(const gdrv_bitmap8& bmp)
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
@@ -254,6 +267,8 @@ gdrv_bitmap8* Upscale::LoadOverride(const gdrv_bitmap8& bmp)
 #endif
 }
 
+// Writes every named sprite of the loaded table as a PNG into the originals folder and returns how many it wrote; 0
+// when no table is loaded or the folder can't be made
 int Upscale::ExportOriginals()
 {
 	// The original sprites, for upscaling elsewhere; they come from the player's own DAT and stay on their machine

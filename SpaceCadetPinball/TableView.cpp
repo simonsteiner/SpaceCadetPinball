@@ -29,6 +29,7 @@ namespace
 	const TTextBoxMessage* InfoMessage = nullptr;
 	int InfoEnd = 0;
 
+	// A sprite's rectangle in the frame; empty for no sprite or one without a bitmap
 	SDL_Rect SpriteRect(const render_sprite* sprite)
 	{
 		if (!sprite || !sprite->Bmp)
@@ -37,6 +38,8 @@ namespace
 		return {rect.XPosition, rect.YPosition, rect.Width, rect.Height};
 	}
 
+	// The text a text box shows: its overlay if it has one, else its current message's text, or for a message in the
+	// second font its words; empty when it shows nothing
 	std::string Text(const TTextBox* box)
 	{
 		if (box && box->Overlay)
@@ -63,6 +66,7 @@ namespace
 	{
 		uint64_t Value = 14695981039346656037ull;
 
+		// Feeds the bytes into the hash, one at a time
 		void Bytes(const void* data, size_t size)
 		{
 			auto bytes = static_cast<const unsigned char*>(data);
@@ -101,6 +105,8 @@ namespace
 		}
 	};
 
+	// Finds the table's lights and the components the view reads the mission and the rank from, and gives the view an
+	// entry for each light
 	void FindComponents()
 	{
 		Table = pb::MainTable;
@@ -122,6 +128,7 @@ namespace
 	}
 } // namespace
 
+// Hashes every field of the view in a fixed order, each list's size before its items
 uint64_t TableView::Hash() const
 {
 	Hasher hash;
@@ -174,6 +181,8 @@ const TableView& TableView::Get()
 	return View;
 }
 
+// Copies the table's state into the view: balls, flippers, lights, texts, scores and game state, then what the loaded
+// table's rules add. Looks the components up again when the table is a new one; nothing without a table
 void TableView::Fill()
 {
 	if (!pb::MainTable)

@@ -78,6 +78,8 @@ namespace
 	}
 } // namespace
 
+// Walks the SoundFont's preset, instrument and sample lists to find the samples the wanted presets play, and zeroes
+// the start, end and loop points of the other compressed ones; the result is empty when the file stays as it is
 SoundFontFilter::Result SoundFontFilter::KeepPresets(uint8_t* data, size_t size, const SoundFontPresets& presets)
 {
 	if (!data || size < 12 || !Named(data, "RIFF") || !Named(data + 8, "sfbk"))

@@ -14,6 +14,8 @@ void Rumble::Bumper()
 	Pulse(0x7000, 0xA000, 90);
 }
 
+// Rumbles every open gamepad with the two motors' strengths for durationMs, unless the Rumble option is off or the
+// table is in demo mode
 void Rumble::Pulse(Uint16 lowFrequency, Uint16 highFrequency, Uint32 durationMs)
 {
 	// Not while the table plays itself

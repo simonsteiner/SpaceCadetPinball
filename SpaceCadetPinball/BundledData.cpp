@@ -64,6 +64,8 @@ namespace
 	}
 } // namespace
 
+// Unpacks the executable's archive into a folder of prefPath named after the data's hash, unless that folder is there
+// already, and returns it with a separator; empty without a prefPath or when unpacking fails
 std::string BundledData::Folder(const std::string& prefPath)
 {
 	if (prefPath.empty())

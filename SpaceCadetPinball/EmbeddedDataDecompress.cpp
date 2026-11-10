@@ -15,6 +15,8 @@ namespace
 	const unsigned char *stb__barrier_in_b, *stb__barrier_in_e;
 	unsigned char* stb__dout;
 
+	// Copies length bytes from earlier in the output to its end, byte by byte so the two may overlap; a copy that would
+	// leave the output buffer moves the write pointer past its end instead, which stb_decompress reports as an error
 	void stb__match(const unsigned char* data, unsigned int length)
 	{
 		// INVERSE of memmove... write each byte before copying the next...
@@ -23,6 +25,8 @@ namespace
 		while (length--) *stb__dout++ = *data++;
 	}
 
+	// Copies length literal bytes from the input to the output; a copy that would leave either buffer moves the write
+	// pointer past the output's end instead, which stb_decompress reports as an error
 	void stb__lit(const unsigned char* data, unsigned int length)
 	{
 		if (stb__dout + length > stb__barrier_out_e) { stb__dout += length; return; }
@@ -36,6 +40,8 @@ namespace
 #define stb__in3(x)   ((i[x] << 16) + stb__in2((x)+1))
 #define stb__in4(x)   ((i[x] << 24) + stb__in3((x)+1))
 
+	// Decodes the token at i, a match or a run of literals, and returns the input position after it; the same position
+	// when the byte starts no token, as the end marker's does
 	const unsigned char* stb_decompress_token(const unsigned char* i)
 	{
 		if (*i >= 0x20) { // use fewer if's for cases that expand small
@@ -53,6 +59,7 @@ namespace
 		return i;
 	}
 
+	// Continues the Adler-32 checksum adler32 over buflen bytes of buffer; a new checksum starts from 1
 	unsigned int stb_adler32(unsigned int adler32, unsigned char* buffer, unsigned int buflen)
 	{
 		const unsigned long ADLER_MOD = 65521;
@@ -122,6 +129,8 @@ namespace
 #undef stb__in4
 }
 
+// Decompresses into a vector of the length the stream's header names; empty when the input is shorter than the
+// header or doesn't decode to exactly that length
 std::vector<uint8_t> EmbeddedData::DecompressStb(const void* compressedData, size_t compressedSize)
 {
 	auto input = static_cast<const unsigned char*>(compressedData);

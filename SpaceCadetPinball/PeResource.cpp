@@ -20,6 +20,7 @@ namespace
 		{
 		}
 
+		// Whether size bytes at offset lie inside the file
 		bool Has(uint64_t offset, uint64_t size) const
 		{
 			return offset <= Data.size() && size <= Data.size() - offset;
@@ -30,6 +31,7 @@ namespace
 			return Data[offset];
 		}
 
+		// Reads a little-endian 16-bit value at a file offset; false when it lies outside the file
 		bool U16(uint64_t offset, uint16_t& value) const
 		{
 			if (!Has(offset, 2))
@@ -38,6 +40,7 @@ namespace
 			return true;
 		}
 
+		// Reads a little-endian 32-bit value at a file offset; false when it lies outside the file
 		bool U32(uint64_t offset, uint32_t& value) const
 		{
 			if (!Has(offset, 4))
@@ -111,6 +114,8 @@ namespace
 			return false;
 		}
 
+		// The data of the resource with this type ID and name, in the first language its directory lists; empty
+		// when there is none or it lies outside the file. Needs ParseHeaders to have succeeded
 		std::vector<uint8_t> FindResource(uint16_t type, const std::string& name)
 		{
 			uint64_t available;
@@ -202,6 +207,7 @@ namespace
 	};
 } // namespace
 
+// Reads the file, unless it is larger than MaxFileSize, and looks the resource up in it; empty when it can't be read
 std::vector<uint8_t> PeResource::Load(const std::string& path, uint16_t type, const std::string& name)
 {
 	auto file = fopenu(path.c_str(), "rb");
@@ -223,6 +229,7 @@ std::vector<uint8_t> PeResource::Load(const std::string& path, uint16_t type, co
 	return Find(image, type, name);
 }
 
+// Parses the image as a PE file and returns the resource's data; empty when it isn't one or has no such resource
 std::vector<uint8_t> PeResource::Find(const std::vector<uint8_t>& image, uint16_t type, const std::string& name)
 {
 	PeImage pe(image);

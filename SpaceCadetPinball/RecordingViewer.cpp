@@ -46,6 +46,7 @@ namespace
 	std::string LoadedDat, LoadedDatName;
 } // namespace
 
+// The recordings folder in the user preferences folder, ending in a path separator
 std::string RecordingViewer::Folder()
 {
 	auto prefPath = SDL_GetPrefPath("", "SpaceCadetPinball");
@@ -54,6 +55,8 @@ std::string RecordingViewer::Folder()
 	return folder + "recordings" + PathSeparator;
 }
 
+// Lists the folder's recordings that can be read, newest first, without the session being recorded now; summaries are
+// cached until a file changes
 std::vector<RecordingViewer::Recording> RecordingViewer::List()
 {
 	auto name = pb::BasePath + pb::DatFileName;
@@ -88,6 +91,7 @@ std::vector<RecordingViewer::Recording> RecordingViewer::List()
 	return recordings;
 }
 
+// Deletes a recording and its cached summary; a path outside the recordings folder is left alone
 void RecordingViewer::Delete(const std::string& path)
 {
 	// Only recordings in the folder, which the game made
@@ -98,6 +102,7 @@ void RecordingViewer::Delete(const std::string& path)
 	Summaries.erase(path);
 }
 
+// Starts recording this session into the folder when the RecordSessions option is on; only the first call can
 void RecordingViewer::StartSessionRecording()
 {
 	// Only the first start of the game records, as -record does: a restart keeps state from the run before, such as
@@ -122,6 +127,7 @@ void RecordingViewer::StartSessionRecording()
 		SessionPath.clear();
 }
 
+// Stops the replay harness, and deletes the session's recording if no game was started in it
 void RecordingViewer::EndSessionRecording()
 {
 	auto unused = !SessionPath.empty() && replay::IsRecording() && !replay::RecordedGame();
@@ -131,6 +137,8 @@ void RecordingViewer::EndSessionRecording()
 	SessionPath.clear();
 }
 
+// Asks for a recording to be played from a frame and restarts the game into it; a different recording starts unpaused
+// at normal speed
 void RecordingViewer::Request(const std::string& path, unsigned frame)
 {
 	if (path != RequestedPath)
@@ -151,6 +159,7 @@ void RecordingViewer::Stop()
 	winmain::Restart();
 }
 
+// Starts the playback asked for; false if there is none or it can't be viewed, which also drops the request
 bool RecordingViewer::Begin()
 {
 	if (RequestedPath.empty())
@@ -185,6 +194,7 @@ void RecordingViewer::Prepare()
 	RunTo(RequestedFrame);
 }
 
+// Plays frames with sound off up to the given frame or the recording's end, and sets the clock and HasEnded to match
 void RecordingViewer::RunTo(unsigned frame)
 {
 	// Quietly, or every sound on the way would play at once
@@ -200,6 +210,8 @@ void RecordingViewer::RunTo(unsigned frame)
 	Clock = played < summary.FrameStarts.size() ? summary.FrameStarts[played] : summary.Length;
 }
 
+// Adds the elapsed milliseconds, times the play speed, to the clock and plays the frames that end by then, at most 1000
+// a call; does nothing while paused, ended or after a failed playback
 void RecordingViewer::Advance(double elapsed)
 {
 	// After a frame that played differently, nothing more runs
@@ -229,6 +241,7 @@ void RecordingViewer::Advance(double elapsed)
 	}
 }
 
+// Jumps to a frame: forward plays on quietly from here, back restarts the game into the recording
 void RecordingViewer::Seek(unsigned frame)
 {
 	const auto& starts = replay::Viewed().FrameStarts;

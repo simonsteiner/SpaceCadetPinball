@@ -34,6 +34,7 @@ namespace
 			return ColorRgba{color.GetRed(), color.GetGreen(), color.GetBlue(), 255};
 		}
 
+		// The area as an image, each pixel in the colour Color gives its palette index
 		Image Colors() const
 		{
 			Image image{Rect.w, Rect.h, std::vector<ColorRgba>(static_cast<size_t>(Rect.w) * Rect.h)};
@@ -265,6 +266,8 @@ namespace
 	}
 } // namespace
 
+// Loads the table's DAT file and scales the logo or the playfield down into the 120 by 120 square, centred on black;
+// empty when the file can't be loaded or has no such bitmap
 Image TableArt::Picture(const TableData& data)
 {
 	constexpr int size = 120;
@@ -302,6 +305,8 @@ Image TableArt::Picture(const TableData& data)
 	return picture;
 }
 
+// Cuts the table's panel art out of the "background" group's bitmap; Dragon's Keep's is put together by
+// DragonsKeepArt. Empty for the Full Tilt! demo and when the bitmap doesn't cover the area
 Image TableArt::PanelArt(Tables table, DatFile& dat)
 {
 	// The art at the top of each panel, in the 600 by 416 frame. The panel's bitmap starts at 386,12; the areas keep
@@ -331,6 +336,7 @@ Image TableArt::PanelArt(Tables table, DatFile& dat)
 	return area ? area->Colors() : Image{};
 }
 
+// The image enlarged by the factor with Upscale::Magnify; empty for an empty image
 Image TableArt::Magnify(const Image& image, int factor)
 {
 	if (image.Empty())
@@ -339,6 +345,7 @@ Image TableArt::Magnify(const Image& image, int factor)
 			Upscale::Magnify(image.Pixels.data(), image.Width, image.Height, factor)};
 }
 
+// Creates a static texture with linear scaling from the image; null for an empty image or when SDL can't create it
 SDL_Texture* TableArt::Texture(SDL_Renderer* renderer, const Image& image)
 {
 	if (image.Empty())

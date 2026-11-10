@@ -21,6 +21,8 @@ namespace
 	};
 } // namespace
 
+// Creates SDL's GPU renderer for the window, taking SPIR-V, DXIL and MSL shaders; null, with GpuFailed set, when SDL
+// can't create it or is older than 3.4
 SDL_Renderer* PostEffect::CreateGpuRenderer(SDL_Window* window)
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
@@ -44,6 +46,7 @@ SDL_Renderer* PostEffect::CreateGpuRenderer(SDL_Window* window)
 	return renderer;
 }
 
+// Whether the renderer is SDL's GPU renderer; false for null and with SDL older than 3.4
 bool PostEffect::IsGpuRenderer(SDL_Renderer* renderer)
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
@@ -54,6 +57,8 @@ bool PostEffect::IsGpuRenderer(SDL_Renderer* renderer)
 #endif
 }
 
+// Creates each effect's shader and render state for the renderer, unless it is the renderer already set up; an effect
+// whose shader or state fails has no state, and Begin draws plain
 void PostEffect::Init(SDL_Renderer* renderer)
 {
 	if (renderer == Renderer)
@@ -90,6 +95,7 @@ void PostEffect::Init(SDL_Renderer* renderer)
 #endif
 }
 
+// Picks SPIR-V, DXIL or MSL, in that order, by what the renderer's GPU device takes, and creates the fragment shader
 SDL_GPUShader* PostEffect::CreateShader(SDL_Renderer* renderer, ShaderCode spirv, ShaderCode dxil, ShaderCode msl,
 										int samplers)
 {
@@ -130,6 +136,7 @@ SDL_GPUShader* PostEffect::CreateShader(SDL_Renderer* renderer, ShaderCode spirv
 #endif
 }
 
+// Destroys every effect's render state and shader and forgets the renderer
 void PostEffect::Uninit()
 {
 	for (int i = 0; i < static_cast<int>(PostEffects::Max); i++)
@@ -152,6 +159,7 @@ void PostEffect::SetEffect(PostEffects effect)
 	Effect = effect;
 }
 
+// Sets the current effect's uniforms and render state on the renderer; nothing when the effect has no state
 void PostEffect::Begin(float textureWidth, float textureHeight, float scaleX, float scaleY)
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
@@ -165,6 +173,7 @@ void PostEffect::Begin(float textureWidth, float textureHeight, float scaleX, fl
 #endif
 }
 
+// Takes the current effect's render state off the renderer again
 void PostEffect::End()
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)

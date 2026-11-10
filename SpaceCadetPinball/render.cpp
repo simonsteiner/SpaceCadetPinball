@@ -61,6 +61,8 @@ static constexpr SDL_ScaleMode UnfilteredScaleMode = SDL_SCALEMODE_PIXELART;
 static constexpr SDL_ScaleMode UnfilteredScaleMode = SDL_SCALEMODE_NEAREST;
 #endif
 
+// Makes a sprite at a position in the frame and adds it to render's lists; all but balls start dirty, and a null
+// boundingRect keeps it out of the occlusion lists
 render_sprite::render_sprite(VisualTypes visualType, gdrv_bitmap8* bmp, zmap_header_type* zMap,
 	int xPosition, int yPosition, rectangle_type* boundingRect)
 {
@@ -120,6 +122,7 @@ render_sprite::~render_sprite()
 	delete OccludedSprites;
 }
 
+// Changes the sprite's bitmap, depth map and position, and marks it dirty unless it is a ball or nothing changed
 void render_sprite::set(gdrv_bitmap8* bmp, zmap_header_type* zMap, int xPos, int yPos)
 {
 	if (Bmp == bmp && ZMap == zMap && BmpRect.XPosition == xPos && BmpRect.YPosition == yPos)
@@ -143,6 +146,8 @@ void render_sprite::ball_set(gdrv_bitmap8* bmp, float depth, int xPos, int yPos)
 	Depth = proj::NormalizeDepth(depth);
 }
 
+// Creates the frame and its depth map at the given size, starting from the background bitmap, or black without one,
+// and the bitmaps that keep what each ball covers
 void render::init(gdrv_bitmap8* bmp, int width, int height)
 {
 	vscreen = new gdrv_bitmap8(width, height, false);
@@ -167,6 +172,7 @@ void render::init(gdrv_bitmap8* bmp, int width, int height)
 	recreate_screen_texture();
 }
 
+// Frees both frames, the sprites still in the lists, and the backdrop and depth textures
 void render::uninit()
 {
 	SetUpscale(0);
@@ -196,6 +202,7 @@ void render::uninit()
 	DepthUploaded.clear();
 }
 
+// Makes the frames' textures again, with the scale mode the LinearFiltering option asks for
 void render::recreate_screen_texture()
 {
 	auto scaleMode = options::Options.LinearFiltering ? SDL_SCALEMODE_LINEAR : UnfilteredScaleMode;
@@ -204,6 +211,8 @@ void render::recreate_screen_texture()
 		vscreenHi->CreateTexture(scaleMode, SDL_TEXTUREACCESS_STREAMING);
 }
 
+// Brings the frame up to date: takes the balls off, clears and repaints the dirty sprites' rectangles, deletes the
+// sprites flagged for it, and paints the balls back, noting where for InterpolateBalls
 void render::update()
 {
 	unpaint_balls();
@@ -286,6 +295,7 @@ void render::update()
 	}
 }
 
+// Repaints the balls between the positions of the last two updates, alpha of the way to the last, until RestoreBalls
 void render::InterpolateBalls(float alpha)
 {
 	// Moves the balls on the frame to where they were between the last two updates, alpha of the way to the last.
@@ -316,6 +326,7 @@ void render::InterpolateBalls(float alpha)
 	BallsInterpolated = true;
 }
 
+// Puts the balls back where they were before InterpolateBalls moved them
 void render::RestoreBalls()
 {
 	if (!BallsInterpolated)
@@ -328,12 +339,14 @@ void render::RestoreBalls()
 	BallsInterpolated = false;
 }
 
+// Adds the sprite to the ball list or the sprite list, by its visual type
 void render::AddSprite(render_sprite& sprite)
 {
 	auto& list = sprite.VisualType == VisualTypes::Ball ? ball_list : sprite_list;
 	list.push_back(&sprite);
 }
 
+// Takes the sprite off its list, if it is there
 void render::RemoveSprite(render_sprite& sprite)
 {
 	auto& list = sprite.VisualType == VisualTypes::Ball ? ball_list : sprite_list;
@@ -349,6 +362,8 @@ void render::set_background_zmap(zmap_header_type* zMap, int offsetX, int offset
 	zmap_offsetY = offsetY;
 }
 
+// Paints the sprites of this sprite's occlusion list into its dirty rectangle, depth-tested, in the frame and in the
+// upscaled frame
 void render::repaint(const render_sprite& sprite)
 {
 	rectangle_type clipRect{};
@@ -394,6 +409,8 @@ void render::PaintHi(const render_sprite& sprite, const rectangle_type& clipRect
 }
 
 
+// Paints the balls into the frame in ascending order of depth, saving what each covers for unpaint_balls, then does
+// the same in the upscaled frame; altOnly paints only the balls with AltBall set
 void render::paint_balls(bool altOnly)
 {
 	// Sort ball sprites by ascending depth
@@ -437,6 +454,7 @@ void render::paint_balls(bool altOnly)
 		paint_balls_hi();
 }
 
+// Paints the balls into the upscaled frame where paint_balls painted them at 1x, saving what each covers
 void render::paint_balls_hi()
 {
 	// After paint_balls, so the list is sorted the same way
@@ -463,6 +481,7 @@ void render::paint_balls_hi()
 	}
 }
 
+// Takes the balls off both frames by putting back what paint_balls saved
 void render::unpaint_balls()
 {
 	// Restore portions of vScreen saved during previous paint_balls call.
@@ -497,6 +516,8 @@ void render::shift(int offsetX, int offsetY)
 	offset_y += offsetY;
 }
 
+// Gives each sprite with a bounding rectangle the list of sprites whose bounding rectangles overlap it, itself
+// included; a sprite with a bitmap that overlaps no other gets none
 void render::build_occlude_list()
 {
 	std::vector<render_sprite*>* spriteArr = nullptr;
@@ -536,6 +557,7 @@ void render::build_occlude_list()
 	delete spriteArr;
 }
 
+// Draws the debug window that shows every group's bitmaps and depth maps, with a slider for their scale
 void render::SpriteViewer(bool* show)
 {
 	static const char* BitmapTypes[] =
@@ -635,6 +657,8 @@ void render::SpriteViewer(bool* show)
 	ImGui::End();
 }
 
+// Uploads the frame's changes and draws the backdrop, the table, composed by Space Cadet 2026's compositor when it
+// runs, through the post-processing effect, and the debug overlay
 void render::PresentVScreen(float ballAlpha)
 {
 	auto screen = vscreen;
@@ -694,12 +718,15 @@ void render::PresentVScreen(float ballAlpha)
 	}
 }
 
+// The table's width in pixels of the 1x frame, without the score panel; 0 before there is a frame
 int render::BoardWidth()
 {
 	// The table is the left part of the frame, the score panel the rest
 	return pb::MainTable ? pb::MainTable->Width : vscreen ? vscreen->Width : 0;
 }
 
+// Draws the texture's table part into BoardRect, shifted by the offset in frame pixels, and its panel part into
+// SidebarRect, unless the edition is Space Cadet 2026
 void render::DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, int textureScale)
 {
 	// Table and panel are drawn separately: the nudge shifts only the table, and the stacked layout moves the panel.
@@ -723,6 +750,7 @@ void render::DrawSplit(SDL_Texture* texture, float offsetX, float offsetY, int t
 		SDL_RenderTexture(winmain::Renderer, texture, &srcSidebarRect, &dstSidebarRect);
 }
 
+// Draws the backdrop over the whole window when the Backdrop option is on, making its texture on first use
 void render::DrawBackdrop()
 {
 	if (!options::Options.Backdrop)
@@ -743,6 +771,7 @@ void render::DrawBackdrop()
 	SDL_RenderTexture(winmain::Renderer, BackdropTexture, nullptr, &dstRect);
 }
 
+// Makes the backdrop texture from the table part of the 1x frame as it is now; the texture stays null on failure
 void render::CreateBackdrop()
 {
 	// A blurred, darkened copy of the table as drawn the first time the backdrop is shown, from the player's own data.
@@ -783,6 +812,8 @@ void render::CreateBackdrop()
 	SDL_UpdateTexture(BackdropTexture, nullptr, pixels.data(), width * static_cast<int>(sizeof(ColorRgba)));
 }
 
+// Switches the upscaled frame to a factor: frees the old one and, for a factor Upscale supports, composes a new one
+// from the initial background, the sprites and the balls
 void render::SetUpscale(int factor)
 {
 	// factor 0 turns the upscaled frame off; the 1x frame is always kept, because the panel's text is drawn into it
@@ -836,6 +867,7 @@ void render::SetUpscale(int factor)
 	recreate_screen_texture();
 }
 
+// Upscales the score panel from the 1x frame into the upscaled frame, if its pixels changed since the last call
 void render::RefreshSidebarHi()
 {
 	// Text boxes and score digits draw straight into the 1x frame, so the panel is magnified from there when it changes
@@ -860,6 +892,7 @@ void render::RefreshSidebarHi()
 		Upscale::Region(*vscreen, boardWidth, 0, width, vscreen->Height, *vscreenHi);
 }
 
+// Adds a rectangle, at 1x, to the part of the depth map that UpdateDepthTexture checks for changes
 void render::DepthChange(const rectangle_type& rect)
 {
 	if (DepthChanged.Width > 0)
@@ -868,6 +901,8 @@ void render::DepthChange(const rectangle_type& rect)
 		DepthChanged = rect;
 }
 
+// Uploads what changed in the shown frame's depth map to the depth texture and returns it; null without a depth map
+// or when the texture can't be made
 SDL_Texture* render::UpdateDepthTexture()
 {
 	// The depth map of the frame on show, upscaled or not; only what changed since the last call goes up

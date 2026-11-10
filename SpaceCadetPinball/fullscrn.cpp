@@ -31,12 +31,14 @@ void fullscrn::init()
 	window_size_changed();
 }
 
+// Leaves full screen if the game switched the window to it
 void fullscrn::shutdown()
 {
 	if (display_changed)
 		set_screen_mode(0);
 }
 
+// Switches full screen on or off unless that mode is already set; returns 1 after a switch, else isFullscreen
 int fullscrn::set_screen_mode(int isFullscreen)
 {
 	int result = isFullscreen;
@@ -56,6 +58,7 @@ int fullscrn::set_screen_mode(int isFullscreen)
 	return result;
 }
 
+// Makes the window full screen unless the game already did; returns 1 if it did so now, else 0
 int fullscrn::enableFullscreen()
 {
 	if (!display_changed)
@@ -69,6 +72,7 @@ int fullscrn::enableFullscreen()
 	return 0;
 }
 
+// Takes the window out of full screen if the game put it there; always returns 0
 int fullscrn::disableFullscreen()
 {
 	if (display_changed)
@@ -80,6 +84,7 @@ int fullscrn::disableFullscreen()
 	return 0;
 }
 
+// Leaves full screen when the window is deactivated (flag 0); does nothing when it is activated
 void fullscrn::activate(int flag)
 {
 	if (screen_mode)
@@ -96,6 +101,8 @@ int fullscrn::GetResolution()
 	return resolution;
 }
 
+// Sets the table resolution, an index into resolution_array; always 0 unless Full Tilt data other than the demo's is
+// loaded
 void fullscrn::SetResolution(int value)
 {
 	if (!pb::FullTiltMode || pb::FullTiltDemoMode)
@@ -104,6 +111,7 @@ void fullscrn::SetResolution(int value)
 	resolution = value;
 }
 
+// The highest resolution index the loaded game data has: 2 for Full Tilt data other than the demo's, else 0
 int fullscrn::GetMaxResolution()
 {
 	return pb::FullTiltMode && !pb::FullTiltDemoMode ? 2 : 0;
@@ -193,6 +201,8 @@ void fullscrn::window_size_changed()
 	}
 }
 
+// Works out the scales at which the content fills the given size: rounded down to whole multiples from 1 up with
+// Integer Scaling, and the smaller one for both axes with Uniform Scaling
 void fullscrn::FitScale(int width, int height, int contentWidth, int contentHeight, float& scaleX, float& scaleY)
 {
 	scaleX = static_cast<float>(width) / contentWidth;
@@ -210,6 +220,8 @@ void fullscrn::FitScale(int width, int height, int contentWidth, int contentHeig
 	}
 }
 
+// Sizes the window to the largest whole multiple of the table that fits the display, up to the display's scale, and
+// centres it if asked; does nothing where the window can't be sized
 void fullscrn::ResetWindowSize(bool center)
 {
 	if (!WindowSizable)
@@ -245,6 +257,7 @@ void fullscrn::ResetWindowSize(bool center)
 							  SDL_WINDOWPOS_CENTERED_DISPLAY(display));
 }
 
+// Pixels per window coordinate; 1 when SDL can't tell
 float fullscrn::PixelDensity()
 {
 	// Pixels per window coordinate: 2 on a Retina display, 1 where windows are sized in pixels
@@ -252,6 +265,7 @@ float fullscrn::PixelDensity()
 	return density > 0 ? density : 1.0f;
 }
 
+// The display's scale in window coordinates, which the UI is sized by; 1 when SDL can't tell
 float fullscrn::ContentScale()
 {
 	// How much larger than at 96 DPI the user wants things, in window coordinates.
@@ -260,6 +274,7 @@ float fullscrn::ContentScale()
 	return scale > 0 ? scale : 1.0f;
 }
 
+// Converts a rect in table pixels to window coordinates, in the board or, from the board's width on, in the score panel
 SDL_Rect fullscrn::GetScreenRectFromPinballRect(SDL_Rect rect)
 {
 	// In window coordinates, as ImGui uses them
@@ -287,11 +302,13 @@ float fullscrn::GetScreenToPinballRatio()
 	return static_cast<float>(render::BoardRect.w) / render::BoardWidth() / PixelDensity();
 }
 
+// Quarter turns clockwise of the picture: the Rotation option in Space Cadet 2026, always 0 in Classic
 int fullscrn::Rotation()
 {
 	return options::GetEdition() == Editions::Definitive ? options::Options.Rotation.V : 0;
 }
 
+// The picture's size in pixels: the renderer's output, with width and height swapped for an odd number of turns
 void fullscrn::OutputSize(int& width, int& height)
 {
 	SDL_GetRenderOutputSize(winmain::Renderer, &width, &height);
@@ -299,6 +316,7 @@ void fullscrn::OutputSize(int& width, int& height)
 		std::swap(width, height);
 }
 
+// Maps a point from 0 to 1 across the window to where it lies in the turned picture
 SDL_FPoint fullscrn::ToPicture(SDL_FPoint point)
 {
 	// A quarter turn clockwise puts the picture's left edge at the window's top
@@ -315,6 +333,8 @@ SDL_FPoint fullscrn::ToPicture(SDL_FPoint point)
 	}
 }
 
+// Moves a mouse event's position from the window's coordinates into the turned picture's; other events and an
+// unturned picture are left as they are
 void fullscrn::TurnPointerEvent(SDL_Event& event)
 {
 	float* x;
@@ -352,6 +372,8 @@ void fullscrn::TurnPointerEvent(SDL_Event& event)
 	*y = point.y * static_cast<float>(height);
 }
 
+// While the picture is turned, makes a texture of the picture's size the render target, created anew when the size
+// changed
 void fullscrn::BeginFrame()
 {
 	if (!Rotation())
@@ -379,6 +401,8 @@ void fullscrn::BeginFrame()
 	SDL_SetRenderTarget(winmain::Renderer, TurnedFrame);
 }
 
+// Draws the texture BeginFrame made the render target into the window, turned about its centre; does nothing if
+// the frame wasn't drawn into it
 void fullscrn::EndFrame()
 {
 	if (!TurnedFrame || SDL_GetRenderTarget(winmain::Renderer) != TurnedFrame)
@@ -398,6 +422,7 @@ void fullscrn::EndFrame()
 	SDL_RenderTextureRotated(winmain::Renderer, TurnedFrame, nullptr, &dst, 90.0 * Rotation(), nullptr, SDL_FLIP_NONE);
 }
 
+// Destroys the texture the turned picture is drawn into
 void fullscrn::ReleaseFrame()
 {
 	if (TurnedFrame)

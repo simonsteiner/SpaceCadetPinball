@@ -21,6 +21,7 @@
 
 gdrv_bitmap8* DebugOverlay::dbScreen = nullptr;
 
+// Draws a circle's outline point by point, in batches; returns false when SDL fails to draw them
 static bool DrawCircle(SDL_Renderer* renderer, int x, int y, int radius)
 {
 	SDL_FPoint points[256];
@@ -98,6 +99,7 @@ void DebugOverlay::UnInit()
 	dbScreen = nullptr;
 }
 
+// Draws the parts of the debug overlay that the options turn on into its own texture, and blends that over the frame
 void DebugOverlay::DrawOverlay()
 {
 	if (dbScreen == nullptr)
@@ -156,6 +158,7 @@ void DebugOverlay::DrawOverlay()
 	SDL_SetRenderDrawBlendMode(winmain::Renderer, blendMode);
 }
 
+// Draws the lines of the edge manager's grid of boxes
 void DebugOverlay::DrawBoxGrid()
 {
 	auto& edgeMan = *TTableLayer::edge_manager;
@@ -181,6 +184,7 @@ void DebugOverlay::DrawBoxGrid()
 	}
 }
 
+// Draws the edges of every collision component and every flipper's edge
 void DebugOverlay::DrawAllEdges()
 {
 	SDL_SetRenderDrawColor(winmain::Renderer, 0, 200, 200, 255);
@@ -202,6 +206,8 @@ void DebugOverlay::DrawAllEdges()
 	}
 }
 
+// For each active ball, draws the edges of the edge manager box it is in, and its outline with a line along its
+// direction, a tenth of its speed long, each if its option is on
 void DebugOverlay::DrawBallInfo()
 {
 	auto& edgeMan = *TTableLayer::edge_manager;
@@ -241,6 +247,7 @@ void DebugOverlay::DrawBallInfo()
 	}
 }
 
+// Draws the bitmap rectangle of every component's sprite that has a size
 void DebugOverlay::DrawAllSprites()
 {
 	SDL_SetRenderDrawColor(winmain::Renderer, 200, 200, 0, 255);
@@ -258,6 +265,7 @@ void DebugOverlay::DrawAllSprites()
 	}
 }
 
+// Draws a circle at the table position of each sound channel
 void DebugOverlay::DrawSoundPositions()
 {
 	auto& edgeMan = *TTableLayer::edge_manager;
@@ -271,6 +279,7 @@ void DebugOverlay::DrawSoundPositions()
 	}
 }
 
+// Draws a line across the table at the point (attribute 501) of each visual state of the first ball's group
 void DebugOverlay::DrawBallDepthSteps()
 {
 	auto& edgeMan = *TTableLayer::edge_manager;
@@ -294,6 +303,7 @@ void DebugOverlay::DrawBallDepthSteps()
 	}
 }
 
+// Draws the bounding box of every collision component
 void DebugOverlay::DrawComponentAabb()
 {
 	SDL_SetRenderDrawColor(winmain::Renderer, 0, 50, 200, 255);
@@ -329,6 +339,8 @@ void DebugOverlay::DrawLineType(line_type& line)
 	DrawLine(winmain::Renderer, pt1.X, pt1.Y, pt2.X, pt2.Y);
 }
 
+// Draws a line, circle or flipper edge; with the collision mask option on, not an edge whose collision group the
+// first active ball's mask leaves out
 void DebugOverlay::DrawEdge(TEdgeSegment* edge)
 {
 	if (options::Options.DebugOverlayCollisionMask)

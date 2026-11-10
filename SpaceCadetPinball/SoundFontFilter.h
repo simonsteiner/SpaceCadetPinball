@@ -16,12 +16,14 @@ struct SoundFontPresets
 	// A channel chooses a bank, so its programs aren't the General MIDI ones: the music needs the whole SoundFont
 	bool Whole = false;
 
+	// Whether these presets include all of other's, so a SoundFont loaded with these plays what other needs
 	bool Covers(const SoundFontPresets& other) const
 	{
 		return Whole || (!other.Whole && (other.Programs & ~Programs).none() && (other.DrumKits & ~DrumKits).none() &&
 						 (First || !other.First));
 	}
 
+	// Adds other's presets to these
 	void Add(const SoundFontPresets& other)
 	{
 		Programs |= other.Programs;

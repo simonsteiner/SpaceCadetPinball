@@ -221,6 +221,7 @@ namespace
 	};
 	static_assert(std::size(KeycodeDefaults) == static_cast<size_t>(~GameBindings::Max));
 
+	// Puts the given edition's values on show in every option kept for each edition
 	void ShowEditionOptions(Editions edition)
 	{
 		for (const auto opt : options::AllOptions)
@@ -228,6 +229,9 @@ namespace
 	}
 } // namespace
 
+// Registers the settings section with ImGui, loads the .ini and every option from it, and clamps them. Settings from
+// older versions are migrated: keyboard bindings from keycodes to scancodes, and the edition switch starts unbound
+// when its default key is already in use. Needs an ImGui context
 void options::InitPrimary()
 {
 	auto imContext = ImGui::GetCurrentContext();
@@ -279,6 +283,8 @@ void options::InitPrimary()
 	PostProcessOptions();
 }
 
+// Loads the table's resolution once the table is known, caps it at what the game data has, and sets it; -1 stands
+// for the maximum
 void options::InitSecondary()
 {
 	// The table is known now
@@ -294,6 +300,7 @@ void options::uninit()
 	Save();
 }
 
+// Writes every option, with the current language, into the settings
 void options::Save()
 {
 	Options.Language.V = translations::GetCurrentLanguage()->ShortName;
@@ -326,6 +333,8 @@ void options::set_float(LPCSTR lpValueName, float data)
 	SetSetting(lpValueName, std::to_string(data));
 }
 
+// Reads a control's three inputs from the settings into values; a slot with no input saved or an unknown type keeps
+// its value
 void options::GetInput(const std::string& rowName, GameInput (&values)[3])
 {
 	for (auto i = 0u; i <= 2; i++)
@@ -338,6 +347,7 @@ void options::GetInput(const std::string& rowName, GameInput (&values)[3])
 	}
 }
 
+// Writes a control's three inputs to the settings, as "<rowName> <slot> type" and "<rowName> <slot> input"
 void options::SetInput(const std::string& rowName, GameInput (&values)[3])
 {
 	for (auto i = 0u; i <= 2; i++)
@@ -349,6 +359,8 @@ void options::SetInput(const std::string& rowName, GameInput (&values)[3])
 	}
 }
 
+// Carries out a menu command that changes an option: flips or sets it and applies it. A table resolution other than
+// the one in use restarts the game
 void options::toggle(Menu1 uIDCheckItem)
 {
 	switch (uIDCheckItem)
@@ -434,6 +446,8 @@ void options::toggle(Menu1 uIDCheckItem)
 	}
 }
 
+// Runs the side effect of the option's stored value: the sound, the music, the window's layout, the renderer, the
+// frame rate or a restart; nothing for an option that has none
 void options::Apply(const OptionBase& option)
 {
 	const auto is = [&option](const OptionBase& other) { return &option == &other; };
@@ -479,6 +493,7 @@ void options::Apply(const OptionBase& option)
 		winmain::Restart();
 }
 
+// Binds the input to the slot that waits for one, if any, and ends the wait
 void options::InputDown(GameInput input)
 {
 	if (ControlWaitingForInput)
@@ -488,6 +503,7 @@ void options::InputDown(GameInput input)
 	}
 }
 
+// Opens the controls dialog, saving the bindings to the settings first so that Cancel can load them back
 void options::ShowControlDialog()
 {
 	if (!ShowDialog)
@@ -502,6 +518,8 @@ void options::ShowControlDialog()
 	}
 }
 
+// Draws the controls dialog while it is open: each row's button clears the row, each binding's button waits for the
+// next input, Cancel loads the saved bindings back and Default resets them
 void options::RenderControlDialog()
 {
 	if (!ShowDialog)
@@ -601,6 +619,7 @@ void options::RenderControlDialog()
 		ControlWaitingForInput = nullptr;
 }
 
+// The bindings the input is assigned to, in GameBindings order; empty when it is bound to none
 std::vector<GameBindings> options::MapGameInput(GameInput key)
 {
 	std::vector<GameBindings> result;
@@ -618,6 +637,7 @@ std::vector<GameBindings> options::MapGameInput(GameInput key)
 	return result;
 }
 
+// Resets every option to its default, then clamps and applies them as after loading
 void options::ResetAllOptions()
 {
 	for (const auto opt : AllOptions)
@@ -659,6 +679,7 @@ void options::SelectEdition(Editions edition)
 	ShowEditionOptions(edition);
 }
 
+// ImGui settings handler: stores a "key=value" line of the .ini in the settings; a line without '=' is ignored
 void options::MyUserData_ReadLine(ImGuiContext* ctx, ImGuiSettingsHandler* handler, void* entry, const char* line)
 {
 	auto& keyValueStore = *static_cast<std::unordered_map<std::string, std::string>*>(entry);
@@ -672,12 +693,14 @@ void options::MyUserData_ReadLine(ImGuiContext* ctx, ImGuiSettingsHandler* handl
 	}
 }
 
+// ImGui settings handler: returns the settings map for the entry named Settings, null for any other
 void* options::MyUserData_ReadOpen(ImGuiContext* ctx, ImGuiSettingsHandler* handler, const char* name)
 {
 	// There is only one custom entry
 	return strcmp(name, "Settings") == 0 ? &settings : nullptr;
 }
 
+// ImGui settings handler: writes every setting as a "key=value" line under the Settings entry
 void options::MyUserData_WriteAll(ImGuiContext* ctx, ImGuiSettingsHandler* handler, ImGuiTextBuffer* buf)
 {
 	buf->appendf("[%s][%s]\n", handler->TypeName, "Settings");
@@ -729,6 +752,7 @@ void options::PostProcessOptions()
 	winmain::UpdateFrameRate();
 }
 
+// Returns the folder with a separator at its end, added if it is missing; an empty folder stays empty
 std::string options::FolderPath(std::string folder)
 {
 #ifdef _WIN32
@@ -741,6 +765,7 @@ std::string options::FolderPath(std::string folder)
 	return folder;
 }
 
+// The input's device and, on a second line, its name, for a binding's button; "Unused" for no input
 std::string GameInput::GetFullInputDescription() const
 {
 	std::string prefix;
@@ -763,6 +788,7 @@ std::string GameInput::GetFullInputDescription() const
 	return prefix + GetShortInputDescription();
 }
 
+// The input's name alone: the key as the current layout types it, or the mouse or gamepad button; empty for no input
 std::string GameInput::GetShortInputDescription() const
 {
 	static LPCSTR mouseButtons[]
@@ -836,6 +862,7 @@ std::string GameInput::GetShortInputDescription() const
 	return keyName;
 }
 
+// Returns the setting's value. A missing key is added with defaultValue, which is returned, and the .ini marked dirty
 const std::string& options::GetSetting(const std::string& key, const std::string& defaultValue)
 {
 	auto setting = settings.find(key);
@@ -854,6 +881,7 @@ bool options::HasSetting(const std::string& key)
 	return settings.contains(key);
 }
 
+// Removes the setting, and marks ImGui's .ini dirty if it was there
 void options::RemoveSetting(const std::string& key)
 {
 	if (settings.erase(key) && ImGui::GetCurrentContext())
@@ -865,6 +893,7 @@ const char* options::TableKeyPrefix()
 	return TableKeyPrefix(pb::Table);
 }
 
+// The prefix of the given table's settings keys; empty for any table without one of its own, as 3D Pinball's
 const char* options::TableKeyPrefix(Tables table)
 {
 	using enum Tables;
@@ -888,6 +917,7 @@ std::string options::TableKeyPrefixToRead(const std::string& key)
 	return TableKeyPrefixToRead(key, pb::Table);
 }
 
+// The prefix to read the table's key with: its own, or none while it hasn't saved the key and an unprefixed one exists
 std::string options::TableKeyPrefixToRead(const std::string& key, Tables table)
 {
 	// Before tables had their own keys, every table saved under the unprefixed ones.
@@ -900,6 +930,7 @@ std::string options::TableKeyPrefixToRead(const std::string& key, Tables table)
 	return prefix;
 }
 
+// Stores the setting and marks ImGui's .ini dirty, so it gets written
 void options::SetSetting(const std::string& key, const std::string& value)
 {
 	settings[key] = value;
@@ -907,6 +938,9 @@ void options::SetSetting(const std::string& key, const std::string& value)
 		ImGui::MarkIniSettingsDirty();
 }
 
+// Loads the three inputs from the settings, the defaults for those missing. While old settings are migrated, a
+// keyboard binding's keycode becomes its scancode, an old default the new default, and a key the layout lacks
+// leaves the slot unbound
 void ControlOption::Load()
 {
 	for (auto i = 0u; i <= 2; i++)
@@ -944,6 +978,7 @@ OptionBase::OptionBase(LPCSTR name): Name(name)
 	options::AllOptions.push_back(this);
 }
 
+// Takes the option out of options::AllOptions
 OptionBase::~OptionBase()
 {
 	auto& vec = options::AllOptions;
@@ -952,6 +987,7 @@ OptionBase::~OptionBase()
 		vec.erase(position);
 }
 
+// Loads the value saved for the loaded table, or the default when there is none, without adding the key
 void TableIntOption::Load()
 {
 	auto key = options::TableKeyPrefixToRead(Name) + Name;
@@ -963,6 +999,7 @@ void TableIntOption::Save() const
 	options::set_int((options::TableKeyPrefix() + std::string{Name}).c_str(), V);
 }
 
+// Restores the default and removes the value every table saved
 void TableIntOption::Reset()
 {
 	V = DefaultValue;
@@ -970,6 +1007,7 @@ void TableIntOption::Reset()
 		options::RemoveSetting(prefix + std::string{Name});
 }
 
+// The name of the first bound input, for a menu item's shortcut; empty when none is bound
 std::string ControlOption::GetShortcutDescription() const
 {
 	std::string result;

@@ -73,6 +73,7 @@ namespace
 			Some = false;
 		}
 
+		// Whether the set was sized for a texture of this many texels
 		bool SizeIs(int width, int height) const
 		{
 			return Width == width && Height == height;
@@ -109,6 +110,7 @@ namespace
 			Some = true;
 		}
 
+		// Adds another set's tiles; both sets must have the same size
 		void Add(const TileSet& other)
 		{
 			for (auto i = 0u; i < Tiles.size(); i++)
@@ -158,6 +160,7 @@ namespace
 						   [&rect](const SDL_Rect& change) { return SDL_HasRectIntersection(&change, &rect); });
 	}
 
+	// Whether two glows have the same sprite rectangle and strength, so the one drawn still stands for the other
 	bool SameGlow(const DefinitiveScene::Glow& a, const DefinitiveScene::Glow& b)
 	{
 		return a.Sprite.x == b.Sprite.x && a.Sprite.y == b.Sprite.y && a.Sprite.w == b.Sprite.w &&
@@ -211,6 +214,8 @@ namespace
 	}
 } // namespace
 
+// Creates the three passes' shaders and the depth sampler on the renderer's GPU device; on another renderer, or if one
+// of them can't be created, the compositor stays unavailable
 void Compositor::Init(SDL_Renderer* renderer)
 {
 	if (renderer == Renderer)
@@ -251,6 +256,7 @@ void Compositor::Init(SDL_Renderer* renderer)
 #endif
 }
 
+// Destroys the render states, the kept textures, the shaders and the sampler, and forgets the renderer
 void Compositor::Uninit()
 {
 	DestroyStates();
@@ -281,11 +287,14 @@ void Compositor::Uninit()
 	Renderer = nullptr;
 }
 
+// Whether Init made everything the passes need
 bool Compositor::Available()
 {
 	return ComposeShader && GlowShader && BallShader && DepthSampler;
 }
 
+// Marks the tiles whose inputs changed stale, draws the glows and then the lit table into them, and the balls on top;
+// returns the kept texture, or null when the compositor can't run
 SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int frameScale, const DefinitiveScene& scene,
 								 const std::vector<SDL_Rect>& frameChanges, const std::vector<SDL_Rect>& depthChanges)
 {
@@ -427,6 +436,8 @@ SDL_Texture* Compositor::Compose(SDL_Texture* frame, SDL_Texture* depth, int fra
 #endif
 }
 
+// Makes the table's and the glow's target textures the size of the frame, new ones when the size changed, and gives
+// the table's the frame's scale mode; false if a texture couldn't be created
 bool Compositor::PrepareTarget(SDL_Texture* frame)
 {
 	// The same size and scale mode as the frame, so it is drawn exactly as the frame would be
@@ -459,6 +470,8 @@ bool Compositor::PrepareTarget(SDL_Texture* frame)
 	return true;
 }
 
+// Makes the passes' render states, which bind the depth texture and the glow target, unless the states in use bind
+// these already; false if one couldn't be created
 bool Compositor::PrepareStates(SDL_Texture* depth)
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
@@ -507,6 +520,7 @@ void Compositor::ForgetDepth()
 	DestroyStates();
 }
 
+// Destroys the passes' render states and marks everything kept stale
 void Compositor::DestroyStates()
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
@@ -526,6 +540,7 @@ void Compositor::DestroyStates()
 	AllStale = true;
 }
 
+// Empties each stale run of tiles in the glow texture and draws the lamps' glow quads into it, cut to the run
 void Compositor::DrawGlows(SDL_Texture* frame, int frameScale, const DefinitiveScene& scene)
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
@@ -580,6 +595,8 @@ void Compositor::DrawGlows(SDL_Texture* frame, int frameScale, const DefinitiveS
 #endif
 }
 
+// Draws each shaded ball as a quad over the composed table and remembers the texels it covers, so the next frame
+// composes the table under it again
 void Compositor::DrawBalls(SDL_Texture* frame, int frameScale, const DefinitiveScene& scene)
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)

@@ -63,6 +63,7 @@ struct GameInput
 	{
 	}
 
+	// Equal when both the type and the value match
 	bool operator==(const GameInput& other) const
 	{
 		return Type == other.Type && Value == other.Value;
@@ -317,6 +318,7 @@ template <typename T> struct EditionOptionT : OptionBaseT<T>
 	{
 	}
 
+	// Puts the given edition's value in V by swapping it with Other, unless that edition is already on show
 	void ShowEdition(Editions edition) override
 	{
 		if (edition != Shown)
@@ -332,6 +334,7 @@ template <typename T> struct EditionOptionT : OptionBaseT<T>
 		Value(Editions::Definitive) = static_cast<T>(options::get_int(DefinitiveKey().c_str(), DefinitiveDefault));
 	}
 
+	// Writes both editions' values: Classic's under Name, Definitive's under the prefixed key
 	void Save() const override
 	{
 		options::set_int(this->Name, Shown == Editions::Classic ? this->V : Other);
@@ -349,6 +352,7 @@ template <typename T> struct EditionOptionT : OptionBaseT<T>
 private:
 	Editions Shown = Editions::Classic;
 
+	// The given edition's value: V while that edition is on show, else Other
 	T& Value(Editions edition)
 	{
 		return edition == Shown ? this->V : Other;
@@ -386,6 +390,7 @@ struct ControlOption : OptionBase
 	// Converts saved keycodes to scancodes while options::InitPrimary migrates old settings
 	void Load() override;
 
+	// Writes the three inputs' types and values to the settings
 	void Save() const override
 	{
 		for (auto i = 0u; i <= 2; i++)

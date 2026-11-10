@@ -56,6 +56,8 @@ namespace
 } // namespace
 #endif
 
+// Joins the arguments into one command line, quoting those with a space or tab, and runs winmain::WinMain; on Android
+// it first sends stdout and stderr to logcat
 int main(int argc, char* argv[])
 {
 #ifdef __ANDROID__
