@@ -119,7 +119,8 @@ void THole::ReleaseAfter(float time)
 }
 
 // Captures the ball at the hole's centre, starts the timer to its release and, unless the table is tilted, tells the
-// rules; while a ball is held, another bounces off
+// rules; while a ball is held, another bounces off. On the bonus tables a negative attribute 407 sets no timer, and
+// the rules release the ball
 void THole::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	if (!BallCapturedFlag)

@@ -32,9 +32,10 @@ TLightGroup::TLightGroup(TPinballTable* table, int groupIndex) : TPinballCompone
 }
 
 // Handles the group's messages: the step and animation messages shift or randomize its lights and repeat after
-// <value> seconds (the group's default time if negative, not at all if 0); others turn single lights on or off, by
-// index or in order, or return counts and state. Reset and PlayerChanged keep the animation per player; any other
-// message goes to each light
+// <value> seconds (the group's default time if negative, not at all if 0), but the two random saturation messages
+// turn one random light on or off, once; others turn single lights on or off, by index or in order, or return counts
+// and state. Reset and PlayerChanged keep the animation per player, SetTiltLock and GameOver are ignored, and any
+// other message goes to each light
 int TLightGroup::Message(MessageCode code, float value)
 {
 	auto const count = static_cast<int>(List.size());
