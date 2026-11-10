@@ -152,8 +152,8 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 }
 
 // Lets the ball pass the edge it crossed. A plane's edge puts the ball on that plane, in the ramp's layer; Line1
-// tells the rules; the other two lines take the ball off the ramp into their wall's layer. On the bonus tables the
-// rules also hear of each change of layer
+// tells the rules unless the table is tilted; the other two lines take the ball off the ramp into their wall's layer.
+// On the bonus tables the rules also hear of each change of layer
 void TRamp::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	ball->not_again(edge);
