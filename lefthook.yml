@@ -21,7 +21,7 @@ pre-commit:
 pre-push:
   commands:
     function-comments:
-      # Skipped where uv isn't installed; CI's lint job runs it anyway
-      run: if command -v uvx >/dev/null; then tools/check-function-comments.sh; else echo "uvx not found, function comment check skipped"; fi
+      # Skipped where neither uv nor a LIZARD_DIR is there; CI's lint job runs it anyway
+      run: if [ -n "${LIZARD_DIR:-}" ] || command -v uvx >/dev/null; then tools/check-function-comments.sh; else echo "neither uvx nor LIZARD_DIR, function comment check skipped"; fi
     build-and-replays:
       run: tools/hooks/pre-push.sh {push_files}
