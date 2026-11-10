@@ -5,6 +5,8 @@
 #include "DefinitiveText.h"
 #include "translations.h"
 
+#include <utility>
+
 namespace
 {
 	void Print(const std::string& text)
@@ -30,10 +32,11 @@ namespace
 // Prints the cases: the Hebrew and Arabic translations, the edition hint in both languages, then the arguments
 int main(int argc, char** argv)
 {
+	using enum Msg;
 	for (auto language : {"he", "ar"})
 	{
 		translations::SetCurrentLanguage(language);
-		for (auto id = Msg::Min; id < Msg::Max; id = static_cast<Msg>(static_cast<int>(id) + 1))
+		for (auto id = Min; id < Max; id = static_cast<Msg>(std::to_underlying(id) + 1))
 		{
 			// Strings the language lacks come back in English
 			auto text = translations::GetTranslation(id);
@@ -42,13 +45,13 @@ int main(int argc, char** argv)
 		}
 
 		// The edition hint names the key, or the menu item when Toggle Edition has no key (winmain::RenderEditionHint)
-		auto menu = std::string{translations::GetTranslation(Msg::Menu1_Options)} + " > " +
-					translations::GetTranslation(Msg::Menu1_ToggleEdition);
+		auto menu = std::string{translations::GetTranslation(Menu1_Options)} + " > " +
+					translations::GetTranslation(Menu1_ToggleEdition);
 		for (auto& toggle : {menu, std::string{"Tab"}, std::string{"Ctrl+F2"}})
 		{
-			char formatted[256];
-			snprintf(formatted, sizeof formatted, translations::GetTranslation(Msg::EditionHint), toggle.c_str());
-			Print(formatted);
+			std::array<char, 256> formatted;
+			snprintf(formatted.data(), formatted.size(), translations::GetTranslation(EditionHint), toggle.c_str());
+			Print(formatted.data());
 		}
 	}
 	for (int i = 1; i < argc; i++)

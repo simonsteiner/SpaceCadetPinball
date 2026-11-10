@@ -31,7 +31,11 @@ public:
 
 private:
 	static Group Current;
-	static bool Opened, Languages, ShownLanguages, BackChosen, FocusLanguage;
+	static bool Opened;
+	static bool Languages;
+	static bool ShownLanguages;
+	static bool BackChosen;
+	static bool FocusLanguage;
 	static int Slot;
 	static GameInput* Waited;
 	// The sound packs found when the Audio tab opened, after None

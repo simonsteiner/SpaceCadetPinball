@@ -47,7 +47,8 @@ public:
 	// A rectangle in ImGui's coordinates, laid out like ImGuiViewport's
 	struct Area
 	{
-		ImVec2 Pos, Size;
+		ImVec2 Pos;
+		ImVec2 Size;
 	};
 
 	// Once a frame, before any screen draws
@@ -119,7 +120,8 @@ public:
 	// asked to or when nothing has it, the panel and its title. Returns where the panel is; EndPanel closes it.
 	struct Panel
 	{
-		ImVec2 Min, Size;
+		ImVec2 Min;
+		ImVec2 Size;
 		float Padding;
 		ImDrawList* DrawList;
 	};
@@ -156,10 +158,12 @@ private:
 	static Device Last;
 	// The last pointer was a finger, or the deck is on and no pointer has moved yet: a phone's Back, which comes as
 	// Escape, leaves the hints hidden
-	static bool Touch, DeviceChosen;
+	static bool Touch;
+	static bool DeviceChosen;
 	static Area Safe;
 	static ImRect Row;
 	static ImVec2 Footer;
-	static bool RowFocused, FocusNext;
+	static bool RowFocused;
+	static bool FocusNext;
 	static const char* Note;
 };

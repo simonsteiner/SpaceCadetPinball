@@ -27,15 +27,19 @@ namespace
 		auto windows = SDL_getenv("WINDIR");
 		auto folder = std::string{windows ? windows : "C:\\Windows"} + "\\Fonts\\";
 		// Arrays, not an initializer_list assigned in each case, whose array would end with the assignment
-		static const std::vector<const char*> japanese{"YuGothM.ttc", "meiryo.ttc", "msgothic.ttc"},
-			korean{"malgun.ttf", "gulim.ttc"}, simplified{"msyh.ttc", "simsun.ttc"},
-			traditional{"msjh.ttc", "mingliu.ttc"};
-		auto& names = language == Lang::Japanese            ? japanese
-					  : language == Lang::Korean            ? korean
-					  : language == Lang::SimplifiedChinese ? simplified
-															: traditional;
-		for (auto name : names)
-			fonts.push_back({folder + name, 0});
+		static const std::vector<const char*> japanese{"YuGothM.ttc", "meiryo.ttc", "msgothic.ttc"};
+		static const std::vector<const char*> korean{"malgun.ttf", "gulim.ttc"};
+		static const std::vector<const char*> simplified{"msyh.ttc", "simsun.ttc"};
+		static const std::vector<const char*> traditional{"msjh.ttc", "mingliu.ttc"};
+		auto names = &traditional;
+		if (language == Lang::Japanese)
+			names = &japanese;
+		else if (language == Lang::Korean)
+			names = &korean;
+		else if (language == Lang::SimplifiedChinese)
+			names = &simplified;
+		for (auto name : *names)
+			fonts.emplace_back(folder + name, 0);
 #elif defined(__APPLE__)
 		switch (language)
 		{
@@ -77,8 +81,7 @@ namespace
 	{
 		data.clear();
 		// Only a regular file: on Linux a directory opens, and its size reads as LONG_MAX
-		SDL_PathInfo info{};
-		if (!SDL_GetPathInfo(path.c_str(), &info) || info.type != SDL_PATHTYPE_FILE)
+		if (SDL_PathInfo info{}; !SDL_GetPathInfo(path.c_str(), &info) || info.type != SDL_PATHTYPE_FILE)
 			return false;
 		auto file = fopenu(path.c_str(), "rb");
 		if (!file)
@@ -102,6 +105,7 @@ namespace
 	// The Font File option's font, else a system font for Chinese, Japanese or Korean when one of those is the language
 	void ReadFallback(const std::string& fontFile)
 	{
+		using enum Lang;
 		FallbackData.clear();
 		FallbackIndex = 0;
 		if (!fontFile.empty())
@@ -110,10 +114,10 @@ namespace
 			return;
 		}
 		auto language = translations::GetCurrentLanguage()->Language;
-		if (language != Lang::Japanese && language != Lang::Korean && language != Lang::SimplifiedChinese &&
-			language != Lang::TraditionalChinese)
+		if (language != Japanese && language != Korean && language != SimplifiedChinese &&
+			language != TraditionalChinese)
 			return;
-		for (auto& font : SystemCjkFonts(language))
+		for (const auto& font : SystemCjkFonts(language))
 		{
 			if (ReadFile(font.Path, FallbackData))
 			{
@@ -128,9 +132,9 @@ namespace
 	// collection (.ttc), whose tables are found through the collection's header.
 	float LineHeightInEms(const unsigned char* data, size_t size, unsigned int index = 0)
 	{
-		auto read16 = [&](size_t offset) -> unsigned
+		auto read16 = [&](size_t offset)
 		{ return offset + 2 <= size ? static_cast<unsigned>(data[offset]) << 8U | data[offset + 1] : 0U; };
-		auto read32 = [&](size_t offset) -> size_t
+		auto read32 = [&](size_t offset)
 		{ return offset + 4 <= size ? static_cast<size_t>(read16(offset)) << 16U | read16(offset + 2) : 0U; };
 		size_t face = 0;
 		if (size >= 12 && !memcmp(data, "ttcf", 4))
@@ -139,7 +143,8 @@ namespace
 				return 0;
 			face = read32(12 + static_cast<size_t>(index) * 4);
 		}
-		size_t head = 0, hhea = 0;
+		size_t head = 0;
+		size_t hhea = 0;
 		auto tables = static_cast<size_t>(read16(face + 4));
 		for (size_t i = 0; i < tables; i++)
 		{
@@ -154,7 +159,8 @@ namespace
 		auto unitsPerEm = head ? read16(head + 18) : 0;
 		if (!unitsPerEm || !hhea)
 			return 0;
-		auto ascender = static_cast<int16_t>(read16(hhea + 4)), descender = static_cast<int16_t>(read16(hhea + 6));
+		auto ascender = static_cast<int16_t>(read16(hhea + 4));
+		auto descender = static_cast<int16_t>(read16(hhea + 6));
 		return static_cast<float>(ascender - descender) / static_cast<float>(unitsPerEm);
 	}
 
@@ -177,8 +183,7 @@ namespace
 		ImFontConfig config{};
 		config.MergeMode = true;
 		config.FontNo = index;
-		auto lineHeight = LineHeightInEms(data, size, index);
-		if (mainLineHeight > 0 && lineHeight > 0)
+		if (auto lineHeight = LineHeightInEms(data, size, index); mainLineHeight > 0 && lineHeight > 0)
 			config.ExtraSizeScale = lineHeight / mainLineHeight;
 		AddFont(atlas, name, data, size, config);
 	}

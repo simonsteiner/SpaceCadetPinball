@@ -16,11 +16,11 @@ namespace
 	constexpr auto StatKeys =
 		std::to_array<const char*>({"Games", "Missions", "Best Rank", "Balls Saved", "Extra Balls", "Multiballs",
 									"Best Score", "Quests", "Dragons Slain", "Modes", "Loots"});
-	static_assert(std::size(StatKeys) == static_cast<size_t>(Stat::Count));
+	static_assert(std::size(StatKeys) == static_cast<size_t>(std::to_underlying(Stat::Count)));
 
 	// The order is the list's on screen; keys are saved, so they stay as they are
 	using enum DefinitiveStats::Offer;
-	constexpr DefinitiveStats::Achievement AchievementList[] = {
+	constexpr auto AchievementList = std::to_array<DefinitiveStats::Achievement>({
 		{"First Game", Msg::Definitive_AchFirstGame, Msg::Definitive_AchFirstGameText, Every},
 		{"First Mission", Msg::Definitive_AchFirstMission, Msg::Definitive_AchFirstMissionText, SpaceCadet},
 		{"Five Missions", Msg::Definitive_AchFiveMissions, Msg::Definitive_AchFiveMissionsText, SpaceCadet},
@@ -46,7 +46,7 @@ namespace
 		{"Hundred Million", Msg::Definitive_AchHundredMillion, Msg::Definitive_AchHundredMillionText, Every},
 		{"Steady Hands", Msg::Definitive_AchSteadyHands, Msg::Definitive_AchSteadyHandsText, Every},
 		{"Regular", Msg::Definitive_AchRegular, Msg::Definitive_AchRegularText, Every},
-	};
+	});
 
 	// The game being played: whether one is, and what counts per game, by player
 	struct Game
@@ -170,8 +170,8 @@ void DefinitiveStats::Update(const TableView& view)
 	auto playing = Playing(view);
 	auto wasPlaying = Playing(Previous);
 	auto zeroed = std::ranges::all_of(view.Scores, [](int score) { return score == 0; });
-	auto restarted = zeroed && std::ranges::any_of(Previous.Scores, [](int score) { return score != 0; });
-	if (playing && (!wasPlaying || restarted))
+	if (auto restarted = zeroed && std::ranges::any_of(Previous.Scores, [](int score) { return score != 0; });
+		playing && (!wasPlaying || restarted))
 		Current = Game{true, false, {}, {}, {}, {}};
 	if (view.CheatsUsed)
 		Current.Active = false;
@@ -197,12 +197,12 @@ void DefinitiveStats::Update(const TableView& view)
 		// kickout instead, which costs a rank. On a drain the next player's lamps come in, so only the same player's
 		// count.
 		auto mission = DefinitiveHud::MissionOf(Previous.Mission);
-		auto finished = view.RankProgress > Previous.RankProgress || view.Rank > Previous.Rank ||
-						(Previous.Mission == 24 && view.Rank < Previous.Rank);
-		if (mission && !DefinitiveHud::MissionOf(view.Mission) && samePlayer && finished)
+		if (auto finished = view.RankProgress > Previous.RankProgress || view.Rank > Previous.Rank ||
+							(Previous.Mission == 24 && view.Rank < Previous.Rank);
+			mission && !DefinitiveHud::MissionOf(view.Mission) && samePlayer && finished)
 		{
 			Add(Key("Missions"), 1);
-			Add(Key(("Mission " + std::to_string(mission)).c_str()), 1);
+			Add(Key(std::format("Mission {}", mission).c_str()), 1);
 			Current.Missions[player]++;
 			Unlock("First Mission");
 			if (Current.Missions[player] >= 5)
@@ -218,8 +218,8 @@ void DefinitiveStats::Update(const TableView& view)
 		{
 			Raise(Key("Best Rank"), view.Rank);
 			// The ranks are Cadet 1 to Fleet Admiral 9
-			constexpr std::pair<int, const char*> Ranks[] = {
-				{2, "Ensign"}, {4, "Captain"}, {7, "Commodore"}, {9, "Fleet Admiral"}};
+			constexpr auto Ranks = std::to_array<std::pair<int, const char*>>(
+				{{2, "Ensign"}, {4, "Captain"}, {7, "Commodore"}, {9, "Fleet Admiral"}});
 			for (auto [rank, key] : Ranks)
 			{
 				if (view.Rank >= rank)
@@ -258,8 +258,8 @@ void DefinitiveStats::Update(const TableView& view)
 			Current.Tilted |= view.Tilted && !Previous.Tilted && ActiveBalls(view) > 0 && !LastBallRelease(view);
 		auto current = PlayerOf(view);
 		auto score = Current.Billions[current] * 1'000'000'000 + view.Scores[current];
-		constexpr std::pair<long long, const char*> Scores[] = {
-			{1'000'000, "Million"}, {10'000'000, "Ten Million"}, {100'000'000, "Hundred Million"}};
+		constexpr auto Scores = std::to_array<std::pair<long long, const char*>>(
+			{{1'000'000, "Million"}, {10'000'000, "Ten Million"}, {100'000'000, "Hundred Million"}});
 		for (auto [threshold, key] : Scores)
 		{
 			if (score >= threshold)
@@ -376,7 +376,7 @@ int DefinitiveStats::Get(Stat stat)
 
 int DefinitiveStats::MissionsFinished(int mission)
 {
-	return Read(Key(("Mission " + std::to_string(mission)).c_str()));
+	return Read(Key(std::format("Mission {}", mission).c_str()));
 }
 
 int DefinitiveStats::QuestsDone(int quest)
@@ -440,7 +440,7 @@ void DefinitiveStats::Clear()
 	for (auto key : StatKeys)
 		options::RemoveSetting(Key(key));
 	for (auto mission = 2; mission <= 18; mission++)
-		options::RemoveSetting(Key(("Mission " + std::to_string(mission)).c_str()));
+		options::RemoveSetting(Key(std::format("Mission {}", mission).c_str()));
 	for (auto quest = TableView::DragonsKeep::FirstQuestState; quest <= TableView::DragonsKeep::LastQuestState; quest++)
 		options::RemoveSetting(QuestKey(quest));
 	for (auto mode = TableView::Skulduggery::FirstModeState; mode <= TableView::Skulduggery::PegLegsLootState; mode++)

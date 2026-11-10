@@ -25,7 +25,7 @@ namespace
 
 	// U+0621 to U+064A, from Unicode's ArabicShaping.txt; zero for code points that aren't letters. Alef maksura is
 	// right-joining here, because its initial and medial forms are only in Presentation Forms-A, which the font lacks.
-	constexpr ArabicLetter ArabicLetters[] = {
+	constexpr auto ArabicLetters = std::to_array<ArabicLetter>({
 		{0xFE80, false}, {0xFE81, false}, {0xFE83, false}, {0xFE85, false}, {0xFE87, false}, {0xFE89, true},
 		{0xFE8D, false}, {0xFE8F, true},  {0xFE93, false}, {0xFE95, true},  {0xFE99, true},  {0xFE9D, true},
 		{0xFEA1, true},  {0xFEA5, true},  {0xFEA9, false}, {0xFEAB, false}, {0xFEAD, false}, {0xFEAF, false},
@@ -33,8 +33,11 @@ namespace
 		{0xFEC9, true},  {0xFECD, true},  {0, false},      {0, false},      {0, false},      {0, false},
 		{0, false},      {0, false},      {0xFED1, true},  {0xFED5, true},  {0xFED9, true},  {0xFEDD, true},
 		{0xFEE1, true},  {0xFEE5, true},  {0xFEE9, true},  {0xFEED, false}, {0xFEEF, false}, {0xFEF1, true},
-	};
-	constexpr char32_t Hamza = 0x0621, Yeh = 0x064A, Tatweel = 0x0640, Lam = 0x0644;
+	});
+	constexpr char32_t Hamza = 0x0621;
+	constexpr char32_t Yeh = 0x064A;
+	constexpr char32_t Tatweel = 0x0640;
+	constexpr char32_t Lam = 0x0644;
 
 	// The table's entry for an Arabic letter, or null for any other code point
 	const ArabicLetter* GetArabicLetter(char32_t c)
@@ -124,7 +127,8 @@ namespace
 				}
 			}
 			auto joinsAfter = letter->DualJoining && JoinsBackward(neighbour(i, 1));
-			auto form = joinsBefore && joinsAfter ? 3 : joinsAfter ? 2 : joinsBefore ? 1 : 0;
+			// Isolated, final, initial, medial
+			auto form = (joinsAfter ? 2 : 0) + (joinsBefore ? 1 : 0);
 			joined += static_cast<char32_t>(letter->Isolated + form);
 		}
 		return joined;
@@ -135,14 +139,15 @@ namespace
 	// neutral
 	Direction GetDirection(char32_t c)
 	{
+		using enum Direction;
 		if ((c >= '0' && c <= '9') || (c >= 0x0660 && c <= 0x0669) || (c >= 0x06F0 && c <= 0x06F9))
-			return Direction::Number;
+			return Number;
 		if ((c >= 0x0590 && c <= 0x08FF) || (c >= 0xFB1D && c <= 0xFDFF) || (c >= 0xFE70 && c <= 0xFEFF) || c == 0x200F)
-			return Direction::RightToLeft;
+			return RightToLeft;
 		if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == 0x200E ||
 			(c >= 0xC0 && c != 0xD7 && c != 0xF7 && (c < 0x2000 || c > 0x2BFF) && (c < 0x3000 || c > 0x303F)))
-			return Direction::LeftToRight;
-		return Direction::Neutral;
+			return LeftToRight;
+		return Neutral;
 	}
 
 	// The opening bracket or angle quote for a closing one and the other way round; any other character unchanged
@@ -179,27 +184,28 @@ namespace
 	// the rest is read right to left, and brackets in right-to-left text are mirrored.
 	std::u32string ReorderLine(const std::u32string& line)
 	{
+		using enum Direction;
 		std::vector<Direction> directions(line.size());
 		for (size_t i = 0; i < line.size(); i++)
 		{
 			directions[i] = GetDirection(line[i]);
 			// A number's separators and signs read with it, as in 1,000 or 50%
-			if (directions[i] == Direction::Neutral && i > 0 && directions[i - 1] == Direction::Number &&
-				(i + 1 < line.size() && GetDirection(line[i + 1]) == Direction::Number
-					 ? std::u32string_view{U",.:/"}.find(line[i]) != std::u32string_view::npos
+			if (directions[i] == Neutral && i > 0 && directions[i - 1] == Number &&
+				(i + 1 < line.size() && GetDirection(line[i + 1]) == Number
+					 ? std::u32string_view{U",.:/"}.contains(line[i])
 					 : line[i] == '%'))
-				directions[i] = Direction::Number;
+				directions[i] = Number;
 		}
 
 		// A number after left-to-right text, with only neutrals and numbers in between, reads as part of it, as in
 		// "Space Cadet 2026" (Unicode rule W7)
-		auto strong = Direction::RightToLeft;
+		auto strong = RightToLeft;
 		for (auto& direction : directions)
 		{
-			if (direction == Direction::LeftToRight || direction == Direction::RightToLeft)
+			if (direction == LeftToRight || direction == RightToLeft)
 				strong = direction;
-			else if (direction == Direction::Number && strong == Direction::LeftToRight)
-				direction = Direction::LeftToRight;
+			else if (direction == Number && strong == LeftToRight)
+				direction = LeftToRight;
 		}
 
 		// Left to right means a level of 2 and right to left 1. Neutrals between two left-to-right letters or numbers
@@ -208,17 +214,17 @@ namespace
 		std::vector<int> levels(line.size(), 1);
 		for (size_t i = 0; i < line.size();)
 		{
-			if (directions[i] != Direction::Neutral)
+			if (directions[i] != Neutral)
 			{
-				levels[i] = directions[i] == Direction::RightToLeft ? 1 : 2;
+				levels[i] = directions[i] == RightToLeft ? 1 : 2;
 				i++;
 				continue;
 			}
 			auto end = i;
-			while (end < line.size() && directions[end] == Direction::Neutral)
+			while (end < line.size() && directions[end] == Neutral)
 				end++;
-			auto before = i > 0 && directions[i - 1] == Direction::LeftToRight;
-			auto after = end < line.size() && directions[end] == Direction::LeftToRight;
+			auto before = i > 0 && directions[i - 1] == LeftToRight;
+			auto after = end < line.size() && directions[end] == LeftToRight;
 			for (; i < end; i++)
 				levels[i] = before && after ? 2 : 1;
 		}
@@ -313,6 +319,6 @@ const char* DefinitiveText::Visual(const char* text)
 		cache.clear();
 	auto found = cache.find(text);
 	if (found == cache.end())
-		found = cache.emplace(text, Shape(text)).first;
+		found = cache.try_emplace(text, Shape(text)).first;
 	return found->second.c_str();
 }

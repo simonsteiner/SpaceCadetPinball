@@ -196,12 +196,16 @@ private:
 	};
 
 	static DefinitiveHost Host;
-	static Screen Current, SettingsFrom;
+	static Screen Current;
+	static Screen SettingsFrom;
 	// The screen the exit question was opened from, which Cancel returns to
 	static Screen ExitFrom;
 	// Where Back leads from the list of tables: the pause screen or the title
 	static Screen TablesFrom;
-	static bool Opened, ConfirmClear, SummaryShown, Focused;
+	static bool Opened;
+	static bool ConfirmClear;
+	static bool SummaryShown;
+	static bool Focused;
 	static float CreditsScroll;
 	// The table chosen from a game in play, which asks before ending it; SIZE_MAX while not asking
 	static size_t ConfirmTable;

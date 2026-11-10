@@ -30,8 +30,13 @@ public:
 	static inline ImU32 LedRed = DefinitiveColor(0xFF, 0x3B, 0x24);
 
 	// Type sizes in pixels for a window 720 pixels high at UI scale 1; screens scale them with the window
-	static constexpr float DisplaySize = 60, TitleSize = 32, HeadingSize = 22, BodySize = 17, LabelSize = 14;
-	static constexpr float ScoreSize = 44, CounterSize = 20;
+	static constexpr float DisplaySize = 60;
+	static constexpr float TitleSize = 32;
+	static constexpr float HeadingSize = 22;
+	static constexpr float BodySize = 17;
+	static constexpr float LabelSize = 14;
+	static constexpr float ScoreSize = 44;
+	static constexpr float CounterSize = 20;
 	// Menu rows, high enough to be touch targets
 	static constexpr float RowHeight = 48;
 	static constexpr float Rounding = 6;
@@ -75,7 +80,9 @@ public:
 	static ImVec2 LedSize(float size, const char* text);
 
 private:
-	static ImFont *Text, *Heading, *Digits;
+	static ImFont* Text;
+	static ImFont* Heading;
+	static ImFont* Digits;
 	static int Palette;
 	static bool Contrast;
 
