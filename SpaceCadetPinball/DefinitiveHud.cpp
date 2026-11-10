@@ -584,7 +584,7 @@ float DefinitiveHud::DrawBand(ImDrawList* drawList, const TableView& view, ImVec
 	return DrawMessage(drawList, view, ImVec2{left, y}, width, max.y - Padding * scale) + Padding * scale - min.y;
 }
 
-void DefinitiveHud::RenderBand(const TableView& view, SDL_FRect panel)
+void DefinitiveHud::RenderBand(const TableView& view, SDL_FRect board, SDL_FRect panel)
 {
 	// The screens' scale, unless the band is too low for the contents at its width; a smaller scale leaves more width
 	// at scale 1 and so less wrapping, so the second pass fits
@@ -605,9 +605,10 @@ void DefinitiveHud::RenderBand(const TableView& view, SDL_FRect panel)
 	}
 	Ui::SetScale(scale);
 
-	// Centred across the band and just under the table, as high as its contents
+	// Centred across the band, as high as its contents, and just under the table, or halfway down a band over it
 	ImVec2 size{width * scale, std::min(needed * scale, panel.h - Margin * 2 * scale)};
-	ImVec2 min{panel.x + (panel.w - size.x) / 2, panel.y + Margin * scale};
+	auto over = panel.y + panel.h <= board.y + 1;
+	ImVec2 min{panel.x + (panel.w - size.x) / 2, over ? panel.y + (panel.h - size.y) / 2 : panel.y + Margin * scale};
 	ImVec2 max{min.x + size.x, min.y + size.y};
 	auto drawList = ImGui::GetBackgroundDrawList();
 	Theme::DrawPanel(drawList, min, max);
@@ -638,7 +639,7 @@ void DefinitiveHud::Render(const TableView& view, SDL_FRect board, SDL_FRect pan
 	Contrast contrast;
 	if (band)
 	{
-		RenderBand(view, panel);
+		RenderBand(view, board, panel);
 		return;
 	}
 

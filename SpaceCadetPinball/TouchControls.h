@@ -15,7 +15,8 @@ public:
 	};
 
 	// Lays the window out around the deck, with the table at the largest scale that leaves the deck and the score panel
-	// their room, all inside the window's safe area. False where the deck doesn't apply (the option is off, the window
+	// their room, all inside the window's safe area; upright, the panel at the top and the table across the whole
+	// window. False where the deck doesn't apply (the option is off, the window
 	// is too square for it, or the picture is turned), and fullscrn lays out as before.
 	static bool Arrange(int width, int height, int boardWidth, int tableHeight, float& scale);
 	// Each frame: folds the plunger lane away while no ball waits at the plunger and no finger holds it, and gives
@@ -29,6 +30,8 @@ public:
 	// Whether a finger holds the binding, and how long the plunger has been held, for drawing them
 	static bool Held(GameBindings binding);
 	static float PlungerSeconds();
+	// Whether a ball waits on the plunger, as of the last Animate
+	static bool BallWaiting();
 	// The plunger lane's width unfolded, in pixels
 	static float PlungerWidth();
 	// Whether the player has nudged by touch yet, after which the deck stops explaining how
@@ -68,4 +71,5 @@ private:
 	static Uint64 PlungerTicks, AnimateTicks, LaneEmptyTicks;
 	// 1 while the lane shows, 0 once folded away
 	static float LaneShown;
+	static bool Waiting;
 };

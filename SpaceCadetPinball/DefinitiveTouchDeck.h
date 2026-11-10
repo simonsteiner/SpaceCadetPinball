@@ -6,6 +6,8 @@ struct DefinitiveDeck
 {
 	SDL_FRect LeftPad{}, RightPad{}, Plunger{}, Pause{}, Hint{};
 	bool LeftHeld = false, RightHeld = false, PlungerHeld = false;
+	// Whether a ball waits on the table's plunger, which the lane then shows on its own
+	bool BallWaiting = false;
 	// How long the plunger has been held, in seconds, and the lane's width unfolded; Plunger narrows as it folds
 	float PlungerSeconds = 0, PlungerWidth = 0;
 	// Until the player has nudged by touch once, the deck says how

@@ -554,7 +554,8 @@ static DefinitiveHost MakeDefinitiveHost()
 	host.ViewerPause = [](bool paused) { RecordingViewer::SetPaused(paused); };
 	host.ViewerSpeed = [](float speed) { RecordingViewer::SetSpeed(speed); };
 	host.StopViewing = [] { RecordingViewer::Stop(); };
-	// The board and panel rects in window coordinates; the panel is a band under the table upright or beside the deck
+	// The board and panel rects in window coordinates; the panel is a band under the table upright, over the table
+	// with the touch deck, or beside the deck on its side
 	host.Layout = [](SDL_FRect& board, SDL_FRect& panel, bool& band)
 	{
 		// The layout is in pixels, ImGui in window coordinates
@@ -589,6 +590,7 @@ static DefinitiveHost MakeDefinitiveHost()
 		deck.LeftHeld = TouchControls::Held(GameBindings::LeftFlipper);
 		deck.RightHeld = TouchControls::Held(GameBindings::RightFlipper);
 		deck.PlungerHeld = TouchControls::Held(GameBindings::Plunger);
+		deck.BallWaiting = TouchControls::BallWaiting();
 		deck.PlungerSeconds = TouchControls::PlungerSeconds();
 		deck.PlungerWidth = TouchControls::PlungerWidth() / fbScale.x;
 		deck.ExplainNudge = !TouchControls::Nudged();
