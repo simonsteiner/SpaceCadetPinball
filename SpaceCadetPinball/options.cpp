@@ -917,7 +917,8 @@ std::string options::TableKeyPrefixToRead(const std::string& key)
 	return TableKeyPrefixToRead(key, pb::Table);
 }
 
-// The prefix to read the table's key with: its own, or none while it hasn't saved the key and an unprefixed one exists
+// The prefix to read the table's key with: its own, or none while it hasn't saved the key and an unprefixed one exists.
+// The bonus tables always read their own
 std::string options::TableKeyPrefixToRead(const std::string& key, Tables table)
 {
 	// Before tables had their own keys, every table saved under the unprefixed ones.
