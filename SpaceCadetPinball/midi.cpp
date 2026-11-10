@@ -219,10 +219,10 @@ namespace
 
 	// Loads the SoundFont on a thread of its own: decoding its Vorbis samples takes time the table and the menu
 	// shouldn't wait for, about a second on a PC and seven on a phone for all of FluidR3Mono. Only the presets asked
-	// for are decoded, a tenth of that for one table's music. The synth outlives midi::music_shutdown, so a restart
-	// for another table or edition doesn't wait for a load in progress, and loads again only when the new table's
-	// music needs presets the synth doesn't have; it then gets those on top of the ones it had. The web build has no
-	// threads and loads within Request.
+	// for are decoded, a fifth of the samples for one table's music. The synth outlives midi::music_shutdown, so a
+	// restart for another table or edition doesn't wait for a load in progress, and loads again only when the new
+	// table's music needs presets the synth doesn't have; it then gets those on top of the ones it had. The web build
+	// has no threads and loads within Request.
 	class SoundFontLoader
 	{
 	public:
@@ -328,12 +328,17 @@ namespace
 	SoundFontLoader SoundFont;
 
 	// The presets a song plays: each melodic channel's programs, the SoundFont's first preset for a channel that
-	// plays without choosing one, and the kits of the drums on channel 10, which starts with kit 0
+	// plays without choosing one, and the kits of the drums on channel 10, which starts with kit 0. A song that
+	// chooses a bank, which the synth follows, needs the whole SoundFont.
 	void AddPresets(const tml_message* song, SoundFontPresets& presets)
 	{
 		std::bitset<16> chose;
 		for (auto message = song; message; message = message->next)
 		{
+			// Bank 0 is the one every channel starts in
+			if (message->type == TML_CONTROL_CHANGE && message->control_value != 0 &&
+				(message->control == TML_BANK_SELECT_MSB || message->control == TML_BANK_SELECT_LSB))
+				presets.Whole = true;
 			if (message->type != TML_PROGRAM_CHANGE && message->type != TML_NOTE_ON)
 				continue;
 			auto channel = static_cast<unsigned>(message->channel) % chose.size();
