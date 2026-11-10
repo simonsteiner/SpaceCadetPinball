@@ -772,6 +772,8 @@ enum class Lang : int
 
 struct TextArray
 {
+	// Fills the store from the list of texts per message and language; asserts that no pair is given twice and that
+	// every message has an English text
 	TextArray(const std::initializer_list<std::pair<Msg, std::initializer_list<std::pair<Lang, LPCSTR>>>>& iList)
 	{
 		for (const auto& msgPair : iList)
@@ -796,16 +798,19 @@ struct TextArray
 		return Store[static_cast<int>(msgId)][static_cast<int>(langId)];
 	}
 
+	// Whether the message has a text in this language
 	bool contains(Msg msgId, Lang langId) const
 	{
 		return contains(msgId) && Get(msgId, langId) != nullptr;
 	}
 
+	// Whether the message id is in range
 	static bool contains(Msg msgId)
 	{
 		return msgId >= Msg::Min && msgId < Msg::Max;
 	}
 
+	// Whether the language id is in range
 	static bool contains(Lang langId)
 	{
 		return langId >= Lang::Min && langId < Lang::Max;

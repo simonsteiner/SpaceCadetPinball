@@ -16,6 +16,7 @@ high_score_struct high_score::highscore_table[5];
 
 namespace
 {
+	// Empties all five entries: no name, and the score -999 that stands for none
 	void ClearTable(std::span<high_score_struct, 5> table)
 	{
 		for (auto& entry : table)
@@ -59,6 +60,7 @@ int high_score::read()
 	return 0;
 }
 
+// The best score the given table saved, or -999 when it saved none
 int high_score::BestScore(Tables table)
 {
 	// Reading adds the keys it doesn't find, which would make a table that saved nothing look as if it had
@@ -70,6 +72,8 @@ int high_score::BestScore(Tables table)
 	return scores[0].Score;
 }
 
+// Saves the five entries under the table's settings prefix, with the check sum of names and scores that
+// reading verifies; always returns 0
 int high_score::write()
 {
 	std::string prefix = options::TableKeyPrefix();
@@ -97,6 +101,7 @@ void high_score::clear_table()
 	ClearTable(highscore_table);
 }
 
+// The position from 0 to 4 a score would take in the table, or -1 if it is not positive or beats no entry
 int high_score::get_score_position(int score)
 {
 	if (score <= 0)
@@ -110,6 +115,8 @@ int high_score::get_score_position(int score)
 	return -1;
 }
 
+// Inserts the entry at its position, moving the lower ones down and dropping the last; does nothing for a position
+// outside the table
 void high_score::place_new_score_into(high_score_entry data)
 {
 	if (data.Position >= 0 && data.Position < 5)
@@ -124,6 +131,8 @@ void high_score::place_new_score_into(high_score_entry data)
 	}
 }
 
+// Takes the newest queued score that still makes the table, with its position set; false when none is left, which
+// also cancels the pending dialog
 bool high_score::TakeNextEntry(high_score_entry& entry)
 {
 	// As the dialog does: the newest first, each placed by its score now, and none that no longer makes the table
@@ -151,6 +160,8 @@ void high_score::show_and_set_high_score_dialog(high_score_entry score)
 	ShowDialog = true;
 }
 
+// Draws the high score dialog while it is open or asked for: the table, a name field in the row of the next queued
+// score that makes the table, and OK, Cancel and Clear with its confirmation; opens again for each queued score
 void high_score::RenderHighScoreDialog()
 {
 	if (ShowDialog == true)

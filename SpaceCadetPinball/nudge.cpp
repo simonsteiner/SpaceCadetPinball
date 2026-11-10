@@ -14,6 +14,7 @@ int nudge::nudged_up;
 int nudge::timer;
 float nudge::nudge_count;
 
+// Timer callback that ends a nudge to the right by pushing the balls and the picture back
 void nudge::un_nudge_right(int timerId, void* caller)
 {
 	if (nudged_right)
@@ -21,6 +22,7 @@ void nudge::un_nudge_right(int timerId, void* caller)
 	nudged_right = 0;
 }
 
+// Timer callback that ends a nudge to the left by pushing the balls and the picture back
 void nudge::un_nudge_left(int timerId, void* caller)
 {
 	if (nudged_left)
@@ -28,6 +30,7 @@ void nudge::un_nudge_left(int timerId, void* caller)
 	nudged_left = 0;
 }
 
+// Timer callback that ends a nudge upwards by pushing the balls and the picture back
 void nudge::un_nudge_up(int timerId, void* caller)
 {
 	if (nudged_up)
@@ -35,6 +38,7 @@ void nudge::un_nudge_up(int timerId, void* caller)
 	nudged_up = 0;
 }
 
+// Nudges the table to the right and sets the timer that undoes it after 0.4 seconds, replacing a running one
 void nudge::nudge_right()
 {
 	_nudge(2.0, 1.0);
@@ -44,6 +48,7 @@ void nudge::nudge_right()
 	nudged_right = 1;
 }
 
+// Nudges the table to the left and sets the timer that undoes it after 0.4 seconds, replacing a running one
 void nudge::nudge_left()
 {
 	_nudge(-2.0, 1.0);
@@ -53,6 +58,7 @@ void nudge::nudge_left()
 	nudged_left = 1;
 }
 
+// Nudges the table upwards and sets the timer that undoes it after 0.4 seconds, replacing a running one
 void nudge::nudge_up()
 {
 	_nudge(0.0, 1.0);
@@ -62,6 +68,8 @@ void nudge::nudge_up()
 	nudged_up = 1;
 }
 
+// Adds half of (xDiff, yDiff) to the velocity of every active ball that no component holds, and shifts the rendered
+// table by the rounded xDiff and the rounded negative yDiff
 void nudge::_nudge(float xDiff, float yDiff)
 {
 	vector2 accelMod;

@@ -33,6 +33,7 @@ public:
 	static void Stop();
 	static bool IsRecording() { return Output != nullptr; }
 	static bool IsPlaying() { return Input != nullptr; }
+	// Whether a recording plays in the window for the player to watch, rather than as a check
 	static bool IsViewing()
 	{
 		return Input != nullptr && Viewing;

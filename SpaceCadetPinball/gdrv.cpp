@@ -21,6 +21,8 @@ gdrv_bitmap8::gdrv_bitmap8(int width, int height, bool indexed) : gdrv_bitmap8(w
 {
 }
 
+// Makes a bitmap of the given size; indexed and bmpBuff choose which of the palette index and colour buffers it gets,
+// neither of them cleared
 gdrv_bitmap8::gdrv_bitmap8(int width, int height, bool indexed, bool bmpBuff)
 {
 	assertm(width >= 0 && height >= 0, "Negative bitmap8 dimensions");
@@ -43,6 +45,8 @@ gdrv_bitmap8::gdrv_bitmap8(int width, int height, bool indexed, bool bmpBuff)
 		BmpBufPtr1 = new ColorRgba[Height * Stride];
 }
 
+// Makes a bitmap from a DAT file's 8-bit bitmap header, its index buffer sized for the data that follows: a spliced
+// bitmap's packed runs, or rows padded to 4 bytes
 gdrv_bitmap8::gdrv_bitmap8(const dat8BitBmpHeader& header)
 {
 	assertm(header.Width >= 0 && header.Height >= 0, "Negative bitmap8 dimensions");
@@ -82,6 +86,7 @@ gdrv_bitmap8::gdrv_bitmap8(const dat8BitBmpHeader& header)
 	BmpBufPtr1 = new ColorRgba[Stride * Height];
 }
 
+// Frees the buffers and the texture
 gdrv_bitmap8::~gdrv_bitmap8()
 {
 	if (BitmapType != BitmapTypes::None)
@@ -93,6 +98,8 @@ gdrv_bitmap8::~gdrv_bitmap8()
 	}
 }
 
+// Resizes the indexed buffer by the given factors, taking the nearest source pixel, and makes a new, unfilled colour
+// buffer of that size
 void gdrv_bitmap8::ScaleIndexed(float scaleX, float scaleY)
 {
 	if (!IndexedBmpPtr)
@@ -125,6 +132,7 @@ void gdrv_bitmap8::ScaleIndexed(float scaleX, float scaleY)
 	BmpBufPtr1 = new ColorRgba[Stride * Height];
 }
 
+// Makes the bitmap's texture anew in the bitmap's size, with nearest scaling where the renderer lacks scaleMode
 void gdrv_bitmap8::CreateTexture(SDL_ScaleMode scaleMode, SDL_TextureAccess access)
 {
 	if (Texture != nullptr)
@@ -171,6 +179,8 @@ void gdrv_bitmap8::BlitToTexture()
 	Uploaded.clear();
 }
 
+// Uploads the tiles of the colour buffer that differ from what the texture holds, all of it on the first call, and adds
+// a rectangle to changes for each upload
 void gdrv_bitmap8::BlitChangesToTexture(std::vector<SDL_Rect>* changes)
 {
 	// Between two frames little of the table changes: lights, flippers, the score. Uploading all of it every frame
@@ -198,6 +208,8 @@ void gdrv_bitmap8::BlitChangesToTexture(std::vector<SDL_Rect>* changes)
 							 });
 }
 
+// Sets the current palette, colours 10 to 245 from plt between the Windows system colours and white, and applies it to
+// every bitmap of the loaded DAT file. Always returns 0.
 int gdrv::display_palette(ColorRgba* plt)
 {
 	// Colors from Windows system palette
@@ -247,6 +259,7 @@ void gdrv::fill_bitmap(gdrv_bitmap8* bmp, int width, int height, int xOff, int y
 	fill_bitmap(bmp, width, height, xOff, yOff, current_palette[fillChar]);
 }
 
+// Fills a rectangle of the bitmap's colour buffer with one colour
 void gdrv::fill_bitmap(gdrv_bitmap8* bmp, int width, int height, int xOff, int yOff, ColorRgba fillColor)
 {
 	auto bmpPtr = &bmp->BmpBufPtr1[bmp->Width * yOff + xOff];
@@ -258,6 +271,7 @@ void gdrv::fill_bitmap(gdrv_bitmap8* bmp, int width, int height, int xOff, int y
 	}
 }
 
+// Copies a rectangle of the source's colour buffer to (xOff, yOff) in the destination's, without clipping
 void gdrv::copy_bitmap(gdrv_bitmap8* dstBmp, int width, int height, int xOff, int yOff, gdrv_bitmap8* srcBmp,
                        int srcXOff, int srcYOff)
 {
@@ -272,6 +286,7 @@ void gdrv::copy_bitmap(gdrv_bitmap8* dstBmp, int width, int height, int xOff, in
 	}
 }
 
+// As copy_bitmap, but leaves the destination as it is where the source's colour is 0
 void gdrv::copy_bitmap_w_transparency(gdrv_bitmap8* dstBmp, int width, int height, int xOff, int yOff,
                                       gdrv_bitmap8* srcBmp, int srcXOff, int srcYOff)
 {
@@ -293,6 +308,8 @@ void gdrv::copy_bitmap_w_transparency(gdrv_bitmap8* dstBmp, int width, int heigh
 	}
 }
 
+// Shifts the bitmap's rows by xStart pixels, to the right when positive; the columns it moves away from keep their old
+// pixels
 void gdrv::ScrollBitmapHorizontal(gdrv_bitmap8* bmp, int xStart)
 {
 	auto srcPtr = bmp->BmpBufPtr1;
@@ -307,6 +324,7 @@ void gdrv::ScrollBitmapHorizontal(gdrv_bitmap8* bmp, int xStart)
 }
 
 
+// Draws the text of the info and mission text boxes with ImGui, for each box that exists
 void gdrv::grtext_draw_ttext_in_box()
 {
 	for (const auto textBox : { pb::InfoTextBox, pb::MissTextBox })
@@ -318,6 +336,7 @@ void gdrv::grtext_draw_ttext_in_box()
 	}
 }
 
+// Fills the bitmap's colour buffer from its indexed one through the current palette, with the rows in reverse order
 void gdrv::ApplyPalette(gdrv_bitmap8& bmp)
 {
 	if (bmp.BitmapType == BitmapTypes::None)
@@ -337,6 +356,7 @@ void gdrv::ApplyPalette(gdrv_bitmap8& bmp)
 	}
 }
 
+// Makes a static texture of the bitmap's colour buffer, unless the bitmap already has a texture
 void gdrv::CreatePreview(gdrv_bitmap8& bmp)
 {
 	if (bmp.Texture)

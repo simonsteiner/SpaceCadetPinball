@@ -68,6 +68,8 @@ replay::Scope::Scope(float frameDtMilliSec) : IsFrame(true), FrameDt(frameDtMill
 	Depth++;
 }
 
+// Opens the scope of a command; while recording, the outermost scope writes the formatted line, and a line that
+// starts a game marks the recording as holding one
 replay::Scope::Scope(const char* format, ...)
 {
 	if (Output && Depth == 0)
@@ -85,6 +87,7 @@ replay::Scope::Scope(const char* format, ...)
 	Depth++;
 }
 
+// Closes the scope; the outermost frame scope writes its time step and the state after it while recording
 replay::Scope::~Scope()
 {
 	Depth--;
@@ -95,6 +98,7 @@ replay::Scope::~Scope()
 	}
 }
 
+// Opens path for recording and writes the header up to the start line; false if the file can't be written
 bool replay::StartRecording(const std::string& path)
 {
 	Output = fopenu(path.c_str(), "wb");
@@ -118,6 +122,8 @@ bool replay::StartRecording(const std::string& path)
 	return true;
 }
 
+// Opens a recording for playback and reads its header into the seed, resolution and data file to apply; false, with
+// a message printed, if the file can't be opened or isn't a recording this build reads
 bool replay::StartPlayback(const std::string& path)
 {
 	Input = fopenu(path.c_str(), "rb");
@@ -163,6 +169,7 @@ bool replay::StartPlayback(const std::string& path)
 	return true;
 }
 
+// Summarizes the recording, then starts it as playback in viewing mode; false if it holds no readable recording
 bool replay::StartViewing(const std::string& path)
 {
 	ViewedSummary = Summarize(path);
@@ -174,6 +181,8 @@ bool replay::StartViewing(const std::string& path)
 	return true;
 }
 
+// Reads a recording without playing it: its data file, where each frame starts in milliseconds, the total length
+// and the frames at which a game starts. No frames when the file can't be read or has no start line
 replay::Summary replay::Summarize(const std::string& path)
 {
 	Summary summary;
@@ -214,6 +223,7 @@ std::string replay::LoadedDatFile()
 	return pb::DatFileName + " " + DatFileHash();
 }
 
+// Closes the recording being made or played back and leaves viewing mode
 void replay::Stop()
 {
 	if (Output)
@@ -224,6 +234,7 @@ void replay::Stop()
 	Viewing = false;
 }
 
+// Whether the loaded game data is the file the recording was made with, by name and hash; prints both if not
 bool replay::CheckDatFile()
 {
 	auto actual = pb::DatFileName + " " + DatFileHash();
@@ -235,6 +246,7 @@ bool replay::CheckDatFile()
 	return false;
 }
 
+// Records an input going down or up with its bindings, as a d or u line; only while recording and outside any scope
 void replay::RecordInput(bool down, GameInput input, const std::vector<GameBindings>& bindings)
 {
 	if (!Output || Depth != 0)
@@ -248,6 +260,8 @@ void replay::RecordInput(bool down, GameInput input, const std::vector<GameBindi
 	fputc('\n', Output);
 }
 
+// Runs the recorded commands up to and including the next frame and compares the state after it with the recorded
+// one. False at the end of the recording, at the first difference or at a line it can't read, with the result printed
 bool replay::PlayStep()
 {
 	std::string line, rest;
@@ -358,6 +372,8 @@ bool replay::PlayStep()
 	return false;
 }
 
+// The state a frame line holds: time, game mode, current player and ball count, each player's score, and each
+// ball's position, direction and speed, or - for an inactive ball
 std::string replay::FormatState()
 {
 	auto table = pb::MainTable;
@@ -392,6 +408,7 @@ std::string replay::FormatState()
 	return state;
 }
 
+// The 64-bit FNV-1a hash of the loaded data file as 16 hex digits; the hash of no data if the file can't be opened
 std::string replay::DatFileHash()
 {
 	// 64-bit FNV-1a over the whole file: enough to tell data files apart

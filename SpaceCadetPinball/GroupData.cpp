@@ -10,6 +10,7 @@
 #include "zdrv.h"
 
 
+// Frees the buffer as what the entry's type says it holds: a bitmap, a depth map or a plain array
 EntryData::~EntryData()
 {
 	if (Buffer)
@@ -33,6 +34,8 @@ GroupData::GroupData(int groupId)
 	GroupId = groupId;
 }
 
+// Adds an entry to the group, which owns it from then on, and notes its name, bitmap or depth map. A spliced bitmap is
+// replaced by the plain bitmap and the depth map it unpacks to.
 void GroupData::AddEntry(EntryData* entry)
 {
 	auto addEntry = true;
@@ -77,6 +80,7 @@ void GroupData::AddEntry(EntryData* entry)
 		Entries.push_back(entry);
 }
 
+// Sorts the entries by type again when unpacking a spliced bitmap has put them out of order
 void GroupData::FinalizeGroup()
 {
 	if (NeedsSort)
@@ -107,6 +111,8 @@ zmap_header_type* GroupData::GetZMap(int resolution) const
 	return ZMaps[resolution];
 }
 
+// Unpacks a spliced bitmap's runs of depth and colour index pairs into a bitmap and a depth map of its full size.
+// Pixels no run covers keep index 0xff and depth 0xFFFF and are marked as holes in the depth map.
 void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, size_t srcSize, gdrv_bitmap8& bmp,
 								   zmap_header_type& zMap)
 {
@@ -184,6 +190,8 @@ void GroupData::SplitSplicedBitmap(const gdrv_bitmap8& srcBmp, size_t srcSize, g
 	}
 }
 
+// Keeps a bitmap as the group's first of its resolution, or as its alternative when there already is a first; a depth
+// map of another size than the first bitmap is dropped
 void GroupData::SetBitmap(gdrv_bitmap8* bmp)
 {
 	// Full Tilt's bonus tables give each ball frame a second bitmap, an alternative ball their rules can switch to.
@@ -203,6 +211,8 @@ void GroupData::SetBitmap(gdrv_bitmap8* bmp)
 		ZMaps[bmp->Resolution] = nullptr;
 }
 
+// Flips a depth map to match the bitmaps and keeps it as the group's depth map of its resolution, unless there already
+// is one or its size differs from the bitmap's
 void GroupData::SetZMap(zmap_header_type* zMap)
 {
 	// Flip zMap to match with flipped non-indexed bitmaps
@@ -218,6 +228,7 @@ void GroupData::SetZMap(zmap_header_type* zMap)
 }
 
 
+// Deletes the groups and their entries
 DatFile::~DatFile()
 {
 	for (auto group : Groups)
@@ -233,6 +244,8 @@ DatFile::~DatFile()
 	}
 }
 
+// Returns the buffer of the group's first entry of a type, or null when the group has none or the index is outside the
+// file. Not for bitmaps and depth maps, which have their own getters.
 char* DatFile::field(int groupIndex, FieldTypes targetEntryType)
 {
 	assertm(targetEntryType != FieldTypes::Bitmap8bit && targetEntryType != FieldTypes::Bitmap16bit,
@@ -254,6 +267,7 @@ char* DatFile::field(int groupIndex, FieldTypes targetEntryType)
 }
 
 
+// As field, for the entry that follows skipFirstN others of the same type
 char* DatFile::field_nth(int groupIndex, FieldTypes targetEntryType, int skipFirstN)
 {
 	assertm(targetEntryType != FieldTypes::Bitmap8bit && targetEntryType != FieldTypes::Bitmap16bit,
@@ -274,6 +288,7 @@ char* DatFile::field_nth(int groupIndex, FieldTypes targetEntryType, int skipFir
 	return nullptr;
 }
 
+// Returns the size in bytes of the entry field_nth finds, or 0 when there is none
 int DatFile::field_size_nth(int groupIndex, FieldTypes targetEntryType, int skipFirstN)
 {
 	auto group = Group(groupIndex);
@@ -296,12 +311,14 @@ int DatFile::field_size(int groupIndex, FieldTypes targetEntryType)
 	return field_size_nth(groupIndex, targetEntryType, 0);
 }
 
+// The group at an index, or null when the index is outside the file
 GroupData* DatFile::Group(int groupIndex) const
 {
 	// Group indices also come from the table's own data, which a damaged file can point anywhere
 	return groupIndex >= 0 && groupIndex < static_cast<int>(Groups.size()) ? Groups[groupIndex] : nullptr;
 }
 
+// Returns the index of the group with exactly this name, the last such group in the file, or -1
 int DatFile::record_labeled(LPCSTR targetGroupName)
 {
 	auto targetLength = strlen(targetGroupName);
@@ -322,24 +339,28 @@ int DatFile::record_labeled(LPCSTR targetGroupName)
 	return -1;
 }
 
+// Returns the first entry of a type in the group with this name, or null when the group or the entry is missing
 char* DatFile::field_labeled(LPCSTR lpString, FieldTypes fieldType)
 {
 	auto groupIndex = record_labeled(lpString);
 	return groupIndex < 0 ? nullptr : field(groupIndex, fieldType);
 }
 
+// The group's bitmap for the current resolution, or null when it has none or the index is outside the file
 gdrv_bitmap8* DatFile::GetBitmap(int groupIndex)
 {
 	auto group = Group(groupIndex);
 	return group ? group->GetBitmap(fullscrn::GetResolution()) : nullptr;
 }
 
+// The group's second bitmap for the current resolution, or null
 gdrv_bitmap8* DatFile::GetAltBitmap(int groupIndex)
 {
 	auto group = Group(groupIndex);
 	return group ? group->GetAltBitmap(fullscrn::GetResolution()) : nullptr;
 }
 
+// The group's depth map for the current resolution, or null
 zmap_header_type* DatFile::GetZMap(int groupIndex)
 {
 	auto group = Group(groupIndex);
@@ -395,6 +416,7 @@ bool DatFile::IsValidMsgFont(const std::vector<uint8_t>& data)
 	return true;
 }
 
+// Adds the message font from pinball.exe when asked to, then puts each group's entries in order
 void DatFile::Finalize(bool addMsgFont)
 {
 	if (addMsgFont)
@@ -430,6 +452,8 @@ void DatFile::Finalize(bool addMsgFont)
 	}
 }
 
+// Appends a group for each of the font's characters 32 to 127, holding its bitmap with the rows in reverse order; the
+// first of them also gets the font's name and its gap width
 void DatFile::AddMsgFont(MsgFont* font, const std::string& fontName)
 {
 	auto groupId = Groups.back()->GroupId + 1;

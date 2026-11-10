@@ -16,6 +16,8 @@ int score::init()
 	return 1;
 }
 
+// Makes a score field from the record named fieldName, offset by the resolution, whose short array holds the group
+// of the first of ten digit bitmaps and the box's offset and size; null if the array is missing
 scoreStruct* score::create(LPCSTR fieldName, gdrv_bitmap8* renderBgBmp)
 {
 	auto score = new scoreStruct();
@@ -57,6 +59,8 @@ void score::load_msg_font(LPCSTR lpName)
 	msg_fontp = load_msg_font_group(lpName);
 }
 
+// Loads a message font from the group named lpName: the gap width for the current resolution, and the bitmaps of the
+// groups that follow as the characters from 32 up to the first group without one. Null if there is no such group
 score_msg_font_type* score::load_msg_font_group(LPCSTR lpName)
 {
 	if (!pb::record_table)
@@ -96,6 +100,7 @@ void score::unload_msg_font()
 	msg_font2p = nullptr;
 }
 
+// Clears the score's box in the frame, with its background bitmap if it has one, else with colour 0
 void score::erase(scoreStruct* score, int blitFlag)
 {
 	if (score)
@@ -115,6 +120,7 @@ void score::erase(scoreStruct* score, int blitFlag)
 	}
 }
 
+// Sets the score's value and marks it for redrawing; a null score is ignored
 void score::set(scoreStruct* score, int value)
 {
 	if (score)
@@ -125,6 +131,8 @@ void score::set(scoreStruct* score, int value)
 }
 
 
+// Redraws a score marked dirty: clears its box and draws the digits right-aligned in it. A negative score leaves the
+// box empty, and one above 1000000000 is not redrawn at all
 void score::update(scoreStruct* score)
 {
 	char scoreBuf[12]{};
@@ -154,6 +162,7 @@ void score::update(scoreStruct* score)
 	}
 }
 
+// Writes the score with thousands separators into str, which must hold 36 characters; -999 gives an empty string
 void score::string_format(int score, char* str)
 {
 	if (score == -999)
