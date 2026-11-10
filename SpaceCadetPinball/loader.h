@@ -127,5 +127,5 @@ private:
 	static int loader_sound_count;
 	// Up to 128 sounds, as Skulduggery has 67; slot 0 is unused
 	static constexpr int SoundListSize = 129;
-	static soundListStruct sound_list[SoundListSize];
+	static std::array<soundListStruct, SoundListSize> sound_list;
 };

@@ -396,7 +396,7 @@ std::vector<uint8_t> DatFile::LoadMsgFontFromExe()
 // Check that the font holds all the characters AddMsgFont reads, so a foreign resource can't make it overrun
 bool DatFile::IsValidMsgFont(const std::vector<uint8_t>& data)
 {
-	constexpr size_t headerSize = offsetof(MsgFont, Data);
+	constexpr auto headerSize = offsetof(MsgFont, Data);
 	if (data.size() < headerSize)
 		return false;
 	auto font = reinterpret_cast<const MsgFont*>(data.data());

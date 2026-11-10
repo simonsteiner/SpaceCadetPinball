@@ -2424,7 +2424,7 @@ void control::EscapeChuteSinkControl(MessageCode code, TPinballComponent* caller
 // score; Full Tilt shows the score as a jackpot first, then the achievement.
 void control::CompleteMission(TTextBox* doneBox, Msg doneText, int score, int rank, LPCSTR soundSource)
 {
-	char Buffer[64];
+	std::array<char, 64> Buffer;
 
 	lite198->MessageField = 1;
 	MissionControl(MessageCode::ControlMissionComplete, nullptr);
@@ -2438,8 +2438,8 @@ void control::CompleteMission(TTextBox* doneBox, Msg doneText, int score, int ra
 	};
 	BoxText first{doneBox, pb::get_rc_string(doneText)};
 	const auto scoreText = pb::get_rc_string(pb::FullTiltMode ? Msg::ControlMissionJackpot : Msg::STRING179);
-	snprintf(Buffer, sizeof Buffer, scoreText, SpecialAddScore(score, true));
-	BoxText second{mission_text_box, Buffer};
+	snprintf(Buffer.data(), Buffer.size(), scoreText, SpecialAddScore(score, true));
+	BoxText second{mission_text_box, Buffer.data()};
 	if (pb::FullTiltMode)
 		std::swap(first, second);
 

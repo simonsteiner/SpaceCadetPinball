@@ -6,6 +6,7 @@
 #include "score.h"
 #include "translations.h"
 
+#include <format>
 #include <span>
 
 bool high_score::dlg_enter_name;
@@ -35,14 +36,15 @@ namespace
 		{
 			auto& tablePtr = table[position];
 
-			auto name = options::GetSetting(prefix + std::to_string(position) + ".Name", "");
+			auto name = options::GetSetting(std::format("{}{}.Name", prefix, position), "");
 			strncpy(tablePtr.Name, name.c_str(), sizeof tablePtr.Name);
 
-			auto scoreKey = prefix + std::to_string(position) + ".Score";
+			auto scoreKey = std::format("{}{}.Score", prefix, position);
 			tablePtr.Score = options::get_int(scoreKey.c_str(), tablePtr.Score);
 
-			for (int i = static_cast<int>(strlen(tablePtr.Name)); --i >= 0; checkSum += tablePtr.Name[i])
+			for (auto i = static_cast<int>(strlen(tablePtr.Name)); --i >= 0; checkSum += tablePtr.Name[i])
 			{
+				// The loop's header adds up the name
 			}
 			checkSum += tablePtr.Score;
 		}
@@ -83,8 +85,8 @@ int high_score::write()
 	{
 		auto& tablePtr = highscore_table[position];
 
-		options::SetSetting(prefix + std::to_string(position) + ".Name", tablePtr.Name);
-		options::set_int((prefix + std::to_string(position) + ".Score").c_str(), tablePtr.Score);
+		options::SetSetting(std::format("{}{}.Name", prefix, position), tablePtr.Name);
+		options::set_int(std::format("{}{}.Score", prefix, position).c_str(), tablePtr.Score);
 
 		for (int i = static_cast<int>(strlen(tablePtr.Name)); --i >= 0; checkSum += tablePtr.Name[i])
 		{

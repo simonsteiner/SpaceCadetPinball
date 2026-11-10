@@ -69,7 +69,7 @@ int main(int argc, char* argv[])
 		if (i > 1)
 			cmdLine += " ";
 		// Quoted, so that WinMain reads an argument with spaces as one, as it does on Windows
-		if (strchr(argv[i], ' ') || strchr(argv[i], '\t'))
+		if (std::string_view arg{argv[i]}; arg.contains(' ') || arg.contains('\t'))
 			cmdLine += std::string("\"") + argv[i] + "\"";
 		else
 			cmdLine += argv[i];

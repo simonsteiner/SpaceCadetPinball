@@ -50,9 +50,11 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "high_score.h"
 
 #include <filesystem>
+#include <format>
 #include <mutex>
 #include <new>
 #include <optional>
+#include <utility>
 
 constexpr const char* winmain::Version;
 
@@ -196,7 +198,8 @@ static std::vector<std::string> SplitArgs(LPCSTR cmdLine)
 {
 	std::vector<std::string> args;
 	std::string arg;
-	bool quoted = false, inArg = false;
+	bool quoted = false;
+	bool inArg = false;
 	for (auto ch = cmdLine; *ch; ch++)
 	{
 		if (*ch == '"')
@@ -237,14 +240,15 @@ static std::string GetArgValue(const std::vector<std::string>& args, LPCSTR flag
 
 // The folder chosen in the system's folder dialog, which may answer from another thread
 static std::mutex ChosenFolderMutex;
-static std::string ChosenFolder, FolderDialogError;
+static std::string ChosenFolder;
+static std::string FolderDialogError;
 // Whether the last folder chosen had no game data, so the saved one stayed; only the main thread uses it
 static bool ChosenFolderEmpty = false;
 
 #ifndef __EMSCRIPTEN__
 // The folder dialog's callback: keeps the folder chosen, or the error when the dialog couldn't be shown. A cancelled
 // dialog leaves both as they were
-static void SDLCALL FolderChosen(void* userData, const char* const* files, int filter)
+static void SDLCALL FolderChosen(void* /*userData*/, const char* const* files, int /*filter*/)
 {
 	std::lock_guard lock{ChosenFolderMutex};
 	if (!files)
@@ -456,8 +460,8 @@ static DefinitiveHost MakeDefinitiveHost()
 	host.Records = []
 	{
 		std::vector<DefinitiveHost::Record> records;
-		for (auto& entry : high_score::highscore_table)
-			records.push_back({entry.Name, entry.Score});
+		for (const auto& entry : high_score::highscore_table)
+			records.emplace_back(entry.Name, entry.Score);
 		return records;
 	};
 	host.ClearRecords = [] { high_score::clear_table(); };
@@ -504,7 +508,7 @@ static DefinitiveHost MakeDefinitiveHost()
 			FolderDialogError.clear();
 		}
 		ChosenFolderEmpty = false;
-		auto& folder = options::Options.GameDataFolder.V;
+		const auto& folder = options::Options.GameDataFolder.V;
 		SDL_ShowOpenFolderDialog(FolderChosen, nullptr, winmain::MainWindow, folder.empty() ? nullptr : folder.c_str(),
 								 false);
 	};
@@ -526,8 +530,8 @@ static DefinitiveHost MakeDefinitiveHost()
 	{
 		std::vector<DefinitiveHost::Recording> recordings;
 		for (const auto& recording : RecordingViewer::List())
-			recordings.push_back({recording.Name, recording.Path, recording.Summary.Length,
-								  static_cast<int>(recording.Summary.Games.size()), recording.Playable});
+			recordings.emplace_back(recording.Name, recording.Path, recording.Summary.Length,
+									static_cast<int>(recording.Summary.Games.size()), recording.Playable);
 		return recordings;
 	};
 	host.DeleteRecording = [](const std::string& path) { RecordingViewer::Delete(path); };
@@ -811,8 +815,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		ImGui_ImplSDLRenderer3_Init(Renderer);
 		ImGui::StyleColorsDark();
 		BaseStyle = std::make_unique<ImGuiStyle>(ImGui::GetStyle());
-		DefinitiveStyle = std::make_unique<ImGuiStyle>(*BaseStyle);
-		DefinitiveTheme::ApplyStyle(*DefinitiveStyle);
+		auto definitiveStyle = std::make_unique<ImGuiStyle>(*BaseStyle);
+		DefinitiveTheme::ApplyStyle(*definitiveStyle);
+		DefinitiveStyle = std::move(definitiveStyle);
 		DefinitiveFontsAdded = false;
 		ApplyDisplayScale();
 
@@ -956,6 +961,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			// The recording holds the command that started the game
 			while (replay::PlayStep())
 			{
+				// Each step plays a frame
 			}
 			if (replay::PlaybackFailed())
 				return_value = 1;
@@ -1090,10 +1096,13 @@ void winmain::MainLoop()
 		{
 			if (mouse_down)
 			{
-				float mouseX, mouseY;
-				int w, h;
+				float mouseX;
+				float mouseY;
+				int w;
+				int h;
 				SDL_GetMouseState(&mouseX, &mouseY);
-				auto x = static_cast<int>(mouseX), y = static_cast<int>(mouseY);
+				auto x = static_cast<int>(mouseX);
+				auto y = static_cast<int>(mouseY);
 				SDL_GetWindowSize(MainWindow, &w, &h);
 				float dx = static_cast<float>(last_mouse_x - x) / static_cast<float>(w);
 				float dy = static_cast<float>(y - last_mouse_y) / static_cast<float>(h);
@@ -1166,9 +1175,9 @@ void winmain::MainLoop()
 					TableFrame(dt);
 					if (DispGRhistory)
 					{
-						auto targetSize =
-							static_cast<unsigned>(static_cast<float>(Options.UpdatesPerSecond) * gfrWindow);
-						if (gfrDisplay.size() != targetSize)
+						if (auto targetSize =
+								static_cast<unsigned>(static_cast<float>(Options.UpdatesPerSecond) * gfrWindow);
+							gfrDisplay.size() != targetSize)
 						{
 							gfrDisplay.resize(targetSize, static_cast<float>(UpdateTime.count()));
 							gfrOffset = 0;
@@ -1532,9 +1541,9 @@ void winmain::RenderUi()
 				{
 					for (auto factor : {2, 4})
 					{
-						char label[8];
-						snprintf(label, sizeof label, "%dx", factor);
-						if (ImGui::MenuItem(label, nullptr, Options.UpscaleFactor == factor))
+						std::array<char, 8> label;
+						snprintf(label.data(), label.size(), "%dx", factor);
+						if (ImGui::MenuItem(label.data(), nullptr, Options.UpscaleFactor == factor))
 						{
 							options::Set(Options.UpscaleFactor, factor);
 						}
@@ -1544,7 +1553,7 @@ void winmain::RenderUi()
 					{
 						auto count = Upscale::ExportOriginals();
 						auto folder = Upscale::OriginalsFolder();
-						auto message = count ? "Exported " + std::to_string(count) + " sprites to " + folder
+						auto message = count ? std::format("Exported {} sprites to {}", count, folder)
 											 : "Could not export the sprites to " + folder;
 						SDL_ShowSimpleMessageBox(count ? SDL_MESSAGEBOX_INFORMATION : SDL_MESSAGEBOX_WARNING,
 												 "Export Original Sprites", message.c_str(), MainWindow);
@@ -1558,8 +1567,8 @@ void winmain::RenderUi()
 #if SDL_VERSION_ATLEAST(3, 4, 0)
 				if (ImGui::BeginMenu("Post-Processing"))
 				{
-					constexpr const char* names[] = {"None", "CRT", "Smooth Edges"};
-					for (int i = 0; i < static_cast<int>(PostEffects::Max); i++)
+					constexpr std::array names{"None", "CRT", "Smooth Edges"};
+					for (int i = 0; i < std::to_underlying(PostEffects::Max); i++)
 					{
 						if (ImGui::MenuItem(names[i], nullptr, Options.PostProcessing == i))
 							options::Set(Options.PostProcessing, i);
@@ -2046,7 +2055,8 @@ int winmain::event_handler(const SDL_Event* event)
 				auto pltPtr = &plt[10]; // first 10 entries are system colors hardcoded in display_palette()
 				for (int i1 = 0, i2 = 0; i1 < 256 - 10; ++i1, i2 += 8)
 				{
-					auto blue = static_cast<unsigned char>(i2), redGreen = static_cast<unsigned char>(i2);
+					auto blue = static_cast<unsigned char>(i2);
+					auto redGreen = static_cast<unsigned char>(i2);
 					if (i2 > 255)
 					{
 						blue = 255;
@@ -2201,7 +2211,7 @@ void winmain::GamepadTrigger(const SDL_GamepadAxisEvent& event)
 	if (event.axis != SDL_GAMEPAD_AXIS_LEFT_TRIGGER && event.axis != SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
 		return;
 	auto value = event.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ? GamepadLeftTrigger : GamepadRightTrigger;
-	auto pressed = GamepadHeld[event.which].count(value) > 0;
+	auto pressed = GamepadHeld[event.which].contains(value);
 	if (!pressed && event.value > SDL_JOYSTICK_AXIS_MAX / 2)
 		GamepadInput(event.which, value, true);
 	else if (pressed && event.value < SDL_JOYSTICK_AXIS_MAX / 4)
@@ -2248,8 +2258,7 @@ void winmain::TouchInput(const SDL_TouchFingerEvent& event)
 	};
 	if (event.type != SDL_EVENT_FINGER_DOWN)
 	{
-		auto finger = TouchBindings.find(key);
-		if (finger != TouchBindings.end())
+		if (auto finger = TouchBindings.find(key); finger != TouchBindings.end())
 		{
 			auto binding = finger->second;
 			TouchBindings.erase(finger);
@@ -2258,19 +2267,20 @@ void winmain::TouchInput(const SDL_TouchFingerEvent& event)
 		}
 		return;
 	}
-	if (TouchBindings.count(key))
+	if (TouchBindings.contains(key))
 		return;
 	if (ImIO->WantCaptureMouse)
 		return;
 
 	// Where the finger is in the picture, which Space Cadet 2026 may turn for a monitor on its side
-	int width, height;
+	int width;
+	int height;
 	fullscrn::OutputSize(width, height);
 	auto position = fullscrn::ToPicture({event.x, event.y});
 	SDL_Point point{static_cast<int>(position.x * static_cast<float>(width)),
 					static_cast<int>(position.y * static_cast<float>(height))};
 	// Only the table and the panel bind, not the menu bar or the margins: the ImGui capture flag is last frame's
-	auto& board = render::BoardRect;
+	const auto& board = render::BoardRect;
 	GameBindings binding;
 	if (SDL_PointInRect(&point, &render::SidebarRect))
 		binding = GameBindings::Plunger;
@@ -2311,14 +2321,14 @@ void winmain::RenderEditionHint()
 	if (toggle.empty())
 		toggle =
 			std::string{pb::get_rc_string(Msg::Menu1_Options)} + " > " + pb::get_rc_string(Msg::Menu1_ToggleEdition);
-	char formatted[256];
-	snprintf(formatted, sizeof formatted, pb::get_rc_string(Msg::EditionHint), toggle.c_str());
-	auto text = DefinitiveText::Visual(formatted);
+	std::array<char, 256> formatted;
+	snprintf(formatted.data(), formatted.size(), pb::get_rc_string(Msg::EditionHint), toggle.c_str());
+	auto text = DefinitiveText::Visual(formatted.data());
 
 	// Centred over the top of the table and kept inside the window; the board is in pixels, ImGui in window
 	// coordinates
 	auto viewport = ImGui::GetMainViewport();
-	auto& board = render::BoardRect;
+	const auto& board = render::BoardRect;
 	auto fbScale = ImIO->DisplayFramebufferScale;
 	auto centre = (static_cast<float>(board.x) + static_cast<float>(board.w) / 2) / fbScale.x;
 	auto top = (static_cast<float>(board.y) + static_cast<float>(board.h) / 8) / fbScale.y;
@@ -2359,8 +2369,13 @@ bool winmain::CreateRenderer(bool gpu)
 	Renderer = nullptr;
 	if (gpu)
 		Renderer = PostEffect::CreateGpuRenderer(MainWindow);
-	for (int i = SoftwareRenderer ? 1 : 0; i < 2 && !Renderer && !gpu; i++)
-		Renderer = SDL_CreateRenderer(MainWindow, i == 0 ? nullptr : SDL_SOFTWARE_RENDERER);
+	if (!gpu)
+	{
+		if (!SoftwareRenderer)
+			Renderer = SDL_CreateRenderer(MainWindow, nullptr);
+		if (!Renderer)
+			Renderer = SDL_CreateRenderer(MainWindow, SDL_SOFTWARE_RENDERER);
+	}
 	if (!Renderer)
 		return false;
 
@@ -2530,9 +2545,11 @@ float winmain::ExpectedMenuHeight()
 	// and the style gets its font size only then, so take it from the font: ImGui's own is 13 pixels
 	const auto& style = ImGui::GetStyle();
 	auto fonts = ImGui::GetIO().Fonts;
-	auto fontSize = style.FontSizeBase > 0  ? style.FontSizeBase
-					: fonts->Fonts.Size > 0 ? fonts->Fonts[0]->LegacySize
-											: 13.0f;
+	auto fontSize = 13.0f;
+	if (style.FontSizeBase > 0)
+		fontSize = style.FontSizeBase;
+	else if (fonts->Fonts.Size > 0)
+		fontSize = fonts->Fonts[0]->LegacySize;
 	return std::ceil(fontSize * style.FontScaleMain * style.FontScaleDpi + style.FramePadding.y * 2);
 }
 

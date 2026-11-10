@@ -22,7 +22,7 @@ double RecordingViewer::Clock = 0;
 namespace
 {
 	// A path from UTF-8, as the game keeps paths, also on Windows
-	std::filesystem::path Utf8Path(const std::string& text)
+	std::filesystem::path Utf8Path(std::string_view text)
 	{
 		return std::u8string{text.begin(), text.end()};
 	}
@@ -40,10 +40,11 @@ namespace
 		std::filesystem::file_time_type Written;
 		replay::Summary Summary;
 	};
-	std::map<std::string, CachedSummary> Summaries;
+	std::map<std::string, CachedSummary, std::less<>> Summaries;
 
 	// Hashing the data file reads all of it, so it is done once per data file
-	std::string LoadedDat, LoadedDatName;
+	std::string LoadedDat;
+	std::string LoadedDatName;
 } // namespace
 
 // The recordings folder in the user preferences folder, ending in a path separator
@@ -59,8 +60,7 @@ std::string RecordingViewer::Folder()
 // cached until a file changes
 std::vector<RecordingViewer::Recording> RecordingViewer::List()
 {
-	auto name = pb::BasePath + pb::DatFileName;
-	if (name != LoadedDatName)
+	if (auto name = pb::BasePath + pb::DatFileName; name != LoadedDatName)
 	{
 		LoadedDatName = name;
 		LoadedDat = replay::LoadedDatFile();
@@ -83,7 +83,7 @@ std::vector<RecordingViewer::Recording> RecordingViewer::List()
 			cached = {size, written, replay::Summarize(path)};
 		if (cached.Summary.FrameStarts.empty())
 			continue;
-		recordings.push_back({Utf8(entry.path().stem()), path, cached.Summary, cached.Summary.DatFile == LoadedDat});
+		recordings.emplace_back(Utf8(entry.path().stem()), path, cached.Summary, cached.Summary.DatFile == LoadedDat);
 	}
 	// The names are the times they were recorded at, so sorting them backwards puts the newest first
 	std::sort(recordings.begin(), recordings.end(),
@@ -118,11 +118,11 @@ void RecordingViewer::StartSessionRecording()
 	SDL_DateTime date{};
 	if (!SDL_GetCurrentTime(&now) || !SDL_TimeToDateTime(now, &date, true))
 		return;
-	char name[64];
-	snprintf(name, sizeof name, "%04d-%02d-%02d %02d-%02d-%02d.replay", date.year, date.month, date.day, date.hour,
-			 date.minute, date.second);
+	std::array<char, 64> name;
+	snprintf(name.data(), name.size(), "%04d-%02d-%02d %02d-%02d-%02d.replay", date.year, date.month, date.day,
+			 date.hour, date.minute, date.second);
 	SDL_CreateDirectory(Folder().c_str());
-	SessionPath = Folder() + name;
+	SessionPath = Folder() + name.data();
 	if (!replay::StartRecording(SessionPath))
 		SessionPath.clear();
 }
@@ -230,8 +230,7 @@ void RecordingViewer::Advance(double elapsed)
 			HasEnded = true;
 			return;
 		}
-		auto end = frame + 1 < starts.size() ? starts[frame + 1] : replay::Viewed().Length;
-		if (end > Clock)
+		if (auto end = frame + 1 < starts.size() ? starts[frame + 1] : replay::Viewed().Length; end > Clock)
 			return;
 		if (!replay::PlayStep())
 		{

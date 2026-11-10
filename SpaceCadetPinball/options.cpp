@@ -12,6 +12,9 @@
 #include "winmain.h"
 #include "translations.h"
 
+#include <format>
+#include <utility>
+
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -186,7 +189,7 @@ optionsStruct options::Options
 	{"Upscale Factor", 2, 2},
 	{"Key Bindings Version", KeyBindingsScancodes},
 	// Settings without it, from before editions existed, also start in Definitive
-	{"Edition", static_cast<int>(Editions::Definitive)},
+	{"Edition", std::to_underlying(Editions::Definitive)},
 	{"Edition Hint Shown", false},
 	{"Game Data Folder", ""},
 	{"Table", "SpaceCadet"},
@@ -215,10 +218,9 @@ optionsStruct options::Options
 namespace
 {
 	// The keyboard defaults of Options.Key before Key Bindings Version, as keycodes, in the same order
-	constexpr SDL_Keycode KeycodeDefaults[] = {
-		SDLK_Z,  SDLK_SLASH, SDLK_SPACE, SDLK_X,  SDLK_PERIOD, SDLK_UP,     SDLK_F2, SDLK_F3,
-		SDLK_F4, SDLK_F5,    SDLK_F6,    SDLK_F8, SDLK_F9,     SDLK_ESCAPE, SDLK_F7, SDLK_TAB,
-	};
+	constexpr auto KeycodeDefaults =
+		std::to_array<SDL_Keycode>({SDLK_Z, SDLK_SLASH, SDLK_SPACE, SDLK_X, SDLK_PERIOD, SDLK_UP, SDLK_F2, SDLK_F3,
+									SDLK_F4, SDLK_F5, SDLK_F6, SDLK_F8, SDLK_F9, SDLK_ESCAPE, SDLK_F7, SDLK_TAB});
 	static_assert(std::size(KeycodeDefaults) == static_cast<size_t>(~GameBindings::Max));
 
 	// Puts the given edition's values on show in every option kept for each edition
@@ -268,8 +270,7 @@ void options::InitPrimary()
 		const auto& tab = toggleEdition.Defaults[0];
 		for (const auto& control : Options.Key)
 		{
-			if (&control != &toggleEdition &&
-				std::find(std::begin(control.Inputs), std::end(control.Inputs), tab) != std::end(control.Inputs))
+			if (&control != &toggleEdition && std::ranges::find(control.Inputs, tab) != std::end(control.Inputs))
 				toggleEdition.Inputs[0] = {};
 		}
 	}
@@ -675,7 +676,7 @@ void options::SelectEdition(Editions edition)
 {
 	if (!ClassicAvailable)
 		edition = Editions::Definitive;
-	Options.Edition = static_cast<int>(edition);
+	Options.Edition = std::to_underlying(edition);
 	ShowEditionOptions(edition);
 }
 
@@ -719,11 +720,11 @@ void options::PostProcessOptions()
 	Options.UpdatesPerSecond = Clamp(Options.UpdatesPerSecond.V, MinUps, MaxUps);
 	Options.SoundChannels = Clamp(Options.SoundChannels.V, MinSoundChannels, MaxSoundChannels);
 	Options.SoundVolume = Clamp(Options.SoundVolume.V, MinVolume, MaxVolume);
-	Options.PostProcessing = Clamp(Options.PostProcessing.V, 0, static_cast<int>(PostEffects::Max) - 1);
+	Options.PostProcessing = Clamp(Options.PostProcessing.V, 0, std::to_underlying(PostEffects::Max) - 1);
 	Options.MusicVolume = Clamp(Options.MusicVolume.V, MinVolume, MaxVolume);
 	Options.KeyBindingsVersion = KeyBindingsScancodes;
-	Options.Edition = ClassicAvailable ? Clamp(Options.Edition.V, 0, static_cast<int>(Editions::Max) - 1)
-									   : static_cast<int>(Editions::Definitive);
+	Options.Edition = ClassicAvailable ? Clamp(Options.Edition.V, 0, std::to_underlying(Editions::Max) - 1)
+									   : std::to_underlying(Editions::Definitive);
 	Options.Rotation = Clamp(Options.Rotation.V, 0, 3);
 	// 100, 125 or 150 percent, rounding down
 	if (Options.TextSize.V >= 150)
@@ -735,8 +736,7 @@ void options::PostProcessOptions()
 	Options.ColourVision = Clamp(Options.ColourVision.V, 0, 1);
 	Options.TouchControls = Clamp(Options.TouchControls.V, 0, 1);
 	// A sound pack is a folder name in the sounds folder, never a path out of it
-	auto& pack = Options.SoundPack.V;
-	if (pack.find_first_of("/\\") != std::string::npos || pack == "." || pack == "..")
+	if (auto& pack = Options.SoundPack.V; pack.find_first_of("/\\") != std::string::npos || pack == "." || pack == "..")
 		pack.clear();
 	// Also a folder typed into the settings file by hand
 	Options.GameDataFolder.V = FolderPath(Options.GameDataFolder.V);
@@ -945,10 +945,10 @@ void ControlOption::Load()
 {
 	for (auto i = 0u; i <= 2; i++)
 	{
-		auto name = std::string{Name} + " " + std::to_string(i);
+		auto name = std::format("{} {}", Name, i);
 		auto saved = options::HasSetting(name + " input");
 		Inputs[i].Type =
-			static_cast<InputTypes>(options::get_int((name + " type").c_str(), static_cast<int>(Defaults[i].Type)));
+			static_cast<InputTypes>(options::get_int((name + " type").c_str(), std::to_underlying(Defaults[i].Type)));
 		Inputs[i].Value = options::get_int((name + " input").c_str(), Defaults[i].Value);
 
 		if (saved && options::MigrateKeycodes && Inputs[i].Type == InputTypes::Keyboard)

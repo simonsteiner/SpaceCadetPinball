@@ -1,5 +1,8 @@
 #pragma once
 
+#include <array>
+#include <utility>
+
 enum class Msg : int
 {
 	Min = 0,
@@ -817,7 +820,7 @@ struct TextArray
 	}
 
 private:
-	LPCSTR Store[static_cast<int>(Msg::Max )][static_cast<int>(Lang::Max)]{};
+	std::array<std::array<LPCSTR, std::to_underlying(Lang::Max)>, std::to_underlying(Msg::Max)> Store{};
 
 	void Set(Msg msgId, Lang langId, LPCSTR value)
 	{

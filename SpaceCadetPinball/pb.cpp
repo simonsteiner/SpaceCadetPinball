@@ -331,7 +331,8 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 	DatFileName.clear();
 	BasePath.clear();
 	Table = Tables::SpaceCadet3DPB;
-	FullTiltDemoMode = FullTiltMode = false;
+	FullTiltMode = false;
+	FullTiltDemoMode = false;
 
 	FoundTables = FindTables(dataSearchPaths);
 	auto wanted = RequestedTable ? *RequestedTable : TableFromKey(options::Options.Table.V);

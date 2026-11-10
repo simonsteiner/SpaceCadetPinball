@@ -43,7 +43,7 @@ int loader::sound_count = 1;
 int loader::loader_sound_count;
 DatFile* loader::loader_table;
 DatFile* loader::sound_record_table;
-soundListStruct loader::sound_list[SoundListSize];
+std::array<soundListStruct, loader::SoundListSize> loader::sound_list;
 
 // Shows an error box with the message for errorCode, titled with the message for captionCode, which names the loader
 // function that failed. Always returns -1.

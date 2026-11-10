@@ -49,27 +49,28 @@ void TDiverter::AddLine(const float* points, int collisionGroup)
 // PlayerChanged keeps the old player's state and takes the new one's; Reset disables it for every player
 int TDiverter::Message(MessageCode code, float value)
 {
+	using enum MessageCode;
 	switch (std::to_underlying(code))
 	{
-	case std::to_underlying(MessageCode::TDiverterEnable):
+	case std::to_underlying(TDiverterEnable):
 	case 63:
 	case 75:
 		SetEnabled(true);
 		break;
-	case std::to_underlying(MessageCode::TDiverterDisable):
+	case std::to_underlying(TDiverterDisable):
 	case 62:
 	case 76:
 		SetEnabled(false);
 		break;
-	case std::to_underlying(MessageCode::PlayerChanged):
+	case std::to_underlying(PlayerChanged):
 		{
-			KeepMessageFieldPerPlayer(MessageCode::PlayerChanged, value);
+			KeepMessageFieldPerPlayer(PlayerChanged, value);
 			PlayerActiveFlags[PinballTable->CurrentPlayer] = ActiveFlag;
 			SetEnabled(PlayerActiveFlags[static_cast<int>(value)] != 0);
 			break;
 		}
-	case std::to_underlying(MessageCode::Reset):
-		KeepMessageFieldPerPlayer(MessageCode::Reset, value);
+	case std::to_underlying(Reset):
+		KeepMessageFieldPerPlayer(Reset, value);
 		std::ranges::fill(PlayerActiveFlags, char{0});
 		SetEnabled(false);
 		break;
