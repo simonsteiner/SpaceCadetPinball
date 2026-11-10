@@ -119,8 +119,18 @@
     }
   }
 
+  // Text for an error from the file system or IndexedDB: Emscripten's FS.ErrnoError is an Error only in builds with
+  // assertions, so a release build's has no message, only its errno
+  function describe(err) {
+    if (err?.message) return err.message;
+    if (err?.code) return err.code;
+    if (err?.errno !== undefined) return "error " + err.errno;
+    return String(err);
+  }
+
   // Turns off the inputs that change the stored files, both pickers and Forget, while one change is written and
-  // synced, so that a second selection can't interleave with it; refresh decides Play afterwards
+  // synced or the game is starting, so that a second selection can't interleave with it; refresh decides Play
+  // afterwards
   function setBusy(busy) {
     for (const id of ["pickFiles", "pickFolder"]) {
       $(id).disabled = busy;
@@ -137,14 +147,13 @@
     if (!fileList.length) return;
     setBusy(true);
     setStatus("Adding files…");
-    let added = 0;
     let message = "No game files among those.";
     try {
-      added = await writeFiles(fileList);
+      const added = await writeFiles(fileList);
       if (added) message = `Added ${added} file${added > 1 ? "s" : ""}.`;
       await sync(false);
     } catch (err) {
-      message = "Couldn't keep the files in this browser: " + err;
+      message = "Couldn't keep the files in this browser: " + describe(err);
     } finally {
       setBusy(false);
       refresh();
@@ -179,7 +188,7 @@
       for (const name of listFiles().reverse()) FS.unlink(DataDir + "/" + name);
       await sync(false);
     } catch (err) {
-      message = "Couldn't remove the files from this browser: " + err;
+      message = "Couldn't remove the files from this browser: " + describe(err);
     } finally {
       setBusy(false);
       refresh();
@@ -198,7 +207,8 @@
   }
 
   async function play() {
-    $("play").disabled = true;
+    // Busy for good: the game starts once, and the files must not change while the SoundFont downloads
+    setBusy(true);
     if ($("music").checked && !SoundFonts.slice(0, 2).some(path => FS.analyzePath(path).exists)) {
       setStatus("Downloading the SoundFont…");
       try {
