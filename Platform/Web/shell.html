@@ -123,7 +123,7 @@
     // A copy, so that the input can be cleared: it fires "change" again only for a different selection
     const fileList = Array.from(input.files);
     input.value = "";
-    let added = 0;
+    const accepted = [];
     for (const file of fileList) {
       // A folder's own name is dropped; subfolders such as Full Tilt's SOUND stay
       const parts = (file.webkitRelativePath || file.name).split("/");
@@ -132,12 +132,17 @@
       else if (!GameExtensions.test(relative)) continue;
       // The file system is case-sensitive and the game looks for the executable under fixed names
       else if (/\.exe$/i.test(relative)) relative = "PINBALL.EXE";
-      const path = DataDir + "/" + relative;
-      makeDirs(path);
-      FS.writeFile(path, new Uint8Array(await file.arrayBuffer()));
-      added++;
+      accepted.push({ path: DataDir + "/" + relative, file });
     }
-    let message = added ? `Added ${added} file${added > 1 ? "s" : ""}.` : "No game files among those.";
+    // Read together, written in the order chosen, so a later file of the same name still wins
+    const contents = await Promise.all(accepted.map(({ file }) => file.arrayBuffer()));
+    accepted.forEach(({ path }, index) => {
+      makeDirs(path);
+      FS.writeFile(path, new Uint8Array(contents[index]));
+    });
+    const added = accepted.length;
+    let message = "No game files among those.";
+    if (added) message = `Added ${added} file${added > 1 ? "s" : ""}.`;
     try {
       await sync(false);
     } catch (err) {
