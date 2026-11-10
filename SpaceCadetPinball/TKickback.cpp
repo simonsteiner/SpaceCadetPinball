@@ -20,6 +20,8 @@ TKickback::TKickback(TPinballTable* table, int groupIndex): TCollisionComponent(
 	Threshold = 1000000000.0f;
 }
 
+// SetTiltLock and Reset stop a running timer and close the kickback, hiding the sprite. On the bonus tables
+// TKickbackDisable also stops it from arming, and TKickbackEnable turns it back on, closed
 int TKickback::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())
@@ -60,6 +62,8 @@ int TKickback::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Bounces the ball; the first hit arms the kickback, which starts the timer that opens it, and a hit harder than the
+// threshold ends that. While the table is tilted the ball bounces with a threshold of 0
 void TKickback::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
                           TEdgeSegment* edge)
 {
@@ -81,6 +85,8 @@ void TKickback::Collision(TBall* ball, vector2* nextPosition, vector2* direction
 	}
 }
 
+// Timer callback: an armed kickback opens (threshold 0, second sprite, sound) and comes back every TimerTime2 until a
+// ball was kicked; then it shows the first sprite and tells the rules. One the rules switched off closes instead
 void TKickback::TimerExpired(int timerId, void* caller)
 {
 	auto kick = static_cast<TKickback*>(caller);

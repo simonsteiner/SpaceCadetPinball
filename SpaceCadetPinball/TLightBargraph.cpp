@@ -8,6 +8,7 @@
 #include "timer.h"
 #include "TPinballTable.h"
 
+// Builds the bargraph and reads its countdown times (attribute 904), two for each light, when the group has them
 TLightBargraph::TLightBargraph(TPinballTable* table, int groupIndex) : TLightGroup(table, groupIndex)
 {
 	TimerTimeArray = nullptr;
@@ -33,6 +34,9 @@ TLightBargraph::~TLightBargraph()
 	delete[] TimerTimeArray;
 }
 
+// Handles the bargraph's messages: TLightGroupToggleSplitIndex sets the level to <value>, two steps per light with
+// the top lit light flashing on even ones, and starts that step's timer; TLightGroupGetOnCount returns the level. A
+// tilt resets it, Reset and PlayerChanged keep the level per player, and the rest go to TLightGroup
 int TLightBargraph::Message(MessageCode code, float value)
 {
 	// TLightGroup keeps its message field per player itself, but this class handles the player change on its own
@@ -106,6 +110,7 @@ int TLightBargraph::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Stops the countdown timer and sets the level to 0, then resets the light group
 void TLightBargraph::Reset()
 {
 	if (TimerBargraph)
@@ -117,6 +122,8 @@ void TLightBargraph::Reset()
 	TLightGroup::Reset();
 }
 
+// Timer callback that counts the level down one step and tells the rules; at level 0 it turns the lights off and
+// tells them the countdown ended
 void TLightBargraph::BargraphTimerExpired(int timerId, void* caller)
 {
 	auto bar = static_cast<TLightBargraph*>(caller);

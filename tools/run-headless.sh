@@ -9,14 +9,14 @@
 # SCP_SCREEN to change the screen size (default 1280x1024x24).
 set -euo pipefail
 
-if [ $# -lt 1 ]; then
+if [[ $# -lt 1 ]]; then
 	echo "Usage: $0 <game data folder> [game arguments...]" >&2
 	exit 2
 fi
 data=$(cd "$1" && pwd)
 shift
 exe=${SCP_EXE:-$(cd "$(dirname "$0")/.." && pwd)/bin/SpaceCadetPinball}
-if [ ! -x "$exe" ]; then
+if [[ ! -x "$exe" ]]; then
 	echo "Not an executable: $exe" >&2
 	exit 1
 fi
@@ -25,8 +25,8 @@ tmp=$(mktemp -d)
 xvfb_pid=
 game_pid=
 cleanup() {
-	[ -n "$game_pid" ] && kill "$game_pid" 2>/dev/null || true
-	[ -n "$xvfb_pid" ] && kill "$xvfb_pid" 2>/dev/null || true
+	[[ -n "$game_pid" ]] && kill "$game_pid" 2>/dev/null || true
+	[[ -n "$xvfb_pid" ]] && kill "$xvfb_pid" 2>/dev/null || true
 	rm -rf "$tmp"
 }
 trap cleanup EXIT
@@ -36,12 +36,12 @@ trap 'exit 130' INT TERM
 # number; -displayfd would pick one too, but it gives up where /tmp/.X11-unix isn't writable.
 display=
 for n in $(seq 100 199); do
-	[ -e "/tmp/.X$n-lock" ] && continue
+	[[ -e "/tmp/.X$n-lock" ]] && continue
 	Xvfb ":$n" -screen 0 "${SCP_SCREEN:-1280x1024x24}" -nolisten tcp >/dev/null 2>&1 &
 	xvfb_pid=$!
 	for _ in $(seq 50); do
 		kill -0 "$xvfb_pid" 2>/dev/null || break
-		if [ "$(tr -d ' ' <"/tmp/.X$n-lock" 2>/dev/null)" = "$xvfb_pid" ]; then
+		if [[ "$(tr -d ' ' <"/tmp/.X$n-lock" 2>/dev/null)" = "$xvfb_pid" ]]; then
 			display=$n
 			break 2
 		fi
@@ -50,7 +50,7 @@ for n in $(seq 100 199); do
 	kill "$xvfb_pid" 2>/dev/null || true
 	xvfb_pid=
 done
-if [ -z "$display" ]; then
+if [[ -z "$display" ]]; then
 	echo "No free display between :100 and :199" >&2
 	exit 1
 fi

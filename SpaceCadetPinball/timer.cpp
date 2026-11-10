@@ -10,6 +10,7 @@ int timer::Count;
 timer_struct* timer::FreeList;
 timer_struct* timer::TimerBuffer;
 
+// Allocates count timers and links them all into the free list; returns 0, or 1 if there is no buffer
 int timer::init(int count)
 {
 	auto buf = new timer_struct[count];
@@ -35,6 +36,7 @@ void timer::uninit()
 	TimerBuffer = nullptr;
 }
 
+// Removes the active timer with this id without calling it; returns the id, or 0 if no such timer is active
 int timer::kill(int timerId)
 {
 	timer_struct* current = ActiveList;
@@ -61,6 +63,8 @@ int timer::kill(int timerId)
 	return timerId;
 }
 
+// Removes active timers with this callback without calling them and returns how many it removed. The walk gets one
+// step shorter with each removal, as in CADET.EXE, so a match near the end of the list can stay active
 int timer::kill(void(* callback)(int, void*))
 {
 	auto count = 0;
@@ -93,6 +97,8 @@ int timer::kill(void(* callback)(int, void*))
 	return count;
 }
 
+// Sets a timer that calls callback with its id and caller after time seconds of game time, behind those already due
+// at the same tick. Returns the timer's id, which is never 0, or 0 when all timers are in use
 int timer::set(float time, void* caller, void (* callback)(int, void*))
 {
 	if (Count >= MaxCount)
@@ -135,6 +141,7 @@ int timer::set(float time, void* caller, void (* callback)(int, void*))
 	return timer->TimerId;
 }
 
+// Milliseconds until the timer expires, or -1 if it isn't set
 int timer::time_left(int timerId)
 {
 	auto current = ActiveList;
@@ -146,6 +153,8 @@ int timer::time_left(int timerId)
 	return -1;
 }
 
+// Calls and frees the timers that are due, in order: at most two, and after those only timers at least 100 ms
+// overdue. Returns how many it freed, those without a callback too
 int timer::check()
 {
 	timer_struct* current = ActiveList;

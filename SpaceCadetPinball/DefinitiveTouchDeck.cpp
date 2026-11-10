@@ -11,14 +11,16 @@ namespace
 
 	// A flipper at rest points down towards the drain and swings up while held, as the table's do, in radians from
 	// pointing straight at the other pad
-	constexpr float RestAngle = 0.5f, HeldAngle = -0.38f;
+	constexpr float RestAngle = 0.5f;
+	constexpr float HeldAngle = -0.38f;
 	// Radians per second it swings, so a tap still shows
 	constexpr float SwingSpeed = 14;
 	// The lane's tip is pulled all the way after this long; the table's plunger pulls back at its own pace
 	constexpr float PullSeconds = 1.0f;
 	constexpr int MeterLamps = 6;
 
-	float LeftAngle = RestAngle, RightAngle = RestAngle;
+	float LeftAngle = RestAngle;
+	float RightAngle = RestAngle;
 
 	ImVec2 Min(const SDL_FRect& rect)
 	{
@@ -39,7 +41,8 @@ namespace
 	// A pad in the panel's blue, lit in the lamps' orange around its rim while a finger holds it
 	void DrawControl(ImDrawList* drawList, const SDL_FRect& rect, bool held)
 	{
-		auto min = Min(rect), max = Max(rect);
+		auto min = Min(rect);
+		auto max = Max(rect);
 		Theme::DrawPanel(drawList, min, max);
 		if (held)
 		{
@@ -62,13 +65,13 @@ namespace
 		auto color = held ? Theme::Chrome50 : Theme::Chrome200;
 		if (held)
 			drawList->AddCircleFilled(pivot, pivotRadius * 2.4f, Theme::WithAlpha(Theme::LedOrange, 0.18f));
-		ImVec2 body[] = {
+		auto body = std::to_array<ImVec2>({
 			{pivot.x + normal.x * pivotRadius, pivot.y + normal.y * pivotRadius},
 			{tip.x + normal.x * tipRadius, tip.y + normal.y * tipRadius},
 			{tip.x - normal.x * tipRadius, tip.y - normal.y * tipRadius},
 			{pivot.x - normal.x * pivotRadius, pivot.y - normal.y * pivotRadius},
-		};
-		drawList->AddConvexPolyFilled(body, 4, color);
+		});
+		drawList->AddConvexPolyFilled(body.data(), static_cast<int>(body.size()), color);
 		drawList->AddCircleFilled(pivot, pivotRadius, color);
 		drawList->AddCircleFilled(tip, tipRadius, color);
 		// The pivot's bolt, in the lamps' colour while held
@@ -76,9 +79,11 @@ namespace
 	}
 
 	// The plunger's tip follows the pull at this many lane lengths a second on the way down, and springs back faster
-	constexpr float PullSpeed = 6, SnapSpeed = 14;
+	constexpr float PullSpeed = 6;
+	constexpr float SnapSpeed = 14;
 	// A released ball leaves the lane at this many lane lengths a second, without a pull and at the full one
-	constexpr float ShotSlow = 2.5f, ShotFast = 9;
+	constexpr float ShotSlow = 2.5f;
+	constexpr float ShotFast = 9;
 	// After a shot the lane shows no ball for this long, until the table's ball has left its plunger or come back
 	constexpr float ShotSeconds = 0.6f;
 
@@ -87,10 +92,14 @@ namespace
 	{
 		// 0 at rest, 1 pulled all the way
 		float Tip = 0;
-		bool WasHeld = false, HadBall = false;
+		bool WasHeld = false;
+		bool HadBall = false;
 		// The shot ball: where the tip was when it left, its way up the lane since in lane lengths, its speed in
 		// lane lengths a second, and the seconds left of ShotSeconds
-		float ShotFrom = 0, ShotTravel = 0, ShotSpeed = 0, ShotLeft = 0;
+		float ShotFrom = 0;
+		float ShotTravel = 0;
+		float ShotSpeed = 0;
+		float ShotLeft = 0;
 	};
 	PlungerState Lane{};
 	// The ImGui frame the lane was last drawn in
@@ -167,7 +176,8 @@ namespace
 
 		// The spring between the tip and the lane's end, closer coiled the further the tip has come, around its rod
 		constexpr int Coils = 6;
-		auto springTop = tipY + tipHeight, springBottom = bottom - line;
+		auto springTop = tipY + tipHeight;
+		auto springBottom = bottom - line;
 		auto coilWidth = ballRadius * 0.7f;
 		auto rod = Theme::WithAlpha(Theme::Chrome600, 0.9f);
 		drawList->AddLine(ImVec2{centreX, springTop}, ImVec2{centreX, springBottom}, rod, line * 1.6f);
@@ -213,7 +223,8 @@ namespace
 		auto inset = rect.w * 0.12f;
 		SDL_FRect chip{rect.x + inset, rect.y + inset, rect.w - inset * 2, rect.h - inset * 2};
 		Theme::DrawPanel(drawList, Min(chip), Max(chip));
-		auto barW = chip.w * 0.14f, barH = chip.h * 0.42f;
+		auto barW = chip.w * 0.14f;
+		auto barH = chip.h * 0.42f;
 		auto y = chip.y + (chip.h - barH) / 2;
 		for (auto x : {chip.x + chip.w * 0.5f - barW * 1.5f, chip.x + chip.w * 0.5f + barW * 0.5f})
 			drawList->AddRectFilled(ImVec2{x, y}, ImVec2{x + barW, y + barH}, Theme::Chrome200, barW * 0.3f);

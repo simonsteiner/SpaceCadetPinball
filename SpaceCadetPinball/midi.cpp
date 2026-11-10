@@ -29,7 +29,13 @@ struct MidiSong
 };
 
 std::vector<MidiSong*> midi::LoadedTracks{};
-MidiSong *midi::track1, *midi::track2, *midi::track3, *midi::track4, *midi::track5, *midi::track6, *midi::track7;
+MidiSong* midi::track1;
+MidiSong* midi::track2;
+MidiSong* midi::track3;
+MidiSong* midi::track4;
+MidiSong* midi::track5;
+MidiSong* midi::track6;
+MidiSong* midi::track7;
 MidiTracks midi::active_track, midi::NextTrack;
 int midi::Volume = options::MaxVolume;
 bool midi::IsPlaying = false;
@@ -42,6 +48,8 @@ constexpr uint32_t FOURCC(uint8_t a, uint8_t b, uint8_t c, uint8_t d)
 	return static_cast<uint32_t>((d << 24) | (c << 16) | (b << 8) | a);
 }
 
+// Encodes value as a MIDI variable-length quantity in dst, the first byte to write in dst's lowest byte; returns how
+// many bytes it takes
 int ToVariableLen(uint32_t value, uint32_t& dst)
 {
 	auto count = 1;
@@ -79,6 +87,7 @@ namespace
 	tml_message* SynthNext = nullptr;
 	double SynthMsec = 0;
 
+	// Passes one of the song's MIDI messages to the synth: program change, note, pitch bend or controller; no others
 	void SynthMessage(const tml_message* message)
 	{
 		switch (message->type)
@@ -104,12 +113,14 @@ namespace
 		}
 	}
 
-	void SDLCALL RenderSynth(void* userdata, SDL_AudioStream* stream, int additionalAmount, int totalAmount)
+	// The synth stream's callback, on the audio thread: sends the song's messages that are due and renders the audio
+	// asked for in blocks, soft clipped, starting the song over at its end; nothing while no song is set
+	void SDLCALL RenderSynth(void*, SDL_AudioStream* stream, int additionalAmount, int)
 	{
 		if (!SynthSong || !Synth)
 			return;
 
-		float buffer[SynthBlock * 2];
+		std::array<float, SynthBlock * 2> buffer;
 		for (auto frames = additionalAmount / static_cast<int>(sizeof buffer[0] * 2); frames > 0;)
 		{
 			auto block = std::min(frames, SynthBlock);
@@ -125,14 +136,16 @@ namespace
 				SynthMsec = 0;
 			}
 
-			tsf_render_float(Synth, buffer, block, 0);
+			tsf_render_float(Synth, buffer.data(), block, 0);
 			for (auto i = 0; i < block * 2; i++)
 				buffer[i] = Sound::SoftClip(buffer[i], SoftClipKnee, SoftClipCeiling);
-			SDL_PutAudioStreamData(stream, buffer, block * static_cast<int>(sizeof buffer[0] * 2));
+			SDL_PutAudioStreamData(stream, buffer.data(), block * static_cast<int>(sizeof buffer[0] * 2));
 			frames -= block;
 		}
 	}
 
+	// Sets the song the synth plays, or null to stop it, under the stream's lock: resets the synth, puts channel 10 on
+	// the drum bank and drops the audio rendered so far
 	void SetSynthSong(tml_message* song)
 	{
 		SDL_LockAudioStream(SynthStream);
@@ -144,7 +157,8 @@ namespace
 		}
 		else
 			song = nullptr;
-		SynthSong = SynthNext = song;
+		SynthNext = song;
+		SynthSong = song;
 		SynthMsec = 0;
 		SDL_ClearAudioStream(SynthStream);
 		SDL_UnlockAudioStream(SynthStream);
@@ -158,13 +172,15 @@ namespace
 		if (auto envPaths = SDL_getenv("SDL_SOUNDFONTS"))
 		{
 			std::string list = envPaths;
-			for (size_t start = 0, end; start <= list.size(); start = end + 1)
+			size_t start = 0;
+			while (start <= list.size())
 			{
-				end = list.find_first_of(PathSeparator == '/' ? ";:" : ";", start);
+				auto end = list.find_first_of(PathSeparator == '/' ? ";:" : ";", start);
 				if (end == std::string::npos)
 					end = list.size();
 				if (end > start)
 					paths.push_back(list.substr(start, end - start));
+				start = end + 1;
 			}
 		}
 		for (auto path : {
@@ -230,6 +246,7 @@ namespace
 		SoundFontLoader(const SoundFontLoader&) = delete;
 		SoundFontLoader& operator=(const SoundFontLoader&) = delete;
 
+		// Waits for a load in progress to end, then closes the synth
 		~SoundFontLoader()
 		{
 			Join();
@@ -280,6 +297,8 @@ namespace
 		}
 
 	private:
+		// Loads the SoundFont with the presets wanted, again if more were asked for meanwhile, then replaces the
+		// synth and marks the loader ready; the synth is null when no SoundFont loaded
 		void Load()
 		{
 			while (true)
@@ -359,6 +378,7 @@ namespace
 	}
 }
 
+// Turns the music on and plays the track that was playing, or asked for, while it was off
 void midi::music_play()
 {
 	if (!IsPlaying)
@@ -369,6 +389,7 @@ void midi::music_play()
 	}
 }
 
+// Turns the music off and stops it, remembering the active track for music_play
 void midi::music_stop()
 {
 	if (IsPlaying)
@@ -379,6 +400,7 @@ void midi::music_stop()
 	}
 }
 
+// Stops the active track on the backend that plays it; nothing when none is active
 void midi::StopPlayback()
 {
 	if (active_track != MidiTracks::None)
@@ -404,6 +426,8 @@ void midi::StopPlayback()
 	}
 }
 
+// Starts a song, looping, on the current backend; false when it couldn't start. While the SoundFont still loads it
+// returns true without playing anything
 bool midi::StartPlayback(MidiSong* song)
 {
 	switch (Backend)
@@ -438,6 +462,9 @@ bool midi::StartPlayback(MidiSong* song)
 	}
 }
 
+// Picks the backend (native MIDI, else a SoundFont, else SDL_mixer's decoders; none without a mixer or with
+// pb::quickFlag), loads the loaded table's tracks and asks for the SoundFont presets they play. Returns whether track 1
+// loaded
 int midi::music_init(MIX_Mixer* mixer, int volume)
 {
 	Mixer = mixer;
@@ -510,6 +537,8 @@ int midi::music_init(MIX_Mixer* mixer, int volume)
 	return track1 != nullptr;
 }
 
+// Creates the synth's audio stream and the music track it feeds, with RenderSynth as the stream's callback; the
+// backend stays None when that fails or when a load has found no SoundFont
 void midi::StartSoundFontBackend()
 {
 	// Without a synth yet: the tracks load first, since they say which presets to load, and count as playing;
@@ -529,6 +558,8 @@ void midi::StartSoundFontBackend()
 		ShutdownBackend();
 }
 
+// Once the SoundFont's load has ended, takes its synth, or without one falls back to SDL_mixer's decoders for the
+// loaded tracks, then plays the track asked for meanwhile
 void midi::music_update()
 {
 	if (Backend != MidiBackend::SoundFont || Synth || !SoundFont.Ready())
@@ -565,6 +596,7 @@ void midi::music_update()
 		play_track(track, true);
 }
 
+// Stops the music, frees the loaded tracks and shuts the backend down
 void midi::music_shutdown()
 {
 	music_stop();
@@ -591,6 +623,8 @@ void midi::WaitForSoundFont()
 	SoundFont.Join();
 }
 
+// Quits native MIDI if that is the backend, destroys the music track and the synth's stream and sets the backend to
+// None; the synth itself stays with the loader
 void midi::ShutdownBackend()
 {
 #ifdef SCP_NATIVE_MIDI
@@ -603,12 +637,14 @@ void midi::ShutdownBackend()
 	if (SynthStream)
 		SDL_DestroyAudioStream(SynthStream);
 	SynthStream = nullptr;
-	SynthSong = SynthNext = nullptr;
+	SynthNext = nullptr;
+	SynthSong = nullptr;
 	// SoundFontLoader keeps the synth for the next music_init
 	Synth = nullptr;
 	Backend = MidiBackend::None;
 }
 
+// Sets the music's volume, from 0 to options::MaxVolume, on the music track and on native MIDI
 void midi::SetVolume(int volume)
 {
 	Volume = volume;
@@ -621,6 +657,8 @@ void midi::SetVolume(int volume)
 #endif
 }
 
+// Loads Dragon's Keep's TABC tracks, all but the third, or Skulduggery's TABB tracks, with TABB1 in place of a
+// missing one
 void midi::load_bonus_table_tracks()
 {
 	if (pb::Table == Tables::DragonsKeep)
@@ -648,6 +686,8 @@ void midi::load_bonus_table_tracks()
 	track7 = track5;
 }
 
+// Loads a music track for the current backend from its file name without extension, MIDI first and then MDS, in the
+// SOUND folder when pb::FullTiltMode is set; null without a backend or when the track can't be loaded
 MidiSong* midi::load_track(std::string fileName)
 {
 	if (Backend == MidiBackend::None)
@@ -700,6 +740,8 @@ MidiSong* midi::load_track(std::string fileName)
 	return song;
 }
 
+// Reads the track's .MID file, or its .MDS file converted to MIDI, under the name as given and then in lower case;
+// null when neither is there. The caller deletes the result
 std::vector<uint8_t>* midi::load_track_sub(std::string fileName, bool isMidi)
 {
 	// FT has music in two formats, depending on game version: MIDI in 16bit, MIDS in 32bit.
@@ -713,19 +755,13 @@ std::vector<uint8_t>* midi::load_track_sub(std::string fileName, bool isMidi)
 		auto filePath = pb::make_path_name(fileName);
 		auto midi = isMidi ? ReadFile(filePath) : MdsToMidi(filePath);
 		if (midi)
-		{
-			// Dump converted MIDI file
-			/*auto filePath = fileName + ".midi";
-			FILE* fileHandle = fopenu(filePath.c_str(), "wb");
-			fwrite(midi->data(), 1, midi->size(), fileHandle);
-			fclose(fileHandle);*/
 			return midi;
-		}
 	}
 
 	return nullptr;
 }
 
+// Reads a whole file into a new vector, which the caller deletes; null when it can't be read
 std::vector<uint8_t>* midi::ReadFile(const std::string& path)
 {
 	// SDL takes UTF-8 paths on every platform
@@ -742,6 +778,9 @@ std::vector<uint8_t>* midi::ReadFile(const std::string& path)
 	return data;
 }
 
+// Plays a track in place of the active one. Returns false, changing nothing, when the track isn't loaded, or when it
+// is the active one and replay is false; also when the music is off, which keeps the track for music_play, and when
+// it couldn't start
 bool midi::play_track(MidiTracks track, bool replay)
 {
 	auto midi = TrackToMidi(track);
@@ -769,6 +808,7 @@ bool midi::play_track(MidiTracks track, bool replay)
 	return true;
 }
 
+// The track that plays, or while the music is off the one music_play will start
 MidiTracks midi::get_active_track()
 {
 	if (!IsPlaying)
@@ -777,6 +817,7 @@ MidiTracks midi::get_active_track()
 		return active_track;
 }
 
+// The loaded song of a track; null for None and for a track that didn't load
 MidiSong* midi::TrackToMidi(MidiTracks track)
 {
 	MidiSong* midi;

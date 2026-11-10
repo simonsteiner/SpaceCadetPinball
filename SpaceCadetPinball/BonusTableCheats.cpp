@@ -31,6 +31,8 @@ BonusTableCheats::BonusTableCheats(std::initializer_list<std::string_view> words
 {
 }
 
+// Handles a key pressed in a game: ends the quotes' scroller, advances or fires the cheat being typed, follows
+// "hidden<Tab>test", and starts the credits once CREDITS is typed
 void BonusTableCheats::Key(int key, TPinballTable& table, TTextBox& textBox)
 {
 	// The tables get Windows' key codes, whose letters are capitals and which SDL's keys without a character don't
@@ -129,6 +131,8 @@ int BonusTableCheats::KeyFires(int key) const
 	return last ? -1 : 0;
 }
 
+// Follows "hidden<Tab>test" key by key: its last key turns cheat mode on and marks the table's cheats as used, and a
+// key out of turn resets the progress
 void BonusTableCheats::HiddenTest(int key, TPinballTable& table)
 {
 	auto& step = HiddenTestStep;
@@ -194,6 +198,7 @@ void BonusTableCheats::ScrollTimerExpired(int, void* caller)
 	cheats->Scroll(false);
 }
 
+// Stops the scroller's timer and ends the text box's overlay
 void BonusTableCheats::EndScroll(TTextBox& textBox)
 {
 	if (ScrollTimer)
@@ -207,6 +212,8 @@ void BonusTableCheats::ToggleAltBall()
 	AltBall = !AltBall;
 }
 
+// Returns whether the ball's next frame takes its second bitmap; a frame without one (<available> false) switches the
+// second bitmaps off
 bool BonusTableCheats::AltBallFrame(bool available)
 {
 	if (!available)

@@ -31,8 +31,11 @@ namespace
 	// The most characters a name takes, whatever their script, as long as the high score table has room for their bytes
 	constexpr size_t MaxNameLength = 16;
 
-	bool ConfirmRestart = false, ConfirmQuit = false, FocusConfirm = false;
-	int PauseFrame = 0, ExitFrame = 0;
+	bool ConfirmRestart = false;
+	bool ConfirmQuit = false;
+	bool FocusConfirm = false;
+	int PauseFrame = 0;
+	int ExitFrame = 0;
 	// The deck's pause button opened the screen with a tap, which SDL also reports as a click; ImGui gets that click a
 	// frame or two later, so clicks don't resume until the tap has been let go
 	bool SwallowTap = false;
@@ -72,11 +75,13 @@ namespace
 	}
 } // namespace
 
+// Opens the pause screen, pausing the game unless it already is, and drops any question it was asking
 void DefinitiveFrontEnd::ShowPause()
 {
 	if (Host.Paused && !Host.Paused() && Host.Pause)
 		Host.Pause();
-	ConfirmRestart = ConfirmQuit = false;
+	ConfirmQuit = false;
+	ConfirmRestart = false;
 	PauseFrame = ImGui::GetFrameCount();
 	Open(Screen::Pause);
 }
@@ -86,6 +91,8 @@ void DefinitiveFrontEnd::SwallowPauseTap()
 	SwallowTap = true;
 }
 
+// The pause key: resumes a paused game from the pause screen and the screens opened from it, else opens the pause
+// screen
 void DefinitiveFrontEnd::TogglePause()
 {
 	auto paused = Host.Paused && Host.Paused();
@@ -99,6 +106,7 @@ void DefinitiveFrontEnd::TogglePause()
 		ShowPause();
 }
 
+// Opens the name entry for the next new high score the host reports; returns false when there is none
 bool DefinitiveFrontEnd::NextName()
 {
 	if (!Host.NextRecord || !Host.NextRecord(Entry, EntryPlace))
@@ -131,8 +139,8 @@ ImVec2 DefinitiveFrontEnd::BeginCentred(const char* name, ImVec2 size)
 	if (Opened || (!ImGui::GetTopMostPopupModal() && !GImGui->NavWindow))
 		ImGui::SetNextWindowFocus();
 	// So does one whose row lost the focus to ImGui's cancel, as in BeginColumn
-	auto window = ImGui::FindWindowByName(name);
-	if (Opened || (window && GImGui->NavWindow == window && GImGui->NavId == 0))
+	if (auto window = ImGui::FindWindowByName(name);
+		Opened || (window && GImGui->NavWindow == window && GImGui->NavId == 0))
 		Ui::FocusNextRow();
 	Opened = false;
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{});
@@ -151,6 +159,7 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 {
 	// Six rows and a separator, a seventh to change tables when there is a choice, or the question and two rows
 	// Rows grow with the Text Size option
+	using enum Msg;
 	auto changeTable = Host.TableList && Host.TableList().size() > 1;
 	auto row = Ui::RowHeight() + 2;
 	auto rows = (changeTable ? 7 : 6) - (options::ClassicAvailable ? 0 : 1);
@@ -161,7 +170,7 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 	auto padding = 16 * scale;
 	auto width = ImGui::GetWindowSize().x - padding * 2;
 	Ui::DrawText(drawList, Theme::HeadingFont(), Theme::TitleSize, ImVec2{min.x + padding * 2, min.y + 24 * scale},
-				 Theme::Chrome50, Text(Msg::Definitive_Paused), width - padding * 2);
+				 Theme::Chrome50, Text(Definitive_Paused), width - padding * 2);
 	Ui::DrawText(drawList, Theme::TextFont(), Theme::LabelSize, ImVec2{min.x + padding * 2, min.y + 66 * scale},
 				 Theme::Chrome400, PlayerName(view.CurrentPlayer), width - padding * 2);
 
@@ -199,33 +208,39 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 		ImGui::SetCursorScreenPos(rowsAt);
 		ImGui::BeginGroup();
 		ImGui::PushItemWidth(width);
-		resume = Ui::MenuRow("resume", Text(Msg::Definitive_Resume));
-		if (Ui::MenuRow("settings", Text(Msg::Definitive_Settings)))
+		resume = Ui::MenuRow("resume", Text(Definitive_Resume));
+		if (Ui::MenuRow("settings", Text(Definitive_Settings)))
 			ShowSettings();
-		if (Ui::MenuRow("guide", Text(Msg::Definitive_MissionGuide)))
+		if (Ui::MenuRow("guide", Text(Definitive_MissionGuide)))
 		{
 			DefinitiveGuide::Open(view);
 			Current = Screen::Guide;
 		}
 		// The edition key passes to the game here, as on the title, and switches too; the game stays paused in Classic
-		auto key = Host.EditionKey ? Host.EditionKey() : std::string{};
-		if (options::ClassicAvailable &&
-			Ui::MenuRow("classic", Text(Msg::Definitive_SwitchToClassic), false, key.empty() ? nullptr : key.c_str()))
+		if (auto key = Host.EditionKey ? Host.EditionKey() : std::string{};
+			options::ClassicAvailable &&
+			Ui::MenuRow("classic", Text(Definitive_SwitchToClassic), false, key.empty() ? nullptr : key.c_str()))
 			options::SetEdition(Editions::Classic);
 		auto separator = ImGui::GetCursorScreenPos().y + 6 * scale;
 		drawList->AddLine(ImVec2{rowsAt.x + padding, separator}, ImVec2{rowsAt.x + width - padding, separator},
 						  Theme::WithAlpha(Theme::Chrome600, 0.6f));
 		ImGui::Dummy(ImVec2{0, 12 * scale});
-		if (Ui::MenuRow("restart", Text(Msg::Definitive_Restart), true))
-			ConfirmRestart = FocusConfirm = true;
+		if (Ui::MenuRow("restart", Text(Definitive_Restart), true))
+		{
+			FocusConfirm = true;
+			ConfirmRestart = true;
+		}
 		// The list of tables, which asks before ending the game for another
-		if (changeTable && Ui::MenuRow("table", Text(Msg::Definitive_ChangeTable), true))
+		if (changeTable && Ui::MenuRow("table", Text(Definitive_ChangeTable), true))
 		{
 			TablesFrom = Screen::Pause;
 			Open(Screen::Tables);
 		}
-		if (Ui::MenuRow("quit", Text(Msg::Definitive_QuitToTitle), true))
-			ConfirmQuit = FocusConfirm = true;
+		if (Ui::MenuRow("quit", Text(Definitive_QuitToTitle), true))
+		{
+			FocusConfirm = true;
+			ConfirmQuit = true;
+		}
 		ImGui::PopItemWidth();
 		ImGui::EndGroup();
 		// A tap on the dimmed game resumes too, but not the one on the deck's pause button that opened the screen
@@ -235,10 +250,9 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 			SwallowTap = false;
 	}
 
-	Ui::DrawHints(
-		drawList, ImVec2{min.x + padding * 2, min.y + ImGui::GetWindowSize().y - 44 * scale},
-		{{Ui::Action::Select, Text(Msg::Definitive_Select)},
-		 {Ui::Action::Back, Text(ConfirmRestart || ConfirmQuit ? Msg::Definitive_Back : Msg::Definitive_Resume)}});
+	Ui::DrawHints(drawList, ImVec2{min.x + padding * 2, min.y + ImGui::GetWindowSize().y - 44 * scale},
+				  {{Ui::Action::Select, Text(Definitive_Select)},
+				   {Ui::Action::Back, Text(ConfirmRestart || ConfirmQuit ? Definitive_Back : Definitive_Resume)}});
 	// The game's shortcuts, such as the pause key that resumes and the edition key, pass while it has the focus
 	Focused = ImGui::IsWindowFocused() && !ImGui::GetTopMostPopupModal();
 	ImGui::End();
@@ -253,11 +267,14 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 	}
 }
 
+// Whether the title and the missing-data screen show the Exit row: only where the game can quit and has it in menus
 bool DefinitiveFrontEnd::QuitRow()
 {
 	return Host.Quit && Host.QuitInMenus;
 }
 
+// Opens the exit question over the current screen, where the game can quit; called while the question shows, it
+// cancels back to that screen, but not within a frame of opening
 void DefinitiveFrontEnd::ShowExit()
 {
 	if (!Host.Quit)
@@ -309,6 +326,8 @@ void DefinitiveFrontEnd::RenderExit()
 		Open(ExitFrom);
 }
 
+// The summary of a game that has ended: each player's score, those that made the high score table lit and marked,
+// and rows to play again or go to the title
 void DefinitiveFrontEnd::RenderGameOver(const TableView& view)
 {
 	auto players = std::clamp(view.PlayerCount, 1, 4);
@@ -330,7 +349,8 @@ void DefinitiveFrontEnd::RenderGameOver(const TableView& view)
 		auto name = PlayerName(player);
 		auto record = std::find(NewRecords.begin(), NewRecords.end(), name) != NewRecords.end();
 		auto rowHeight = 56 * scale;
-		auto left = min.x + padding * 2, right = min.x + padding + width - padding;
+		auto left = min.x + padding * 2;
+		auto right = min.x + padding + width - padding;
 		drawList->AddLine(ImVec2{left, y}, ImVec2{right, y}, Theme::WithAlpha(Theme::Chrome600, 0.6f));
 		auto centre = y + rowHeight / 2;
 		Theme::DrawLamp(drawList, ImVec2{left + 6 * scale, centre}, 6 * scale,
@@ -372,11 +392,14 @@ void DefinitiveFrontEnd::RenderGameOver(const TableView& view)
 	ImGui::PopStyleVar(3);
 }
 
+// The name entry for a new high score: a keyboard types the name, a pad or a finger picks letters from a grid, and
+// Done saves it under the player's default name if empty, then asks for the next name or opens the summary
 void DefinitiveFrontEnd::RenderNameEntry()
 {
 	// The letters a pad or a finger picks from; a keyboard types the name instead
 	static const char letters[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -.!";
-	constexpr int columns = 10, letterRows = 4;
+	constexpr int columns = 10;
+	constexpr int letterRows = 4;
 	auto min = BeginCentred("##DefinitiveNameEntry",
 							ImVec2{520, 24 + 40 + 28 + 24 + 52 + 24 + (letterRows + 1) * 44.0f + 24 + 32});
 	auto scale = Ui::Scale();
@@ -387,17 +410,17 @@ void DefinitiveFrontEnd::RenderNameEntry()
 				 Theme::Chrome50, Text(Msg::Definitive_NewHighScore), width);
 
 	// Who it is for, the score and the place it takes
-	char place[128];
-	snprintf(place, sizeof place, Text(Msg::Definitive_Place), Entry.Name.c_str(), EntryPlace + 1);
+	std::array<char, 128> place;
+	snprintf(place.data(), place.size(), Text(Msg::Definitive_Place), Entry.Name.c_str(), EntryPlace + 1);
 	auto y = min.y + (24 + 44) * scale;
-	Ui::DrawText(drawList, Theme::TextFont(), Theme::LabelSize, ImVec2{min.x + padding, y}, Theme::Chrome200, place,
-				 width);
+	Ui::DrawText(drawList, Theme::TextFont(), Theme::LabelSize, ImVec2{min.x + padding, y}, Theme::Chrome200,
+				 place.data(), width);
 	auto digits = Ui::FormatScore(Entry.Score, 0);
 	auto ledSize = Theme::LedSize(Theme::CounterSize * scale, digits.c_str());
 	Theme::DrawLed(drawList, ImVec2{min.x + padding + width - ledSize.x, y - 2 * scale}, Theme::CounterSize * scale,
 				   digits.c_str());
 
-	auto& io = ImGui::GetIO();
+	const auto& io = ImGui::GetIO();
 	// A character more, while the name has room for it; never a leading space, so a held Space makes no blank name
 	auto add = [](const char* utf8, size_t size)
 	{
@@ -431,7 +454,8 @@ void DefinitiveFrontEnd::RenderNameEntry()
 
 	// The name so far, with the place for the next letter lit
 	y += 28 * scale + 24 * scale;
-	ImVec2 fieldMin{min.x + padding, y}, fieldMax{min.x + padding + width, y + 52 * scale};
+	ImVec2 fieldMin{min.x + padding, y};
+	ImVec2 fieldMax{min.x + padding + width, y + 52 * scale};
 	drawList->AddRectFilled(fieldMin, fieldMax, Theme::Space950, 6 * scale);
 	drawList->AddRect(fieldMin, fieldMax, Theme::LedOrange, 6 * scale, 2 * scale);
 	auto shown = EntryName.empty() ? Entry.Name.c_str() : EntryName.c_str();
@@ -440,12 +464,13 @@ void DefinitiveFrontEnd::RenderNameEntry()
 	Ui::DrawText(drawList, Theme::HeadingFont(), Theme::HeadingSize,
 				 ImVec2{textX, (fieldMin.y + fieldMax.y - nameSize.y) / 2},
 				 EntryName.empty() ? Theme::Chrome600 : Theme::Chrome50, shown, width - 32 * scale);
-	auto caretX = DefinitiveText::RightToLeft() ? fieldMax.x - 16 * scale - (EntryName.empty() ? 0 : nameSize.x)
-												: textX + (EntryName.empty() ? 0 : nameSize.x) + 2 * scale;
+	auto typedWidth = EntryName.empty() ? 0 : nameSize.x;
+	auto caretX = DefinitiveText::RightToLeft() ? fieldMax.x - 16 * scale - typedWidth : textX + typedWidth + 2 * scale;
 	// Typed letters arrive as text input, which SDL sends only while asked for it, as an InputText asks; an input
 	// method's window opens at the caret
 	auto& ime = GImGui->PlatformImeData;
-	ime.WantVisible = ime.WantTextInput = true;
+	ime.WantTextInput = true;
+	ime.WantVisible = true;
 	ime.InputPos = ImVec2{caretX, fieldMin.y};
 	ime.InputLineHeight = fieldMax.y - fieldMin.y;
 	ime.ViewportId = ImGui::GetMainViewport()->ID;
@@ -459,7 +484,8 @@ void DefinitiveFrontEnd::RenderNameEntry()
 	// The letter grid, then Delete and Done across its last row
 	y += (52 + 24) * scale;
 	auto gap = 4 * scale;
-	auto cellWidth = (width - gap * (columns - 1)) / columns, cellHeight = 40 * scale;
+	auto cellWidth = (width - gap * (columns - 1)) / columns;
+	auto cellHeight = 40 * scale;
 	auto opened = Ui::TakeFocusRequest();
 	auto cell = [&](int index, ImVec2 at, ImVec2 size, const char* label, bool focusFirst)
 	{
@@ -487,11 +513,12 @@ void DefinitiveFrontEnd::RenderNameEntry()
 	};
 	for (auto index = 0; index < columns * letterRows; index++)
 	{
-		auto row = index / columns, column = index % columns;
+		auto row = index / columns;
+		auto column = index % columns;
 		ImVec2 at{min.x + padding + static_cast<float>(column) * (cellWidth + gap),
 				  y + static_cast<float>(row) * (cellHeight + gap)};
-		char label[2] = {letters[index] == ' ' ? '_' : letters[index], 0};
-		if (cell(index, at, ImVec2{cellWidth, cellHeight}, label, opened && index == 0))
+		std::array<char, 2> label{letters[index] == ' ' ? '_' : letters[index], 0};
+		if (cell(index, at, ImVec2{cellWidth, cellHeight}, label.data(), opened && index == 0))
 			add(&letters[index], 1);
 	}
 	auto lastRow = y + static_cast<float>(letterRows) * (cellHeight + gap);

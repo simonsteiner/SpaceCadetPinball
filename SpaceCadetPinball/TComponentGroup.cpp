@@ -8,6 +8,7 @@
 #include "timer.h"
 #include "TPinballTable.h"
 
+// Collects the components listed in the group's attribute 1027, leaving out any the table doesn't have
 TComponentGroup::TComponentGroup(TPinballTable* table, int groupIndex) : TPinballComponent(table, groupIndex, false)
 {
 	Timer = 0;
@@ -25,6 +26,7 @@ TComponentGroup::TComponentGroup(TPinballTable* table, int groupIndex) : TPinbal
 	}
 }
 
+// Stops the notify timer
 TComponentGroup::~TComponentGroup()
 {
 	if (Timer)
@@ -34,6 +36,9 @@ TComponentGroup::~TComponentGroup()
 	}
 }
 
+// TComponentGroupResetNotifyTimer restarts the timer that tells the rules after <value> seconds, or only stops it for 0
+// or less. Other messages go on to every member, except Pause, Resume, LooseFocus, SetTiltLock, PlayerChanged and
+// GameOver
 int TComponentGroup::Message(MessageCode code, float value)
 {
 	// CADET.EXE's component group swaps its message field on a player change but doesn't clear it on Reset

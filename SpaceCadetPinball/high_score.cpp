@@ -6,6 +6,7 @@
 #include "score.h"
 #include "translations.h"
 
+#include <format>
 #include <span>
 
 bool high_score::dlg_enter_name;
@@ -16,6 +17,7 @@ high_score_struct high_score::highscore_table[5];
 
 namespace
 {
+	// Empties all five entries: no name, and the score -999 that stands for none
 	void ClearTable(std::span<high_score_struct, 5> table)
 	{
 		for (auto& entry : table)
@@ -34,14 +36,15 @@ namespace
 		{
 			auto& tablePtr = table[position];
 
-			auto name = options::GetSetting(prefix + std::to_string(position) + ".Name", "");
+			auto name = options::GetSetting(std::format("{}{}.Name", prefix, position), "");
 			strncpy(tablePtr.Name, name.c_str(), sizeof tablePtr.Name);
 
-			auto scoreKey = prefix + std::to_string(position) + ".Score";
+			auto scoreKey = std::format("{}{}.Score", prefix, position);
 			tablePtr.Score = options::get_int(scoreKey.c_str(), tablePtr.Score);
 
-			for (int i = static_cast<int>(strlen(tablePtr.Name)); --i >= 0; checkSum += tablePtr.Name[i])
+			for (auto i = static_cast<int>(strlen(tablePtr.Name)); --i >= 0; checkSum += tablePtr.Name[i])
 			{
+				// The loop's header adds up the name
 			}
 			checkSum += tablePtr.Score;
 		}
@@ -59,6 +62,7 @@ int high_score::read()
 	return 0;
 }
 
+// The best score the given table saved, or -999 when it saved none
 int high_score::BestScore(Tables table)
 {
 	// Reading adds the keys it doesn't find, which would make a table that saved nothing look as if it had
@@ -70,6 +74,8 @@ int high_score::BestScore(Tables table)
 	return scores[0].Score;
 }
 
+// Saves the five entries under the table's settings prefix, with the check sum of names and scores that
+// reading verifies; always returns 0
 int high_score::write()
 {
 	std::string prefix = options::TableKeyPrefix();
@@ -79,8 +85,8 @@ int high_score::write()
 	{
 		auto& tablePtr = highscore_table[position];
 
-		options::SetSetting(prefix + std::to_string(position) + ".Name", tablePtr.Name);
-		options::set_int((prefix + std::to_string(position) + ".Score").c_str(), tablePtr.Score);
+		options::SetSetting(std::format("{}{}.Name", prefix, position), tablePtr.Name);
+		options::set_int(std::format("{}{}.Score", prefix, position).c_str(), tablePtr.Score);
 
 		for (int i = static_cast<int>(strlen(tablePtr.Name)); --i >= 0; checkSum += tablePtr.Name[i])
 		{
@@ -97,6 +103,7 @@ void high_score::clear_table()
 	ClearTable(highscore_table);
 }
 
+// The position from 0 to 4 a score would take in the table, or -1 if it is not positive or beats no entry
 int high_score::get_score_position(int score)
 {
 	if (score <= 0)
@@ -110,6 +117,8 @@ int high_score::get_score_position(int score)
 	return -1;
 }
 
+// Inserts the entry at its position, moving the lower ones down and dropping the last; does nothing for a position
+// outside the table
 void high_score::place_new_score_into(high_score_entry data)
 {
 	if (data.Position >= 0 && data.Position < 5)
@@ -124,9 +133,11 @@ void high_score::place_new_score_into(high_score_entry data)
 	}
 }
 
+// Takes the score queued first that still makes the table, with its position set; false when none is left, which
+// also cancels the pending dialog
 bool high_score::TakeNextEntry(high_score_entry& entry)
 {
-	// As the dialog does: the newest first, each placed by its score now, and none that no longer makes the table
+	// As the dialog does: the one queued first, each placed by its score now, and none that no longer makes the table
 	while (!ScoreQueue.empty())
 	{
 		entry = ScoreQueue.back();
@@ -151,6 +162,8 @@ void high_score::show_and_set_high_score_dialog(high_score_entry score)
 	ShowDialog = true;
 }
 
+// Draws the high score dialog while it is open or asked for: the table, a name field in the row of the next queued
+// score that makes the table, and OK, Cancel and Clear with its confirmation; opens again for each queued score
 void high_score::RenderHighScoreDialog()
 {
 	if (ShowDialog == true)

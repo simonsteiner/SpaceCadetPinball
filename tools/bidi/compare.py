@@ -28,10 +28,12 @@ reshaper = arabic_reshaper.ArabicReshaper(
 
 
 def has_right_to_left(text):
+    """Returns whether the text has a character in one of the RIGHT_TO_LEFT ranges."""
     return any(first <= ord(c) <= last for c in text for first, last in RIGHT_TO_LEFT)
 
 
 def expected(text):
+    """Returns the text as python-bidi and arabic-reshaper shape it, line by line, without the direction marks."""
     # Shape leaves text with nothing right to left as it is, and reads every other line right to left
     if not has_right_to_left(text):
         return text
@@ -48,6 +50,7 @@ def candidates(text):
 
 
 def matches(shaped, reference):
+    """Returns whether Shape's text equals the reference, taking a bracket mirrored or not."""
     if len(shaped) != len(reference):
         return False
     plain, mirrored = candidates(reference)
@@ -55,6 +58,7 @@ def matches(shaped, reference):
 
 
 def main():
+    """Compares each case from standard input and prints those that differ; returns the exit status."""
     fields = sys.stdin.buffer.read().split(b"\0")
     if not fields or fields[-1] != b"" or len(fields) % 2 != 1:
         print("check-bidi: the harness's output is incomplete", file=sys.stderr)

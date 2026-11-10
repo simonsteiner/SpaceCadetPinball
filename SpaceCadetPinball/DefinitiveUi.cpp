@@ -16,6 +16,8 @@ bool DefinitiveUi::FocusNext = false;
 const char* DefinitiveUi::Note = nullptr;
 ImVec2 DefinitiveUi::Footer{};
 
+// Sets the frame's scale from the window's smaller side and the UI Scale option, the text factor and the palette,
+// and notes the device whose input came last, which decides the hints
 void DefinitiveUi::NewFrame()
 {
 	// The height, or in a window taller than wide the width, so the screens keep their proportions there too
@@ -35,8 +37,7 @@ void DefinitiveUi::NewFrame()
 			Touch = true;
 		}
 	}
-	auto& io = ImGui::GetIO();
-	if (io.MouseDelta.x != 0 || io.MouseDelta.y != 0 || ImGui::IsAnyMouseDown())
+	if (const auto& io = ImGui::GetIO(); io.MouseDelta.x != 0 || io.MouseDelta.y != 0 || ImGui::IsAnyMouseDown())
 	{
 		Last = Device::Pointer;
 		Touch = io.MouseSource == ImGuiMouseSource_TouchScreen;
@@ -59,6 +60,7 @@ void DefinitiveUi::SetSafeArea(const Area& area)
 	Safe = area;
 }
 
+// The safe area the host set, or the whole viewport while it has set none
 const DefinitiveUi::Area& DefinitiveUi::SafeArea()
 {
 	static Area whole;
@@ -94,6 +96,7 @@ DefinitiveUi::Device DefinitiveUi::LastDevice()
 	return Last;
 }
 
+// The text with its first %s replaced by value; unchanged if it has none
 std::string DefinitiveUi::Fill(const char* text, std::string_view value)
 {
 	std::string filled{text};
@@ -102,6 +105,7 @@ std::string DefinitiveUi::Fill(const char* text, std::string_view value)
 	return filled;
 }
 
+// The score, a negative one as 0, with a comma between its thousands, padded on the left with '!' to places characters
 std::string DefinitiveUi::FormatScore(int score, size_t places)
 {
 	auto digits = std::to_string(std::max(score, 0));
@@ -129,6 +133,8 @@ ImVec2 DefinitiveUi::TextSize(ImFont* font, float size, const char* text)
 	return font->CalcTextSizeA(size * LayoutScale * TextFactor, FLT_MAX, 0, DefinitiveText::Visual(text));
 }
 
+// Draws one line of text in drawing order at size times TextScale(); in a right-to-left language with a width
+// given, it ends at the right of that width
 void DefinitiveUi::DrawText(ImDrawList* drawList, ImFont* font, float size, ImVec2 position, ImU32 color,
 							const char* text, float width)
 {
@@ -138,6 +144,8 @@ void DefinitiveUi::DrawText(ImDrawList* drawList, ImFont* font, float size, ImVe
 	drawList->AddText(font, size * LayoutScale * TextFactor, position, color, visual);
 }
 
+// Draws text wrapped at width, breaking at spaces and newlines in reading order before each line is shaped; a word
+// wider than the line gets a line of its own. Returns the height taken; without a draw list it only measures.
 float DefinitiveUi::DrawWrapped(ImDrawList* drawList, ImFont* font, float size, ImVec2 position, ImU32 color,
 								const char* text, float width)
 {
@@ -162,16 +170,19 @@ float DefinitiveUi::DrawWrapped(ImDrawList* drawList, ImFont* font, float size, 
 		auto newline = rest.find('\n');
 		auto paragraph = rest.substr(0, newline);
 		// Words join the line while it fits as drawn; a word wider than the line gets one of its own
-		size_t lineStart = 0, lineEnd = 0, wordStart = 0;
+		size_t lineStart = 0;
+		size_t lineEnd = 0;
+		size_t wordStart = 0;
 		while (true)
 		{
 			auto space = paragraph.find(' ', wordStart);
 			auto wordEnd = space == std::string_view::npos ? paragraph.size() : space;
-			auto candidate = DefinitiveText::Shape(paragraph.substr(lineStart, wordEnd - lineStart));
-			if (lineEnd > lineStart && font->CalcTextSizeA(fontSize, FLT_MAX, 0, candidate.c_str()).x > width)
+			if (auto candidate = DefinitiveText::Shape(paragraph.substr(lineStart, wordEnd - lineStart));
+				lineEnd > lineStart && font->CalcTextSizeA(fontSize, FLT_MAX, 0, candidate.c_str()).x > width)
 			{
 				drawLine(paragraph.substr(lineStart, lineEnd - lineStart));
-				lineStart = lineEnd = lineEnd + 1;
+				lineEnd = lineEnd + 1;
+				lineStart = lineEnd;
 				continue;
 			}
 			lineEnd = wordEnd;
@@ -187,6 +198,9 @@ float DefinitiveUi::DrawWrapped(ImDrawList* drawList, ImFont* font, float size, 
 	return static_cast<float>(lines) * fontSize;
 }
 
+// Draws a menu row with its lamp, label, aside and any note set for it, and gives it the focus when the pointer
+// moves over it or FocusNextRow asked. Returns true when an enabled row is chosen; LastRow and LastRowFocused then
+// describe it.
 bool DefinitiveUi::MenuRow(const char* id, const char* label, bool warning, const char* aside, bool enabled,
 						   float trailing)
 {
@@ -198,9 +212,10 @@ bool DefinitiveUi::MenuRow(const char* id, const char* label, bool warning, cons
 	ImGui::EndDisabled();
 
 	// The mouse and touch move the focus too, so only one lamp is ever lit
-	auto& io = ImGui::GetIO();
-	auto pointed = ImGui::IsItemHovered() && (io.MouseDelta.x != 0 || io.MouseDelta.y != 0 || ImGui::IsMouseClicked(0));
-	if (enabled && (pointed || FocusNext))
+	const auto& io = ImGui::GetIO();
+	if (auto pointed =
+			ImGui::IsItemHovered() && (io.MouseDelta.x != 0 || io.MouseDelta.y != 0 || ImGui::IsMouseClicked(0));
+		enabled && (pointed || FocusNext))
 	{
 		ImGui::SetFocusID(ImGui::GetItemID(), ImGui::GetCurrentWindow());
 		// Else ImGui takes the first key only to show where the focus is, and Enter wouldn't choose
@@ -218,12 +233,16 @@ bool DefinitiveUi::MenuRow(const char* id, const char* label, bool warning, cons
 						  ImVec2{Row.Max.x - DefinitiveTheme::Rounding * scale, Row.Min.y + 0.5f},
 						  DefinitiveColor(0xEE, 0xF2, 0xFA, 0x2E));
 	}
-	auto padding = 16 * scale, lampRadius = 6 * scale;
+	auto padding = 16 * scale;
+	auto lampRadius = 6 * scale;
 	auto centreY = (Row.Min.y + Row.Max.y) / 2;
-	auto lamp = !enabled      ? DefinitiveTheme::Lamp::Off
-				: !RowFocused ? DefinitiveTheme::Lamp::Dark
-				: warning     ? DefinitiveTheme::Lamp::Warning
-							  : DefinitiveTheme::Lamp::Lit;
+	auto lamp = DefinitiveTheme::Lamp::Lit;
+	if (!enabled)
+		lamp = DefinitiveTheme::Lamp::Off;
+	else if (!RowFocused)
+		lamp = DefinitiveTheme::Lamp::Dark;
+	else if (warning)
+		lamp = DefinitiveTheme::Lamp::Warning;
 	DefinitiveTheme::DrawLamp(drawList, ImVec2{Row.Min.x + padding + lampRadius, centreY}, lampRadius, lamp);
 
 	auto textSize = DefinitiveTheme::HeadingSize;
@@ -237,9 +256,11 @@ bool DefinitiveUi::MenuRow(const char* id, const char* label, bool warning, cons
 				 ImVec2{Row.Max.x - padding - asideSize.x, centreY - asideSize.y / 2}, DefinitiveTheme::Chrome400,
 				 aside);
 	}
-	auto color = !enabled     ? DefinitiveTheme::Chrome600
-				 : RowFocused ? DefinitiveTheme::Chrome50
-							  : DefinitiveTheme::Chrome200;
+	auto color = DefinitiveTheme::Chrome200;
+	if (!enabled)
+		color = DefinitiveTheme::Chrome600;
+	else if (RowFocused)
+		color = DefinitiveTheme::Chrome50;
 	auto labelHeight = TextSize(DefinitiveTheme::TextFont(), textSize, label).y;
 	auto labelY = centreY - labelHeight / 2;
 	if (Note)
@@ -261,6 +282,8 @@ bool DefinitiveUi::MenuRow(const char* id, const char* label, bool warning, cons
 	return chosen && enabled;
 }
 
+// Draws the tabs in a line, squeezed together where width is too narrow, and returns the tab that Q and E, the
+// shoulder buttons or a click chose, else current
 int DefinitiveUi::Tabs(ImDrawList* drawList, ImVec2 position, float width, const std::vector<const char*>& labels,
 					   int current)
 {
@@ -311,6 +334,8 @@ int DefinitiveUi::Tabs(ImDrawList* drawList, ImVec2 position, float width, const
 	return index;
 }
 
+// Draws a row for reading: a lamp, the title, the tag and the aside at its end, and the wrapped text under it. It
+// takes the focus as a menu row does, and sets FooterTop to the room kept under the text.
 void DefinitiveUi::ParagraphRow(const char* id, const char* title, const char* aside, const char* text, const char* tag,
 								float footer)
 {
@@ -390,6 +415,7 @@ void DefinitiveUi::NextRowNote(const char* note)
 	Note = note;
 }
 
+// -1 or 1 when left or right, on the keyboard or the d-pad, was pressed while the last row has the focus, else 0
 int DefinitiveUi::RowStep()
 {
 	if (!RowFocused)
@@ -401,6 +427,8 @@ int DefinitiveUi::RowStep()
 	return 0;
 }
 
+// Draws a menu row with an on/off switch at its end; true when an enabled row should flip: chosen, or left pressed
+// while on, or right while off
 bool DefinitiveUi::ToggleRow(const char* id, const char* label, bool on, bool enabled)
 {
 	auto scale = LayoutScale;
@@ -429,12 +457,15 @@ bool DefinitiveUi::ToggleRow(const char* id, const char* label, bool on, bool en
 	return enabled && (chosen || (step < 0 && on) || (step > 0 && !on));
 }
 
+// Draws a menu row with its choices side by side, the current one marked. Returns the choice made, else current:
+// left and right step without wrapping, a click on a choice picks it, and choosing the row otherwise steps on round.
 int DefinitiveUi::ChoiceRow(const char* id, const char* label, std::initializer_list<const char*> choices, int current,
 							bool enabled)
 {
 	auto scale = LayoutScale;
 	auto font = DefinitiveTheme::TextFont();
-	auto padding = 12 * scale, height = 34 * scale;
+	auto padding = 12 * scale;
+	auto height = 34 * scale;
 	std::vector<float> widths;
 	auto total = 6 * scale;
 	for (auto choice : choices)
@@ -445,8 +476,7 @@ int DefinitiveUi::ChoiceRow(const char* id, const char* label, std::initializer_
 	auto chosen = MenuRow(id, label, false, nullptr, enabled, total + 8 * scale);
 	auto count = static_cast<int>(choices.size());
 	auto result = current;
-	auto step = RowStep();
-	if (enabled && step)
+	if (auto step = RowStep(); enabled && step)
 		result = std::clamp(current + step, 0, count - 1);
 
 	auto drawList = ImGui::GetWindowDrawList();
@@ -461,7 +491,8 @@ int DefinitiveUi::ChoiceRow(const char* id, const char* label, std::initializer_
 	for (auto choice : choices)
 	{
 		auto width = widths[static_cast<size_t>(index)];
-		ImVec2 segmentMin{x, min.y + 3 * scale}, segmentMax{x + width, max.y - 3 * scale};
+		ImVec2 segmentMin{x, min.y + 3 * scale};
+		ImVec2 segmentMax{x + width, max.y - 3 * scale};
 		if (mouse.x >= segmentMin.x && mouse.x < segmentMax.x && mouse.y >= segmentMin.y && mouse.y < segmentMax.y)
 			tapped = index;
 		if (index == current)
@@ -479,11 +510,14 @@ int DefinitiveUi::ChoiceRow(const char* id, const char* label, std::initializer_
 	return result;
 }
 
+// Draws a menu row with a slider and its value, formatted with format, before the track. Returns the new value
+// within min and max: left and right change it by step, and a press or a drag on the track sets it to the nearest step.
 int DefinitiveUi::SliderRow(const char* id, const char* label, int value, int min, int max, int step,
 							const char* format)
 {
 	auto scale = LayoutScale;
-	auto trackWidth = 180 * scale, valueWidth = 56 * scale;
+	auto trackWidth = 180 * scale;
+	auto valueWidth = 56 * scale;
 	MenuRow(id, label, false, nullptr, true, trackWidth + valueWidth + 16 * scale);
 	auto result = std::clamp(value + RowStep() * step, min, max);
 
@@ -493,7 +527,7 @@ int DefinitiveUi::SliderRow(const char* id, const char* label, int value, int mi
 	ImVec2 trackMax{trackMin.x + trackWidth, centreY + 3 * scale};
 	// A press on the row near the track, and a drag from there, moves the knob to the pointer; Enter or the pad's A
 	// make the row active too, but leave the knob where it is
-	auto& io = ImGui::GetIO();
+	const auto& io = ImGui::GetIO();
 	if (ImGui::IsItemActive() && GImGui->ActiveIdSource == ImGuiInputSource_Mouse &&
 		io.MouseClickedPos[0].x >= trackMin.x - 12 * scale)
 	{
@@ -509,11 +543,12 @@ int DefinitiveUi::SliderRow(const char* id, const char* label, int value, int mi
 	drawList->AddCircleFilled(knob, 10 * scale, DefinitiveTheme::Chrome200);
 	drawList->AddCircle(knob, 10 * scale, DefinitiveTheme::Chrome50, 0, 1);
 
-	char text[32];
-	snprintf(text, sizeof text, format, result);
-	auto textSize = TextSize(DefinitiveTheme::TextFont(), DefinitiveTheme::BodySize - 1, text);
+	std::array<char, 32> text;
+	snprintf(text.data(), text.size(), format, result);
+	auto textSize = TextSize(DefinitiveTheme::TextFont(), DefinitiveTheme::BodySize - 1, text.data());
 	DrawText(drawList, DefinitiveTheme::TextFont(), DefinitiveTheme::BodySize - 1,
-			 ImVec2{trackMin.x - 12 * scale - textSize.x, centreY - textSize.y / 2}, DefinitiveTheme::Chrome200, text);
+			 ImVec2{trackMin.x - 12 * scale - textSize.x, centreY - textSize.y / 2}, DefinitiveTheme::Chrome200,
+			 text.data());
 	return result;
 }
 
@@ -545,7 +580,8 @@ namespace
 	float KeyCap(ImDrawList* drawList, ImVec2 position, float scale, const char* label,
 				 ImGuiDir direction = ImGuiDir_None)
 	{
-		auto height = 26 * scale, padding = 7 * scale;
+		auto height = 26 * scale;
+		auto padding = 7 * scale;
 		auto font = DefinitiveTheme::HeadingFont();
 		auto fontSize = 13 * scale;
 		auto width =
@@ -571,16 +607,17 @@ namespace
 	// The four face buttons, with the one to press lit; ImGui's south is A on Xbox pads and the cross on PlayStation
 	float FaceButtons(ImDrawList* drawList, ImVec2 position, float scale, ImGuiKey lit)
 	{
-		auto size = 26 * scale, radius = 4.5f * scale;
+		auto size = 26 * scale;
+		auto radius = 4.5f * scale;
 		ImVec2 centre{position.x + size / 2, position.y + size / 2};
 		auto offset = size / 2 - radius;
-		std::pair<ImGuiKey, ImVec2> buttons[] = {
+		auto buttons = std::to_array<std::pair<ImGuiKey, ImVec2>>({
 			{ImGuiKey_GamepadFaceDown, ImVec2{0, offset}},
 			{ImGuiKey_GamepadFaceRight, ImVec2{offset, 0}},
 			{ImGuiKey_GamepadFaceUp, ImVec2{0, -offset}},
 			{ImGuiKey_GamepadFaceLeft, ImVec2{-offset, 0}},
-		};
-		for (auto& [key, place] : buttons)
+		});
+		for (const auto& [key, place] : buttons)
 		{
 			ImVec2 point{centre.x + place.x, centre.y + place.y};
 			if (key == lit)
@@ -594,8 +631,10 @@ namespace
 	// A d-pad, with the arms to press lit
 	float DPad(ImDrawList* drawList, ImVec2 position, float scale, bool vertical)
 	{
-		auto size = 26 * scale, arm = size / 3;
-		auto x = position.x, y = position.y;
+		auto size = 26 * scale;
+		auto arm = size / 3;
+		auto x = position.x;
+		auto y = position.y;
 		auto verticalColor = vertical ? DefinitiveTheme::Chrome50 : DefinitiveTheme::Chrome600;
 		auto horizontalColor = vertical ? DefinitiveTheme::Chrome600 : DefinitiveTheme::Chrome50;
 		drawList->AddRectFilled(ImVec2{x + arm, y}, ImVec2{x + arm * 2, y + arm}, verticalColor, 2 * scale);
@@ -608,6 +647,8 @@ namespace
 	}
 } // namespace
 
+// Draws the hints in a line, each as key caps for the keyboard or button glyphs for a gamepad, followed by its
+// label; nothing when a mouse or a touch came last
 void DefinitiveUi::DrawHints(ImDrawList* drawList, ImVec2 position, std::initializer_list<Hint> hints)
 {
 	if (Last == Device::Pointer)
@@ -617,32 +658,33 @@ void DefinitiveUi::DrawHints(ImDrawList* drawList, ImVec2 position, std::initial
 	auto x = position.x;
 	for (auto& hint : hints)
 	{
+		using enum Action;
 		if (Last == Device::Keyboard)
 		{
 			switch (hint.Does)
 			{
-			case Action::Choose:
+			case Choose:
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, nullptr, ImGuiDir_Up) + gap;
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, nullptr, ImGuiDir_Down);
 				break;
-			case Action::Select:
+			case Select:
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, "Enter");
 				break;
-			case Action::Back:
+			case Back:
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, "Esc");
 				break;
-			case Action::Change:
+			case Change:
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, nullptr, ImGuiDir_Left) + gap;
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, nullptr, ImGuiDir_Right);
 				break;
-			case Action::Group:
+			case Group:
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, "Q") + gap;
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, "E");
 				break;
-			case Action::Erase:
+			case Erase:
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, "Backspace");
 				break;
-			case Action::Finish:
+			case Finish:
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, "Enter");
 				break;
 			}
@@ -651,26 +693,26 @@ void DefinitiveUi::DrawHints(ImDrawList* drawList, ImVec2 position, std::initial
 		{
 			switch (hint.Does)
 			{
-			case Action::Choose:
+			case Choose:
 				x += DPad(drawList, ImVec2{x, position.y}, scale, true);
 				break;
-			case Action::Select:
+			case Select:
 				x += FaceButtons(drawList, ImVec2{x, position.y}, scale, ImGuiKey_GamepadFaceDown);
 				break;
-			case Action::Back:
+			case Back:
 				x += FaceButtons(drawList, ImVec2{x, position.y}, scale, ImGuiKey_GamepadFaceRight);
 				break;
-			case Action::Change:
+			case Change:
 				x += DPad(drawList, ImVec2{x, position.y}, scale, false);
 				break;
-			case Action::Group:
+			case Group:
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, "L") + gap;
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, "R");
 				break;
-			case Action::Erase:
+			case Erase:
 				x += FaceButtons(drawList, ImVec2{x, position.y}, scale, ImGuiKey_GamepadFaceRight);
 				break;
-			case Action::Finish:
+			case Finish:
 				x += KeyCap(drawList, ImVec2{x, position.y}, scale, "Start");
 				break;
 			}
@@ -683,6 +725,8 @@ void DefinitiveUi::DrawHints(ImDrawList* drawList, ImVec2 position, std::initial
 	}
 }
 
+// Opens a panel at the left of the safe area, at most 640 wide at scale 1, with its title drawn, and gives it the
+// focus when takeFocus is set or no window has it; EndPanel closes it
 DefinitiveUi::Panel DefinitiveUi::BeginPanel(const char* name, const char* title, bool takeFocus)
 {
 	const auto* viewport = &SafeArea();
@@ -713,6 +757,8 @@ DefinitiveUi::Panel DefinitiveUi::BeginPanel(const char* name, const char* title
 	return panel;
 }
 
+// Opens the panel's scrolling rows from y down to above the hints; true when the panel has the focus but none of
+// its rows does
 bool DefinitiveUi::BeginPanelRows(const Panel& panel, float y)
 {
 	auto scale = LayoutScale;
@@ -731,6 +777,7 @@ void DefinitiveUi::EndPanelRows()
 	ImGui::EndChild();
 }
 
+// Whether Escape, the pad's right face button or a right click was pressed while the panel has the focus
 bool DefinitiveUi::PanelBack()
 {
 	return ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&

@@ -29,6 +29,8 @@ TAccelerator::TAccelerator(TPinballTable* table, int groupIndex) : TCollisionCom
 	TTableLayer::edges_insert_circle(&circle, nullptr, &Field);
 }
 
+// Moves the ball to the collision point and, unless the table is tilted, keeps it for FieldEffect to throw, plays the
+// hit sound and tells the rules
 void TAccelerator::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	ball->not_again(edge);
@@ -45,6 +47,7 @@ void TAccelerator::Collision(TBall* ball, vector2* nextPosition, vector2* direct
 	}
 }
 
+// Throws the ball Collision kept in the accelerator's direction; always returns 0, as it adds no force
 int TAccelerator::FieldEffect(TBall* ball, vector2* vecDst)
 {
 	if (Ball != ball)

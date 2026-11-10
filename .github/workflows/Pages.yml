@@ -46,8 +46,8 @@ jobs:
           mkdir site
           cp bin/SpaceCadetPinball.html site/index.html
           cp bin/SpaceCadetPinball.js bin/SpaceCadetPinball.wasm site/
-          curl -sSfL -o site/FluidR3Mono_GM.sf3 "$SOUNDFONT_URL"
-          curl -sSfL -o site/FluidR3Mono_License.md "$SOUNDFONT_LICENSE_URL"
+          curl --proto '=https' --proto-redir '=https' --tlsv1.2 -sSfL -o site/FluidR3Mono_GM.sf3 "$SOUNDFONT_URL"
+          curl --proto '=https' --proto-redir '=https' --tlsv1.2 -sSfL -o site/FluidR3Mono_License.md "$SOUNDFONT_LICENSE_URL"
           echo "$SOUNDFONT_SHA256  site/FluidR3Mono_GM.sf3" | sha256sum -c
           echo "$SOUNDFONT_LICENSE_SHA256  site/FluidR3Mono_License.md" | sha256sum -c
           tools/check-no-game-data.sh site

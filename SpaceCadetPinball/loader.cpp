@@ -43,8 +43,10 @@ int loader::sound_count = 1;
 int loader::loader_sound_count;
 DatFile* loader::loader_table;
 DatFile* loader::sound_record_table;
-soundListStruct loader::sound_list[SoundListSize];
+std::array<soundListStruct, loader::SoundListSize> loader::sound_list;
 
+// Shows an error box with the message for errorCode, titled with the message for captionCode, which for most callers
+// names the loader function that failed. Always returns -1.
 int loader::error(int errorCode, int captionCode)
 {
 	auto curCode = loader_errors;
@@ -83,6 +85,8 @@ void loader::default_vsi(visualStruct* visual)
 	visual->SoundIndex4 = 0;
 }
 
+// Makes a DAT file the loader's table and gives every sound group (ShortValue 202) a slot in the sound list; the sounds
+// themselves load on first use
 void loader::loadfrom(DatFile* datFile)
 {
 	loader_table = datFile;
@@ -103,6 +107,7 @@ void loader::loadfrom(DatFile* datFile)
 	loader_sound_count = sound_count;
 }
 
+// Frees the loaded sounds and empties the sound list
 void loader::unload()
 {
 	for (int index = 1; index < sound_count; ++index)
@@ -114,6 +119,9 @@ void loader::unload()
 	sound_count = 1;
 }
 
+// Returns the sound list slot of a sound group, for play_sound, or -1 after an error box when the group isn't in the
+// list. The first call for a slot loads its WAV file, looked for under its name as the DAT file has it and then in
+// upper case, unless -quick is set.
 int loader::get_sound_id(int groupIndex)
 {
 	int16_t soundIndex = 1;
@@ -194,6 +202,8 @@ int loader::query_handle(LPCSTR lpString)
 	return loader_table->record_labeled(lpString);
 }
 
+// Returns how many states a component's group has: the count after id 100 in its first ShortArray, else 1; -1 after an
+// error box for a negative index
 short loader::query_visual_states(int groupIndex)
 {
 	short result;
@@ -207,6 +217,7 @@ short loader::query_visual_states(int groupIndex)
 	return result;
 }
 
+// Returns the group's name, or null: after an error box for a negative index, without one for a group that has no name
 char* loader::query_name(int groupIndex)
 {
 	if (groupIndex < 0)
@@ -218,6 +229,8 @@ char* loader::query_name(int groupIndex)
 	return loader_table->field(groupIndex, FieldTypes::GroupName);
 }
 
+// Returns the values after the id of the group's ShortArray that starts with firstValue, and in arraySize their count,
+// which is at most that of the group's first ShortArray; null and 0 after an error box when the group has none
 int16_t* loader::query_iattribute(int groupIndex, int firstValue, int* arraySize)
 {
 	using enum FieldTypes;
@@ -255,6 +268,8 @@ float* loader::query_float_attribute(int groupIndex, int groupIndexOffset, int f
 	return query_float_array(groupIndex, groupIndexOffset, firstValue, &length);
 }
 
+// Returns the floats after the id of the state's FloatArray that starts with firstValue, and their count in length;
+// null when there is none, after an error box unless in Full Tilt mode
 float* loader::query_float_array(int groupIndex, int groupIndexOffset, int firstValue, int* length)
 {
 	*length = 0;
@@ -290,18 +305,21 @@ float* loader::query_float_array(int groupIndex, int groupIndexOffset, int first
 	return nullptr;
 }
 
+// The bit of a collision group number from the table's data, or 0 for a number outside 0 to 31
 int loader::collision_group_bit(float value)
 {
 	auto number = floor(value);
 	return number >= 0 && number < 32 ? static_cast<int>(1u << static_cast<unsigned>(number)) : 0;
 }
 
+// The number rounded down, as an int; 0 for NaN or a number outside int's range
 int loader::whole_number(float value)
 {
 	auto number = floor(value);
 	return number >= -2147483648.0f && number < 2147483648.0f ? static_cast<int>(number) : 0;
 }
 
+// As query_float_attribute, with eight zeros in place of an attribute the table lacks, so the result is never null
 const float* loader::required_float_attribute(int groupIndex, int groupIndexOffset, int firstValue)
 {
 	// Enough for the longest attribute a component reads at fixed places, a vector or a few values
@@ -310,6 +328,8 @@ const float* loader::required_float_attribute(int groupIndex, int groupIndexOffs
 	return attribute ? attribute : zeros.data();
 }
 
+// Returns the first float of the state's attribute with the id firstValue, or defVal when the state has none. A NaN
+// defVal makes the attribute required: an error box and NaN when it is missing.
 float loader::query_float_attribute(int groupIndex, int groupIndexOffset, int firstValue, float defVal)
 {
 	if (groupIndex < 0)
@@ -341,6 +361,8 @@ float loader::query_float_attribute(int groupIndex, int groupIndexOffset, int fi
 	return NAN;
 }
 
+// Reads a material group (ShortValue 300) into visual: smoothness (301), elasticity (302) and soft hit sound (304).
+// Returns 0, or -1 after an error box.
 int loader::material(int groupIndex, visualStruct* visual)
 {
 	if (groupIndex < 0)
@@ -375,6 +397,8 @@ int loader::material(int groupIndex, visualStruct* visual)
 	return 0;
 }
 
+// Plays the sound in a sound list slot, from the given component, and returns its duration in seconds; plays nothing
+// and returns 0 for slot 0 or below
 float loader::play_sound(int soundIndex, TPinballComponent *soundSource, const char *info)
 {
 	if (soundIndex <= 0)
@@ -383,6 +407,8 @@ float loader::play_sound(int soundIndex, TPinballComponent *soundSource, const c
 	return sound_list[soundIndex].Duration;
 }
 
+// Returns the group of a component's state: groupIndex for offset 0, else the group that many after it. -1 after an
+// error box when the offset is past the state count or the groups aren't state groups.
 int loader::state_id(int groupIndex, int groupIndexOffset)
 {
 	auto visualState = query_visual_states(groupIndex);
@@ -407,6 +433,8 @@ int loader::state_id(int groupIndex, int groupIndexOffset)
 	return groupIndex;
 }
 
+// Reads a kicker group (ShortValue 400) into kicker: threshold, boost, the throw's multipliers and direction, and the
+// hard hit sound. Returns 0, or -1 after an error box.
 int loader::kicker(int groupIndex, visualKickerStruct* kicker)
 {
 	if (groupIndex < 0)
@@ -471,12 +499,16 @@ int loader::kicker(int groupIndex, visualKickerStruct* kicker)
 }
 
 
+// The state's second bitmap, or null when it has none or there is no such state
 gdrv_bitmap8* loader::query_alt_bitmap(int groupIndex, int groupIndexOffset)
 {
 	auto stateId = groupIndex < 0 ? -1 : state_id(groupIndex, groupIndexOffset);
 	return stateId < 0 ? nullptr : loader_table->GetAltBitmap(stateId);
 }
 
+// Fills visual for one state of a component: its bitmap and depth map, then material, kicker, sounds and collision
+// group from the ShortArray's attributes, and the outline from a FloatArray that starts with 600. Returns 0, or -1
+// after an error box.
 int loader::query_visual(int groupIndex, int groupIndexOffset, visualStruct* visual)
 {
 	default_vsi(visual);

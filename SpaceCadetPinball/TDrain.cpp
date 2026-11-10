@@ -15,6 +15,8 @@ TDrain::TDrain(TPinballTable* table, int groupIndex) : TCollisionComponent(table
 	TimerTime = *loader::required_float_attribute(groupIndex, 0, 407);
 }
 
+// Reset stops the timer and clears the table's BallInDrainFlag. On the bonus tables SetTiltLock stops the timer too,
+// and the message field is kept per player
 int TDrain::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())
@@ -38,6 +40,8 @@ int TDrain::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Takes the ball out of play and tells the rules; with the last ball it also sets BallInDrainFlag and starts the timer
+// that tells the rules when it runs out
 void TDrain::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	ball->Disable();

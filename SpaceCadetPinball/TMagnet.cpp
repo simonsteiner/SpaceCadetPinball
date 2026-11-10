@@ -12,6 +12,8 @@ TMagnet::TMagnet(TPinballTable* table, int groupIndex) : TKickout(table, groupIn
 	BallCaputeredFlag = 0;
 }
 
+// Handles the magnet's messages: enable turns it on; disable, a tilt, a player change and Reset turn it off and
+// stop the timer that turns the field back on
 int TMagnet::Message(MessageCode code, float value)
 {
 	using enum MessageCode;

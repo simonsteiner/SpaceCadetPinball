@@ -3,6 +3,7 @@
 #include "winmain.h"
 
 
+// Makes a depth map with an unfilled buffer; a negative stride stands for the width padded to a multiple of 4
 zmap_header_type::zmap_header_type(int width, int height, int stride)
 {
 	Resolution = 0;
@@ -13,6 +14,7 @@ zmap_header_type::zmap_header_type(int width, int height, int stride)
 	ZPtr1 = new unsigned short[Stride * Height];
 }
 
+// Frees the depth buffer and the texture
 zmap_header_type::~zmap_header_type()
 {
 	delete[] ZPtr1;
@@ -20,6 +22,7 @@ zmap_header_type::~zmap_header_type()
 		SDL_DestroyTexture(Texture);
 }
 
+// The width rounded up to a multiple of 4
 int zmap_header_type::pad(int width)
 {
 	int result = width;
@@ -29,6 +32,7 @@ int zmap_header_type::pad(int width)
 }
 
 
+// Fills a rectangle of the depth map with one depth
 void zdrv::fill(zmap_header_type* zmap, int width, int height, int xOff, int yOff, uint16_t fillWord)
 {
 	auto dstPtr = &zmap->ZPtr1[zmap->Stride * yOff + xOff];
@@ -43,6 +47,8 @@ void zdrv::fill(zmap_header_type* zmap, int width, int height, int xOff, int yOf
 }
 
 
+// Paints a rectangle of a sprite into a bitmap and its depth map: each pixel whose depth is at most the destination's
+// replaces the destination's colour and depth. A sprite with holes goes through paint_with_holes.
 void zdrv::paint(int width, int height, gdrv_bitmap8* dstBmp, int dstBmpXOff, int dstBmpYOff, zmap_header_type* dstZMap,
                  int dstZMapXOff, int dstZMapYOff, gdrv_bitmap8* srcBmp, int srcBmpXOff, int srcBmpYOff,
                  zmap_header_type* srcZMap, int srcZMapXOff, int srcZMapYOff)
@@ -83,6 +89,7 @@ void zdrv::paint(int width, int height, gdrv_bitmap8* dstBmp, int dstBmpXOff, in
 	}
 }
 
+// As paint, for a sprite unpacked from a spliced bitmap: the pixels its depth map marks as holes are left out
 void zdrv::paint_with_holes(int width, int height, ColorRgba* dstPtr, int dstStride, uint16_t* dstPtrZ, int dstZStride,
 							const ColorRgba* srcPtr, int srcStride, const uint16_t* srcPtrZ,
 							const zmap_header_type* srcZMap, int srcZMapXOff, int srcZMapYOff)
@@ -107,6 +114,8 @@ void zdrv::paint_with_holes(int width, int height, ColorRgba* dstPtr, int dstStr
 	}
 }
 
+// Paints a rectangle of a sprite at one depth: its pixels of a colour other than 0 go into the bitmap where the depth
+// map's value is greater than depth. The depth map stays as it is.
 void zdrv::paint_flat(int width, int height, gdrv_bitmap8* dstBmp, int dstBmpXOff, int dstBmpYOff,
                       zmap_header_type* zMap, int dstZMapXOff, int dstZMapYOff, gdrv_bitmap8* srcBmp, int srcBmpXOff,
                       int srcBmpYOff, uint16_t depth)
@@ -136,6 +145,7 @@ void zdrv::paint_flat(int width, int height, gdrv_bitmap8* dstBmp, int dstBmpXOf
 	}
 }
 
+// Makes a greyscale texture of the depth map, brighter for smaller depths, unless the map already has a texture
 void zdrv::CreatePreview(zmap_header_type& zMap)
 {
 	if (zMap.Texture)
@@ -168,6 +178,7 @@ void zdrv::CreatePreview(zmap_header_type& zMap)
 	delete[] tmpBuff;
 }
 
+// Reverses the order of the depth map's rows in place, and of its holes' rows
 void zdrv::FlipZMapHorizontally(zmap_header_type& zMap)
 {
 	// Flip in-place, iterate over Height/2 lines

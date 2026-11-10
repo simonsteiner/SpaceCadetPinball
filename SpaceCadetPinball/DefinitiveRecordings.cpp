@@ -27,18 +27,19 @@ namespace
 	std::string Duration(float milliseconds)
 	{
 		auto seconds = static_cast<int>(milliseconds / 1000);
-		char text[32];
+		std::array<char, 32> text;
 		if (seconds >= 3600)
-			snprintf(text, sizeof text, "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60);
+			snprintf(text.data(), text.size(), "%d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60);
 		else
-			snprintf(text, sizeof text, "%d:%02d", seconds / 60, seconds % 60);
-		return text;
+			snprintf(text.data(), text.size(), "%d:%02d", seconds / 60, seconds % 60);
+		return text.data();
 	}
 
 	// The speeds a recording plays at
-	constexpr float Speeds[] = {0.25f, 0.5f, 1, 2, 4};
-	constexpr const char* SpeedNames[] = {"0.25x", "0.5x", "1x", "2x", "4x"};
+	constexpr std::array<float, 5> Speeds{0.25f, 0.5f, 1, 2, 4};
+	constexpr std::array<const char*, 5> SpeedNames{"0.25x", "0.5x", "1x", "2x", "4x"};
 
+	// The index in Speeds of the speed nearest to speed
 	int SpeedIndex(float speed)
 	{
 		auto index = 0;
@@ -54,6 +55,7 @@ namespace
 	constexpr float SeekStep = 10000;
 } // namespace
 
+// Opens the screen on the list, read anew from the host; empty where the host has no recordings
 void DefinitiveRecordings::Open(const DefinitiveHost& host)
 {
 	List = host.Recordings ? host.Recordings() : std::vector<DefinitiveHost::Recording>{};
@@ -62,6 +64,8 @@ void DefinitiveRecordings::Open(const DefinitiveHost& host)
 	Opened = true;
 }
 
+// Draws the list with the Record Sessions toggle, or the chosen recording's actions: play, and delete after a
+// confirmation. Back leads from the actions to the list; returns false once the player goes back from the list.
 bool DefinitiveRecordings::Render(const DefinitiveHost& host)
 {
 	auto scale = Ui::Scale();
@@ -82,10 +86,11 @@ bool DefinitiveRecordings::Render(const DefinitiveHost& host)
 	auto back = false;
 	if (Selected < 0)
 	{
+		using enum Msg;
 		// Recording is off by default; it starts with the next start of the game
 		auto& record = options::Options.RecordSessions;
-		Ui::NextRowNote(Text(Msg::Definitive_RecordSessionsNote));
-		if (Ui::ToggleRow("record", Text(Msg::Definitive_RecordSessions), record))
+		Ui::NextRowNote(Text(Definitive_RecordSessionsNote));
+		if (Ui::ToggleRow("record", Text(Definitive_RecordSessions), record))
 			record = !record;
 
 		if (List.empty())
@@ -93,18 +98,18 @@ bool DefinitiveRecordings::Render(const DefinitiveHost& host)
 			auto at = ImGui::GetCursorScreenPos();
 			auto height = Ui::DrawWrapped(ImGui::GetWindowDrawList(), Theme::TextFont(), Theme::BodySize,
 										  ImVec2{at.x + 16 * scale, at.y + 12 * scale}, Theme::Chrome400,
-										  Text(Msg::Definitive_NoRecordings), ImGui::CalcItemWidth() - 32 * scale);
+										  Text(Definitive_NoRecordings), ImGui::CalcItemWidth() - 32 * scale);
 			ImGui::Dummy(ImVec2{0, height + 24 * scale});
 		}
 		for (size_t index = 0; index < List.size(); index++)
 		{
 			const auto& recording = List[index];
-			auto aside = Duration(recording.Length) + " \xC2\xB7 " +
-						 (recording.Games == 1
-							  ? std::string{Text(Msg::Definitive_RecordingGame)}
-							  : Ui::Fill(Text(Msg::Definitive_RecordingGames), std::to_string(recording.Games)));
+			auto aside =
+				Duration(recording.Length) + " \xC2\xB7 " +
+				(recording.Games == 1 ? std::string{Text(Definitive_RecordingGame)}
+									  : Ui::Fill(Text(Definitive_RecordingGames), std::to_string(recording.Games)));
 			if (!recording.Playable)
-				Ui::NextRowNote(Text(Msg::Definitive_OtherGameData));
+				Ui::NextRowNote(Text(Definitive_OtherGameData));
 			ImGui::PushID(static_cast<int>(index));
 			// One recorded with other data can't play, but can be deleted
 			if (Ui::MenuRow("recording", recording.Name.c_str(), false, aside.c_str()))
@@ -115,21 +120,22 @@ bool DefinitiveRecordings::Render(const DefinitiveHost& host)
 			}
 			ImGui::PopID();
 		}
-		if (Ui::MenuRow("back", Text(Msg::Definitive_Back)))
+		if (Ui::MenuRow("back", Text(Definitive_Back)))
 			BackChosen = true;
 	}
 	else
 	{
+		using enum Msg;
 		// A recording's actions: play it, or delete it after a confirmation
 		const auto& recording = List[static_cast<size_t>(Selected)];
 		if (!recording.Playable)
-			Ui::NextRowNote(Text(Msg::Definitive_OtherGameData));
-		if (Ui::MenuRow("play", Text(Msg::Definitive_PlayRecording), false, nullptr, recording.Playable) &&
+			Ui::NextRowNote(Text(Definitive_OtherGameData));
+		if (Ui::MenuRow("play", Text(Definitive_PlayRecording), false, nullptr, recording.Playable) &&
 			host.ViewRecording)
 			host.ViewRecording(recording.Path);
 		if (!ConfirmDelete)
 		{
-			if (Ui::MenuRow("delete", Text(Msg::Definitive_DeleteRecording), true))
+			if (Ui::MenuRow("delete", Text(Definitive_DeleteRecording), true))
 			{
 				ConfirmDelete = true;
 				Ui::FocusNextRow();
@@ -137,8 +143,8 @@ bool DefinitiveRecordings::Render(const DefinitiveHost& host)
 		}
 		else
 		{
-			Ui::NextRowNote(Text(Msg::Definitive_DeleteRecordingConfirm));
-			if (Ui::MenuRow("confirm", Text(Msg::GenericOk), true) && host.DeleteRecording)
+			Ui::NextRowNote(Text(Definitive_DeleteRecordingConfirm));
+			if (Ui::MenuRow("confirm", Text(GenericOk), true) && host.DeleteRecording)
 			{
 				host.DeleteRecording(recording.Path);
 				Open(host);
@@ -146,7 +152,7 @@ bool DefinitiveRecordings::Render(const DefinitiveHost& host)
 				Refocus = true;
 			}
 		}
-		if (Ui::MenuRow("back", Text(Msg::Definitive_Back)))
+		if (Ui::MenuRow("back", Text(Definitive_Back)))
 			back = true;
 	}
 	Ui::EndPanelRows();
@@ -169,6 +175,8 @@ bool DefinitiveRecordings::Render(const DefinitiveHost& host)
 	return !leave;
 }
 
+// Draws the bar of the recording that plays and handles its keys, buttons and pointer: pause and resume, seeking
+// by ten seconds or on the timeline, the speed, and back to the title. Does nothing without the host's ViewerState.
 void DefinitiveRecordings::RenderViewer(const DefinitiveHost& host)
 {
 	if (!host.ViewerState)
@@ -176,7 +184,7 @@ void DefinitiveRecordings::RenderViewer(const DefinitiveHost& host)
 	auto state = host.ViewerState();
 	const auto* viewport = &Ui::SafeArea();
 	auto scale = Ui::Scale();
-	auto& io = ImGui::GetIO();
+	const auto& io = ImGui::GetIO();
 
 	// The keys and buttons, wherever the focus is; the table takes none of them while a recording plays
 	auto seekBy = [&](float milliseconds)
@@ -219,16 +227,20 @@ void DefinitiveRecordings::RenderViewer(const DefinitiveHost& host)
 							 ImGuiWindowFlags_NoSavedSettings, ImGuiWindowFlags_NoNav));
 	auto drawList = ImGui::GetWindowDrawList();
 	Theme::DrawPanel(drawList, min, max);
-	auto left = min.x + padding, right = max.x - padding;
+	auto left = min.x + padding;
+	auto right = max.x - padding;
 	auto y = min.y + padding;
 
 	// Recording, playing or paused, and the time
-	auto status = state.Failed   ? Text(Msg::Definitive_RecordingDiverged)
-				  : state.Ended  ? Text(Msg::Definitive_RecordingEnded)
-				  : state.Paused ? Text(Msg::Definitive_Paused)
-								 : Text(Msg::Definitive_Recording);
+	auto status = Msg::Definitive_Recording;
+	if (state.Failed)
+		status = Msg::Definitive_RecordingDiverged;
+	else if (state.Ended)
+		status = Msg::Definitive_RecordingEnded;
+	else if (state.Paused)
+		status = Msg::Definitive_Paused;
 	Ui::DrawText(drawList, Theme::HeadingFont(), Theme::LabelSize, ImVec2{left + 18 * scale, y}, Theme::Chrome200,
-				 status);
+				 Text(status));
 	Theme::DrawLamp(drawList, ImVec2{left + 5 * scale, y + Theme::LabelSize * Ui::TextScale() / 2}, 5 * scale,
 					state.Paused || state.Ended ? Theme::Lamp::Dark : Theme::Lamp::Lit);
 	auto time = Duration(state.Time) + " / " + Duration(state.Length) + "   " + SpeedNames[speed];
@@ -239,7 +251,8 @@ void DefinitiveRecordings::RenderViewer(const DefinitiveHost& host)
 
 	// The timeline, with a mark where each game starts; a click or a drag seeks
 	auto trackHeight = 6 * scale;
-	ImVec2 trackMin{left, y + 6 * scale}, trackMax{right, y + 6 * scale + trackHeight};
+	ImVec2 trackMin{left, y + 6 * scale};
+	ImVec2 trackMax{right, y + 6 * scale + trackHeight};
 	auto played = state.Length > 0 ? state.Time / state.Length : 0;
 	drawList->AddRectFilled(trackMin, trackMax, Theme::Space950, 3 * scale);
 	drawList->AddRectFilled(trackMin, ImVec2{trackMin.x + (trackMax.x - trackMin.x) * played, trackMax.y},

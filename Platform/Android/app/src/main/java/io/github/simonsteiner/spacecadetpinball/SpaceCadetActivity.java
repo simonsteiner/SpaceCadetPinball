@@ -18,6 +18,7 @@ public class SpaceCadetActivity extends SDLActivity {
         return new String[] {"main"};
     }
 
+    // Registers the back gesture's callback where the system has one (API 33 and later)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -49,6 +50,7 @@ public class SpaceCadetActivity extends SDLActivity {
         return super.dispatchKeyEvent(event);
     }
 
+    // Presses and releases Escape in the game, unless its libraries failed to load
     private void sendEscape() {
         if (!SDLActivity.mBrokenLibraries) {
             SDLActivity.onNativeKeyDown(KeyEvent.KEYCODE_ESCAPE);

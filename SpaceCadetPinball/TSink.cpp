@@ -29,6 +29,8 @@ TSink::TSink(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	TimerTime = *loader::required_float_attribute(groupIndex, 0, 407);
 }
 
+// Handles the sink's messages: TSinkResetTimer throws a ball out after <value> seconds, the sink's own time
+// (attribute 407) if negative; PlayerChanged and Reset stop that timer and keep the message field per player
 int TSink::Message(MessageCode code, float value)
 {
 	switch (code)
@@ -57,6 +59,7 @@ int TSink::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Takes the ball off the table, plays the sound and tells the rules; on a tilted table the ball drains instead
 void TSink::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	if (PinballTable->TiltLockFlag)
@@ -71,6 +74,8 @@ void TSink::Collision(TBall* ball, vector2* nextPosition, vector2* direction, fl
 	}
 }
 
+// Timer callback that puts a ball at the sink's position and throws it out; it tries again in 0.5 s while the spot
+// is taken or no ball slot is free. On the bonus tables it then tells the rules
 void TSink::TimerExpired(int timerId, void* caller)
 {
 	auto sink = static_cast<TSink*>(caller);

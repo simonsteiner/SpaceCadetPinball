@@ -10,9 +10,9 @@ dxc_archive=linux_dxc_2026_09_28.x86_x64.tar.gz
 dxc_sha256=96faadc7f5c282d2ffda49804beb4c3ee38127bc252b723234e3c5cdf7aa39a1
 dxc_dir=${XDG_CACHE_HOME:-$HOME/.cache}/SpaceCadetPinball/dxc-$dxc_version
 
-if [ ! -x "$dxc_dir/bin/dxc" ]; then
+if [[ ! -x "$dxc_dir/bin/dxc" ]]; then
 	mkdir -p "$dxc_dir"
-	curl -sSfL -o "$dxc_dir/$dxc_archive" \
+	curl --proto '=https' --proto-redir '=https' --tlsv1.2 -sSfL -o "$dxc_dir/$dxc_archive" \
 		"https://github.com/microsoft/DirectXShaderCompiler/releases/download/$dxc_version/$dxc_archive"
 	echo "$dxc_sha256  $dxc_dir/$dxc_archive" | sha256sum -c --quiet
 	tar xzf "$dxc_dir/$dxc_archive" -C "$dxc_dir"
@@ -24,7 +24,8 @@ trap 'rm -rf "$tmp"' EXIT
 
 # One byte array per shader and format
 emit() { # name, file
-	python3 - "$1" "$2" <<'PY'
+	local array=$1 file=$2
+	python3 - "$array" "$file" <<'PY'
 import sys
 name, path = sys.argv[1], sys.argv[2]
 data = open(path, 'rb').read()

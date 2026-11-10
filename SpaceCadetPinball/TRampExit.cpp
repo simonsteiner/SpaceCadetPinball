@@ -7,6 +7,8 @@
 #include "TLine.h"
 #include "TPinballTable.h"
 
+// Builds the exit's two edges from wall 1301, the same line facing each layer; without a line wall there the exit
+// has no edges
 TRampExit::TRampExit(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, false)
 {
 	// Wall 1301: the two layers' collision groups, the wall type, which must be a line (2), and its two points
@@ -32,6 +34,7 @@ TRampExit::TRampExit(TPinballTable* table, int groupIndex) : TCollisionComponent
 	Line2 = line2;
 }
 
+// Lets the ball cross into the other layer and tells the rules which one
 void TRampExit::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	ball->not_again(edge);

@@ -49,6 +49,8 @@
 int TPinballTable::score_multipliers[5] = {1, 2, 3, 5, 10};
 
 
+// Builds the table: the score fields, then a component for each object listed in table_objects (attribute 1025)
+// by its type, and links the table rules to them
 TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 {
 	int shortArrLength;
@@ -222,6 +224,7 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 }
 
 
+// Builds a type 1011 blocker: a TAnimatedBlocker on the bonus tables, else a TBlocker
 void TPinballTable::AddBlocker(int groupIndex)
 {
 	// The bonus tables' blockers are animated props, which need CADET.EXE's later TBlocker
@@ -231,6 +234,7 @@ void TPinballTable::AddBlocker(int groupIndex)
 		new TBlocker(this, groupIndex);
 }
 
+// Prints the type and group name of an object the engine doesn't build, on the bonus tables only
 void TPinballTable::LogNotBuilt(int objectType, int groupIndex)
 {
 	// Space Cadet builds every object it has; a bonus table may have types the engine doesn't build yet (Phase F)
@@ -241,6 +245,7 @@ void TPinballTable::LogNotBuilt(int objectType, int groupIndex)
 	fflush(stdout);
 }
 
+// Frees the score fields, the light group and every component, and clears the rules' links
 TPinballTable::~TPinballTable()
 {
 	for (auto& PlayerScore : PlayerScores)
@@ -267,6 +272,7 @@ TPinballTable::~TPinballTable()
 	pb::InfoTextBox = pb::MissTextBox = nullptr;
 }
 
+// Returns the component built from the group with this name; shows a warning box and returns null when there is none
 TPinballComponent* TPinballTable::find_component(LPCSTR componentName)
 {
 	for (auto component : ComponentList)
@@ -282,6 +288,7 @@ TPinballComponent* TPinballTable::find_component(LPCSTR componentName)
 	return nullptr;
 }
 
+// Returns the component with this group index; shows a warning box and returns null when there is none
 TPinballComponent* TPinballTable::find_component(int groupIndex)
 {
 	char Buffer[40]{};
@@ -296,11 +303,14 @@ TPinballComponent* TPinballTable::find_component(int groupIndex)
 	return nullptr;
 }
 
+// ScoreMultiplier's value for a factor of 1: the factor itself on the bonus tables, else index 0
 int TPinballTable::NoScoreMultiplier()
 {
 	return pb::BonusTable() ? 1 : 0;
 }
 
+// Adds <score> times the score multiplier, plus ScoreAdded, to the current player's score and returns what was
+// added; also grows the jackpots and the bonus that are switched on, up to their limits
 int TPinballTable::AddScore(int score)
 {
 	if (JackpotScoreFlag)
@@ -330,6 +340,7 @@ int TPinballTable::AddScore(int score)
 	return addedScore;
 }
 
+// Sets the balls left and shows the number of the ball in play, or blanks that field when none are left
 void TPinballTable::ChangeBallCount(int count)
 {
 	BallCount = count;
@@ -344,6 +355,8 @@ void TPinballTable::ChangeBallCount(int count)
 	}
 }
 
+// Tilts the table unless it already is or the ball is in the drain: shows TILT, sends SetTiltLock to every
+// component and the rules, and starts the 30 s timeout that drains the balls
 void TPinballTable::tilt(float time)
 {
 	if (!TiltLockFlag && !BallInDrainFlag)
@@ -367,6 +380,7 @@ void TPinballTable::tilt(float time)
 }
 
 
+// Calls port_draw on every component
 void TPinballTable::port_draw()
 {
 	for (auto component : ComponentList)
@@ -375,6 +389,9 @@ void TPinballTable::port_draw()
 	}
 }
 
+// Handles the table's messages: flipper and plunger input go to those components, NewGame and StartGamePlayer1
+// start a game, SwitchToNextPlayer swaps the per-player state, GameOver starts the end of the game and Reset clears
+// the table's state. Every message then goes to the table rules
 int TPinballTable::Message(MessageCode code, float value)
 {
 	const char* rc_text;
@@ -672,6 +689,7 @@ int TPinballTable::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Puts a ball at <position>, reusing an inactive one or making a new one; returns null when all 20 are in use
 TBall* TPinballTable::AddBall(vector2 position)
 {
 	TBall* ball = nullptr;
@@ -714,6 +732,7 @@ TBall* TPinballTable::AddBall(vector2 position)
 	return ball;
 }
 
+// Counts the active balls whose position lies within <rect>
 int TPinballTable::BallCountInRect(const RectF& rect)
 {
 	int count = 0;
@@ -741,6 +760,8 @@ int TPinballTable::BallCountInRect(const vector2& pos, float margin)
 	return BallCountInRect(rect);
 }
 
+// Timer callback 3 s after GameOver: ends the game through pb::end_game, sends GameOver to every component and
+// shows the closing text, unless a bonus table keeps its high score text up
 void TPinballTable::EndGame_timeout(int timerId, void* caller)
 {
 	auto table = static_cast<TPinballTable*>(caller);
@@ -776,6 +797,7 @@ void TPinballTable::replay_timer_callback(int timerId, void* caller)
 	table->ReplayTimer = 0;
 }
 
+// Timer callback 30 s into a tilt: drains every ball if the table is still tilted, except one placed from the DAT
 void TPinballTable::tilt_timeout(int timerId, void* caller)
 {
 	auto table = static_cast<TPinballTable*>(caller);

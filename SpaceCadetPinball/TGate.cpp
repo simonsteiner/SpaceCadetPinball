@@ -19,6 +19,8 @@ TGate::TGate(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	control::handler(MessageCode::Reset, this);
 }
 
+// Handles the gate's messages: TGateEnable and Reset switch its edges and sprite on, TGateDisable off, each but Reset
+// with a sound; every message goes on to the rules, and on the bonus tables the message field is kept per player
 int TGate::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())

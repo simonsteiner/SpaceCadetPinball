@@ -8,10 +8,12 @@ struct vector2
 	float X;
 	float Y;
 
+	// Exact comparison of both coordinates
 	bool operator==(const vector2& vec)
 	{
 		return X == vec.X && Y == vec.Y;
 	}
+	// True when either coordinate differs
 	bool operator!=(const vector2& vec)
 	{
 		return X != vec.X || Y != vec.Y;

@@ -12,6 +12,8 @@
 #include "TTableLayer.h"
 
 
+// Copies the ramp's planes out of attribute 1300, a count followed by the planes, clamped to what <length> floats
+// hold
 void TRamp::SetPlanes(const float* attribute, int length)
 {
 	// The planes are copied out of the attribute's floats, as the table lays them out
@@ -26,6 +28,9 @@ void TRamp::SetPlanes(const float* attribute, int length)
 	RampPlane = count > 0 ? Planes.data() : nullptr;
 }
 
+// Builds the ramp from its planes and walls (attributes 1300 to 1303): the line that reports the ball (1303), the
+// two lines that take it off the ramp (1301, 1302), an edge for each side of each plane, and the field that applies
+// the planes' slope
 TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, false)
 {
 	visualStruct visual{};
@@ -146,6 +151,9 @@ TRamp::TRamp(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	TTableLayer::edges_insert_square(y0, x0, y1, x1, nullptr, &Field);
 }
 
+// Lets the ball pass the edge it crossed. A plane's edge puts the ball on that plane, in the ramp's layer; Line1
+// tells the rules unless the table is tilted; the other two lines take the ball off the ramp into their wall's layer.
+// On the bonus tables the rules also hear of each change of layer
 void TRamp::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	ball->not_again(edge);

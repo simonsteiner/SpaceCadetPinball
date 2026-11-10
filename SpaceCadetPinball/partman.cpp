@@ -10,6 +10,8 @@ short partman::_field_size[] =
 	2, -1, 2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0
 };
 
+// Loads a DAT file into groups. Returns null when the file can't be opened, lacks the PARTOUT(4.0) signature, ends
+// early or is damaged.
 DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode, bool msgFont)
 {
 	datFileHeader header{};
@@ -87,6 +89,7 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode, bool msgFon
 	return nullptr;
 }
 
+// Reads one field of a group: its type, its size and its contents. Returns null when the file ends early or is damaged.
 EntryData* partman::ReadEntry(FILE* file, bool fullTiltMode)
 {
 	// A field type the format doesn't have, or a field too large to be one, means the file is damaged; the load stops
@@ -120,6 +123,8 @@ EntryData* partman::ReadEntry(FILE* file, bool fullTiltMode)
 	return entryData;
 }
 
+// Reads an 8-bit bitmap field into a gdrv_bitmap8 kept in entry.Buffer; false when its header is bad or the file ends
+// early
 bool partman::ReadBitmap(FILE* file, EntryData& entry, size_t fieldSize)
 {
 	// Not value-initialized: Flags has no zero enumerator, and the read fills every byte or fails
@@ -138,6 +143,8 @@ bool partman::ReadBitmap(FILE* file, EntryData& entry, size_t fieldSize)
 	return !failed;
 }
 
+// Reads a depth map field, after Full Tilt's resolution byte, into a zmap_header_type kept in entry.Buffer. Data whose
+// size doesn't match the header is skipped and the map left empty; false when the header is bad or the file ends early.
 bool partman::ReadZMap(FILE* file, EntryData& entry, size_t fieldSize, bool fullTiltMode)
 {
 	/*Full tilt has extra byte(@0:resolution) in zMap*/
@@ -180,6 +187,8 @@ bool partman::ReadZMap(FILE* file, EntryData& entry, size_t fieldSize, bool full
 	return !failed;
 }
 
+// Reads any other field into a buffer with zeros after it; false when the file ends early or a name or string doesn't
+// end in a zero
 bool partman::ReadField(FILE* file, EntryData& entry, size_t fieldSize)
 {
 	// Zeros after the field: the components and the loader read some arrays at fixed places, which a damaged field
@@ -194,6 +203,7 @@ bool partman::ReadField(FILE* file, EntryData& entry, size_t fieldSize)
 	return !failed && !(cString && buffer[fieldSize - 1] != 0);
 }
 
+// Whether a field's size is within the largest allowed and enough for what its type holds
 bool partman::ValidFieldSize(FieldTypes type, size_t size)
 {
 	using enum FieldTypes;
@@ -217,6 +227,7 @@ bool partman::ValidFieldSize(FieldTypes type, size_t size)
 	}
 }
 
+// Whether an 8-bit bitmap's header fits its field and describes a bitmap the game can hold
 bool partman::ValidBitmapHeader(const dat8BitBmpHeader& header, size_t fieldSize)
 {
 	// A group keeps a bitmap for each of the three resolutions

@@ -12,12 +12,12 @@ usage='usage: tools/lint-changed.sh <base> [build-dir]'
 base_ref=${1:?$usage}
 build_dir=${2:-}
 repo=$(git rev-parse --show-toplevel)
-if [ -n "$build_dir" ]; then
+if [[ -n "$build_dir" ]]; then
 	build_dir=$(cd "$build_dir" && pwd)
 fi
 cd "$repo" # git diff and clang-tidy-diff.py -p1 name files from the top of the repository
 llvm_version=$(sed -n 's/^clang-format==\([0-9.]*\).*/\1/p' "$repo/tools/llvm-requirements.txt")
-if [ -z "$llvm_version" ]; then
+if [[ -z "$llvm_version" ]]; then
 	echo "no clang-format version in tools/llvm-requirements.txt" >&2
 	exit 2
 fi
@@ -33,8 +33,8 @@ pathspec=(':(glob)SpaceCadetPinball/**' ':(exclude,glob)SpaceCadetPinball/imgui*
 run_tool() { # package, command, args...
 	local package=$1 command=$2 dir_var
 	shift 2
-	dir_var=$([ "$package" = clang-format ] && echo "${CLANG_FORMAT_DIR:-}" || echo "${CLANG_TIDY_DIR:-}")
-	if [ -n "$dir_var" ]; then
+	dir_var=$([[ "$package" = clang-format ]] && echo "${CLANG_FORMAT_DIR:-}" || echo "${CLANG_TIDY_DIR:-}")
+	if [[ -n "$dir_var" ]]; then
 		PATH="$dir_var:$PATH" "$command" "$@"
 	else
 		uvx -q --from "$package==$llvm_version" "$command" "$@"
@@ -48,15 +48,15 @@ echo "clang-format on lines changed since $base ($base_ref)"
 # anything else (127 for a missing tool) is an error too
 rc=0
 run_tool clang-format git-clang-format --diff "$base" -- "${pathspec[@]}" || rc=$?
-if [ "$rc" -eq 1 ]; then
+if [[ "$rc" -eq 1 ]]; then
 	echo "Changed lines are not formatted. Run: uvx --from clang-format==$llvm_version git-clang-format $base"
 	status=1
-elif [ "$rc" -ne 0 ]; then
+elif [[ "$rc" -ne 0 ]]; then
 	echo "git-clang-format failed with exit code $rc" >&2
 	exit "$rc"
 fi
 
-if [ -n "$build_dir" ]; then
+if [[ -n "$build_dir" ]]; then
 	echo "clang-tidy on lines changed since $base ($base_ref)"
 	changes=$(git diff -U0 "$base" -- "${pathspec[@]}")
 	jobs=$(nproc 2>/dev/null || echo 2)

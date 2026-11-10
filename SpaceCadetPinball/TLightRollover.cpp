@@ -19,6 +19,8 @@ TLightRollover::TLightRollover(TPinballTable* table, int groupIndex) : TRollover
 	FloatArr = *loader::required_float_attribute(groupIndex, 0, 407);
 }
 
+// Handles Reset, which rearms the rollover, stops the timer that hides its sprite and hides it; on the bonus tables
+// also keeps the message field per player
 int TLightRollover::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())
@@ -35,6 +37,8 @@ int TLightRollover::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Lets the ball pass. With RolloverFlag clear it shows the sprite, plays the sound and tells the rules; with it set
+// it disarms the rollover for 0.1 s and starts the delay that hides the sprite. A tilted table does neither
 void TLightRollover::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
                                TEdgeSegment* edge)
 {

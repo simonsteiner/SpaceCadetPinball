@@ -36,26 +36,26 @@ usage() {
 	exit 2
 }
 
-if [ -n "${CI:-}" ]; then
+if [[ -n "${CI:-}" ]]; then
 	echo "Test builds carry game data and are never made in CI." >&2
 	exit 1
 fi
-[ $# -ge 1 ] || usage
+[[ $# -ge 1 ]] || usage
 platform=$1
 shift
 msvc=false
 emulator=false
 for arg in "$@"; do
 	case $arg in
-		--msvc) [ "$platform" = windows ] || usage; msvc=true ;;
-		--emulator) [ "$platform" = android ] || usage; emulator=true ;;
+		--msvc) [[ "$platform" = windows ]] || usage; msvc=true ;;
+		--emulator) [[ "$platform" = android ]] || usage; emulator=true ;;
 		*) usage ;;
 	esac
 done
 case $platform in
 	windows | web | android) ;;
 	macos)
-		if [ "$(uname -s)" != Darwin ]; then
+		if [[ "$(uname -s)" != Darwin ]]; then
 			echo "The macos test build is made on a Mac" >&2
 			exit 1
 		fi
@@ -70,7 +70,7 @@ repo=$(cd "$repo" && pwd -P)
 workspace=$(cd "$repo/.." && pwd -P)
 commit=$(git -C "$repo" rev-parse --short=10 HEAD)
 describe=$(git -C "$repo" describe --always --tags HEAD)
-if [ -n "$(git -C "$repo" status --porcelain --untracked-files=no)" ]; then
+if [[ -n "$(git -C "$repo" status --porcelain --untracked-files=no)" ]]; then
 	echo "Warning: uncommitted changes are not in the build; it is made from HEAD ($describe)." >&2
 fi
 
@@ -91,6 +91,7 @@ for dir in "$out" "$build"; do
 				echo "Refusing to write game data inside the repository: $dir" >&2
 				exit 1
 				;;
+			*) ;; # outside this checkout
 		esac
 	done
 done
@@ -103,12 +104,14 @@ for dir in "$out" "$build"; do
 done
 
 upper() {
-	printf '%s' "$1" | tr '[:lower:]' '[:upper:]'
+	local text=$1
+	printf '%s' "$text" | tr '[:lower:]' '[:upper:]'
 }
 
 # The file in a folder whose name matches, in any letter case; fails when there is none
 find_file() {
-	[ -d "$1" ] && find "$1" -maxdepth 1 -type f -iname "$2" -print -quit | grep .
+	local folder=$1 pattern=$2
+	[[ -d "$folder" ]] && find "$folder" -maxdepth 1 -type f -iname "$pattern" -print -quit | grep .
 }
 
 # add_table <data folder> <folder in the layout, or .> <DAT file> <sound folder, or .> <music track...>
@@ -129,9 +132,9 @@ add_table() {
 	fi
 	sound_data=$data
 	sound_dest=$dest
-	if [ "$sound" != . ]; then
+	if [[ "$sound" != . ]]; then
 		sound_data=$(find "$data" -maxdepth 1 -type d -iname "$sound" -print -quit)
-		if [ -z "$sound_data" ]; then
+		if [[ -z "$sound_data" ]]; then
 			echo "No $sound folder in $data" >&2
 			exit 1
 		fi
@@ -158,7 +161,7 @@ add_table() {
 # The layout the game searches: both Space Cadets at the top, where "Prefer 3DPB Data" chooses between them, since
 # a CADET folder under 3D Pinball's would never be reached; Dragon's Keep and Skulduggery in their Full Tilt! folders
 layout=$build/layout
-if [ -d "$layout" ]; then
+if [[ -d "$layout" ]]; then
 	rm -rf -- "${layout:?}"
 fi
 mkdir -p "$layout"
@@ -167,7 +170,7 @@ data_fulltilt=${SCP_DATA_FULLTILT-$workspace/gamedata-fulltilt}
 data_dragon=${SCP_DATA_DRAGON-$workspace/gamedata-dragon}
 data_skulduggery=${SCP_DATA_SKULDUGGERY-$workspace/gamedata-skulduggery}
 tables=()
-if [ -n "$data_3dpb" ]; then
+if [[ -n "$data_3dpb" ]]; then
 	add_table "$data_3dpb" . PINBALL.DAT . PINBALL
 	# Only for the font of its messages, which the game reads out of it; it never runs it
 	if file=$(find_file "$data_3dpb" PINBALL.EXE); then
@@ -177,20 +180,20 @@ if [ -n "$data_3dpb" ]; then
 	fi
 	tables+=("3D Pinball's Space Cadet")
 fi
-if [ -n "$data_fulltilt" ]; then
+if [[ -n "$data_fulltilt" ]]; then
 	add_table "$data_fulltilt" . CADET.DAT SOUND TABA1 TABA2 TABA3
 	tables+=("Full Tilt!'s Space Cadet")
 fi
-if [ -n "$data_dragon" ]; then
+if [[ -n "$data_dragon" ]]; then
 	# DRAGON.EXE never loads TABC3, so neither does the game
 	add_table "$data_dragon" DRAGON DRAGON.DAT SOUND TABC1 TABC2 TABC4 TABC5 TABC6 TABC7
 	tables+=("Dragon's Keep")
 fi
-if [ -n "$data_skulduggery" ]; then
+if [[ -n "$data_skulduggery" ]]; then
 	add_table "$data_skulduggery" PIRATE PIRATES.DAT SOUND TABB1 TABB2 TABB3 TABB4 TABB5 TABB6
 	tables+=("Skulduggery")
 fi
-if [ ${#tables[@]} -eq 0 ]; then
+if [[ ${#tables[@]} -eq 0 ]]; then
 	echo "No game data: every SCP_DATA_* is empty" >&2
 	exit 1
 fi
@@ -199,7 +202,7 @@ echo "Game data: $(find "$layout" -type f | wc -l | tr -d ' ') files, $(du -sh "
 
 # The committed source, outside the repository, so its bin/ is too
 src=$build/src
-if [ -d "$src" ]; then
+if [[ -d "$src" ]]; then
 	rm -rf -- "${src:?}"
 fi
 mkdir -p "$src"
@@ -230,7 +233,7 @@ build_windows_msvc() {
 	local vswhere="/mnt/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" vs win_temp dir
 	vs=$("$vswhere" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 \
 		-property installationPath | tr -d '\r')
-	if [ -z "$vs" ]; then
+	if [[ -z "$vs" ]]; then
 		echo "No Visual Studio with the C++ tools on the Windows host" >&2
 		exit 1
 	fi
@@ -239,7 +242,7 @@ build_windows_msvc() {
 	echo "Building in $win_temp\\scp-testbuild, which holds a copy of the game data until you delete it"
 	mkdir -p "$dir"
 	for sub in src layout; do
-		if [ -d "$dir/$sub" ]; then
+		if [[ -d "$dir/$sub" ]]; then
 			rm -rf -- "${dir:?}/$sub"
 		fi
 		cp -r "$build/$sub" "$dir/$sub"
@@ -265,15 +268,16 @@ soundfont_files=(
 
 # macOS has shasum but not always sha256sum
 sha256() {
+	local file=$1
 	if command -v sha256sum >/dev/null; then
-		sha256sum "$1"
+		sha256sum "$file"
 	else
-		shasum -a 256 "$1"
+		shasum -a 256 "$file"
 	fi | cut -d ' ' -f 1
 }
 
 build_web() {
-	if [ -z "${EMSDK:-}" ]; then
+	if [[ -z "${EMSDK:-}" ]]; then
 		echo "Set EMSDK to an Emscripten SDK (tools/install-emsdk.sh)" >&2
 		exit 1
 	fi
@@ -287,9 +291,9 @@ build_web() {
 	for entry in "${soundfont_files[@]}"; do
 		name=${entry% *}
 		hash=${entry#* }
-		if [ ! -f "$build/soundfont/$name" ] || [ "$(sha256 "$build/soundfont/$name")" != "$hash" ]; then
+		if [[ ! -f "$build/soundfont/$name" ]] || [[ "$(sha256 "$build/soundfont/$name")" != "$hash" ]]; then
 			curl -sSfL --proto =https --proto-redir =https -o "$build/soundfont/$name" "$soundfont_base/$name"
-			if [ "$(sha256 "$build/soundfont/$name")" != "$hash" ]; then
+			if [[ "$(sha256 "$build/soundfont/$name")" != "$hash" ]]; then
 				echo "$name doesn't match its pinned SHA-256" >&2
 				exit 1
 			fi
@@ -305,11 +309,11 @@ build_macos() {
 	cmake --fresh -S "$src" --preset macos -B "$dir" "${cmake_args[@]}"
 	cmake --build "$dir" --parallel "$(sysctl -n hw.ncpu)"
 	version=$(sed -n "s/^sw_version='\(.*\)'$/\1/p" "$src/build-mac-app.sh")
-	if [ -z "$version" ]; then
+	if [[ -z "$version" ]]; then
 		echo "No sw_version='...' line in build-mac-app.sh" >&2
 		exit 1
 	fi
-	if [ -d "$app" ]; then
+	if [[ -d "$app" ]]; then
 		rm -rf -- "${app:?}"
 	fi
 	mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
@@ -329,15 +333,15 @@ build_macos() {
 build_android() {
 	local sdk=${ANDROID_HOME:-$HOME/Android/sdk} signing=${SCP_ANDROID_KEYSTORE:-$workspace/android-keystore/keystore.properties}
 	local assets=$build/android-assets file name list hash count abis=arm64-v8a
-	if [ ! -d "$sdk/ndk" ]; then
+	if [[ ! -d "$sdk/ndk" ]]; then
 		echo "No Android SDK with an NDK in $sdk; set ANDROID_HOME" >&2
 		exit 1
 	fi
-	if [ ! -f "$signing" ]; then
+	if [[ ! -f "$signing" ]]; then
 		echo "No test keystore's $signing (docs/deployment.md, Android)" >&2
 		exit 1
 	fi
-	if [ -d "$assets" ]; then
+	if [[ -d "$assets" ]]; then
 		rm -rf -- "${assets:?}"
 	fi
 	mkdir -p "$assets/bundled"
@@ -395,4 +399,5 @@ case $platform in
 		echo "Copy it to the Windows device over USB or the local network and run it; its first start unpacks the" \
 			"data into %APPDATA%\\SpaceCadetPinball. Never upload it."
 		;;
+	*) ;; # the platform was checked at the top
 esac

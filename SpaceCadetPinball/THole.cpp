@@ -10,6 +10,9 @@
 #include "TPinballTable.h"
 #include "TTableLayer.h"
 
+// Reads the hole's circle, gravity, release height and collision mask, and adds the circle edge that captures a ball
+// and the field that pulls balls in. The bonus tables read the gravity factor and the eject speed from attributes of
+// their own
 THole::THole(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, false)
 {
 	visualStruct visual{};
@@ -58,6 +61,7 @@ THole::THole(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	TTableLayer::edges_insert_circle(&circle, nullptr, &Field);
 }
 
+// On Reset a captured ball starts its release at once; the bonus tables' messages are in BonusTableMessage
 int THole::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())
@@ -75,6 +79,8 @@ int THole::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Handles the bonus tables' messages: THoleRelease releases the ball after <value> seconds, SetTiltLock at once;
+// PlayerChanged and Reset stop a retry and release a captured ball at once
 void THole::BonusTableMessage(MessageCode code, float value)
 {
 	using enum MessageCode;
@@ -100,6 +106,7 @@ void THole::BonusTableMessage(MessageCode code, float value)
 	}
 }
 
+// Starts the release after <time> seconds, at once for 0 or less, in place of a timer already running
 void THole::ReleaseAfter(float time)
 {
 	if (Timer)
@@ -111,6 +118,9 @@ void THole::ReleaseAfter(float time)
 		Timer = timer::set(time, this, TimerExpired);
 }
 
+// Captures the ball at the hole's centre, starts the timer to its release and, unless the table is tilted, tells the
+// rules; while a ball is held, another bounces off. On the bonus tables a negative attribute 407 sets no timer, and
+// the rules release the ball
 void THole::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	if (!BallCapturedFlag)
@@ -150,6 +160,9 @@ void THole::Collision(TBall* ball, vector2* nextPosition, vector2* direction, fl
 	}
 }
 
+// For a ball inside the circle of a hole that holds none, sets <vecDst> to a pull towards the centre and returns 1;
+// else returns 0. A captured ball whose release has started drops, or on the bonus tables may be thrown up, to the
+// release height, where it's let go with the hole's collision mask
 int THole::FieldEffect(TBall* ball, vector2* vecDst)
 {
 	int result;
@@ -219,6 +232,8 @@ void THole::TimerExpired(int timerId, void* caller)
 	hole->BallCapturedSecondStage = true;
 }
 
+// Lets the captured ball go with the hole's collision mask and tells the rules; while another ball is close by on that
+// layer, it tries again in 0.5 s instead
 void THole::FinishRelease(TBall* ball)
 {
 	if (RetryTimer)
@@ -251,6 +266,7 @@ void THole::FinishRelease(TBall* ball)
 	control::handler(MessageCode::ControlBallReleased, this);
 }
 
+// Timer callback: tries FinishRelease again if a ball is still held
 void THole::RetryRelease(int, void* caller)
 {
 	auto hole = static_cast<THole*>(caller);

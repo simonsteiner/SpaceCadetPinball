@@ -2,6 +2,7 @@
 #include "replay.h"
 
 #include <cstdarg>
+#include <utility>
 
 #include "DefinitiveEdition.h"
 #include "fullscrn.h"
@@ -52,7 +53,8 @@ namespace
 	}
 }
 
-FILE *replay::Output = nullptr, *replay::Input = nullptr;
+FILE* replay::Output = nullptr;
+FILE* replay::Input = nullptr;
 int replay::Depth = 0;
 unsigned replay::FrameIndex = 0;
 unsigned replay::HeaderSeed = 1;
@@ -68,23 +70,26 @@ replay::Scope::Scope(float frameDtMilliSec) : IsFrame(true), FrameDt(frameDtMill
 	Depth++;
 }
 
+// Opens the scope of a command; while recording, the outermost scope writes the formatted line, and a line that
+// starts a game marks the recording as holding one
 replay::Scope::Scope(const char* format, ...)
 {
 	if (Output && Depth == 0)
 	{
 		va_list args;
 		va_start(args, format);
-		char line[256];
-		vsnprintf(line, sizeof line, format, args);
+		std::array<char, 256> line;
+		vsnprintf(line.data(), line.size(), format, args);
 		va_end(args);
-		fprintf(Output, "%s\n", line);
+		fprintf(Output, "%s\n", line.data());
 		// replay_level's line, for a game rather than the demo
-		if (std::strncmp(line, "n 0 ", 4) == 0)
+		if (std::strncmp(line.data(), "n 0 ", 4) == 0)
 			GameRecorded = true;
 	}
 	Depth++;
 }
 
+// Closes the scope; the outermost frame scope writes its time step and the state after it while recording
 replay::Scope::~Scope()
 {
 	Depth--;
@@ -95,6 +100,7 @@ replay::Scope::~Scope()
 	}
 }
 
+// Opens path for recording and writes the header up to the start line; false if the file can't be opened
 bool replay::StartRecording(const std::string& path)
 {
 	Output = fopenu(path.c_str(), "wb");
@@ -118,6 +124,8 @@ bool replay::StartRecording(const std::string& path)
 	return true;
 }
 
+// Opens a recording for playback and reads its header into the seed, resolution and data file to apply; false, with
+// a message printed, if the file can't be opened or isn't a recording this build reads
 bool replay::StartPlayback(const std::string& path)
 {
 	Input = fopenu(path.c_str(), "rb");
@@ -127,7 +135,8 @@ bool replay::StartPlayback(const std::string& path)
 		return false;
 	}
 
-	std::string line, rest;
+	std::string line;
+	std::string rest;
 	if (!ReadLine(Input, line) || line != Magic)
 	{
 		printf("Not a replay file, or a version this build can't read: %s\n", path.c_str());
@@ -163,6 +172,7 @@ bool replay::StartPlayback(const std::string& path)
 	return true;
 }
 
+// Summarizes the recording, then starts it as playback in viewing mode; false if it holds no readable recording
 bool replay::StartViewing(const std::string& path)
 {
 	ViewedSummary = Summarize(path);
@@ -174,13 +184,16 @@ bool replay::StartViewing(const std::string& path)
 	return true;
 }
 
+// Reads a recording without playing it: its data file, where each frame starts in milliseconds, the total length
+// and the frames at which a game starts. No frames when the file can't be read or has no start line
 replay::Summary replay::Summarize(const std::string& path)
 {
 	Summary summary;
 	auto file = fopenu(path.c_str(), "rb");
 	if (!file)
 		return summary;
-	std::string line, rest;
+	std::string line;
+	std::string rest;
 	auto started = false;
 	if (ReadLine(file, line) && line == Magic)
 	{
@@ -188,8 +201,7 @@ replay::Summary replay::Summarize(const std::string& path)
 		{
 			if (!started)
 			{
-				auto key = SplitFirst(line, rest);
-				if (key == "dat")
+				if (auto key = SplitFirst(line, rest); key == "dat")
 					summary.DatFile = rest;
 				started = line == "start";
 				continue;
@@ -214,16 +226,19 @@ std::string replay::LoadedDatFile()
 	return pb::DatFileName + " " + DatFileHash();
 }
 
+// Closes the recording being made or played back and leaves viewing mode
 void replay::Stop()
 {
 	if (Output)
 		fclose(Output);
 	if (Input)
 		fclose(Input);
-	Output = Input = nullptr;
+	Output = nullptr;
+	Input = nullptr;
 	Viewing = false;
 }
 
+// Whether the loaded game data is the file the recording was made with, by name and hash; prints both if not
 bool replay::CheckDatFile()
 {
 	auto actual = pb::DatFileName + " " + DatFileHash();
@@ -235,22 +250,26 @@ bool replay::CheckDatFile()
 	return false;
 }
 
+// Records an input going down or up with its bindings, as a d or u line; only while recording and outside any scope
 void replay::RecordInput(bool down, GameInput input, const std::vector<GameBindings>& bindings)
 {
 	if (!Output || Depth != 0)
 		return;
 
-	fprintf(Output, "%c %d %d ", down ? 'd' : 'u', static_cast<int>(input.Type), input.Value);
+	fprintf(Output, "%c %d %d ", down ? 'd' : 'u', std::to_underlying(input.Type), input.Value);
 	if (bindings.empty())
 		fputc('-', Output);
 	for (auto index = 0u; index < bindings.size(); index++)
-		fprintf(Output, index ? ",%d" : "%d", static_cast<int>(bindings[index]));
+		fprintf(Output, index ? ",%d" : "%d", std::to_underlying(bindings[index]));
 	fputc('\n', Output);
 }
 
+// Runs the recorded commands up to and including the next frame and compares the state after it with the recorded
+// one. False at the end of the recording, at the first difference or at a line it can't read, with the result printed
 bool replay::PlayStep()
 {
-	std::string line, rest;
+	std::string line;
+	std::string rest;
 	while (ReadLine(Input, line))
 	{
 		if (line.empty())
@@ -267,8 +286,7 @@ bool replay::PlayStep()
 				DefinitiveEdition::Update(view);
 			if (!Viewing)
 				printf("view %u %016llx\n", FrameIndex, static_cast<unsigned long long>(view.Hash()));
-			auto actual = FormatState();
-			if (actual != expected)
+			if (auto actual = FormatState(); actual != expected)
 			{
 				printf("Replay diverged at frame %u.\nExpected: %s\nActual:   %s\n",
 				       FrameIndex, expected.c_str(), actual.c_str());
@@ -281,16 +299,21 @@ bool replay::PlayStep()
 
 		if (key == "d" || key == "u")
 		{
-			int type = 0, value = 0;
+			int type = 0;
+			int value = 0;
 			char bindingList[128]{};
 			if (sscanf(rest.c_str(), "%d %d %127s", &type, &value, bindingList) != 3)
 				break;
 
 			std::vector<GameBindings> bindings;
-			for (auto token = strtok(bindingList, ","); token; token = strtok(nullptr, ","))
+			// Each run of characters between commas is a binding's number, or - for none
+			std::string_view list{bindingList};
+			while (!list.empty())
 			{
-				if (strcmp(token, "-") != 0)
-					bindings.push_back(static_cast<GameBindings>(atoi(token)));
+				auto token = list.substr(0, list.find(','));
+				list.remove_prefix(std::min(list.size(), token.size() + 1));
+				if (!token.empty() && token != "-")
+					bindings.push_back(static_cast<GameBindings>(std::strtol(std::string{token}.c_str(), nullptr, 10)));
 			}
 
 			GameInput input{static_cast<InputTypes>(type), value};
@@ -307,7 +330,8 @@ bool replay::PlayStep()
 		}
 		else if (key == "n")
 		{
-			int demo = 0, players = 1;
+			int demo = 0;
+			int players = 1;
 			if (sscanf(rest.c_str(), "%d %d", &demo, &players) != 2)
 				break;
 			// Replay mode never saves options, so this doesn't change the player's settings
@@ -358,31 +382,33 @@ bool replay::PlayStep()
 	return false;
 }
 
+// The state a frame line holds: time, game mode, current player and ball count, each player's score, and each
+// ball's position, direction and speed, or - for an inactive ball
 std::string replay::FormatState()
 {
 	auto table = pb::MainTable;
-	char buffer[256];
+	std::array<char, 256> buffer;
 	std::string state;
 
 	// The table keeps the current player's ball count; PlayerScores only holds it while another player plays
-	snprintf(buffer, sizeof buffer, "t=%d m=%d p=%d n=%d", pb::time_ticks, static_cast<int>(pb::game_mode),
-	         table->CurrentPlayer, table->BallCount);
-	state += buffer;
+	snprintf(buffer.data(), buffer.size(), "t=%d m=%d p=%d n=%d", pb::time_ticks, std::to_underlying(pb::game_mode),
+			 table->CurrentPlayer, table->BallCount);
+	state += buffer.data();
 
 	for (auto index = 0; index < table->PlayerCount; index++)
 	{
 		auto scoreStruct = table->PlayerScores[index].ScoreStruct;
-		snprintf(buffer, sizeof buffer, " s%d=%d", index, scoreStruct ? scoreStruct->Score : 0);
-		state += buffer;
+		snprintf(buffer.data(), buffer.size(), " s%d=%d", index, scoreStruct ? scoreStruct->Score : 0);
+		state += buffer.data();
 	}
 
 	for (auto ball : table->BallList)
 	{
 		if (ball->ActiveFlag)
 		{
-			snprintf(buffer, sizeof buffer, " b=%a,%a,%a,%a,%a,%a", ball->Position.X, ball->Position.Y,
-			         ball->Position.Z, ball->Direction.X, ball->Direction.Y, ball->Speed);
-			state += buffer;
+			snprintf(buffer.data(), buffer.size(), " b=%a,%a,%a,%a,%a,%a", ball->Position.X, ball->Position.Y,
+					 ball->Position.Z, ball->Direction.X, ball->Direction.Y, ball->Speed);
+			state += buffer.data();
 		}
 		else
 		{
@@ -392,10 +418,11 @@ std::string replay::FormatState()
 	return state;
 }
 
+// The 64-bit FNV-1a hash of the loaded data file as 16 hex digits; the hash of no data if the file can't be opened
 std::string replay::DatFileHash()
 {
 	// 64-bit FNV-1a over the whole file: enough to tell data files apart
-	uint64_t hash = 14695981039346656037ull;
+	uint64_t hash = 14695981039346656037ULL;
 	auto file = fopenu(pb::make_path_name(pb::DatFileName).c_str(), "rb");
 	if (file)
 	{
@@ -406,13 +433,13 @@ std::string replay::DatFileHash()
 			for (size_t index = 0; index < count; index++)
 			{
 				hash ^= buffer[index];
-				hash *= 1099511628211ull;
+				hash *= 1099511628211ULL;
 			}
 		}
 		fclose(file);
 	}
 
-	char text[17];
-	snprintf(text, sizeof text, "%016llx", static_cast<unsigned long long>(hash));
-	return text;
+	std::array<char, 17> text;
+	snprintf(text.data(), text.size(), "%016llx", static_cast<unsigned long long>(hash));
+	return text.data();
 }

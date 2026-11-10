@@ -14,7 +14,7 @@ public:
 	class Scope
 	{
 	public:
-		Scope(const char* format, ...);
+		explicit Scope(const char* format, ...);
 		// For pb::frame: records the time step and the resulting state when the scope ends
 		explicit Scope(float frameDtMilliSec);
 		~Scope();
@@ -33,6 +33,7 @@ public:
 	static void Stop();
 	static bool IsRecording() { return Output != nullptr; }
 	static bool IsPlaying() { return Input != nullptr; }
+	// Whether a recording plays in the window for the player to watch, rather than as a check
 	static bool IsViewing()
 	{
 		return Input != nullptr && Viewing;
@@ -82,7 +83,8 @@ public:
 	static bool PlayStep();
 	static bool PlaybackFailed() { return Failed; }
 private:
-	static FILE *Output, *Input;
+	static FILE* Output;
+	static FILE* Input;
 	static int Depth;
 	static unsigned FrameIndex;
 	static unsigned HeaderSeed;

@@ -14,7 +14,7 @@ for file in "$@"; do
         *) continue ;;
     esac
     # Only files directly in SpaceCadetPinball/
-    [ "$(dirname "$file")" = SpaceCadetPinball ] || continue
+    [[ "$(dirname "$file")" = SpaceCadetPinball ]] || continue
 
     if ! grep -qF "$file" <<<"$cmake_lists"; then
         echo "$file is not listed in CMakeLists.txt; add it to SOURCE_FILES" >&2
@@ -24,10 +24,11 @@ for file in "$@"; do
     name=$(basename "$file")
     case "$name" in
         *.h | imgui* | imstb* | EmbeddedData.cpp) continue ;;
+        *) ;; # a game .cpp, checked below
     esac
     # Some files start with a UTF-8 byte order mark. Bash makes the bytes, since BSD sed doesn't read \x escapes.
     first_include=$(git show ":$file" | sed "1s/^$bom//" | grep -m 1 '^[[:space:]]*#[[:space:]]*include' | tr -d '\r')
-    if [ "$first_include" != '#include "pch.h"' ]; then
+    if [[ "$first_include" != '#include "pch.h"' ]]; then
         echo "$file must start with #include \"pch.h\" (first include is: ${first_include:-none})" >&2
         failed=1
     fi

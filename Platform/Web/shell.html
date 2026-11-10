@@ -134,10 +134,12 @@
       else if (/\.exe$/i.test(relative)) relative = "PINBALL.EXE";
       const path = DataDir + "/" + relative;
       makeDirs(path);
+      // One file at a time, so only one is in memory besides the file system's copy; a SoundFont can be large
       FS.writeFile(path, new Uint8Array(await file.arrayBuffer()));
       added++;
     }
-    let message = added ? `Added ${added} file${added > 1 ? "s" : ""}.` : "No game files among those.";
+    let message = "No game files among those.";
+    if (added) message = `Added ${added} file${added > 1 ? "s" : ""}.`;
     try {
       await sync(false);
     } catch (err) {

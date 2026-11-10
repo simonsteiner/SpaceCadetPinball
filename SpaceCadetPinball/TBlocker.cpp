@@ -23,6 +23,9 @@ TBlocker::TBlocker(TPinballTable* table, int groupIndex) : TCollisionComponent(t
 	SpriteSet(-1);
 }
 
+// Handles the blocker's messages: TBlockerEnable raises it, with a timer of <value> seconds, if not negative, that
+// tells the rules when it runs out; TBlockerDisable, Reset, PlayerChanged and SetTiltLock lower it and stop the timer;
+// TBlockerRestartTimeout restarts the timer
 int TBlocker::Message(MessageCode code, float value)
 {
 	switch (code)

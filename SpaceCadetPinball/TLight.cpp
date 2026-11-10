@@ -23,6 +23,9 @@ TLight::TLight(TPinballTable* table, int groupIndex) : TPinballComponent(table, 
 	SourceDelay[1] = *floatArr2;
 }
 
+// Handles the light's messages: turning it on and off, flashing, its on-state bitmap, and the timed states that hold
+// for <value> seconds (without end if it is 0 or less) before the light shows its own state again. Reset and
+// PlayerChanged keep the state per player; the get and toggle messages return the on or flasher flag, the others 0
 int TLight::Message(MessageCode code, float value)
 {
 	int bmpIndex;
@@ -249,6 +252,7 @@ int TLight::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Stops the light's timers and flasher and puts it back to off, with the first bitmap as its on state
 void TLight::Reset()
 {
 	if (TimeoutTimer)
@@ -273,6 +277,8 @@ void TLight::Reset()
 	MessageField = 0;
 }
 
+// Restores the flash delays and restarts the timeout that ends a timed state after <time> seconds; none is set if
+// <time> is 0 or less
 void TLight::schedule_timeout(float time)
 {
 	FlashDelay[0] = SourceDelay[0];
@@ -284,6 +290,8 @@ void TLight::schedule_timeout(float time)
 		TimeoutTimer = timer::set(time, this, TimerExpired);
 }
 
+// Timer callback that ends a timed state: the light shows its own on or off state again, goes off if it was to
+// after flashing, and tells the rules
 void TLight::TimerExpired(int timerId, void* caller)
 {
 	auto light = static_cast<TLight*>(caller);
@@ -304,6 +312,8 @@ void TLight::TimerExpired(int timerId, void* caller)
 }
 
 
+// Stops the flasher; a <bmpIndex> of 0 or 1 leaves the light showing its off or on bitmap, a negative one leaves
+// the sprite as it is
 void TLight::flasher_stop(int bmpIndex)
 {
 	if (FlashTimer)
@@ -322,6 +332,7 @@ void TLight::flasher_start(bool bmpIndex)
 	flasher_callback(0, this);
 }
 
+// Shows bitmap <index>, or only remembers it while a temporary override holds the sprite
 void TLight::SetSpriteBmp(int index)
 {
 	PreviousBitmap = index;
@@ -343,6 +354,7 @@ void TLight::UndoTmpOverride(int timerId, void* caller)
 	light->Message(MessageCode::TLightFtResetOverride, 0.0f);
 }
 
+// True when the light is on, held on for a time, or flashing
 bool TLight::light_on() const
 {
 	return LightOnFlag || ToggledOnFlag || FlasherOnFlag;

@@ -11,6 +11,8 @@
 #include "TLine.h"
 #include "TPinballTable.h"
 
+// Adds a line for each side of the spinner, so that a hit tells its side, and reads the speed limits and the slowdown
+// (attributes 1200 to 1202, with defaults)
 TFlagSpinner::TFlagSpinner(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, false)
 {
 	visualStruct visual{};
@@ -51,6 +53,7 @@ TFlagSpinner::TFlagSpinner(TPinballTable* table, int groupIndex) : TCollisionCom
 		MinSpeed = *minSpeed;
 }
 
+// Reset kills Timer and shows the first frame; on the bonus tables the message field is kept per player
 int TFlagSpinner::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())
@@ -68,6 +71,8 @@ int TFlagSpinner::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Lets the ball through and starts the spin: the side hit gives its direction, and 20 times the ball's speed, kept
+// between MinSpeed and MaxSpeed, its frames per second
 void TFlagSpinner::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
                              TEdgeSegment* edge)
 {
@@ -88,6 +93,8 @@ void TFlagSpinner::Collision(TBall* ball, vector2* nextPosition, vector2* direct
 	NextFrame();
 }
 
+// Shows the next frame in the spin's direction and, unless the table is tilted, tells the rules of it and of each full
+// turn; then slows the spin by SpeedDecrement and sets the timer for the next frame while it's at least MinSpeed
 void TFlagSpinner::NextFrame()
 {
 	BmpIndex += SpinDirection;

@@ -52,6 +52,8 @@ int pb::quickFlag = 0;
 TTextBox *pb::InfoTextBox, *pb::MissTextBox;
 
 
+// Loads the selected DAT file and sets the game up from it: fonts, palette, projection, renderer, sounds and the table
+// with its components. Returns 1 when no DAT file is selected or it can't be loaded, else 0.
 int pb::init()
 {
 	float projMat[12];
@@ -191,6 +193,7 @@ namespace
 				  "Full Tilt! Pinball", "PIRATES"},
 	};
 
+	// What the game knows of a table's DAT file; the first entry for a table that isn't listed
 	const TableInfo& Info(Tables table)
 	{
 		auto info = std::ranges::find(TableInfos, table, &TableInfo::Table);
@@ -221,6 +224,7 @@ namespace
 			{ return name == info.FullTiltFolder || (info.Win31Folder && name == info.Win31Folder); });
 	}
 
+	// Whether c separates folders in a path: a slash, and on Windows a backslash too
 	bool IsSeparator(char c)
 	{
 #ifdef _WIN32
@@ -290,6 +294,7 @@ namespace
 		return {};
 	}
 
+	// The table's data from the first search path that has its DAT file in one of TableFolders' folders, or nothing
 	std::optional<TableData> FindTable(const std::vector<const char*>& dataSearchPaths, Tables table)
 	{
 		for (auto path : dataSearchPaths)
@@ -306,6 +311,7 @@ namespace
 	}
 } // namespace
 
+// The tables whose data the search paths hold: Space Cadet first, then Dragon's Keep and Skulduggery
 std::vector<TableData> pb::FindTables(const std::vector<const char*>& dataSearchPaths)
 {
 	using enum Tables;
@@ -318,12 +324,16 @@ std::vector<TableData> pb::FindTables(const std::vector<const char*>& dataSearch
 	return found;
 }
 
+// Finds the tables and sets Table, BasePath, DatFileName and the Full Tilt flags for the one to load: the table asked
+// for, else the player's choice, else the first found. DatFileName stays empty when there is no data to load, or none
+// for a table asked for.
 void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 {
 	DatFileName.clear();
 	BasePath.clear();
 	Table = Tables::SpaceCadet3DPB;
-	FullTiltDemoMode = FullTiltMode = false;
+	FullTiltMode = false;
+	FullTiltDemoMode = false;
 
 	FoundTables = FindTables(dataSearchPaths);
 	auto wanted = RequestedTable ? *RequestedTable : TableFromKey(options::Options.Table.V);
@@ -350,6 +360,7 @@ void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 	fputs(std::format("Loading game from: {}\n", make_path_name(DatFileName)).c_str(), stdout);
 }
 
+// Saves the player's choice of table and restarts the game with it; does nothing for the table already loaded
 void pb::SelectTable(Tables table)
 {
 	if (SameTable(table, Table))
@@ -360,6 +371,7 @@ void pb::SelectTable(Tables table)
 	winmain::Restart();
 }
 
+// The table a DAT file holds, from its name in any case; 3D Pinball's Space Cadet for an unknown name
 Tables pb::TableOf(const std::string& datFileName)
 {
 	auto info = std::ranges::find(TableInfos, ToUpper(datFileName), &TableInfo::DatFileName);
@@ -376,6 +388,7 @@ const char* pb::TableKey(Tables table)
 	return Info(table).Key;
 }
 
+// The table a saved key stands for; 3D Pinball's Space Cadet for an unknown key
 Tables pb::TableFromKey(std::string_view key)
 {
 	// Space Cadet's first DAT file stands for all of them
@@ -398,6 +411,7 @@ const char* pb::TableSource(Tables table)
 	return Info(table).Source;
 }
 
+// Returns the file's name as found in the folder, tried in upper and then in lower case, or empty
 std::string pb::FindFile(const std::string& folder, const std::string& name)
 {
 	auto upper = ToUpper(name);
@@ -412,6 +426,7 @@ std::string pb::FindFile(const std::string& folder, const std::string& name)
 	return {};
 }
 
+// Sends the table a Reset message, if there is a table
 void pb::reset_table()
 {
 	if (MainTable)
@@ -424,6 +439,8 @@ void pb::firsttime_setup()
 	render::update();
 }
 
+// Switches between in game and game over: ends running credits, sets what the menus allow, turns the demo component on
+// or off, and on game over starts the light group's game over animation
 void pb::mode_change(GameModes mode)
 {
 	if (CreditsActive)
@@ -471,6 +488,7 @@ void pb::mode_change(GameModes mode)
 	game_mode = mode;
 }
 
+// Starts the demo, or stops a running one and leaves the table reset and game over. Recorded as 't'.
 void pb::toggle_demo()
 {
 	// Starting the demo reads the player count from the options, so the recording keeps it
@@ -492,6 +510,7 @@ void pb::toggle_demo()
 	}
 }
 
+// Starts a new game, or the demo when demoMode is set, with the player count from the options. Recorded as 'n'.
 void pb::replay_level(bool demoMode)
 {
 	replay::Scope replayScope("n %d %d", demoMode, options::Options.Players.V);
@@ -503,6 +522,7 @@ void pb::replay_level(bool demoMode)
 	GameEnded = false;
 }
 
+// Sets every active ball moving along (dx, dy), a mouse drag as fractions of the window. Recorded as 'm'.
 void pb::ballset(float dx, float dy)
 {
 	// dx and dy are normalized to window, ideally in [-1, 1]
@@ -521,6 +541,8 @@ void pb::ballset(float dx, float dy)
 	}
 }
 
+// Advances the game by dtMilliSec, at most 100 ms: Full Tilt's idle credits, the physics, the tick count, nudge decay,
+// timers, rendering, score, the tilt warning and tilt, then the TableView. Recorded as 'f'.
 void pb::frame(float dtMilliSec)
 {
 	if (dtMilliSec > 100)
@@ -574,6 +596,9 @@ void pb::frame(float dtMilliSec)
 	TableView::Fill();
 }
 
+// Moves the balls and flippers by timeDelta seconds in steps of at most half a ball radius, handling collisions with
+// edges and other balls on the way. Before that, a ball that has been slow for over 500 ticks goes to the table rules'
+// UnstuckBall.
 void pb::timed_frame(float timeDelta)
 {
 	for (auto ball : MainTable->BallList)
@@ -724,6 +749,8 @@ void pb::timed_frame(float timeDelta)
 	}
 }
 
+// Pauses or resumes the game: sends the table Pause or Resume, shows the matching text, and stops or restarts music and
+// sound. Recorded as 'p'.
 void pb::pause_continue()
 {
 	replay::Scope replayScope("p");
@@ -771,6 +798,7 @@ void pb::toggle_single_step()
 	winmain::single_step ^= true;
 }
 
+// Sends the table the LooseFocus message when the window loses focus. Recorded as 'l'.
 void pb::loose_focus()
 {
 	replay::Scope replayScope("l");
@@ -788,6 +816,7 @@ void pb::BindingUp(GameBindings binding)
 	BindingsUp(GameInput{}, {binding});
 }
 
+// Presses an input that already is a binding, unless the options wait for an input to bind
 void pb::BindingDown(GameBindings binding)
 {
 	if (options::WaitingForInput())
@@ -796,11 +825,13 @@ void pb::BindingDown(GameBindings binding)
 	BindingsDown(GameInput{}, {binding});
 }
 
+// Whether the table acts on input: in a game that is neither frozen (single_step) nor the demo
 bool pb::TableTakesInput()
 {
 	return game_mode == GameModes::InGame && !winmain::single_step && !demo_mode;
 }
 
+// Records the release of bindings and applies it to the table, while the table takes input
 void pb::BindingsUp(GameInput input, const std::vector<GameBindings>& bindings)
 {
 	if (!TableTakesInput())
@@ -810,6 +841,8 @@ void pb::BindingsUp(GameInput input, const std::vector<GameBindings>& bindings)
 	GameInputUp(bindings);
 }
 
+// Passes the pressed bindings to winmain::HandleGameBinding, then, while the table takes input, records the press and
+// applies it to the table
 void pb::BindingsDown(GameInput input, const std::vector<GameBindings>& bindings)
 {
 	for (const auto binding : bindings)
@@ -824,6 +857,7 @@ void pb::BindingsDown(GameInput input, const std::vector<GameBindings>& bindings
 	GameInputDown(input, bindings);
 }
 
+// Applies released bindings to the table: the flippers' and the plunger's release messages, and the end of a nudge
 void pb::GameInputUp(const std::vector<GameBindings>& bindings)
 {
 	for (const auto binding : bindings)
@@ -858,6 +892,8 @@ void pb::InputDown(GameInput input)
 	InputDown(input, input);
 }
 
+// Hands bound to the options when they wait for an input to bind; else presses bound's bindings, with recorded as the
+// input the table and the recording get
 void pb::InputDown(GameInput recorded, GameInput bound)
 {
 	if (options::WaitingForInput())
@@ -879,6 +915,8 @@ void pb::KeyDown(SDL_Scancode scancode, SDL_Keycode key)
 	InputDown({InputTypes::Keyboard, static_cast<int>(key)}, {InputTypes::Keyboard, scancode});
 }
 
+// Applies a press to the table: ends the credits, gives a key to the table rules' cheat words, sends the flippers' and
+// the plunger's messages, nudges unless tilted, and in cheat mode runs the cheat keys (b, h, r, s, i, j, F12)
 void pb::GameInputDown(GameInput input, const std::vector<GameBindings>& bindings)
 {
 	if (CreditsActive)
@@ -961,6 +999,8 @@ void pb::launch_ball()
 	MainTable->Plunger->Message(MessageCode::PlungerLaunchBall, 0.0f);
 }
 
+// Ends the game: switches to game over and, unless it was the demo or cheats were used, opens the high score dialog for
+// each player whose score makes the list, highest score first. Returns whether any did.
 bool pb::end_game()
 {
 	bool highScore = false;
@@ -1033,6 +1073,7 @@ void pb::high_scores()
 	high_score::show_high_score_dialog();
 }
 
+// Ends the tilt: clears the info text box if the table was tilted, lifts the tilt lock and sets the nudge count to -2
 void pb::tilt_no_more()
 {
 	if (MainTable->TiltLockFlag)
@@ -1041,6 +1082,7 @@ void pb::tilt_no_more()
 	nudge::nudge_count = -2.0;
 }
 
+// Whether any player's score makes the high score list; never in the demo
 bool pb::chk_highscore()
 {
 	if (demo_mode)
@@ -1053,6 +1095,7 @@ bool pb::chk_highscore()
 	return false;
 }
 
+// Notes whether a menu or dialog holds the player's input; a change is recorded as 'h'
 void pb::SetUiHoldsInput(bool holds)
 {
 	if (holds == UiHoldsInput)
@@ -1061,6 +1104,7 @@ void pb::SetUiHoldsInput(bool holds)
 	UiHoldsInput = holds;
 }
 
+// Gives a cheat word to the table rules, one character at a time. Recorded as 'c'.
 void pb::PushCheat(const std::string& cheat)
 {
 	replay::Scope replayScope("c %s", cheat.c_str());
@@ -1084,12 +1128,15 @@ std::string pb::make_path_name(const std::string& fileName)
 	return BasePath + fileName;
 }
 
+// Prints the title and message, to stderr for an error and else to stdout, and shows them in a message box
 void pb::ShowMessageBox(Uint32 flags, LPCSTR title, LPCSTR message)
 {
 	fprintf(flags == SDL_MESSAGEBOX_ERROR ? stderr : stdout, "BL error: %s\n%s\n", title, message);
 	SDL_ShowSimpleMessageBox(flags, title, message, winmain::MainWindow);
 }
 
+// Returns the distance at which the ball's ray first hits another active ball that shares its collision mask, and sets
+// edge to that ball, when that is nearer than collisionDistance; else returns collisionDistance
 float pb::BallToBallCollision(const ray_type& ray, const TBall& ball, TEdgeSegment** edge, float collisionDistance)
 {
 	for (const auto curBall : MainTable->BallList)

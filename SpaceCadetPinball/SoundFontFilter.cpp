@@ -16,14 +16,21 @@ namespace
 	};
 
 	// The records of the SoundFont's "hydra", by their sizes in the file (SoundFont 2.04, section 7)
-	constexpr size_t PresetSize = 38, BagSize = 4, GeneratorSize = 4, InstrumentSize = 22, SampleSize = 46;
-	constexpr uint16_t GeneratorInstrument = 41, GeneratorSampleId = 53;
+	constexpr size_t PresetSize = 38;
+	constexpr size_t BagSize = 4;
+	constexpr size_t GeneratorSize = 4;
+	constexpr size_t InstrumentSize = 22;
+	constexpr size_t SampleSize = 46;
+	constexpr uint16_t GeneratorInstrument = 41;
+	constexpr uint16_t GeneratorSampleId = 53;
 	constexpr uint16_t DrumBank = 128;
 	// SF3's flag on a sample's type for Ogg Vorbis data
 	constexpr unsigned SampleCompressed = 0x10;
 	// A right (2) or left (4) sample, whose link names the other
 	constexpr unsigned SampleStereoHalf = 6;
-	constexpr size_t SampleStart = 20, SampleLink = 42, SampleType = 44;
+	constexpr size_t SampleStart = 20;
+	constexpr size_t SampleLink = 42;
+	constexpr size_t SampleType = 44;
 
 	uint16_t Read16(const uint8_t* at)
 	{
@@ -78,6 +85,8 @@ namespace
 	}
 } // namespace
 
+// Walks the SoundFont's preset, instrument and sample lists to find the samples the wanted presets play, and zeroes
+// the start, end and loop points of the other compressed ones; the result is empty when the file stays as it is
 SoundFontFilter::Result SoundFontFilter::KeepPresets(uint8_t* data, size_t size, const SoundFontPresets& presets)
 {
 	if (!data || size < 12 || !Named(data, "RIFF") || !Named(data + 8, "sfbk"))
@@ -136,9 +145,9 @@ SoundFontFilter::Result SoundFontFilter::KeepPresets(uint8_t* data, size_t size,
 		auto header = presetHeaders.Data + preset * PresetSize;
 		auto program = Read16(header + 20);
 		auto bank = Read16(header + 22);
-		auto wanted = program < presets.Programs.size() &&
-					  (bank >= DrumBank ? presets.DrumKits[program] : presets.Programs[program]);
-		if (!wanted && !(wantFirst && preset == firstPreset))
+		if (auto wanted = program < presets.Programs.size() &&
+						  (bank >= DrumBank ? presets.DrumKits[program] : presets.Programs[program]);
+			!wanted && !(wantFirst && preset == firstPreset))
 			continue;
 		ForEachGenerator(presetBags, presetGenerators, Read16(header + 24), Read16(header + PresetSize + 24),
 						 GeneratorInstrument,

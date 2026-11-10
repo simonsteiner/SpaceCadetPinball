@@ -11,6 +11,8 @@
 #include "timer.h"
 #include "TPinballTable.h"
 
+// Reads the plunger's sounds and its pull strength, which differs between 3D Pinball and Full Tilt, and stores its
+// ball position (attribute 601) in the table
 TPlunger::TPlunger(TPinballTable* table, int groupIndex, bool launcher) :
 	TCollisionComponent(table, groupIndex, true), Launcher(launcher)
 {
@@ -47,6 +49,8 @@ TPlunger::TPlunger(TPinballTable* table, int groupIndex, bool launcher) :
 	table->PlungerPosition = {floatArr[0], floatArr[1]};
 }
 
+// Pushes a ball that touches the plunger with the current Boost. During a relaunch, or on a tilted table with Full
+// Tilt's data, it pushes with the full pull and releases instead
 void TPlunger::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	if (SomeCounter > 0 || (pb::FullTiltMode && PinballTable->TiltLockFlag))
@@ -74,6 +78,8 @@ void TPlunger::Collision(TBall* ball, vector2* nextPosition, vector2* direction,
 	}
 }
 
+// True when a press may start a pull: in 3D Pinball while no pullback timer runs; on Full Tilt's data when no pull
+// is under way, a ball is on the table and the table isn't tilted
 bool TPlunger::CanStartPull() const
 {
 	if (pb::FullTiltMode)
@@ -83,6 +89,9 @@ bool TPlunger::CanStartPull() const
 	return !PullbackTimer_;
 }
 
+// Handles the plunger's messages: a press starts the pull (a launcher launches at once), a release pushes the ball,
+// PlungerFeedBall puts a ball at the plunger, PlungerStartFeedTimer and PlungerRelaunchBall feed one after a delay
+// and PlungerLaunchBall pushes at full strength. Every message is passed on to the rules
 int TPlunger::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())
@@ -192,6 +201,7 @@ int TPlunger::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Lets go of a held pull on a player change, with Full Tilt's data only
 void TPlunger::HandlePlayerChanged()
 {
 	// Pinball.exe's plunger takes no PlayerChanged, so a pull held as the player changes stays for the next player's
@@ -200,6 +210,7 @@ void TPlunger::HandlePlayerChanged()
 		Stop();
 }
 
+// Stops the ball feed on a tilt, with Full Tilt's data only
 void TPlunger::HandleTiltLock()
 {
 	// Pinball.exe's plunger takes no SetTiltLock either: a tilt leaves 3D Pinball's ball feed running, and the ball
@@ -225,11 +236,13 @@ void TPlunger::Stop()
 	CancelReleaseWait();
 }
 
+// Seconds a release keeps its push: FullTiltReleaseDelay on Full Tilt's data, else PullbackDelay
 float TPlunger::ReleaseDelay() const
 {
 	return pb::FullTiltMode ? FullTiltReleaseDelay : PullbackDelay;
 }
 
+// Forgets a pending release push, and stops its timer if the push was waiting for the ball's touch
 void TPlunger::CancelReleaseWait()
 {
 	// Only a push kept past ReleaseDelay has a timer of its own to stop; the originals' timers stay as they were
@@ -245,6 +258,8 @@ void TPlunger::BallFeedTimer(int timerId, void* caller)
 	plunger->Message(MessageCode::PlungerFeedBall, 0.0);
 }
 
+// Timer callback that pulls the plunger back one step, up to MaxPullback, and shows the matching sprite; the steps
+// come four times as fast during a relaunch
 void TPlunger::PullbackTimer(int timerId, void* caller)
 {
 	auto plunger = static_cast<TPlunger*>(caller);
@@ -275,6 +290,8 @@ void TPlunger::PullbackTimer(int timerId, void* caller)
 	plunger->SpriteSet(index);
 }
 
+// Timer callback that ends a release's push. In 3D Pinball, if the ball hasn't touched the plunger yet, the push is
+// kept until it does, for at most ReleasePushLimit
 void TPlunger::ReleasedTimer(int timerId, void* caller)
 {
 	auto plunger = static_cast<TPlunger*>(caller);

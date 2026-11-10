@@ -13,6 +13,8 @@
 #include "timer.h"
 #include "TPinballTable.h"
 
+// Reads the flipper's sounds and geometry (attributes 800 to 805), makes its edge and adds the flipper to the table's
+// list
 TFlipper::TFlipper(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, false)
 {
 	visualStruct visual{};
@@ -50,6 +52,7 @@ TFlipper::TFlipper(TPinballTable* table, int groupIndex) : TCollisionComponent(t
 		table->FlipperList.push_back(this);
 }
 
+// Deletes the edge and takes the flipper off the table's list
 TFlipper::~TFlipper()
 {
 	delete FlipperEdge;
@@ -62,6 +65,8 @@ TFlipper::~TFlipper()
 	}
 }
 
+// TFlipperExtend and TFlipperRetract start the motion with a sound, and extending also tells the rules and rumbles;
+// Resume, LooseFocus, SetTiltLock and GameOver retract; PlayerChanged and Reset put a moving flipper back at rest
 int TFlipper::Message(MessageCode code, float value)
 {
 	switch (code)
@@ -116,6 +121,7 @@ void TFlipper::Collision(TBall* ball, vector2* nextPosition, vector2* direction,
 {
 }
 
+// Shows the frame that matches the flipper's current angle
 void TFlipper::UpdateSprite()
 {
 	// A damaged table's flipper can come without its frames
@@ -131,6 +137,8 @@ void TFlipper::UpdateSprite()
 	SpriteSet(BmpIndex);
 }
 
+// Splits the angle the flipper turns in <dt> into up to 3 steps: returns their count and stores one step's angle in
+// <dst>. Returns 0 and leaves <dst> while the flipper is at rest
 int TFlipper::GetFlipperStepAngle(float dt, float* dst) const
 {
 	if (!MessageField)
@@ -150,6 +158,8 @@ int TFlipper::GetFlipperStepAngle(float dt, float* dst) const
 	return 1;
 }
 
+// Turns the moving flipper by <deltaAngle> and collides it with each ball in its bounds that the turn reaches; after a
+// hit it turns back a little instead. Ends the motion once the target angle is reached
 void TFlipper::FlipperCollision(float deltaAngle)
 {
 	if (!MessageField)

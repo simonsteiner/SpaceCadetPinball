@@ -50,9 +50,11 @@ static bool PageResized(int eventType, const EmscriptenUiEvent* event, void* use
 #include "high_score.h"
 
 #include <filesystem>
+#include <format>
 #include <mutex>
 #include <new>
 #include <optional>
+#include <utility>
 
 constexpr const char* winmain::Version;
 
@@ -77,6 +79,7 @@ bool winmain::restart = false;
 // True while a game runs and its settings may be saved
 static bool GameRunning = false;
 
+// Writes the options, high scores and stats to ImGui's .ini now; only while a game runs, and never during playback
 void winmain::SaveSettings()
 {
 	// A replay being checked plays with the player's settings, which it never writes back
@@ -195,7 +198,8 @@ static std::vector<std::string> SplitArgs(LPCSTR cmdLine)
 {
 	std::vector<std::string> args;
 	std::string arg;
-	bool quoted = false, inArg = false;
+	bool quoted = false;
+	bool inArg = false;
 	for (auto ch = cmdLine; *ch; ch++)
 	{
 		if (*ch == '"')
@@ -236,12 +240,15 @@ static std::string GetArgValue(const std::vector<std::string>& args, LPCSTR flag
 
 // The folder chosen in the system's folder dialog, which may answer from another thread
 static std::mutex ChosenFolderMutex;
-static std::string ChosenFolder, FolderDialogError;
+static std::string ChosenFolder;
+static std::string FolderDialogError;
 // Whether the last folder chosen had no game data, so the saved one stayed; only the main thread uses it
 static bool ChosenFolderEmpty = false;
 
 #ifndef __EMSCRIPTEN__
-static void SDLCALL FolderChosen(void* userData, const char* const* files, int filter)
+// The folder dialog's callback: keeps the folder chosen, or the error when the dialog couldn't be shown. A cancelled
+// dialog leaves both as they were
+static void SDLCALL FolderChosen(void* /*userData*/, const char* const* files, int /*filter*/)
 {
 	std::lock_guard lock{ChosenFolderMutex};
 	if (!files)
@@ -261,6 +268,7 @@ static void SDLCALL FolderChosen(void* userData, const char* const* files, int f
 // The Screen Rotation chosen in Settings, until the next frame takes it; -1 for none
 static int PendingRotation = -1;
 
+// Takes the folder chosen in the dialog, if any; true when it has game data, and it then is the Game Data Folder
 static bool TakeChosenFolder()
 {
 	std::string folder;
@@ -310,6 +318,8 @@ constexpr const char* SelectTableShortcut = nullptr;
 constexpr const char* SelectTableShortcut = "Ctrl+T";
 #endif
 
+// Fills the table menus with the tables found and a picture of each: the BMP next to its DAT file, else one made
+// from the DAT file
 static void LoadTableChoices()
 {
 	for (const auto& data : pb::FoundTables)
@@ -330,6 +340,7 @@ static void LoadTableChoices()
 	}
 }
 
+// Destroys the tables' pictures and empties the table menus
 static void FreeTableChoices()
 {
 	for (const auto& choice : TableMenus().Choices)
@@ -379,6 +390,7 @@ static void LoadPanelArt()
 	PanelArtTexture();
 }
 
+// Destroys the panel art's textures and clears its state
 static void FreePanelArt()
 {
 	auto& art = PanelArt();
@@ -448,8 +460,8 @@ static DefinitiveHost MakeDefinitiveHost()
 	host.Records = []
 	{
 		std::vector<DefinitiveHost::Record> records;
-		for (auto& entry : high_score::highscore_table)
-			records.push_back({entry.Name, entry.Score});
+		for (const auto& entry : high_score::highscore_table)
+			records.emplace_back(entry.Name, entry.Score);
 		return records;
 	};
 	host.ClearRecords = [] { high_score::clear_table(); };
@@ -496,7 +508,7 @@ static DefinitiveHost MakeDefinitiveHost()
 			FolderDialogError.clear();
 		}
 		ChosenFolderEmpty = false;
-		auto& folder = options::Options.GameDataFolder.V;
+		const auto& folder = options::Options.GameDataFolder.V;
 		SDL_ShowOpenFolderDialog(FolderChosen, nullptr, winmain::MainWindow, folder.empty() ? nullptr : folder.c_str(),
 								 false);
 	};
@@ -518,8 +530,8 @@ static DefinitiveHost MakeDefinitiveHost()
 	{
 		std::vector<DefinitiveHost::Recording> recordings;
 		for (const auto& recording : RecordingViewer::List())
-			recordings.push_back({recording.Name, recording.Path, recording.Summary.Length,
-								  static_cast<int>(recording.Summary.Games.size()), recording.Playable});
+			recordings.emplace_back(recording.Name, recording.Path, recording.Summary.Length,
+									static_cast<int>(recording.Summary.Games.size()), recording.Playable);
 		return recordings;
 	};
 	host.DeleteRecording = [](const std::string& path) { RecordingViewer::Delete(path); };
@@ -599,6 +611,9 @@ static DefinitiveHost MakeDefinitiveHost()
 	return host;
 }
 
+// The game's entry point: reads the command line, sets up SDL, the window, the renderer and audio, then loads the
+// table and runs the main loop, and again after each restart. Returns the exit code: 1 when the game could not
+// start or a replay played differently
 int winmain::WinMain(LPCSTR lpCmdLine)
 {
 	std::set_new_handler(memalloc_failure);
@@ -800,8 +815,9 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		ImGui_ImplSDLRenderer3_Init(Renderer);
 		ImGui::StyleColorsDark();
 		BaseStyle = std::make_unique<ImGuiStyle>(ImGui::GetStyle());
-		DefinitiveStyle = std::make_unique<ImGuiStyle>(*BaseStyle);
-		DefinitiveTheme::ApplyStyle(*DefinitiveStyle);
+		auto definitiveStyle = std::make_unique<ImGuiStyle>(*BaseStyle);
+		DefinitiveTheme::ApplyStyle(*definitiveStyle);
+		DefinitiveStyle = std::move(definitiveStyle);
 		DefinitiveFontsAdded = false;
 		ApplyDisplayScale();
 
@@ -945,6 +961,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			// The recording holds the command that started the game
 			while (replay::PlayStep())
 			{
+				// Each step plays a frame
 			}
 			if (replay::PlaybackFailed())
 				return_value = 1;
@@ -1035,6 +1052,8 @@ static void LogFirstFrame()
 	logged = true;
 }
 
+// Runs until a quit or restart: handles events, steps the table by the time each pass took, catching up after slow
+// passes, draws a frame at the frame rate, prints pending SDL errors and sleeps to keep the pace
 void winmain::MainLoop()
 {
 	bQuit = false;
@@ -1077,10 +1096,13 @@ void winmain::MainLoop()
 		{
 			if (mouse_down)
 			{
-				float mouseX, mouseY;
-				int w, h;
+				float mouseX;
+				float mouseY;
+				int w;
+				int h;
 				SDL_GetMouseState(&mouseX, &mouseY);
-				auto x = static_cast<int>(mouseX), y = static_cast<int>(mouseY);
+				auto x = static_cast<int>(mouseX);
+				auto y = static_cast<int>(mouseY);
 				SDL_GetWindowSize(MainWindow, &w, &h);
 				float dx = static_cast<float>(last_mouse_x - x) / static_cast<float>(w);
 				float dy = static_cast<float>(y - last_mouse_y) / static_cast<float>(h);
@@ -1153,9 +1175,9 @@ void winmain::MainLoop()
 					TableFrame(dt);
 					if (DispGRhistory)
 					{
-						auto targetSize =
-							static_cast<unsigned>(static_cast<float>(Options.UpdatesPerSecond) * gfrWindow);
-						if (gfrDisplay.size() != targetSize)
+						if (auto targetSize =
+								static_cast<unsigned>(static_cast<float>(Options.UpdatesPerSecond) * gfrWindow);
+							gfrDisplay.size() != targetSize)
 						{
 							gfrDisplay.resize(targetSize, static_cast<float>(UpdateTime.count()));
 							gfrOffset = 0;
@@ -1299,6 +1321,8 @@ void winmain::MainLoop()
 	}
 }
 
+// Steps the table by dtMilliSec, with its input held back while a popup or a Space Cadet 2026 screen is open, then
+// updates the stats and, while it is on, Space Cadet 2026
 void winmain::TableFrame(float dtMilliSec)
 {
 	if (!replay::IsPlaying())
@@ -1311,6 +1335,7 @@ void winmain::TableFrame(float dtMilliSec)
 		DefinitiveEdition::Update(TableView::Get());
 }
 
+// Adds the fonts before the first frame, then gives ImGui the style and default font of the edition that is on
 void winmain::ApplyEditionLook()
 {
 	// ImGui picks its default font in the first NewFrame, from the display scale the backend has just set, and only
@@ -1330,6 +1355,8 @@ void winmain::ApplyEditionLook()
 	ImIO->FontDefault = edition == Editions::Definitive ? DefinitiveTheme::TextFont() : nullptr;
 }
 
+// Builds the frame's ImGui UI: Space Cadet 2026's screens or Classic's menu bar, the dialogs, the exit popup and, in
+// Classic, the text boxes' text. Also switches Space Cadet 2026's sound effects with the edition
 void winmain::RenderUi()
 {
 	// Space Cadet 2026's screens take the menu bar's place
@@ -1514,9 +1541,9 @@ void winmain::RenderUi()
 				{
 					for (auto factor : {2, 4})
 					{
-						char label[8];
-						snprintf(label, sizeof label, "%dx", factor);
-						if (ImGui::MenuItem(label, nullptr, Options.UpscaleFactor == factor))
+						std::array<char, 8> label;
+						snprintf(label.data(), label.size(), "%dx", factor);
+						if (ImGui::MenuItem(label.data(), nullptr, Options.UpscaleFactor == factor))
 						{
 							options::Set(Options.UpscaleFactor, factor);
 						}
@@ -1526,7 +1553,7 @@ void winmain::RenderUi()
 					{
 						auto count = Upscale::ExportOriginals();
 						auto folder = Upscale::OriginalsFolder();
-						auto message = count ? "Exported " + std::to_string(count) + " sprites to " + folder
+						auto message = count ? std::format("Exported {} sprites to {}", count, folder)
 											 : "Could not export the sprites to " + folder;
 						SDL_ShowSimpleMessageBox(count ? SDL_MESSAGEBOX_INFORMATION : SDL_MESSAGEBOX_WARNING,
 												 "Export Original Sprites", message.c_str(), MainWindow);
@@ -1540,8 +1567,8 @@ void winmain::RenderUi()
 #if SDL_VERSION_ATLEAST(3, 4, 0)
 				if (ImGui::BeginMenu("Post-Processing"))
 				{
-					constexpr const char* names[] = {"None", "CRT", "Smooth Edges"};
-					for (int i = 0; i < static_cast<int>(PostEffects::Max); i++)
+					constexpr std::array names{"None", "CRT", "Smooth Edges"};
+					for (int i = 0; i < std::to_underlying(PostEffects::Max); i++)
 					{
 						if (ImGui::MenuItem(names[i], nullptr, Options.PostProcessing == i))
 							options::Set(Options.PostProcessing, i);
@@ -2028,7 +2055,8 @@ int winmain::event_handler(const SDL_Event* event)
 				auto pltPtr = &plt[10]; // first 10 entries are system colors hardcoded in display_palette()
 				for (int i1 = 0, i2 = 0; i1 < 256 - 10; ++i1, i2 += 8)
 				{
-					auto blue = static_cast<unsigned char>(i2), redGreen = static_cast<unsigned char>(i2);
+					auto blue = static_cast<unsigned char>(i2);
+					auto redGreen = static_cast<unsigned char>(i2);
 					if (i2 > 255)
 					{
 						blue = 255;
@@ -2176,19 +2204,21 @@ int winmain::event_handler(const SDL_Event* event)
 	return 1;
 }
 
+// Turns a trigger's axis motion into a press and release of GamepadLeftTrigger or GamepadRightTrigger
 void winmain::GamepadTrigger(const SDL_GamepadAxisEvent& event)
 {
 	// A trigger is pressed past half way and released below a quarter, so it doesn't chatter in between
 	if (event.axis != SDL_GAMEPAD_AXIS_LEFT_TRIGGER && event.axis != SDL_GAMEPAD_AXIS_RIGHT_TRIGGER)
 		return;
 	auto value = event.axis == SDL_GAMEPAD_AXIS_LEFT_TRIGGER ? GamepadLeftTrigger : GamepadRightTrigger;
-	auto pressed = GamepadHeld[event.which].count(value) > 0;
+	auto pressed = GamepadHeld[event.which].contains(value);
 	if (!pressed && event.value > SDL_JOYSTICK_AXIS_MAX / 2)
 		GamepadInput(event.which, value, true);
 	else if (pressed && event.value < SDL_JOYSTICK_AXIS_MAX / 4)
 		GamepadInput(event.which, value, false);
 }
 
+// Sends a gamepad button or trigger going down or up to the table, and keeps track of what is held on that gamepad
 void winmain::GamepadInput(SDL_JoystickID gamepad, int value, bool down)
 {
 	// Remembers what is held, so unplugging the gamepad can release it
@@ -2228,8 +2258,7 @@ void winmain::TouchInput(const SDL_TouchFingerEvent& event)
 	};
 	if (event.type != SDL_EVENT_FINGER_DOWN)
 	{
-		auto finger = TouchBindings.find(key);
-		if (finger != TouchBindings.end())
+		if (auto finger = TouchBindings.find(key); finger != TouchBindings.end())
 		{
 			auto binding = finger->second;
 			TouchBindings.erase(finger);
@@ -2238,19 +2267,20 @@ void winmain::TouchInput(const SDL_TouchFingerEvent& event)
 		}
 		return;
 	}
-	if (TouchBindings.count(key))
+	if (TouchBindings.contains(key))
 		return;
 	if (ImIO->WantCaptureMouse)
 		return;
 
 	// Where the finger is in the picture, which Space Cadet 2026 may turn for a monitor on its side
-	int width, height;
+	int width;
+	int height;
 	fullscrn::OutputSize(width, height);
 	auto position = fullscrn::ToPicture({event.x, event.y});
 	SDL_Point point{static_cast<int>(position.x * static_cast<float>(width)),
 					static_cast<int>(position.y * static_cast<float>(height))};
 	// Only the table and the panel bind, not the menu bar or the margins: the ImGui capture flag is last frame's
-	auto& board = render::BoardRect;
+	const auto& board = render::BoardRect;
 	GameBindings binding;
 	if (SDL_PointInRect(&point, &render::SidebarRect))
 		binding = GameBindings::Plunger;
@@ -2291,14 +2321,14 @@ void winmain::RenderEditionHint()
 	if (toggle.empty())
 		toggle =
 			std::string{pb::get_rc_string(Msg::Menu1_Options)} + " > " + pb::get_rc_string(Msg::Menu1_ToggleEdition);
-	char formatted[256];
-	snprintf(formatted, sizeof formatted, pb::get_rc_string(Msg::EditionHint), toggle.c_str());
-	auto text = DefinitiveText::Visual(formatted);
+	std::array<char, 256> formatted;
+	snprintf(formatted.data(), formatted.size(), pb::get_rc_string(Msg::EditionHint), toggle.c_str());
+	auto text = DefinitiveText::Visual(formatted.data());
 
 	// Centred over the top of the table and kept inside the window; the board is in pixels, ImGui in window
 	// coordinates
 	auto viewport = ImGui::GetMainViewport();
-	auto& board = render::BoardRect;
+	const auto& board = render::BoardRect;
 	auto fbScale = ImIO->DisplayFramebufferScale;
 	auto centre = (static_cast<float>(board.x) + static_cast<float>(board.w) / 2) / fbScale.x;
 	auto top = (static_cast<float>(board.y) + static_cast<float>(board.h) / 8) / fbScale.y;
@@ -2326,6 +2356,8 @@ void winmain::RenderEditionHint()
 					  wrapWidth);
 }
 
+// Replaces the renderer: SDL's GPU renderer if gpu, else the default one or, failing that or with -sw, the software
+// renderer. False when none could be created
 bool winmain::CreateRenderer(bool gpu)
 {
 	// The GPU renderer, for post-processing; otherwise the default, falling back to the software renderer
@@ -2337,8 +2369,13 @@ bool winmain::CreateRenderer(bool gpu)
 	Renderer = nullptr;
 	if (gpu)
 		Renderer = PostEffect::CreateGpuRenderer(MainWindow);
-	for (int i = SoftwareRenderer ? 1 : 0; i < 2 && !Renderer && !gpu; i++)
-		Renderer = SDL_CreateRenderer(MainWindow, i == 0 ? nullptr : SDL_SOFTWARE_RENDERER);
+	if (!gpu)
+	{
+		if (!SoftwareRenderer)
+			Renderer = SDL_CreateRenderer(MainWindow, nullptr);
+		if (!Renderer)
+			Renderer = SDL_CreateRenderer(MainWindow, SDL_SOFTWARE_RENDERER);
+	}
 	if (!Renderer)
 		return false;
 
@@ -2348,6 +2385,7 @@ bool winmain::CreateRenderer(bool gpu)
 	return true;
 }
 
+// Sets ImGui's style to that of the edition that is on, scaled for the display, keeping the UI Scale option
 void winmain::ApplyDisplayScale()
 {
 	// Scale the UI for the display, from the unscaled style; the UI Scale option stays on top of it
@@ -2361,6 +2399,7 @@ void winmain::ApplyDisplayScale()
 	style.FontScaleMain = fontScale;
 }
 
+// Shows the missing-data screen until the player chooses a folder that has game data (true) or quits (false)
 bool winmain::FindGameData(const std::vector<const char*>& searchPaths)
 {
 	std::vector<std::string> looked;
@@ -2414,6 +2453,8 @@ void winmain::PresentScreen(const std::function<void()>& render)
 	SDL_RenderPresent(Renderer);
 }
 
+// Opens or closes Space Cadet 2026's pause screen for a game in play and returns true; also true, with nothing done,
+// while a game ends. False in Classic, in the demo and once the game has ended, where Classic's pause applies
 bool winmain::DefinitivePause()
 {
 	// Space Cadet 2026's pause screen, for a game in play, which the pause key also closes; the demo has none
@@ -2427,6 +2468,7 @@ bool winmain::DefinitivePause()
 	return true;
 }
 
+// Gives Space Cadet 2026's screens the window's safe area, or the whole display when turned or SDL reports none
 void winmain::SetSafeArea(bool turned)
 {
 	// Space Cadet 2026's screens keep clear of the status bar, a camera cutout and the gesture bar. SDL's safe area is
@@ -2439,6 +2481,8 @@ void winmain::SetSafeArea(bool turned)
 		DefinitiveUi::SetSafeArea({ImVec2{}, ImIO->DisplaySize});
 }
 
+// Pauses a game in play: Space Cadet 2026 shows its pause screen unless one of its screens is open, Classic pauses.
+// Not the demo, and not a recording being viewed
 void winmain::PauseInBackground()
 {
 	// A game in play waits for the player on the way back, rather than playing on at once; the demo plays on
@@ -2454,6 +2498,8 @@ void winmain::PauseInBackground()
 		pause(false);
 }
 
+// The translated reason post-processing can't show (the web build, an old SDL, the software renderer or no GPU
+// renderer), or null when it can
 const char* winmain::PostProcessingUnavailable()
 {
 #ifdef __EMSCRIPTEN__
@@ -2469,6 +2515,7 @@ const char* winmain::PostProcessingUnavailable()
 #endif
 }
 
+// Why the compositor's effects can't show: post-processing's reason, or that the compositor failed; null when they can
 const char* winmain::EffectsUnavailable()
 {
 	// Where post-processing can't show, the compositor can't either; it can also fail on its own, with its shaders
@@ -2483,11 +2530,13 @@ void winmain::ResetPreciseSleep()
 	SpinThreshold = DurationMs::zero();
 }
 
+// Whether the menu bar is up: the Show Menu option in Classic, never in Space Cadet 2026
 bool winmain::MenuBarShown()
 {
 	return Options.ShowMenu && options::GetEdition() == Editions::Classic;
 }
 
+// The menu bar's height in window coordinates: as measured, or before the first frame worked out from the font size
 float winmain::ExpectedMenuHeight()
 {
 	// The main menu bar is one frame high; before the first frame ImGui can't measure it,
@@ -2496,12 +2545,16 @@ float winmain::ExpectedMenuHeight()
 	// and the style gets its font size only then, so take it from the font: ImGui's own is 13 pixels
 	const auto& style = ImGui::GetStyle();
 	auto fonts = ImGui::GetIO().Fonts;
-	auto fontSize = style.FontSizeBase > 0  ? style.FontSizeBase
-					: fonts->Fonts.Size > 0 ? fonts->Fonts[0]->LegacySize
-											: 13.0f;
+	auto fontSize = 13.0f;
+	if (style.FontSizeBase > 0)
+		fontSize = style.FontSizeBase;
+	else if (fonts->Fonts.Size > 0)
+		fontSize = fonts->Fonts[0]->LegacySize;
 	return std::ceil(fontSize * style.FontScaleMain * style.FontScaleDpi + style.FramePadding.y * 2);
 }
 
+// Handles the pending SDL events; without focus it waits for one event instead, longer each time, up to 500 ms.
+// Returns 0 on quit, else 1
 int winmain::ProcessWindowMessages()
 {
 	static auto idleWait = 0;
@@ -2538,6 +2591,8 @@ void winmain::memalloc_failure()
 	std::exit(1);
 }
 
+// Draws Classic's Select Table popup, opening it when asked, and loads the table chosen with Ok, the keyboard or a
+// double click
 void winmain::RenderTableDialog()
 {
 	// Laid out as Full Tilt!'s launcher: the tables' pictures side by side, the one picked in a teal frame, its name
@@ -2617,6 +2672,7 @@ void winmain::RenderTableDialog()
 		pb::SelectTable(choices[load].Data.Table);
 }
 
+// Draws the About popup, opening it when asked: a tab for this port and one with Full Tilt!'s credits
 void winmain::a_dialog()
 {
 	auto aboutTitle = pb::get_rc_string(pb::FullTiltMode ? Msg::FullTilt_About : Msg::STRING204);
@@ -2803,6 +2859,7 @@ void winmain::a_dialog()
 	ImGui::PopStyleVar();
 }
 
+// Resumes a paused game; the pass that follows doesn't count its time for the table
 void winmain::end_pause()
 {
 	if (single_step)
@@ -2818,6 +2875,7 @@ void winmain::new_game()
 	pb::replay_level(false);
 }
 
+// Toggles the pause, or with toggle false only pauses a game that isn't paused yet
 void winmain::pause(bool toggle)
 {
 	if (toggle || !single_step)
@@ -2834,6 +2892,8 @@ void winmain::Restart()
 	SDL_PushEvent(&event);
 }
 
+// Works out the loop's timing from the FPS and UPS options, with the display's refresh rate as FPS under Match Display
+// Refresh Rate: the frame and update times, and whether frames outnumber updates
 void winmain::UpdateFrameRate()
 {
 	auto fps = Options.FramesPerSecond.V, ups = Options.UpdatesPerSecond.V;
@@ -2868,6 +2928,9 @@ static bool DefinitiveKeepsPlaying()
 		   (winmain::DemoActive || DefinitiveFrontEnd::ScreenOpen());
 }
 
+// Carries out a binding that isn't a table control: pause, new game, the option toggles, the controls dialog and exit.
+// shortcut says it came from an input rather than a menu item; exit then asks first, or toggles Space Cadet 2026's
+// pause screen during a game
 void winmain::HandleGameBinding(GameBindings binding, bool shortcut)
 {
 	switch (binding)
@@ -2924,6 +2987,8 @@ void winmain::HandleGameBinding(GameBindings binding, bool shortcut)
 	}
 }
 
+// Draws the Frame Times window: a plot of the recent table steps in ms, with their average and deviation from the
+// target frame time
 void winmain::RenderFrameTimeDialog()
 {
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2{300, 70});
@@ -2963,6 +3028,8 @@ void winmain::RenderFrameTimeDialog()
 	ImGui::PopStyleVar();
 }
 
+// Waits for the given time with less jitter than a plain sleep: sleeps 1 ms at a time while more remains than such
+// a sleep is measured to take, then spins for the rest
 void winmain::HybridSleep(DurationMs sleepTarget)
 {
 	static constexpr double StdDevFactor = 0.5;
@@ -2988,6 +3055,8 @@ void winmain::HybridSleep(DurationMs sleepTarget)
 	for (auto start = Clock::now(); DurationMs(Clock::now() - start) < sleepTarget;);
 }
 
+// A menu item for a binding, labelled with its description and its first bound input; choosing it carries the
+// binding out
 void winmain::ImGuiMenuItemWShortcut(GameBindings binding, bool selected)
 {
 	const auto& keyDef = Options.Key[~binding];

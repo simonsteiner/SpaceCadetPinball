@@ -7,12 +7,14 @@
 #include "render.h"
 #include "timer.h"
 
+// Builds the wall with its sprite, if it has one, hidden
 TWall::TWall(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, true)
 {
 	if (RenderSprite)
 		SpriteSet(-1);
 }
 
+// Handles Reset, which ends a running hit flash at once; on the bonus tables also keeps the message field per player
 int TWall::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())
@@ -25,6 +27,8 @@ int TWall::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Bounces the ball; a hit harder than the threshold shows the wall's sprite, if it has one, for 0.1 s and tells
+// the rules
 void TWall::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	if (DefaultCollision(ball, nextPosition, direction))

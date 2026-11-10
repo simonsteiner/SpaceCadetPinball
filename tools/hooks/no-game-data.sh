@@ -12,9 +12,10 @@ for file in "$@"; do
             echo "Game data must not be committed: $file" >&2
             failed=1
             ;;
+        *) ;; # not game data
     esac
 done
-if [ "$failed" -ne 0 ]; then
+if [[ "$failed" -ne 0 ]]; then
     echo "Unstage it with: git restore --staged <file>" >&2
 fi
 exit "$failed"

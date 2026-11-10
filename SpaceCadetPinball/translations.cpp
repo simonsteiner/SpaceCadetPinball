@@ -31,6 +31,8 @@ const LanguageInfo translations::Languages[static_cast<int>(Lang::Max)] =
 	{Lang::TraditionalChinese, "zh_TW", "Traditional Chinese"},
 };
 
+// Makes the language with this short name, such as pt_BR, the current one; asserts on an unknown name and keeps the
+// language
 void translations::SetCurrentLanguage(const char* short_name)
 {
 	for (const auto& langInfo : Languages)
@@ -45,6 +47,7 @@ void translations::SetCurrentLanguage(const char* short_name)
 	assertm(false, "Unknown language");
 }
 
+// The entry of the current language in Languages, or null if it has none
 const LanguageInfo* translations::GetCurrentLanguage()
 {
 	for (const auto& langInfo : Languages)
@@ -58,6 +61,7 @@ const LanguageInfo* translations::GetCurrentLanguage()
 	return nullptr;
 }
 
+// The text of id in the current language, or the English one where that is missing; never null
 const char* translations::GetTranslation(Msg id)
 {
 	if (!TextArray::contains(id))

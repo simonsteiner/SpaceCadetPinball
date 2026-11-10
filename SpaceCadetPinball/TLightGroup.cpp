@@ -9,6 +9,8 @@
 #include "TLight.h"
 #include "TPinballTable.h"
 
+// Builds the group from the lights listed in attribute 1027; the table's own group (index 0) starts empty and the
+// table fills it
 TLightGroup::TLightGroup(TPinballTable* table, int groupIndex) : TPinballComponent(table, groupIndex, false)
 {
 	Timer = 0;
@@ -29,6 +31,11 @@ TLightGroup::TLightGroup(TPinballTable* table, int groupIndex) : TPinballCompone
 	}
 }
 
+// Handles the group's messages: the step and animation messages shift or randomize its lights and repeat after
+// <value> seconds (the group's default time if negative, not at all if 0), but the two random saturation messages
+// turn one random light on or off, once; others turn single lights on or off, by index or in order, or return counts
+// and state. Reset and PlayerChanged keep the animation per player, SetTiltLock and GameOver are ignored, and any
+// other message goes to each light
 int TLightGroup::Message(MessageCode code, float value)
 {
 	auto const count = static_cast<int>(List.size());
@@ -396,6 +403,7 @@ int TLightGroup::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Stops the animation and notify timers and clears the running animation
 void TLightGroup::Reset()
 {
 	if (Timer)
@@ -409,6 +417,7 @@ void TLightGroup::Reset()
 	Timer1Time = Timer1TimeDefault;
 }
 
+// Restarts the animation timer for <time> seconds, the group's default time if negative; 0 ends the animation
 void TLightGroup::reschedule_animation(float time)
 {
 	if (Timer)
@@ -425,6 +434,7 @@ void TLightGroup::reschedule_animation(float time)
 	Timer = timer::set(Timer1Time, this, TimerExpired);
 }
 
+// Sets each light to the timed on or off state that matches its on flag, the states the animations shift
 void TLightGroup::start_animation()
 {
 	for (auto it = List.rbegin(); it != List.rend(); ++it)
@@ -437,6 +447,7 @@ void TLightGroup::start_animation()
 	}
 }
 
+// Index of the first light that is off, -1 when all are on
 int TLightGroup::next_light_up()
 {
 	for (auto index = 0u; index < List.size(); ++index)
@@ -447,6 +458,7 @@ int TLightGroup::next_light_up()
 	return -1;
 }
 
+// Index of the last light that is on, -1 when all are off
 int TLightGroup::next_light_down()
 {
 	for (auto index = static_cast<int>(List.size()) - 1; index >= 0; --index)

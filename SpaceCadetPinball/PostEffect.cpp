@@ -9,18 +9,21 @@ bool PostEffect::Supported = false;
 bool PostEffect::GpuFailed = false;
 SDL_Renderer* PostEffect::Renderer = nullptr;
 PostEffects PostEffect::Effect = PostEffects::None;
-SDL_GPUShader* PostEffect::Shaders[static_cast<int>(PostEffects::Max)]{};
-SDL_GPURenderState* PostEffect::States[static_cast<int>(PostEffects::Max)]{};
+std::array<SDL_GPUShader*, std::to_underlying(PostEffects::Max)> PostEffect::Shaders{};
+std::array<SDL_GPURenderState*, std::to_underlying(PostEffects::Max)> PostEffect::States{};
 
 namespace
 {
 	struct EffectUniforms
 	{
-		float TextureSize[2];
-		float OutputScale[2];
+		std::array<float, 2> TextureSize;
+		std::array<float, 2> OutputScale;
 	};
+	static_assert(sizeof(EffectUniforms) == 4 * sizeof(float), "The shaders' uniform block is four floats");
 } // namespace
 
+// Creates SDL's GPU renderer for the window, taking SPIR-V, DXIL and MSL shaders; null, with GpuFailed set, when SDL
+// can't create it or is older than 3.4
 SDL_Renderer* PostEffect::CreateGpuRenderer(SDL_Window* window)
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
@@ -44,6 +47,7 @@ SDL_Renderer* PostEffect::CreateGpuRenderer(SDL_Window* window)
 	return renderer;
 }
 
+// Whether the renderer is SDL's GPU renderer; false for null and with SDL older than 3.4
 bool PostEffect::IsGpuRenderer(SDL_Renderer* renderer)
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
@@ -54,6 +58,8 @@ bool PostEffect::IsGpuRenderer(SDL_Renderer* renderer)
 #endif
 }
 
+// Creates each effect's shader and render state for the renderer, unless it is the renderer already set up; an effect
+// whose shader or state fails has no state, and Begin draws plain
 void PostEffect::Init(SDL_Renderer* renderer)
 {
 	if (renderer == Renderer)
@@ -66,13 +72,16 @@ void PostEffect::Init(SDL_Renderer* renderer)
 		return;
 
 	// Indexed by PostEffects; None has no shader
-	constexpr ShaderCode spirv[] = {{}, {crt_frag_spv, sizeof crt_frag_spv}, {smooth_frag_spv, sizeof smooth_frag_spv}};
-	constexpr ShaderCode dxil[] = {
-		{}, {crt_frag_dxil, sizeof crt_frag_dxil}, {smooth_frag_dxil, sizeof smooth_frag_dxil}};
-	constexpr ShaderCode msl[] = {{}, {crt_frag_msl, sizeof crt_frag_msl}, {smooth_frag_msl, sizeof smooth_frag_msl}};
-	static_assert(std::size(spirv) == static_cast<size_t>(PostEffects::Max), "One shader per effect");
+	constexpr std::array spirv{ShaderCode{}, ShaderCode{crt_frag_spv, sizeof crt_frag_spv},
+							   ShaderCode{smooth_frag_spv, sizeof smooth_frag_spv}};
+	constexpr std::array dxil{ShaderCode{}, ShaderCode{crt_frag_dxil, sizeof crt_frag_dxil},
+							  ShaderCode{smooth_frag_dxil, sizeof smooth_frag_dxil}};
+	constexpr std::array msl{ShaderCode{}, ShaderCode{crt_frag_msl, sizeof crt_frag_msl},
+							 ShaderCode{smooth_frag_msl, sizeof smooth_frag_msl}};
+	static_assert(spirv.size() == Shaders.size() && dxil.size() == Shaders.size() && msl.size() == Shaders.size(),
+				  "One shader per effect");
 
-	for (int i = static_cast<int>(PostEffects::None) + 1; i < static_cast<int>(PostEffects::Max); i++)
+	for (int i = std::to_underlying(PostEffects::None) + 1; i < std::to_underlying(PostEffects::Max); i++)
 	{
 		Shaders[i] = CreateShader(renderer, spirv[i], dxil[i], msl[i], 1);
 		if (Shaders[i])
@@ -90,6 +99,7 @@ void PostEffect::Init(SDL_Renderer* renderer)
 #endif
 }
 
+// Picks SPIR-V, DXIL or MSL, in that order, by what the renderer's GPU device takes, and creates the fragment shader
 SDL_GPUShader* PostEffect::CreateShader(SDL_Renderer* renderer, ShaderCode spirv, ShaderCode dxil, ShaderCode msl,
 										int samplers)
 {
@@ -130,9 +140,10 @@ SDL_GPUShader* PostEffect::CreateShader(SDL_Renderer* renderer, ShaderCode spirv
 #endif
 }
 
+// Destroys every effect's render state and shader and forgets the renderer
 void PostEffect::Uninit()
 {
-	for (int i = 0; i < static_cast<int>(PostEffects::Max); i++)
+	for (int i = 0; i < std::to_underlying(PostEffects::Max); i++)
 	{
 #if SDL_VERSION_ATLEAST(3, 4, 0)
 		if (States[i])
@@ -152,10 +163,11 @@ void PostEffect::SetEffect(PostEffects effect)
 	Effect = effect;
 }
 
+// Sets the current effect's uniforms and render state on the renderer; nothing when the effect has no state
 void PostEffect::Begin(float textureWidth, float textureHeight, float scaleX, float scaleY)
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
-	auto state = States[static_cast<int>(Effect)];
+	auto state = States[std::to_underlying(Effect)];
 	if (!state)
 		return;
 
@@ -165,10 +177,11 @@ void PostEffect::Begin(float textureWidth, float textureHeight, float scaleX, fl
 #endif
 }
 
+// Takes the current effect's render state off the renderer again
 void PostEffect::End()
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
-	if (States[static_cast<int>(Effect)])
+	if (States[std::to_underlying(Effect)])
 		SDL_SetGPURenderState(Renderer, nullptr);
 #endif
 }

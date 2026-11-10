@@ -5,21 +5,22 @@
 # Usage: tools/hooks/pre-push.sh [pushed file]...
 set -u
 
-if [ "$(uname -s)" != Linux ]; then
+if [[ "$(uname -s)" != Linux ]]; then
     echo "pre-push: build check runs on Linux only, skipped"
     exit 0
 fi
 
 # lefthook skips this job when nothing is pushed, so no arguments only happens on a manual run
 # (or lefthook run --force); then check everything
-if [ $# -gt 0 ]; then
+if [[ $# -gt 0 ]]; then
     relevant=0
     for file in "$@"; do
         case "$file" in
             SpaceCadetPinball/* | third_party/* | Platform/* | CMakeLists.txt | CMakePresets.json | CMakeModules/* | tools/*) relevant=1 ;;
+            *) ;; # docs and the like don't need the build check
         esac
     done
-    if [ "$relevant" -eq 0 ]; then
+    if [[ "$relevant" -eq 0 ]]; then
         echo "pre-push: no code or build changes, skipped"
         exit 0
     fi
@@ -29,7 +30,7 @@ root=$(git rev-parse --show-toplevel)
 cd "$root" || exit 1
 
 # The build uses the working tree, not the pushed commits; CI checks those
-if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
     echo "pre-push: warning: uncommitted changes are part of this build, so it may not match the pushed commits"
 fi
 
@@ -41,7 +42,7 @@ cmake --build "$build_dir" || exit 1
 
 replays=${SCP_REPLAYS_DIR:-../replays}
 gamedata=${SCP_GAMEDATA_DIR:-../gamedata}
-if [ -d "$replays" ] && [ -d "$gamedata" ]; then
+if [[ -d "$replays" ]] && [[ -d "$gamedata" ]]; then
     tools/check-replays.sh "$replays" "$gamedata" || exit 1
 else
     echo "pre-push: no replays or game data at $replays and $gamedata, replay check skipped"

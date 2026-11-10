@@ -19,6 +19,7 @@ void TEdgeSegment::port_draw()
 {
 }
 
+// The number of floats a wall of this type takes in its array, the type included
 int TEdgeSegment::wall_length(wall_type wallType)
 {
 	// A circle is its type, centre and radius, a line its type and two points, any other wall its type and its points
@@ -33,6 +34,9 @@ int TEdgeSegment::wall_length(wall_type wallType)
 	}
 }
 
+// Makes the edges of the wall in <floatArr>, a circle, a line or a closed polygon of lines, moved out by <offset>; adds
+// them to the component and the edge grid and tags them with <wallValue>. A polygon with an offset also gets a circle
+// at each corner that turns the offset's way. Returns the last edge made, nullptr for a missing or malformed wall
 TEdgeSegment* TEdgeSegment::install_wall(const float* floatArr, int length, TCollisionComponent* collComp,
 										 char* activeFlagPtr, unsigned int collisionGroup, float offset,
 										 size_t wallValue)

@@ -152,7 +152,8 @@ private:
 	static bool DefinitiveFontsAdded;
 	static bool SoftwareRenderer;
 	static bool HighRefresh;
-	static DurationMs UpdateTime, UpdateTimeAccumulator;
+	static DurationMs UpdateTime;
+	static DurationMs UpdateTimeAccumulator;
 	// The longest step of the table one loop pass takes for the time it measured
 	static DurationMs StepLimit()
 	{

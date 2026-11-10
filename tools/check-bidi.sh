@@ -10,7 +10,7 @@ set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 build_dir=${1:-$root/build/linux}
-if [ ! -f "$build_dir/CMakeCache.txt" ]; then
+if [[ ! -f "$build_dir/CMakeCache.txt" ]]; then
 	echo "Not a configured CMake build: $build_dir (run cmake --preset linux first)" >&2
 	exit 2
 fi
@@ -31,7 +31,7 @@ cases=(
 )
 
 compare=$root/tools/bidi/compare.py
-if [ -n "${BIDI_PYTHON:-}" ]; then
+if [[ -n "${BIDI_PYTHON:-}" ]]; then
 	"$build_dir/bidi-harness" "${cases[@]}" | "$BIDI_PYTHON" -I "$compare"
 else
 	"$build_dir/bidi-harness" "${cases[@]}" |

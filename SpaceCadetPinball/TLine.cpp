@@ -51,6 +51,8 @@ void TLine::EdgeCollision(TBall* ball, float distance)
 		this);
 }
 
+// Adds the line to every box of the edge manager's grid that it passes through, and extends <aabb> by it when one
+// is given
 void TLine::place_in_grid(RectF* aabb)
 {
 	if (aabb)

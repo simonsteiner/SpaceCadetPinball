@@ -79,6 +79,8 @@ vector3 proj::ReverseXForm(const vector2i& vec)
 	return {x0, y0, z0};
 }
 
+// Projects a table position to screen pixels: transforms it by the matrix, scales X and Y by d_ over its depth (by
+// a large constant at depth 0) and adds the centre
 vector2i proj::xform_to_2d(const vector3& vec)
 {
 	float projCoef;
@@ -101,6 +103,7 @@ void proj::recenter(float centerX, float centerY)
 	centery = centerY;
 }
 
+// Maps a depth to 16 bits: 0 below zmin, else its distance from zmin times zscaler, or 0xffFF where that exceeds zmax
 uint16_t proj::NormalizeDepth(float depth)
 {
 	uint16_t result = 0;

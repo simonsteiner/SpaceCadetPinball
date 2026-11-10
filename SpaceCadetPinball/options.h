@@ -40,7 +40,8 @@ enum class Menu1:int
 };
 
 // The analog triggers, which SDL reports as axes, bind as two extra GameController inputs
-constexpr int GamepadLeftTrigger = 100, GamepadRightTrigger = 101;
+constexpr int GamepadLeftTrigger = 100;
+constexpr int GamepadRightTrigger = 101;
 
 enum class InputTypes
 {
@@ -63,6 +64,7 @@ struct GameInput
 	{
 	}
 
+	// Equal when both the type and the value match
 	bool operator==(const GameInput& other) const
 	{
 		return Type == other.Type && Value == other.Value;
@@ -123,7 +125,9 @@ public:
 	// Original uses 8 sound channels
 	static constexpr int MaxSoundChannels = 32, MinSoundChannels = 1, DefSoundChannels = 8;
 	// SDL2_mixer's MIX_MAX_VOLUME, kept so that saved volumes keep their meaning
-	static constexpr int MaxVolume = 128, MinVolume = 0, DefVolume = MaxVolume;
+	static constexpr int MaxVolume = 128;
+	static constexpr int MinVolume = 0;
+	static constexpr int DefVolume = MaxVolume;
 	// Key Bindings Version: keyboard bindings are scancodes; settings without it hold keycodes
 	static constexpr int KeyBindingsScancodes = 1;
 	static struct optionsStruct Options;
@@ -225,6 +229,7 @@ struct OptionBase
 	// Only options kept for each edition act on it
 	virtual void ShowEdition(Editions edition)
 	{
+		// An option that isn't kept for each edition has nothing to switch
 	}
 };
 
@@ -262,9 +267,7 @@ struct IntOption : OptionBaseT<int>
 // An int kept for each table, under the table's key prefix
 struct TableIntOption : IntOption
 {
-	TableIntOption(LPCSTR name, int defaultValue) : IntOption(name, defaultValue)
-	{
-	}
+	using IntOption::IntOption;
 
 	// Loaded again once the table is known (options::InitSecondary)
 	void Load() override;
@@ -310,13 +313,14 @@ struct BoolOption : OptionBaseT<bool>
 template <typename T> struct EditionOptionT : OptionBaseT<T>
 {
 	const T DefinitiveDefault;
-	T Other;
+	T Other{};
 
 	EditionOptionT(LPCSTR name, T classicDefault, T definitiveDefault) :
-		OptionBaseT<T>(name, classicDefault), DefinitiveDefault(definitiveDefault), Other()
+		OptionBaseT<T>(name, classicDefault), DefinitiveDefault(definitiveDefault)
 	{
 	}
 
+	// Puts the given edition's value in V by swapping it with Other, unless that edition is already on show
 	void ShowEdition(Editions edition) override
 	{
 		if (edition != Shown)
@@ -332,6 +336,7 @@ template <typename T> struct EditionOptionT : OptionBaseT<T>
 		Value(Editions::Definitive) = static_cast<T>(options::get_int(DefinitiveKey().c_str(), DefinitiveDefault));
 	}
 
+	// Writes both editions' values: Classic's under Name, Definitive's under the prefixed key
 	void Save() const override
 	{
 		options::set_int(this->Name, Shown == Editions::Classic ? this->V : Other);
@@ -349,6 +354,7 @@ template <typename T> struct EditionOptionT : OptionBaseT<T>
 private:
 	Editions Shown = Editions::Classic;
 
+	// The given edition's value: V while that edition is on show, else Other
 	T& Value(Editions edition)
 	{
 		return edition == Shown ? this->V : Other;
@@ -386,6 +392,7 @@ struct ControlOption : OptionBase
 	// Converts saved keycodes to scancodes while options::InitPrimary migrates old settings
 	void Load() override;
 
+	// Writes the three inputs' types and values to the settings
 	void Save() const override
 	{
 		for (auto i = 0u; i <= 2; i++)

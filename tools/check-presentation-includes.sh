@@ -19,7 +19,7 @@ is_presentation() {
 files=()
 # With files, as from the pre-commit hook, the staged versions are read, so unstaged edits don't hide a problem
 staged=0
-if [ $# -gt 0 ]; then
+if [[ $# -gt 0 ]]; then
     staged=1
     for file in "$@"; do
         if is_presentation "$file" && git cat-file -e ":$file" 2>/dev/null; then
@@ -28,25 +28,25 @@ if [ $# -gt 0 ]; then
     done
 else
     for file in SpaceCadetPinball/Definitive*.cpp SpaceCadetPinball/Definitive*.h; do
-        [ -f "$file" ] && files+=("$file")
+        [[ -f "$file" ]] && files+=("$file")
     done
 fi
 
 # In a variable, because bash can't take the quotes and angle brackets literally inside [[ =~ ]]
 include_pattern='^[[:space:]]*#[[:space:]]*include[[:space:]]*(["<])([^">]+)[">]'
 # Bash before 4.4 treats an empty array as unset under set -u
-[ ${#files[@]} -eq 0 ] && exit 0
+[[ ${#files[@]} -eq 0 ]] && exit 0
 
 failed=0
 for file in "${files[@]}"; do
     line_number=0
-    while IFS= read -r line || [ -n "$line" ]; do
+    while IFS= read -r line || [[ -n "$line" ]]; do
         line_number=$((line_number + 1))
         line=${line%$'\r'}
         [[ $line =~ $include_pattern ]] || continue
         kind=${BASH_REMATCH[1]} header=${BASH_REMATCH[2]}
         allowed=0
-        if [ "$kind" = '<' ]; then
+        if [[ "$kind" = '<' ]]; then
             # SDL and the standard library; the game's own headers are never included with angle brackets
             case "$header" in
                 SDL3/* | SDL3_mixer/*) allowed=1 ;;
@@ -57,14 +57,15 @@ for file in "${files[@]}"; do
             case "$header" in
                 pch.h | TableView.h | translations.h | options.h | imgui*.h) allowed=1 ;;
                 Definitive*.h) [[ $header != */* ]] && allowed=1 ;;
+                *) ;; # any other header stays forbidden
             esac
         fi
-        if [ "$allowed" -eq 0 ]; then
+        if [[ "$allowed" -eq 0 ]]; then
             closing='"'
-            [ "$kind" = '<' ] && closing='>'
+            [[ "$kind" = '<' ]] && closing='>'
             echo "$file:$line_number: presentation code may not include ${kind}${header}${closing}; read the table through TableView.h" >&2
             failed=1
         fi
-    done < <(if [ "$staged" -eq 1 ]; then git show ":$file"; else cat "$file"; fi)
+    done < <(if [[ "$staged" -eq 1 ]]; then git show ":$file"; else cat "$file"; fi)
 done
 exit "$failed"

@@ -125,6 +125,7 @@ float maths::ray_intersect_circle(const ray_type& ray, const circle_type& circle
 	return T0;
 }
 
+// Scales vec to unit length and returns the length it had; a zero vector stays as it is
 float maths::normalize_2d(vector2& vec)
 {
 	float mag = sqrt(vec.X * vec.X + vec.Y * vec.Y);
@@ -137,6 +138,8 @@ float maths::normalize_2d(vector2& vec)
 }
 
 
+// Sets up the line segment from (x0, y0) to (x1, y1): unit direction, clockwise perpendicular, and the range the
+// segment covers in X, or in Y when the line is vertical
 void maths::line_init(line_type& line, float x0, float y0, float x1, float y1)
 {
 	line.Origin = { x0, y0 };
@@ -206,6 +209,7 @@ float maths::cross(const vector2& vec1, const vector2& vec2)
 	return vec1.X * vec2.Y - vec1.Y * vec2.X;
 }
 
+// Returns the length of vec
 float maths::magnitude(const vector3& vec)
 {
 	float result;
@@ -248,6 +252,9 @@ vector2 maths::vector_mul(const vector2& vec1, float val)
 	return { vec1.X * val, vec1.Y * val };
 }
 
+// Bounces the ball off a surface at nextPosition whose normal is direction: reflects its direction, takes the lost
+// energy off its speed, and adds boost along the normal when the rebound speed reaches threshold. Returns the rebound
+// speed, the ball's speed along the normal before the bounce
 float maths::basic_collision(TBall* ball, vector2* nextPosition, vector2* direction, float elasticity, float smoothness,
                              float threshold, float boost)
 {
@@ -387,6 +394,8 @@ void maths::RotateVector(vector2& vec, float angle)
 	// Luckily, it is never used with angle always set to 0.
 }
 
+// Finds the edge of the planes' triangles whose two ends lie nearest to the wall's two points, by the sum of both
+// distances; lineEnd gets the end near wall->Pt0, lineStart the one near wall->Pt1
 void maths::find_closest_edge(ramp_plane_type* planes, int planeCount, wall_point_type* wall, vector2& lineEnd,
                               vector2& lineStart)
 {

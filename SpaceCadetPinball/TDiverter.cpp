@@ -10,6 +10,7 @@
 
 #include <utility>
 
+// Reads the flash time (attribute 407) and adds the diverter's lines
 TDiverter::TDiverter(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, false)
 {
 	visualStruct visual{};
@@ -44,29 +45,32 @@ void TDiverter::AddLine(const float* points, int collisionGroup)
 	EdgeList.push_back(line);
 }
 
+// Handles the diverter's messages: TDiverterEnable (also 63 and 75) and TDiverterDisable (also 62 and 76) switch it;
+// PlayerChanged keeps the old player's state and takes the new one's; Reset disables it for every player
 int TDiverter::Message(MessageCode code, float value)
 {
+	using enum MessageCode;
 	switch (std::to_underlying(code))
 	{
-	case std::to_underlying(MessageCode::TDiverterEnable):
+	case std::to_underlying(TDiverterEnable):
 	case 63:
 	case 75:
 		SetEnabled(true);
 		break;
-	case std::to_underlying(MessageCode::TDiverterDisable):
+	case std::to_underlying(TDiverterDisable):
 	case 62:
 	case 76:
 		SetEnabled(false);
 		break;
-	case std::to_underlying(MessageCode::PlayerChanged):
+	case std::to_underlying(PlayerChanged):
 		{
-			KeepMessageFieldPerPlayer(MessageCode::PlayerChanged, value);
+			KeepMessageFieldPerPlayer(PlayerChanged, value);
 			PlayerActiveFlags[PinballTable->CurrentPlayer] = ActiveFlag;
 			SetEnabled(PlayerActiveFlags[static_cast<int>(value)] != 0);
 			break;
 		}
-	case std::to_underlying(MessageCode::Reset):
-		KeepMessageFieldPerPlayer(MessageCode::Reset, value);
+	case std::to_underlying(Reset):
+		KeepMessageFieldPerPlayer(Reset, value);
 		std::ranges::fill(PlayerActiveFlags, char{0});
 		SetEnabled(false);
 		break;
@@ -76,6 +80,7 @@ int TDiverter::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Switches the lines' collision, and shows the first sprite when enabled, none when disabled
 void TDiverter::SetEnabled(bool enabled)
 {
 	// CADET.EXE also plays two sounds here, which its constructor never sets, so they play nothing
@@ -83,6 +88,8 @@ void TDiverter::SetEnabled(bool enabled)
 	SpriteSet(enabled ? 0 : -1);
 }
 
+// Lets the ball through; plays the hit sound and tells the rules unless the table is tilted, and flashes the second
+// sprite for FlashTime if there is one
 void TDiverter::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	ball->not_again(edge);
@@ -101,6 +108,7 @@ void TDiverter::Collision(TBall* ball, vector2* nextPosition, vector2* direction
 	}
 }
 
+// Timer callback: ends the flash, back to the first sprite if enabled, else none
 void TDiverter::FlashEnd(int, void* caller)
 {
 	auto diverter = static_cast<TDiverter*>(caller);

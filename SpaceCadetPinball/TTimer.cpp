@@ -10,6 +10,9 @@ TTimer::TTimer(TPinballTable* table, int groupIndex) : TPinballComponent(table, 
 	Timer = 0;
 }
 
+// Handles the timer's messages: TTimerResetTimer restarts it for <value> seconds, or only stops it if negative;
+// TTimerGetTimeLeft returns the milliseconds left, 0 when it isn't running; a tilt, game over, Reset and a player
+// change stop it
 int TTimer::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())

@@ -16,6 +16,7 @@ void font_selection::ShowDialog()
 	ShowDialogFlag = true;
 }
 
+// Draws the font selection popup, opening it after ShowDialog; OK stores the font file name and restarts the game
 void font_selection::RenderDialog()
 {
 	if (ShowDialogFlag == true)

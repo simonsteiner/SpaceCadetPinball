@@ -8,6 +8,9 @@
 #include "TTableLayer.h"
 
 
+// Works out the flipper's geometry from its rotation origin and its tip at rest (T1) and extended (T2), whose Z are
+// radii: the angle between them, the end points of its two sides and the speeds. Windows data gives the times of a full
+// swing, Full Tilt data speeds in radians per second
 TFlipperEdge::TFlipperEdge(TCollisionComponent* collComp, char* activeFlag, unsigned int collisionGroup,
 						   TPinballTable* table, const vector3* origin, const vector3* vecT1, const vector3* vecT2,
 						   float extendSpeed, float retractSpeed, float collMult, float elasticity, float smoothness) :
@@ -109,6 +112,8 @@ void TFlipperEdge::port_draw()
 	set_control_points(CurrentAngle);
 }
 
+// Returns the ray's distance to the flipper at its current angle, 1e9 if it misses, and keeps the hit's position and
+// direction for EdgeCollision
 float TFlipperEdge::FindCollisionDistance(const ray_type& ray)
 {
 	ray_type dstRay{};
@@ -123,6 +128,9 @@ float TFlipperEdge::FindCollisionDistance(const ray_type& ray)
 	return distance;
 }
 
+// Bounces the ball off the flipper at the hit FindCollisionDistance kept. A flipper at rest bounces it without boost; a
+// moving one boosts a ball on its leading side, the more the farther from its rotation origin, and bounces one on the
+// other side with less elasticity
 void TFlipperEdge::EdgeCollision(TBall* ball, float distance)
 {
 	if (FlipperFlag == MessageCode::TFlipperNull)
@@ -196,6 +204,8 @@ void TFlipperEdge::EdgeCollision(TBall* ball, float distance)
 	}
 }
 
+// Adds the flipper's bounds over its whole swing to the edge grid, merges them into <aabb> if given, and keeps them,
+// widened, as XMin to YMax for TFlipper::FlipperCollision
 void TFlipperEdge::place_in_grid(RectF* aabb)
 {
 	auto xMax = std::max(std::max(T2Src.X + CircleT1Radius, T1Src.X + CircleT1Radius), RotOrigin.X + CirclebaseRadius);
@@ -238,6 +248,7 @@ void TFlipperEdge::set_control_points(float angle)
 	ControlPointDirtyFlag = false;
 }
 
+// The angle the flipper turns in <timeDelta>, at most what is left to its target; 0 at rest
 float TFlipperEdge::flipper_angle_delta(float timeDelta)
 {
 	if (FlipperFlag == MessageCode::TFlipperNull)
@@ -249,6 +260,8 @@ float TFlipperEdge::flipper_angle_delta(float timeDelta)
 	return deltaAngle;
 }
 
+// Sets the target angle and the speed for TFlipperExtend or TFlipperRetract, or stops on Reset. Returns the motion as
+// its message code, TFlipperNull when no angle is left to turn
 int TFlipperEdge::SetMotion(MessageCode code)
 {
 	switch (code)

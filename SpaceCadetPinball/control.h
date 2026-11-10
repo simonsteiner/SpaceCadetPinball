@@ -43,6 +43,7 @@ struct component_tag : component_tag_base
 		return static_cast<TPinballComponent*>(Component);
 	}
 
+	// Stores the component as a T; asserts when a component that isn't null is of another type
 	void SetComponent(TPinballComponent* comp) override
 	{
 		Component = dynamic_cast<T*>(comp);

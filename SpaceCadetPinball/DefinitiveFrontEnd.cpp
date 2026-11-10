@@ -60,7 +60,7 @@ namespace
 			auto end = text.find('\n');
 			auto line = text.substr(0, end);
 			auto heading = !line.empty() && line.front() == '#';
-			lines.push_back({heading, std::string{heading ? line.substr(1) : line}});
+			lines.emplace_back(heading, std::string{heading ? line.substr(1) : line});
 			if (end == std::string_view::npos)
 				return lines;
 			text.remove_prefix(end + 1);
@@ -78,14 +78,18 @@ void DefinitiveFrontEnd::ShowTitle()
 	Open(Screen::Title);
 }
 
+// Opens Settings, on the controls when controls is true, and remembers the screen Back returns to
 void DefinitiveFrontEnd::ShowSettings(bool controls)
 {
-	if (Current != Screen::Settings)
-		SettingsFrom = Current == Screen::None ? Screen::Title : Current;
-	Current = Screen::Settings;
+	using enum Screen;
+	if (Current != Settings)
+		SettingsFrom = Current == None ? Title : Current;
+	Current = Settings;
 	DefinitiveSettings::Open(controls ? DefinitiveSettings::Group::Controls : DefinitiveSettings::Group::Edition);
 }
 
+// Opens the list of tables when more than one was found: from a game in play, which it pauses first, or from the
+// title and the screens it leads to; does nothing from a game that is ending or its summary
 void DefinitiveFrontEnd::ShowTables()
 {
 	using enum Screen;
@@ -111,11 +115,14 @@ bool DefinitiveFrontEnd::ScreenOpen()
 	return Current != Screen::None;
 }
 
+// Whether a key bound to a shortcut still reaches the game: while a screen had the focus in the last frame, and for
+// Escape only on the title
 bool DefinitiveFrontEnd::PassesShortcut(bool escape)
 {
 	return Focused && (!escape || Current == Screen::Title);
 }
 
+// Whether Settings is open and waits for a key or button to bind to a control
 bool DefinitiveFrontEnd::WaitsForBinding()
 {
 	return Current == Screen::Settings && DefinitiveSettings::WaitsForBinding();
@@ -130,13 +137,17 @@ void DefinitiveFrontEnd::Open(Screen screen)
 	CreditsScroll = 0;
 }
 
+// Whether the screen showing belongs to a game in play: the pause screen, the guide, or Settings or the list of
+// tables opened from the pause screen
 bool DefinitiveFrontEnd::FromPause()
 {
-	return Current == Screen::Pause || Current == Screen::Guide ||
-		   (Current == Screen::Settings && SettingsFrom == Screen::Pause) ||
-		   (Current == Screen::Tables && TablesFrom == Screen::Pause);
+	using enum Screen;
+	return Current == Pause || Current == Guide || (Current == Settings && SettingsFrom == Pause) ||
+		   (Current == Tables && TablesFrom == Pause);
 }
 
+// Whether the screen showing is the title or one it leads to; the exit question counts as the screen it was opened
+// from
 bool DefinitiveFrontEnd::UnderTitle()
 {
 	using enum Screen;
@@ -162,14 +173,12 @@ void DefinitiveFrontEnd::FollowGame(const TableView& view, bool playing)
 		else if (!paused)
 			Current = Screen::None;
 	}
-	else if (view.GameOver && !view.Demo && !busy && (Current == Screen::None || fromPause))
+	// A game that has ended asks for a name for each new high score, then shows how everyone did
+	else if (view.GameOver && !view.Demo && !busy && (Current == Screen::None || fromPause) && !NextName() &&
+			 !SummaryShown)
 	{
-		// A game that has ended asks for a name for each new high score, then shows how everyone did
-		if (!NextName() && !SummaryShown)
-		{
-			SummaryShown = true;
-			Open(Screen::GameOver);
-		}
+		SummaryShown = true;
+		Open(Screen::GameOver);
 	}
 	// The demo plays behind the title and the screens it leads to, not behind a game that has just ended
 	if (UnderTitle() && view.GameOver && !busy && Host.StartDemo)
@@ -179,6 +188,7 @@ void DefinitiveFrontEnd::FollowGame(const TableView& view, bool playing)
 // Each frame: the score panel, the touch deck while no screen shows, then the open screen or the recording's bar
 void DefinitiveFrontEnd::Render(const TableView& view)
 {
+	using enum Screen;
 	Ui::NewFrame();
 	// EndColumn sets it again while a screen shows
 	Focused = false;
@@ -192,67 +202,67 @@ void DefinitiveFrontEnd::Render(const TableView& view)
 		DefinitiveHud::Render(view, board, panel, band, Host.PanelArt ? Host.PanelArt() : nullptr);
 	}
 	// Only in play: a screen takes the whole window, and its rows the touches
-	if (DefinitiveDeck deck; Current == Screen::None && Host.TouchDeck && Host.TouchDeck(deck))
+	if (DefinitiveDeck deck; Current == None && Host.TouchDeck && Host.TouchDeck(deck))
 		DefinitiveTouchDeck::Render(deck);
 
 	// A recording that plays has its own bar and none of the game's screens, which would follow the game it shows
 	if (Host.Viewing && Host.Viewing())
 	{
-		Current = Screen::Viewer;
+		Current = Viewer;
 		DefinitiveRecordings::RenderViewer(Host);
 		return;
 	}
-	if (Current == Screen::Viewer)
-		Current = Screen::Title;
+	if (Current == Viewer)
+		Current = Title;
 
 	auto playing = !view.GameOver && !view.Demo;
 	FollowGame(view, playing);
 
 	switch (Current)
 	{
-	case Screen::Title:
+	case Title:
 		RenderTitle(view);
 		break;
-	case Screen::Records:
+	case Records:
 		RenderRecords();
 		break;
-	case Screen::Tables:
+	case Tables:
 		RenderTables();
 		break;
-	case Screen::Settings:
+	case Settings:
 		if (!DefinitiveSettings::Render(Host, playing))
 			Open(SettingsFrom);
 		break;
-	case Screen::Credits:
+	case Credits:
 		RenderCredits();
 		break;
-	case Screen::Stats:
+	case Stats:
 		if (!DefinitiveStatsScreen::Render(view))
-			Open(Screen::Title);
+			Open(Title);
 		break;
-	case Screen::Recordings:
+	case Recordings:
 		if (!DefinitiveRecordings::Render(Host))
-			Open(Screen::Title);
+			Open(Title);
 		break;
-	case Screen::Viewer:
+	case Viewer:
 		break;
-	case Screen::Guide:
+	case Guide:
 		if (!DefinitiveGuide::Render(view))
-			Open(Screen::Pause);
+			Open(Pause);
 		break;
-	case Screen::Pause:
+	case Pause:
 		RenderPause(view);
 		break;
-	case Screen::Exit:
+	case Exit:
 		RenderExit();
 		break;
-	case Screen::GameOver:
+	case GameOver:
 		RenderGameOver(view);
 		break;
-	case Screen::NameEntry:
+	case NameEntry:
 		RenderNameEntry();
 		break;
-	case Screen::None:
+	case None:
 		break;
 	}
 	DefinitiveStatsScreen::RenderNotice();
@@ -286,8 +296,8 @@ float DefinitiveFrontEnd::BeginColumn(const char* name, float width)
 	if (Opened || (!ImGui::GetTopMostPopupModal() && !GImGui->NavWindow))
 		ImGui::SetNextWindowFocus();
 	// So does one whose row lost the focus to ImGui's cancel, which keeps the window focused but no row lit
-	auto window = ImGui::FindWindowByName(name);
-	if (Opened || (window && GImGui->NavWindow == window && GImGui->NavId == 0))
+	if (auto window = ImGui::FindWindowByName(name);
+		Opened || (window && GImGui->NavWindow == window && GImGui->NavId == 0))
 		Ui::FocusNextRow();
 	Opened = false;
 
@@ -302,6 +312,7 @@ float DefinitiveFrontEnd::BeginColumn(const char* name, float width)
 	return columnWidth;
 }
 
+// Closes the column BeginColumn opened, and notes whether it had the focus, for PassesShortcut
 void DefinitiveFrontEnd::EndColumn()
 {
 	Focused = ImGui::IsWindowFocused() && !ImGui::GetTopMostPopupModal();
@@ -310,6 +321,7 @@ void DefinitiveFrontEnd::EndColumn()
 	ImGui::PopStyleVar(3);
 }
 
+// Whether Escape, the gamepad's right face button or the right mouse button was pressed while the window has the focus
 bool DefinitiveFrontEnd::BackPressed()
 {
 	return ImGui::IsWindowFocused() &&
@@ -395,8 +407,8 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 	{
 		ImVec2 min{digitsMin.x + static_cast<float>(count - 1) * (box.x + gap), digitsMin.y};
 		ImVec2 max{min.x + box.x, min.y + box.y};
-		char digit[2] = {static_cast<char>('0' + count), 0};
-		auto size = Theme::HeadingFont()->CalcTextSizeA(Theme::BodySize * scale, FLT_MAX, 0, digit);
+		std::array<char, 2> digit{static_cast<char>('0' + count), 0};
+		auto size = Theme::HeadingFont()->CalcTextSizeA(Theme::BodySize * scale, FLT_MAX, 0, digit.data());
 		ImVec2 textPosition{(min.x + max.x - size.x) / 2, (min.y + max.y - size.y) / 2};
 		if (count == players)
 		{
@@ -404,12 +416,13 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 									ImVec2{max.x + 2 * scale, max.y + 2 * scale},
 									Theme::WithAlpha(Theme::LedOrange, 0.25f), 6 * scale);
 			drawList->AddRectFilled(min, max, Theme::LedOrange, 4 * scale);
-			drawList->AddText(Theme::HeadingFont(), Theme::BodySize * scale, textPosition, Theme::Space950, digit);
+			drawList->AddText(Theme::HeadingFont(), Theme::BodySize * scale, textPosition, Theme::Space950,
+							  digit.data());
 		}
 		else
 		{
 			drawList->AddRect(min, max, Theme::Chrome600, 4 * scale);
-			drawList->AddText(Theme::TextFont(), Theme::BodySize * scale, textPosition, Theme::Chrome400, digit);
+			drawList->AddText(Theme::TextFont(), Theme::BodySize * scale, textPosition, Theme::Chrome400, digit.data());
 		}
 	}
 
@@ -456,6 +469,7 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 	}
 }
 
+// The high scores: five rows of rank, name and score, a row to go back and one to clear them, which asks once first
 void DefinitiveFrontEnd::RenderRecords()
 {
 	const auto* viewport = &Ui::SafeArea();
@@ -477,21 +491,22 @@ void DefinitiveFrontEnd::RenderRecords()
 	for (size_t i = 0; i < 5; i++)
 	{
 		auto rowHeight = 44 * scale;
-		auto left = origin.x + 16 * scale, right = origin.x + innerWidth - 16 * scale;
+		auto left = origin.x + 16 * scale;
+		auto right = origin.x + innerWidth - 16 * scale;
 		drawList->AddLine(ImVec2{left, y}, ImVec2{right, y}, Theme::WithAlpha(Theme::Chrome600, 0.6f));
 		auto centre = y + rowHeight / 2;
-		char rank[4];
-		snprintf(rank, sizeof rank, "%d", static_cast<int>(i) + 1);
-		auto rankSize = Ui::TextSize(Theme::HeadingFont(), Theme::BodySize, rank);
+		std::array<char, 4> rank;
+		snprintf(rank.data(), rank.size(), "%d", static_cast<int>(i) + 1);
+		auto rankSize = Ui::TextSize(Theme::HeadingFont(), Theme::BodySize, rank.data());
 		Ui::DrawText(drawList, Theme::HeadingFont(), Theme::BodySize, ImVec2{left, centre - rankSize.y / 2},
-					 Theme::Chrome400, rank);
+					 Theme::Chrome400, rank.data());
 		if (i < records.size() && records[i].Score >= 0)
 		{
 			auto score = Ui::FormatScore(records[i].Score, 11);
 			auto ledSize = Theme::LedSize(Theme::CounterSize * 1.2f * scale, score.c_str());
 			Theme::DrawLed(drawList, ImVec2{right - ledSize.x, centre - ledSize.y / 2},
 						   Theme::CounterSize * 1.2f * scale, score.c_str());
-			auto& name = records[i].Name;
+			const auto& name = records[i].Name;
 			auto nameSize = Ui::TextSize(Theme::TextFont(), Theme::BodySize, name.c_str());
 			Ui::DrawText(drawList, Theme::TextFont(), Theme::BodySize,
 						 ImVec2{left + 32 * scale, centre - nameSize.y / 2}, Theme::Chrome50, name.c_str());
@@ -542,6 +557,8 @@ void DefinitiveFrontEnd::RenderRecords()
 	EndColumn();
 }
 
+// The list of tables with the focused table's picture under it, or, from a game in play, the question before the
+// game ends for another table
 void DefinitiveFrontEnd::RenderTables()
 {
 	auto tables = Host.TableList ? Host.TableList() : std::vector<DefinitiveHost::TableChoice>{};
@@ -594,6 +611,8 @@ void DefinitiveFrontEnd::RenderTables()
 	EndColumn();
 }
 
+// Draws Cancel and OK under the question; OK resumes the game and restarts it with the table chosen. Returns that
+// table's picture, which may be null.
 SDL_Texture* DefinitiveFrontEnd::RenderConfirmTable(const std::vector<DefinitiveHost::TableChoice>& tables)
 {
 	auto picture = tables[ConfirmTable].Picture;
@@ -618,6 +637,8 @@ SDL_Texture* DefinitiveFrontEnd::RenderConfirmTable(const std::vector<Definitive
 	return picture;
 }
 
+// Draws a row for each table, with its source and best score as a note, and one to go back. Choosing the loaded table
+// goes back, another one selects it, or from a game in play asks first. Returns the focused table's picture, or null.
 SDL_Texture* DefinitiveFrontEnd::RenderTableRows(const std::vector<DefinitiveHost::TableChoice>& tables)
 {
 	SDL_Texture* picture = nullptr;
@@ -649,6 +670,8 @@ SDL_Texture* DefinitiveFrontEnd::RenderTableRows(const std::vector<DefinitiveHos
 	return picture;
 }
 
+// The credits: the version and a list of headings and lines that scrolls with the arrow keys, the d-pad, the wheel
+// and a drag, over a row to go back
 void DefinitiveFrontEnd::RenderCredits()
 {
 	// One line per credit; a heading starts with #
@@ -716,10 +739,10 @@ SDL_native_midi, MMPX)");
 				 Theme::Chrome50, Text(Msg::Definitive_Credits), innerWidth - 32 * scale);
 	if (Host.Version)
 	{
-		char version[128];
-		snprintf(version, sizeof version, Text(Msg::Definitive_Version), Host.Version);
+		std::array<char, 128> version;
+		snprintf(version.data(), version.size(), Text(Msg::Definitive_Version), Host.Version);
 		Ui::DrawText(drawList, Theme::TextFont(), Theme::LabelSize,
-					 ImVec2{origin.x + 16 * scale, origin.y + 44 * scale}, Theme::Chrome400, version,
+					 ImVec2{origin.x + 16 * scale, origin.y + 44 * scale}, Theme::Chrome400, version.data(),
 					 innerWidth - 32 * scale);
 	}
 
@@ -731,7 +754,7 @@ SDL_native_midi, MMPX)");
 	auto contentHeight = 0.0f;
 	for (auto& line : credits)
 		contentHeight += line.Heading ? lineHeight * 1.3f : lineHeight;
-	auto& io = ImGui::GetIO();
+	const auto& io = ImGui::GetIO();
 	auto step = lineHeight * 2;
 	if (ImGui::IsKeyPressed(ImGuiKey_DownArrow) || ImGui::IsKeyPressed(ImGuiKey_GamepadDpadDown))
 		CreditsScroll += step;
@@ -768,6 +791,7 @@ SDL_native_midi, MMPX)");
 	EndColumn();
 }
 
+// Draws the loading screen: the game's name and year in the middle of the window, and a line that says it is loading
 void DefinitiveFrontEnd::RenderLoading()
 {
 	Ui::NewFrame();
@@ -791,6 +815,8 @@ void DefinitiveFrontEnd::RenderLoading()
 				 Text(Msg::Definitive_Loading));
 }
 
+// Draws the screen for when no game data was found: the places in looked, a note when the chosen folder had none or
+// the folder dialog failed, and rows to choose a folder and to exit
 void DefinitiveFrontEnd::RenderMissingData(const std::vector<std::string>& looked, bool chosenFolderFailed)
 {
 	const auto* viewport = &Ui::SafeArea();
@@ -845,13 +871,12 @@ void DefinitiveFrontEnd::RenderMissingData(const std::vector<std::string>& looke
 		y += 20 * scale;
 	}
 	// Without a folder dialog the player has to put the data in one of the places above
-	auto dialogError = Host.FolderDialogError ? Host.FolderDialogError() : std::string{};
-	if (!dialogError.empty())
+	if (auto dialogError = Host.FolderDialogError ? Host.FolderDialogError() : std::string{}; !dialogError.empty())
 	{
-		char note[512];
-		snprintf(note, sizeof note, Text(Msg::Definitive_DataNoDialog), dialogError.c_str());
+		std::array<char, 512> note;
+		snprintf(note.data(), note.size(), Text(Msg::Definitive_DataNoDialog), dialogError.c_str());
 		y += 8 * scale;
-		y += Ui::DrawWrapped(drawList, Theme::TextFont(), Theme::LabelSize, ImVec2{left, y}, Theme::LedRed, note,
+		y += Ui::DrawWrapped(drawList, Theme::TextFont(), Theme::LabelSize, ImVec2{left, y}, Theme::LedRed, note.data(),
 							 inner - 32 * scale);
 	}
 

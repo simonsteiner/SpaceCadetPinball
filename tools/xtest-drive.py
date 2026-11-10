@@ -22,6 +22,7 @@ root = d.screen().root
 
 
 def find(window):
+    """Returns the first viewable window under this one whose title or class contains TITLE, or None."""
     for child in window.query_tree().children:
         name = child.get_wm_name() or ""
         classes = child.get_wm_class() or ()

@@ -37,9 +37,9 @@ namespace
 		SDL_DateTime date{};
 		if (!SDL_TimeToDateTime(SDL_SECONDS_TO_NS(seconds), &date, true))
 			return {};
-		char text[16];
-		snprintf(text, sizeof text, "%04d-%02d-%02d", date.year, date.month, date.day);
-		return text;
+		std::array<char, 16> text;
+		snprintf(text.data(), text.size(), "%04d-%02d-%02d", date.year, date.month, date.day);
+		return text.data();
 	}
 
 	// Dragon's Keep's quests by name, with how often each was done
@@ -76,17 +76,20 @@ void DefinitiveStatsScreen::Open()
 	ConfirmClear = false;
 }
 
+// Draws the screen: the Stats and Achievements tabs and the current tab's rows, which scroll, for the table in the
+// view; returns false once the player goes back
 bool DefinitiveStatsScreen::Render(const TableView& view)
 {
+	using enum Msg;
 	auto scale = Ui::Scale();
-	auto panel = Ui::BeginPanel("##DefinitiveStats", Text(Msg::Definitive_Stats), Opened);
+	auto panel = Ui::BeginPanel("##DefinitiveStats", Text(Definitive_Stats), Opened);
 	auto opened = Opened;
 	Opened = false;
 
 	auto tabsY = panel.Min.y + panel.Padding + 48 * scale;
 	auto previous = Current;
 	Current = Ui::Tabs(panel.DrawList, ImVec2{panel.Min.x + panel.Padding, tabsY}, panel.Size.x - panel.Padding * 2,
-					   {Text(Msg::Definitive_Stats), Text(Msg::Definitive_Achievements)}, Current);
+					   {Text(Definitive_Stats), Text(Definitive_Achievements)}, Current);
 
 	// The rows scroll under the tabs, and the focus follows them; ImGui's Escape takes it off the rows too, and the
 	// screen gives it back to the first
@@ -100,24 +103,27 @@ bool DefinitiveStatsScreen::Render(const TableView& view)
 		RenderStats(view);
 	else
 		RenderAchievements(view);
-	if (Ui::MenuRow("back", Text(Msg::Definitive_Back)))
+	if (Ui::MenuRow("back", Text(Definitive_Back)))
 		BackChosen = true;
 	Ui::EndPanelRows();
 
 	auto back = BackChosen || Ui::PanelBack();
 	BackChosen = false;
-	Ui::EndPanel(panel, {{Ui::Action::Group, Text(Msg::Definitive_Group)},
-						 {Ui::Action::Choose, Text(Msg::Definitive_Scroll)},
-						 {Ui::Action::Back, Text(Msg::Definitive_Back)}});
+	Ui::EndPanel(panel, {{Ui::Action::Group, Text(Definitive_Group)},
+						 {Ui::Action::Choose, Text(Definitive_Scroll)},
+						 {Ui::Action::Back, Text(Definitive_Back)}});
 	return !back;
 }
 
+// The Stats rows for the view's table: its totals, then how often each mission, quest or mode was finished, and a
+// row that clears the stats and achievements after asking once
 void DefinitiveStatsScreen::RenderStats(const TableView& view)
 {
+	using enum Msg;
 	auto scale = Ui::Scale();
 	auto at = ImGui::GetCursorScreenPos();
 	Ui::DrawText(ImGui::GetWindowDrawList(), Theme::TextFont(), Theme::LabelSize,
-				 ImVec2{at.x + 16 * scale, at.y + 4 * scale}, Theme::Chrome400, Text(Msg::Definitive_StatsPlace),
+				 ImVec2{at.x + 16 * scale, at.y + 4 * scale}, Theme::Chrome400, Text(Definitive_StatsPlace),
 				 ImGui::CalcItemWidth() - 32 * scale);
 	ImGui::Dummy(ImVec2{0, Theme::LabelSize * Ui::TextScale() + 12 * scale});
 
@@ -129,28 +135,28 @@ void DefinitiveStatsScreen::RenderStats(const TableView& view)
 	// Room for every row up front; growing it made GCC 13 warn wrongly inside libstdc++ (-Wstringop-overflow)
 	std::vector<std::pair<Msg, std::string>> rows;
 	rows.reserve(7);
-	rows.emplace_back(Msg::Definitive_StatGames, Number(DefinitiveStats::Get(Stat::Games)));
-	rows.emplace_back(Msg::Definitive_StatBestScore, Number(DefinitiveStats::Get(Stat::BestScore)));
+	rows.emplace_back(Definitive_StatGames, Number(DefinitiveStats::Get(Stat::Games)));
+	rows.emplace_back(Definitive_StatBestScore, Number(DefinitiveStats::Get(Stat::BestScore)));
 	// Dragon's Keep counts quests and dragons slain, and has no rank
 	if (dragon)
 	{
-		rows.emplace_back(Msg::Definitive_StatQuests, Number(DefinitiveStats::Get(Stat::Quests)));
-		rows.emplace_back(Msg::Definitive_StatDragonsSlain, Number(DefinitiveStats::Get(Stat::DragonsSlain)));
+		rows.emplace_back(Definitive_StatQuests, Number(DefinitiveStats::Get(Stat::Quests)));
+		rows.emplace_back(Definitive_StatDragonsSlain, Number(DefinitiveStats::Get(Stat::DragonsSlain)));
 	}
 	// Skulduggery counts modes and Peg Leg's Loot found, and has no rank either
 	else if (skulduggery)
 	{
-		rows.emplace_back(Msg::Definitive_StatModes, Number(DefinitiveStats::Get(Stat::Modes)));
-		rows.emplace_back(Msg::Definitive_StatLoots, Number(DefinitiveStats::Get(Stat::Loots)));
+		rows.emplace_back(Definitive_StatModes, Number(DefinitiveStats::Get(Stat::Modes)));
+		rows.emplace_back(Definitive_StatLoots, Number(DefinitiveStats::Get(Stat::Loots)));
 	}
 	else
 	{
-		rows.emplace_back(Msg::Definitive_StatMissions, Number(DefinitiveStats::Get(Stat::Missions)));
-		rows.emplace_back(Msg::Definitive_StatBestRank, rankName ? rankName : "-");
+		rows.emplace_back(Definitive_StatMissions, Number(DefinitiveStats::Get(Stat::Missions)));
+		rows.emplace_back(Definitive_StatBestRank, rankName ? rankName : "-");
 	}
-	rows.emplace_back(Msg::Definitive_StatBallsSaved, Number(DefinitiveStats::Get(Stat::BallsSaved)));
-	rows.emplace_back(Msg::Definitive_StatExtraBalls, Number(DefinitiveStats::Get(Stat::ExtraBalls)));
-	rows.emplace_back(Msg::Definitive_StatMultiballs, Number(DefinitiveStats::Get(Stat::Multiballs)));
+	rows.emplace_back(Definitive_StatBallsSaved, Number(DefinitiveStats::Get(Stat::BallsSaved)));
+	rows.emplace_back(Definitive_StatExtraBalls, Number(DefinitiveStats::Get(Stat::ExtraBalls)));
+	rows.emplace_back(Definitive_StatMultiballs, Number(DefinitiveStats::Get(Stat::Multiballs)));
 	auto index = 0;
 	for (const auto& [label, value] : rows)
 	{
@@ -160,11 +166,11 @@ void DefinitiveStatsScreen::RenderStats(const TableView& view)
 	}
 
 	// Every mission by name, with how often it was finished; on Dragon's Keep every quest, on Skulduggery every mode
-	auto each = Msg::Definitive_StatEachMission;
+	auto each = Definitive_StatEachMission;
 	if (dragon)
-		each = Msg::Definitive_StatEachQuest;
+		each = Definitive_StatEachQuest;
 	else if (skulduggery)
-		each = Msg::Definitive_StatEachMode;
+		each = Definitive_StatEachMode;
 	ImGui::Dummy(ImVec2{0, 12 * scale});
 	at = ImGui::GetCursorScreenPos();
 	Ui::DrawText(ImGui::GetWindowDrawList(), Theme::TextFont(), Theme::LabelSize,
@@ -189,7 +195,7 @@ void DefinitiveStatsScreen::RenderStats(const TableView& view)
 	// Clearing asks once, as High Scores' does
 	if (!ConfirmClear)
 	{
-		if (Ui::MenuRow("clear", Text(Msg::Definitive_ClearStats), true))
+		if (Ui::MenuRow("clear", Text(Definitive_ClearStats), true))
 		{
 			ConfirmClear = true;
 			Ui::FocusNextRow();
@@ -197,9 +203,9 @@ void DefinitiveStatsScreen::RenderStats(const TableView& view)
 	}
 	else
 	{
-		Ui::NextRowNote(Text(Msg::Definitive_ClearStatsConfirm));
-		auto cancelled = Ui::MenuRow("cancel", Text(Msg::GenericCancel));
-		if (Ui::MenuRow("confirm", Text(Msg::GenericOk), true))
+		Ui::NextRowNote(Text(Definitive_ClearStatsConfirm));
+		auto cancelled = Ui::MenuRow("cancel", Text(GenericCancel));
+		if (Ui::MenuRow("confirm", Text(GenericOk), true))
 		{
 			DefinitiveStats::Clear();
 			cancelled = true;
@@ -212,6 +218,7 @@ void DefinitiveStatsScreen::RenderStats(const TableView& view)
 	}
 }
 
+// A row for each achievement the view's table offers, with the day it was unlocked or a note that it is locked
 void DefinitiveStatsScreen::RenderAchievements(const TableView& view)
 {
 	auto achievements = DefinitiveStats::Achievements();
@@ -230,6 +237,8 @@ void DefinitiveStatsScreen::RenderAchievements(const TableView& view)
 	}
 }
 
+// Draws the notice of the first achievement that waits for one, over the top of the window, for four seconds from
+// when it first draws, then marks it announced; draws nothing while none waits
 void DefinitiveStatsScreen::RenderNotice()
 {
 	// Each notice shows for a few seconds from when it first draws, then the next one waiting

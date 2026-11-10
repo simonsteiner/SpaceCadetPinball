@@ -9,7 +9,7 @@
 
 namespace
 {
-	std::filesystem::path Utf8Path(const std::string& text)
+	std::filesystem::path Utf8Path(std::string_view text)
 	{
 		return std::u8string{text.begin(), text.end()};
 	}
@@ -42,7 +42,7 @@ namespace
 			auto size = std::strtoull(std::string{header + 124, 12}.c_str(), nullptr, 8);
 			auto type = header[156];
 			offset += Block;
-			if (size > archive.size() - offset || name.starts_with('/') || name.find("..") != std::string::npos)
+			if (size > archive.size() - offset || name.starts_with('/') || name.contains(".."))
 				return false;
 			if (type == '0' || type == '\0')
 			{
@@ -64,14 +64,15 @@ namespace
 	}
 } // namespace
 
+// Unpacks the executable's archive into a folder of prefPath named after the data's hash, unless that folder is there
+// already, and returns it with a separator; empty without a prefPath or when unpacking fails
 std::string BundledData::Folder(const std::string& prefPath)
 {
 	if (prefPath.empty())
 		return {};
 	// Named after the data, not the build, so builds with the same data share one copy
 	auto folder = prefPath + "bundled-" SCP_BUNDLED_DATA_HASH;
-	std::error_code error;
-	if (!std::filesystem::is_directory(Utf8Path(folder), error))
+	if (std::error_code error; !std::filesystem::is_directory(Utf8Path(folder), error))
 	{
 		// Unpacked next to it first, so a start that ends halfway leaves no folder that looks complete
 		auto partial = folder + ".part";
