@@ -131,11 +131,11 @@ void high_score::place_new_score_into(high_score_entry data)
 	}
 }
 
-// Takes the newest queued score that still makes the table, with its position set; false when none is left, which
+// Takes the score queued first that still makes the table, with its position set; false when none is left, which
 // also cancels the pending dialog
 bool high_score::TakeNextEntry(high_score_entry& entry)
 {
-	// As the dialog does: the newest first, each placed by its score now, and none that no longer makes the table
+	// As the dialog does: the one queued first, each placed by its score now, and none that no longer makes the table
 	while (!ScoreQueue.empty())
 	{
 		entry = ScoreQueue.back();
