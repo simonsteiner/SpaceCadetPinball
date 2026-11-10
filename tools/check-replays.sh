@@ -5,7 +5,7 @@
 # same in both on every frame, so presentation code that changes the table fails at the first frame it does.
 set -u
 
-if [ $# -lt 2 ]; then
+if [[ $# -lt 2 ]]; then
     echo "Usage: $0 <replay folder> <game data folder> [executable]" >&2
     exit 2
 fi
@@ -13,7 +13,7 @@ fi
 replays=$(cd "$1" && pwd)
 data=$2
 exe=${3:-$(cd "$(dirname "$0")/.." && pwd)/bin/SpaceCadetPinball}
-if [ ! -x "$exe" ]; then
+if [[ ! -x "$exe" ]]; then
     echo "Not an executable: $exe" >&2
     exit 2
 fi
@@ -31,7 +31,7 @@ play() {
 report() {
     local reason
     reason=$(grep -E '^(Replay|Expected|Actual|Recorded|Loaded|Not a|Could not|Unknown|-edition)' <<<"$output")
-    if [ -z "$reason" ]; then
+    if [[ -z "$reason" ]]; then
         # Not a replay result, such as a crash: show how the game ended
         reason=$(printf 'Exit status %s\n%s' "$status" "$(grep -v '^view ' <<<"$output" | tail -n 5)")
     fi
@@ -41,12 +41,12 @@ report() {
 failed=0
 count=0
 for replay in "$replays"/*.replay; do
-    [ -e "$replay" ] || continue
+    [[ -e "$replay" ]] || continue
     count=$((count + 1))
     name=$(basename "$replay")
 
     play "$replay" classic
-    if [ "$status" -ne 0 ]; then
+    if [[ "$status" -ne 0 ]]; then
         echo "FAIL  $name (Classic)"
         report
         failed=$((failed + 1))
@@ -55,7 +55,7 @@ for replay in "$replays"/*.replay; do
     classic=$output
 
     play "$replay" definitive
-    if [ "$status" -ne 0 ]; then
+    if [[ "$status" -ne 0 ]]; then
         echo "FAIL  $name (Space Cadet 2026)"
         report
         failed=$((failed + 1))
@@ -67,16 +67,16 @@ for replay in "$replays"/*.replay; do
     # or the comparison below would have nothing to compare
     incomplete=""
     for edition in classic definitive; do
-        if [ "$edition" = classic ]; then run=$classic; else run=$definitive; fi
+        if [[ "$edition" = classic ]]; then run=$classic; else run=$definitive; fi
         frames=$(sed -n 's/^Replay matched all \([0-9]*\) frames\.$/\1/p' <<<"$run")
         views=$(grep -c '^view ' <<<"$run")
         if ! grep -qx "Edition: $edition" <<<"$run"; then
             incomplete="$incomplete      The $edition run didn't report playing that edition."$'\n'
-        elif [ -z "$frames" ] || [ "$views" != "$frames" ]; then
+        elif [[ -z "$frames" ]] || [[ "$views" != "$frames" ]]; then
             incomplete="$incomplete      The $edition run printed $views view hashes for ${frames:-an unknown number of} frames."$'\n'
         fi
     done
-    if [ -n "$incomplete" ]; then
+    if [[ -n "$incomplete" ]]; then
         echo "FAIL  $name"
         printf '%s' "$incomplete"
         failed=$((failed + 1))
@@ -85,7 +85,7 @@ for replay in "$replays"/*.replay; do
 
     # The first frame whose view differs between the editions
     first=$(diff <(grep '^view ' <<<"$classic") <(grep '^view ' <<<"$definitive") | grep -m 1 '^[<>] view ' | cut -d' ' -f3)
-    if [ -n "$first" ]; then
+    if [[ -n "$first" ]]; then
         echo "FAIL  $name"
         echo "      The table view differs between Classic and Space Cadet 2026 from frame $first on."
         failed=$((failed + 1))
@@ -94,9 +94,9 @@ for replay in "$replays"/*.replay; do
     echo "ok    $name: $(tail -n 1 <<<"$definitive") Both editions match."
 done
 
-if [ "$count" -eq 0 ]; then
+if [[ "$count" -eq 0 ]]; then
     echo "No .replay files in $replays" >&2
     exit 2
 fi
 echo "$((count - failed)) of $count replays match in both editions."
-[ "$failed" -eq 0 ]
+[[ "$failed" -eq 0 ]]

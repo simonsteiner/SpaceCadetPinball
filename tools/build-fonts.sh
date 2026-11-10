@@ -16,8 +16,9 @@ trap 'rm -rf "$tmp"' EXIT
 
 fetch() { # URL, SHA-256, file name in $tmp
 	# HTTPS only, redirects included
-	curl --proto '=https' --proto-redir '=https' -sSfL -o "$tmp/$3" "$1"
-	echo "$2  $tmp/$3" | sha256sum -c --quiet
+	local url=$1 sha256=$2 name=$3
+	curl --proto '=https' --proto-redir '=https' -sSfL -o "$tmp/$name" "$url"
+	echo "$sha256  $tmp/$name" | sha256sum -c --quiet
 }
 
 fetch "$google_fonts/exo2/Exo2%5Bwght%5D.ttf" \
