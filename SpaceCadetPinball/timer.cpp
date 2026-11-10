@@ -63,7 +63,8 @@ int timer::kill(int timerId)
 	return timerId;
 }
 
-// Removes the active timers with this callback without calling them and returns how many it removed
+// Removes active timers with this callback without calling them and returns how many it removed. The walk gets one
+// step shorter with each removal, as in CADET.EXE, so a match near the end of the list can stay active
 int timer::kill(void(* callback)(int, void*))
 {
 	auto count = 0;
@@ -153,7 +154,7 @@ int timer::time_left(int timerId)
 }
 
 // Calls and frees the timers that are due, in order: at most two, and after those only timers at least 100 ms
-// overdue. Returns how many it called
+// overdue. Returns how many it freed, those without a callback too
 int timer::check()
 {
 	timer_struct* current = ActiveList;

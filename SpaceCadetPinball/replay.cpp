@@ -100,7 +100,7 @@ replay::Scope::~Scope()
 	}
 }
 
-// Opens path for recording and writes the header up to the start line; false if the file can't be written
+// Opens path for recording and writes the header up to the start line; false if the file can't be opened
 bool replay::StartRecording(const std::string& path)
 {
 	Output = fopenu(path.c_str(), "wb");
