@@ -59,8 +59,9 @@ void score::load_msg_font(LPCSTR lpName)
 	msg_fontp = load_msg_font_group(lpName);
 }
 
-// Loads a message font from the group named lpName: the gap width for the current resolution, and the bitmaps of the
-// groups that follow as the characters from 32 up to the first group without one. Null if there is no such group
+// Loads a message font from the group named lpName: the gap width for the current resolution, and the bitmaps of that
+// group and the ones after it as the characters from 32, up to 127 or the first group without one. Null if there is
+// no such group
 score_msg_font_type* score::load_msg_font_group(LPCSTR lpName)
 {
 	if (!pb::record_table)
