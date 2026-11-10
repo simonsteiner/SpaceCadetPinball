@@ -1016,6 +1016,11 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	return return_value;
 }
 
+// The most the table is behind before the rest is dropped, which is also the longest step pb::frame takes, and how
+// many steps of the longest size one loop pass pays back
+constexpr double MaxTimeOwedMs = 100.0;
+constexpr int MaxCatchUpSteps = 3;
+
 // For measuring a cold start: SDL's clock starts when the game does
 static void LogFirstFrame()
 {
@@ -1032,6 +1037,8 @@ void winmain::MainLoop()
 	auto frameStart = Clock::now();
 	double UpdateToFrameCounter = 0;
 	DurationMs sleepRemainder(0), frameDuration(TargetFrameTime);
+	// Time the loop took beyond what one step of the table may take, which the table still has to catch up with
+	DurationMs timeOwed(0);
 	auto prevTime = frameStart;
 
 	while (true)
@@ -1095,24 +1102,40 @@ void winmain::MainLoop()
 			auto ballAlpha = 1.0f;
 			// A recording plays at its own pace, and nothing else moves the table
 			if (replay::IsViewing())
+			{
 				RecordingViewer::Advance(static_cast<double>(frameDuration.count()));
+				timeOwed = DurationMs::zero();
+			}
 			else if (!single_step && !no_time_loss)
 			{
 				// Normally one update per loop. With more frames than updates per second, the loop runs at the frame
 				// rate and the table still advances in steps of 1000/UPS ms, so the physics see the same time steps.
 				auto updates = 1;
 				auto dt = static_cast<float>(frameDuration.count());
+				// A loop pass that took longer than a step may be, as every drawn frame does on a device that can't
+				// hold the frame rate, used to lose the rest, and the table ran slow. It is caught up in further
+				// steps, each no longer than the one step was allowed to be, a few per pass.
+				auto catchUp = std::min(timeOwed, MaxCatchUpSteps * StepLimit());
+				timeOwed -= catchUp;
 				if (HighRefresh)
 				{
 					dt = static_cast<float>(UpdateTime.count());
-					UpdateTimeAccumulator += frameDuration;
+					UpdateTimeAccumulator += frameDuration + catchUp;
+					catchUp = DurationMs::zero();
 					updates = static_cast<int>(UpdateTimeAccumulator / UpdateTime);
-					// At most 2: the accumulator was below UpdateTime and frameDuration is capped at 2 * UpdateTime
+					// At most 2 without time to catch up: the accumulator was below UpdateTime and frameDuration is
+					// capped at 2 * UpdateTime
 					UpdateTimeAccumulator -= UpdateTime * updates;
 					ballAlpha = static_cast<float>(UpdateTimeAccumulator / UpdateTime);
 				}
-				for (auto update = 0; update < updates; update++)
+				for (auto update = 0; update < updates || catchUp > DurationMs::zero(); update++)
 				{
+					if (update >= updates)
+					{
+						auto step = std::min(catchUp, StepLimit());
+						catchUp -= step;
+						dt = static_cast<float>(step.count());
+					}
 					TableFrame(dt);
 					if (DispGRhistory)
 					{
@@ -1130,7 +1153,11 @@ void winmain::MainLoop()
 				}
 			}
 			else
+			{
+				// Paused, or time that doesn't count, such as after the window was dragged
 				UpdateTimeAccumulator = DurationMs::zero();
+				timeOwed = DurationMs::zero();
+			}
 			no_time_loss = false;
 
 			if (UpdateToFrameCounter >= UpdateToFrameRatio)
@@ -1236,11 +1263,13 @@ void winmain::MainLoop()
 			}
 #endif
 
-			// Limit duration to 2 * target time
+			// Limit duration to 2 * target time; the rest is owed to the table, up to a limit, so a real stall still
+			// doesn't make the game jump ahead
 			sleepRemainder = Clamp(DurationMs(frameEnd - updateEnd) - targetTimeDelta, -TargetFrameTime,
 			                       TargetFrameTime);
-			frameDuration = std::min<DurationMs>(DurationMs(frameEnd - frameStart),
-												 2 * (HighRefresh ? UpdateTime : TargetFrameTime));
+			auto passDuration = DurationMs(frameEnd - frameStart);
+			frameDuration = std::min<DurationMs>(passDuration, StepLimit());
+			timeOwed = std::min<DurationMs>(timeOwed + (passDuration - frameDuration), DurationMs(MaxTimeOwedMs));
 			frameStart = frameEnd;
 			UpdateToFrameCounter++;
 

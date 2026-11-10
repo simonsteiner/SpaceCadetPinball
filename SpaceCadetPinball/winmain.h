@@ -153,6 +153,11 @@ private:
 	static bool SoftwareRenderer;
 	static bool HighRefresh;
 	static DurationMs UpdateTime, UpdateTimeAccumulator;
+	// The longest step of the table one loop pass takes for the time it measured
+	static DurationMs StepLimit()
+	{
+		return 2 * (HighRefresh ? UpdateTime : TargetFrameTime);
+	}
 	static int CurrentFps;
 	static bool RefreshRateUnknown;
 	// Buttons and triggers held on each gamepad, released when it is unplugged
