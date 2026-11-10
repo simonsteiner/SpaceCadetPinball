@@ -1,6 +1,6 @@
 # Follow-ups after the docstrings and Sonar stack
 
-Date: 2026-11-10. Status: open. The stack #190 to #200 put a comment above every function with a branch or a loop (1,154 of 1,154, `tools/check-function-comments.sh`), took vendored code out of SonarCloud's analysis and fixed 474 of the Sonar issues on lines the fork wrote. This plan collects what its reviews found and the stack left alone, because each item is a code change, a decision or outside its scope.
+Date: 2026-11-10. Status: decided, in review (#203 to #209, see [Outcome](#outcome)). The stack #190 to #200 put a comment above every function with a branch or a loop (1,154 of 1,154, `tools/check-function-comments.sh`), took vendored code out of SonarCloud's analysis and fixed 474 of the Sonar issues on lines the fork wrote. This plan collects what its reviews found and the stack left alone, because each item is a code change, a decision or outside its scope.
 
 Each item keeps the replays matching. One that would change gameplay stops and asks first (`AGENTS.md`).
 
@@ -43,3 +43,18 @@ Each item keeps the replays matching. One that would change gameplay stops and a
 ## Text to correct by hand
 
 8. **CodeRabbit's summary on #197 claims a behaviour change.** Its walkthrough says the game-over condition and wrapped-text line advancement change. They don't: all 28 replays match and the edits are equivalent rewrites. The summary is the bot's comment, not the description; nothing to do unless it misleads a reader later.
+
+## Outcome
+
+Decided and done on 2026-11-10; each pull request is based on `main` and independent of the others.
+
+1. **Sonar: switched off what can't be followed, kept the design rules.** SonarCloud's project settings now ignore S5281, S6494, S7040, S6168, S5020, S2245 and S2479 for the whole project, and S5421 for all files instead of only `control*.cpp`. S134, S3776 and S3624 stay on outside the rules files, so new code is still flagged. The one S9382 in `shell.html` is accepted with a comment. Upstream's lines keep their issues, and nothing is excluded by path. SonarCloud showed 1,395 open issues on `main` before the change. #206 lists the rules in `docs/setup.md`.
+2. **Polygon walls: `wall_length` requires `2n + 3`** (#203). A log of every polygon wall as the four tables loaded showed all 459 repeating their first point after the last one, with three floats more than the old minimum, so no wall changes.
+3. **`Pirates.LastBallRelease` is hashed** (#204). No reference stores a hash, so nothing was recorded again.
+4. **Both pickers, Forget and Play are off while files are written and synced** (#205).
+5. **CI's `mingw` job builds once more with placeholder bundled data** (#207), checked locally with MinGW 13.
+6. **The function comment check runs in CI's `lint` job and in the pre-push hook** (#208), with lizard pinned with hashes in `tools/lizard-requirements.txt`.
+7. **CodeRabbit reviews a pull request once, not on every push** (#209); a new round is asked for with `@coderabbitai review`.
+8. **A reply on #197** records that its summary's behaviour change isn't one.
+
+Every code change kept all 28 replays matching.
