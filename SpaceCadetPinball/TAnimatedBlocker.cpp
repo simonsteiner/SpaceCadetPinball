@@ -47,7 +47,7 @@ int TAnimatedBlocker::StateCount() const
 // Handles the blocker's messages: SetState switches at once, or asks again every half second while a ball is in the way
 // of a state that blocks; AnimateTo, AnimateOn and AnimateOff step towards a state; SetOn and SetOff switch to the last
 // state or to none, with a sound; RestartTimeout restarts the timer that tells the rules; Reset, PlayerChanged and
-// SetTiltLock stop the timers and return to the initial state
+// SetTiltLock stop the timers and return to the initial state, as SetState does, so not at once with a ball in the way
 int TAnimatedBlocker::Message(MessageCode code, float value)
 {
 	using enum MessageCode;

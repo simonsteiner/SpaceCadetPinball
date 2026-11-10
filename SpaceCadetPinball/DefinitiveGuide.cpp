@@ -236,7 +236,8 @@ namespace
 } // namespace
 
 // Opens the guide on the tab of what runs, with its row to take the focus: on Dragon's Keep and Skulduggery the
-// running quest or mode, else the basics; on Space Cadet the tab of the player's rank and the running mission's row
+// running quest or mode, else the basics; on Space Cadet the tab of the player's rank, and the running mission's row
+// if that tab lists it
 void DefinitiveGuide::Open(const TableView& view)
 {
 	if (view.Kind == TableView::TableKind::DragonsKeep)

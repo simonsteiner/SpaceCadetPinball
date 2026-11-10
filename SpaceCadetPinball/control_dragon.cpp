@@ -3259,7 +3259,8 @@ namespace
 
 	// Handles a ball in one of the tower's sinks (ControlCollision): it's trapped where the lock's light is armed, else
 	// it comes out of the lock's sink. In Rescue Maiden a_sink15 and a_sink18 send it out of a_sink1 or a_sink2, at
-	// random; outside Tower Barrage a_sink9 and a_sink10 also set diverters and lights
+	// random, and a_sink9 and a_sink10 out of a_sink16. A ball that a_sink9 or a_sink10 neither trap nor send on in
+	// Rescue Maiden also sets diverters and lights, outside Tower Barrage
 	void TowerSinkControl(MessageCode code, TPinballComponent* caller)
 	{
 		using enum MessageCode;
