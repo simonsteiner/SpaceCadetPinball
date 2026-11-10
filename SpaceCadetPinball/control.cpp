@@ -1183,8 +1183,9 @@ int control::SpecialAddScore(int score, bool mission)
 	return addedScore;
 }
 
-// Lights lite16 and <rank> more lights of outer_circle. A full circle starts over and lights the next rank light in
-// middle_circle, announcing the rank unless all nine were lit: returns 1 then, else 0
+// Lights lite16, the bonus lane's light, and the next <rank> lights of outer_circle. Returns 1 if that fills the
+// circle, else 0; a full circle starts over and, unless all nine rank lights are lit, lights the next one in
+// middle_circle and announces the rank
 int control::AddRankProgress(int rank)
 {
 	char Buffer[64];
@@ -1403,8 +1404,8 @@ void control::DrainBallBlockerControl(MessageCode code, TPinballComponent* calle
 	}
 }
 
-// The ramp's handler: a ball on it gets the reflex shot award while lite54 is lit, else the ramp's score, and a
-// sound chosen by which of lite54, lite55 and lite56 are lit
+// The ramp's handler: a ball on it gets the reflex shot award while lite54 is lit; with none of lite54, lite55 and
+// lite56 lit it gets the ramp's score instead. The sound is chosen by which of the three are lit
 void control::LaunchRampControl(MessageCode code, TPinballComponent* caller)
 {
 	TSound* sound;

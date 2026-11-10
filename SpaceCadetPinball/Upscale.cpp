@@ -200,7 +200,7 @@ void Upscale::FindSpriteNames()
 }
 
 // Loads the bitmap's override PNG, under the first of its names found in the override folder; null when there is
-// none, it can't be read or its size isn't the bitmap's times the factor
+// none, it can't be read or its size isn't the bitmap's times the factor, and always when built with SDL before 3.4
 gdrv_bitmap8* Upscale::LoadOverride(const gdrv_bitmap8& bmp)
 {
 #if SDL_VERSION_ATLEAST(3, 4, 0)
@@ -268,7 +268,7 @@ gdrv_bitmap8* Upscale::LoadOverride(const gdrv_bitmap8& bmp)
 }
 
 // Writes every named sprite of the loaded table as a PNG into the originals folder and returns how many it wrote; 0
-// when no table is loaded or the folder can't be made
+// when no table is loaded or the folder can't be made, and always when built with SDL before 3.4
 int Upscale::ExportOriginals()
 {
 	// The original sprites, for upscaling elsewhere; they come from the player's own DAT and stay on their machine

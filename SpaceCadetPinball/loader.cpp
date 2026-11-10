@@ -45,8 +45,8 @@ DatFile* loader::loader_table;
 DatFile* loader::sound_record_table;
 std::array<soundListStruct, loader::SoundListSize> loader::sound_list;
 
-// Shows an error box with the message for errorCode, titled with the message for captionCode, which names the loader
-// function that failed. Always returns -1.
+// Shows an error box with the message for errorCode, titled with the message for captionCode, which for most callers
+// names the loader function that failed. Always returns -1.
 int loader::error(int errorCode, int captionCode)
 {
 	auto curCode = loader_errors;
@@ -120,8 +120,8 @@ void loader::unload()
 }
 
 // Returns the sound list slot of a sound group, for play_sound, or -1 after an error box when the group isn't in the
-// list. The first call for a slot loads its WAV file, looked for under its lower-case and then upper-case name, unless
-// -quick is set.
+// list. The first call for a slot loads its WAV file, looked for under its name as the DAT file has it and then in
+// upper case, unless -quick is set.
 int loader::get_sound_id(int groupIndex)
 {
 	int16_t soundIndex = 1;
@@ -229,8 +229,8 @@ char* loader::query_name(int groupIndex)
 	return loader_table->field(groupIndex, FieldTypes::GroupName);
 }
 
-// Returns the values after the id of the group's ShortArray that starts with firstValue, and their count in arraySize;
-// null and 0 after an error box when the group has none
+// Returns the values after the id of the group's ShortArray that starts with firstValue, and in arraySize their count,
+// which is at most that of the group's first ShortArray; null and 0 after an error box when the group has none
 int16_t* loader::query_iattribute(int groupIndex, int firstValue, int* arraySize)
 {
 	using enum FieldTypes;

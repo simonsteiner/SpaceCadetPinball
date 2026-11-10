@@ -128,7 +128,7 @@ namespace
 	}
 } // namespace
 
-// Hashes every field of the view in a fixed order, each list's size before its items
+// Hashes the view's fields in a fixed order, each list's size before its items; all but Pirates.LastBallRelease
 uint64_t TableView::Hash() const
 {
 	Hasher hash;

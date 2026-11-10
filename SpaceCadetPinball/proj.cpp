@@ -79,7 +79,8 @@ vector3 proj::ReverseXForm(const vector2i& vec)
 	return {x0, y0, z0};
 }
 
-// Projects a table position to screen pixels: transforms it by the matrix, divides by its depth and adds the centre
+// Projects a table position to screen pixels: transforms it by the matrix, scales X and Y by d_ over its depth (by
+// a large constant at depth 0) and adds the centre
 vector2i proj::xform_to_2d(const vector3& vec)
 {
 	float projCoef;
