@@ -78,6 +78,7 @@ void DefinitiveFrontEnd::ShowTitle()
 	Open(Screen::Title);
 }
 
+// Opens Settings, on the controls when controls is true, and remembers the screen Back returns to
 void DefinitiveFrontEnd::ShowSettings(bool controls)
 {
 	if (Current != Screen::Settings)
@@ -86,6 +87,8 @@ void DefinitiveFrontEnd::ShowSettings(bool controls)
 	DefinitiveSettings::Open(controls ? DefinitiveSettings::Group::Controls : DefinitiveSettings::Group::Edition);
 }
 
+// Opens the list of tables when more than one was found: from a game in play, which it pauses first, or from the
+// title and the screens it leads to; does nothing from a game that is ending or its summary
 void DefinitiveFrontEnd::ShowTables()
 {
 	using enum Screen;
@@ -111,11 +114,14 @@ bool DefinitiveFrontEnd::ScreenOpen()
 	return Current != Screen::None;
 }
 
+// Whether a key bound to a shortcut still reaches the game: while a screen had the focus in the last frame, and for
+// Escape only on the title
 bool DefinitiveFrontEnd::PassesShortcut(bool escape)
 {
 	return Focused && (!escape || Current == Screen::Title);
 }
 
+// Whether Settings is open and waits for a key or button to bind to a control
 bool DefinitiveFrontEnd::WaitsForBinding()
 {
 	return Current == Screen::Settings && DefinitiveSettings::WaitsForBinding();
@@ -130,6 +136,8 @@ void DefinitiveFrontEnd::Open(Screen screen)
 	CreditsScroll = 0;
 }
 
+// Whether the screen showing belongs to a game in play: the pause screen, the guide, or Settings or the list of
+// tables opened from the pause screen
 bool DefinitiveFrontEnd::FromPause()
 {
 	return Current == Screen::Pause || Current == Screen::Guide ||
@@ -137,6 +145,8 @@ bool DefinitiveFrontEnd::FromPause()
 		   (Current == Screen::Tables && TablesFrom == Screen::Pause);
 }
 
+// Whether the screen showing is the title or one it leads to; the exit question counts as the screen it was opened
+// from
 bool DefinitiveFrontEnd::UnderTitle()
 {
 	using enum Screen;
@@ -302,6 +312,7 @@ float DefinitiveFrontEnd::BeginColumn(const char* name, float width)
 	return columnWidth;
 }
 
+// Closes the column BeginColumn opened, and notes whether it had the focus, for PassesShortcut
 void DefinitiveFrontEnd::EndColumn()
 {
 	Focused = ImGui::IsWindowFocused() && !ImGui::GetTopMostPopupModal();
@@ -310,6 +321,7 @@ void DefinitiveFrontEnd::EndColumn()
 	ImGui::PopStyleVar(3);
 }
 
+// Whether Escape, the gamepad's right face button or the right mouse button was pressed while the window has the focus
 bool DefinitiveFrontEnd::BackPressed()
 {
 	return ImGui::IsWindowFocused() &&
@@ -456,6 +468,7 @@ void DefinitiveFrontEnd::RenderTitle(const TableView& view)
 	}
 }
 
+// The high scores: five rows of rank, name and score, a row to go back and one to clear them, which asks once first
 void DefinitiveFrontEnd::RenderRecords()
 {
 	const auto* viewport = &Ui::SafeArea();
@@ -542,6 +555,8 @@ void DefinitiveFrontEnd::RenderRecords()
 	EndColumn();
 }
 
+// The list of tables with the focused table's picture under it, or, from a game in play, the question before the
+// game ends for another table
 void DefinitiveFrontEnd::RenderTables()
 {
 	auto tables = Host.TableList ? Host.TableList() : std::vector<DefinitiveHost::TableChoice>{};
@@ -594,6 +609,8 @@ void DefinitiveFrontEnd::RenderTables()
 	EndColumn();
 }
 
+// Draws Cancel and OK under the question; OK resumes the game and restarts it with the table chosen. Returns that
+// table's picture, which may be null.
 SDL_Texture* DefinitiveFrontEnd::RenderConfirmTable(const std::vector<DefinitiveHost::TableChoice>& tables)
 {
 	auto picture = tables[ConfirmTable].Picture;
@@ -618,6 +635,8 @@ SDL_Texture* DefinitiveFrontEnd::RenderConfirmTable(const std::vector<Definitive
 	return picture;
 }
 
+// Draws a row for each table, with its source and best score as a note, and one to go back. Choosing the loaded table
+// goes back, another one selects it, or from a game in play asks first. Returns the focused table's picture, or null.
 SDL_Texture* DefinitiveFrontEnd::RenderTableRows(const std::vector<DefinitiveHost::TableChoice>& tables)
 {
 	SDL_Texture* picture = nullptr;
@@ -649,6 +668,8 @@ SDL_Texture* DefinitiveFrontEnd::RenderTableRows(const std::vector<DefinitiveHos
 	return picture;
 }
 
+// The credits: the version and a list of headings and lines that scrolls with the arrow keys, the d-pad, the wheel
+// and a drag, over a row to go back
 void DefinitiveFrontEnd::RenderCredits()
 {
 	// One line per credit; a heading starts with #
@@ -768,6 +789,7 @@ SDL_native_midi, MMPX)");
 	EndColumn();
 }
 
+// Draws the loading screen: the game's name and year in the middle of the window, and a line that says it is loading
 void DefinitiveFrontEnd::RenderLoading()
 {
 	Ui::NewFrame();
@@ -791,6 +813,8 @@ void DefinitiveFrontEnd::RenderLoading()
 				 Text(Msg::Definitive_Loading));
 }
 
+// Draws the screen for when no game data was found: the places in looked, a note when the chosen folder had none or
+// the folder dialog failed, and rows to choose a folder and to exit
 void DefinitiveFrontEnd::RenderMissingData(const std::vector<std::string>& looked, bool chosenFolderFailed)
 {
 	const auto* viewport = &Ui::SafeArea();

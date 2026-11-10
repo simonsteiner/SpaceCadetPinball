@@ -72,6 +72,7 @@ namespace
 	// Larger than any font a player would choose: Noto Sans CJK's collection is about 20 MB
 	constexpr long MaxFontFileSize = 64L * 1024 * 1024;
 
+	// Reads a regular file of at most MaxFontFileSize bytes into data; false, with data empty, if it can't be read
 	bool ReadFile(const std::string& path, std::vector<unsigned char>& data)
 	{
 		data.clear();
@@ -182,6 +183,8 @@ namespace
 		AddFont(atlas, name, data, size, config);
 	}
 
+	// Adds a text font to the atlas with the embedded Greek, Hebrew and Arabic fonts merged into it, and the fallback
+	// font last when one was read
 	ImFont* AddTextFont(ImFontAtlas* atlas, const char* name, const unsigned char* data, unsigned int size)
 	{
 		auto font = AddFont(atlas, name, data, size);
@@ -199,6 +202,7 @@ namespace
 		return font;
 	}
 
+	// The text with every digit and blank place as an 8, all seven segments, for the unlit segments and for measuring
 	std::string Ghost(const char* text)
 	{
 		std::string ghost{text};
@@ -313,6 +317,8 @@ void DefinitiveTheme::ApplyPaletteColors(ImGuiStyle& style)
 	colors[ImGuiCol_PlotHistogramHovered] = color(LedRed);
 }
 
+// Sets the LED colours for the Colour Vision option, 1 for amber and blue, else orange and red, and applies them
+// to ImGui's style
 void DefinitiveTheme::SetPalette(int colourVision)
 {
 	Palette = colourVision;
@@ -333,6 +339,8 @@ bool DefinitiveTheme::HighContrast()
 	return Contrast;
 }
 
+// Draws a lamp: off as a chrome ring, dark as a dim disc, or a clear ring in high contrast, else lit with a glow,
+// orange or the warning colour; a warning also gets a dark bar with the red-green-safe colours
 void DefinitiveTheme::DrawLamp(ImDrawList* drawList, ImVec2 centre, float radius, Lamp state)
 {
 	if (state == Lamp::Off)
@@ -361,6 +369,8 @@ void DefinitiveTheme::DrawLamp(ImDrawList* drawList, ImVec2 centre, float radius
 						  Space950, std::max(1.5f, radius * 0.35f));
 }
 
+// Draws a panel's background and rim, with a lit top edge and a shadowed bottom one; plain black with a white rim
+// in high contrast
 void DefinitiveTheme::DrawPanel(ImDrawList* drawList, ImVec2 min, ImVec2 max)
 {
 	if (Contrast)
@@ -378,11 +388,13 @@ void DefinitiveTheme::DrawPanel(ImDrawList* drawList, ImVec2 min, ImVec2 max)
 					  WithAlpha(Space950, 0.9f));
 }
 
+// Draws seven-segment digits in the LED red or orange
 void DefinitiveTheme::DrawLed(ImDrawList* drawList, ImVec2 position, float size, const char* text, bool red)
 {
 	DrawLed(drawList, position, size, text, red ? LedRed : LedOrange);
 }
 
+// Draws seven-segment digits in a colour, over their unlit segments except in high contrast
 void DefinitiveTheme::DrawLed(ImDrawList* drawList, ImVec2 position, float size, const char* text, ImU32 color)
 {
 	// The unlit segments are left out in high contrast, where they only blur the digits' shapes

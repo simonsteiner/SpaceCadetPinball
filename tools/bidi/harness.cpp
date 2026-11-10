@@ -14,6 +14,7 @@ namespace
 		fwrite(shaped.c_str(), 1, shaped.size() + 1, stdout);
 	}
 
+	// Returns whether the UTF-8 text has a Hebrew or Arabic letter
 	bool HasRightToLeft(const char* text)
 	{
 		// Every Hebrew and Arabic letter is two bytes in UTF-8, led by 0xD6 to 0xDB
@@ -26,6 +27,7 @@ namespace
 	}
 } // namespace
 
+// Prints the cases: the Hebrew and Arabic translations, the edition hint in both languages, then the arguments
 int main(int argc, char** argv)
 {
 	for (auto language : {"he", "ar"})

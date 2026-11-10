@@ -76,6 +76,8 @@ void DefinitiveStatsScreen::Open()
 	ConfirmClear = false;
 }
 
+// Draws the screen: the Stats and Achievements tabs and the current tab's rows, which scroll, for the table in the
+// view; returns false once the player goes back
 bool DefinitiveStatsScreen::Render(const TableView& view)
 {
 	auto scale = Ui::Scale();
@@ -112,6 +114,8 @@ bool DefinitiveStatsScreen::Render(const TableView& view)
 	return !back;
 }
 
+// The Stats rows for the view's table: its totals, then how often each mission, quest or mode was finished, and a
+// row that clears the stats and achievements after asking once
 void DefinitiveStatsScreen::RenderStats(const TableView& view)
 {
 	auto scale = Ui::Scale();
@@ -212,6 +216,7 @@ void DefinitiveStatsScreen::RenderStats(const TableView& view)
 	}
 }
 
+// A row for each achievement the view's table offers, with the day it was unlocked or a note that it is locked
 void DefinitiveStatsScreen::RenderAchievements(const TableView& view)
 {
 	auto achievements = DefinitiveStats::Achievements();
@@ -230,6 +235,8 @@ void DefinitiveStatsScreen::RenderAchievements(const TableView& view)
 	}
 }
 
+// Draws the notice of the first achievement that waits for one, over the top of the window, for four seconds from
+// when it first draws, then marks it announced; draws nothing while none waits
 void DefinitiveStatsScreen::RenderNotice()
 {
 	// Each notice shows for a few seconds from when it first draws, then the next one waiting

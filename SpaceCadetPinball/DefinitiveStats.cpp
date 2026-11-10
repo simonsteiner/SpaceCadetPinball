@@ -68,6 +68,7 @@ namespace
 	// Unlocked achievements waiting for their notice, in the order unlocked
 	std::vector<int> Waiting;
 
+	// The balls in play: the view's active balls, or on Skulduggery the count its rules keep without the captive ball
 	int ActiveBalls(const TableView& view)
 	{
 		// Skulduggery's captive ball is always in play, so its rules count the others
@@ -84,6 +85,7 @@ namespace
 		return view.Kind == TableView::TableKind::Skulduggery && view.Pirates.LastBallRelease;
 	}
 
+	// Whether the view shows a game in play: not over, not the demo, and with at least one player
 	bool Playing(const TableView& view)
 	{
 		return !view.GameOver && !view.Demo && view.PlayerCount > 0;
@@ -111,6 +113,7 @@ std::string DefinitiveStats::ModeKey(int mode)
 	return Key(std::format("Mode {}", mode).c_str());
 }
 
+// The number saved under key, or 0 when the settings have none; it never saves the missing setting
 int DefinitiveStats::Read(const std::string& key)
 {
 	// Reading a missing setting would save it, so a stat that never happened stays out of the file
@@ -122,12 +125,15 @@ void DefinitiveStats::Add(const std::string& key, int amount)
 	options::set_int(key.c_str(), Read(key) + amount);
 }
 
+// Saves value under key if it is larger than the number saved there
 void DefinitiveStats::Raise(const std::string& key, int value)
 {
 	if (value > Read(key))
 		options::set_int(key.c_str(), value);
 }
 
+// Unlocks the achievement with the settings key, once: saves the time in seconds since 1970, and in Space Cadet 2026
+// queues its notice
 void DefinitiveStats::Unlock(const char* key)
 {
 	auto name = Key((std::string{"Achievement."} + key).c_str());
@@ -147,6 +153,9 @@ void DefinitiveStats::Unlock(const char* key)
 	}
 }
 
+// Compares the view with the one of the update before and counts what happened in between for the table's stats and
+// achievements: games started and ended, missions finished, ranks, balls saved, extra balls, multiballs, tilts and
+// scores. The first call only keeps the view; a game with cheats stops counting.
 void DefinitiveStats::Update(const TableView& view)
 {
 	if (!HavePrevious)
@@ -277,6 +286,8 @@ void DefinitiveStats::Update(const TableView& view)
 	Previous = view;
 }
 
+// Counts for Dragon's Keep, from the change since the update before: a quest done by the same player, the dragon
+// slain by Slay Dragon's last hit, and a ball saved
 void DefinitiveStats::UpdateDragon(const TableView& view, int player, bool samePlayer)
 {
 	// The rules count a quest done as it ends; the one that ended ran, or waited to be taken up again, before. On a
@@ -316,6 +327,8 @@ void DefinitiveStats::UpdateDragon(const TableView& view, int player, bool sameP
 	}
 }
 
+// Counts for Skulduggery, from the change since the update before: a mode done by the same player, and Peg Leg's
+// Loot found when Lava-Ball follows that mode
 void DefinitiveStats::UpdateSkulduggery(const TableView& view, int player, bool samePlayer)
 {
 	// The rules count a mode done as it ends, whatever was shot, and the one that ended ran before. On a drain the
@@ -381,6 +394,7 @@ std::span<const DefinitiveStats::Achievement> DefinitiveStats::Achievements()
 	return AchievementList;
 }
 
+// Whether the table in the view offers the achievement: every table, or only the one its Tables names
 bool DefinitiveStats::Offered(const Achievement& achievement, const TableView& view)
 {
 	switch (achievement.Tables)
@@ -396,6 +410,8 @@ bool DefinitiveStats::Offered(const Achievement& achievement, const TableView& v
 	}
 }
 
+// When the achievement at index in Achievements was unlocked, in seconds since 1970; 0 while it is locked or for an
+// index past the list
 long long DefinitiveStats::UnlockedAt(size_t index)
 {
 	if (index >= std::size(AchievementList))
@@ -404,17 +420,21 @@ long long DefinitiveStats::UnlockedAt(size_t index)
 	return options::HasSetting(key) ? std::strtoll(options::GetSetting(key, "0").c_str(), nullptr, 10) : 0;
 }
 
+// The index of the first achievement that waits for its notice, or -1 when none does
 int DefinitiveStats::Unannounced()
 {
 	return Waiting.empty() ? -1 : Waiting.front();
 }
 
+// Takes the first achievement that waits for its notice off the list, if there is one
 void DefinitiveStats::Announced()
 {
 	if (!Waiting.empty())
 		Waiting.erase(Waiting.begin());
 }
 
+// Removes the loaded table's stats, its counts per mission, quest and mode, and its achievements from the settings,
+// and drops the notices that wait
 void DefinitiveStats::Clear()
 {
 	for (auto key : StatKeys)

@@ -235,6 +235,8 @@ namespace
 	}
 } // namespace
 
+// Opens the guide on the tab of what runs, with its row to take the focus: on Dragon's Keep and Skulduggery the
+// running quest or mode, else the basics; on Space Cadet the tab of the player's rank and the running mission's row
 void DefinitiveGuide::Open(const TableView& view)
 {
 	if (view.Kind == TableView::TableKind::DragonsKeep)
@@ -269,6 +271,8 @@ void DefinitiveGuide::Open(const TableView& view)
 	Opened = true;
 }
 
+// Draws the guide: the tabs of the table loaded, the current tab's rows, which scroll, and a row to go back.
+// Changing the tab scrolls to the top and focuses its first row. Returns false once the player goes back.
 bool DefinitiveGuide::Render(const TableView& view)
 {
 	auto scale = Ui::Scale();
@@ -355,6 +359,7 @@ void DefinitiveGuide::Paragraph(int& row, const char* id, const char* title, con
 		Focus = -1;
 }
 
+// The rows of Space Cadet's basics tab: missions, ranks, and Full Tilt's scoring only with Full Tilt's data
 void DefinitiveGuide::RenderBasics(const TableView& view, int& row)
 {
 	using enum Msg;
@@ -409,6 +414,8 @@ void DefinitiveGuide::RenderMissions(const TableView& view, int& row)
 	}
 }
 
+// The rows of Dragon's Keep's current tab: the basics, the quests with their seconds, the multiball modes with their
+// balls, the shop or Slay Dragon; the row of what runs is tagged as running now
 void DefinitiveGuide::RenderDragon(const TableView& view, int& row)
 {
 	using enum Msg;
@@ -457,6 +464,8 @@ void DefinitiveGuide::RenderDragon(const TableView& view, int& row)
 	}
 }
 
+// The rows of Skulduggery's current tab: the basics, the modes with their seconds, the brig with Jailbreak and
+// Lava-Ball, or Peg Leg's Loot; the row of what runs is tagged as running now
 void DefinitiveGuide::RenderSkulduggery(const TableView& view, int& row)
 {
 	using enum Msg;

@@ -36,6 +36,7 @@ namespace
 	};
 	constexpr char32_t Hamza = 0x0621, Yeh = 0x064A, Tatweel = 0x0640, Lam = 0x0644;
 
+	// The table's entry for an Arabic letter, or null for any other code point
 	const ArabicLetter* GetArabicLetter(char32_t c)
 	{
 		if (c < Hamza || c > Yeh)
@@ -50,12 +51,14 @@ namespace
 		return (c >= 0x064B && c <= 0x065F) || c == 0x0670;
 	}
 
+	// Whether a character joins to the letter after it: tatweel and the dual-joining letters
 	bool JoinsForward(char32_t c)
 	{
 		auto letter = GetArabicLetter(c);
 		return c == Tatweel || (letter && letter->DualJoining);
 	}
 
+	// Whether a character joins to the letter before it: tatweel and every Arabic letter but hamza
 	bool JoinsBackward(char32_t c)
 	{
 		return c == Tatweel || (GetArabicLetter(c) && c != Hamza);
@@ -79,6 +82,8 @@ namespace
 		}
 	}
 
+	// Replaces each Arabic letter by its isolated, final, initial or medial form, by whether the nearest letters on
+	// each side join to it, and lam with a following alef by their ligature; other characters stay as they are
 	std::u32string JoinArabic(const std::u32string& text)
 	{
 		// The nearest letter on each side, skipping vowel marks
@@ -125,6 +130,9 @@ namespace
 		return joined;
 	}
 
+	// The direction a character reads in: Western and Arabic digits as numbers, Hebrew and Arabic with their
+	// presentation forms and the right-to-left mark right to left, Latin and most other letters left to right, the rest
+	// neutral
 	Direction GetDirection(char32_t c)
 	{
 		if ((c >= '0' && c <= '9') || (c >= 0x0660 && c <= 0x0669) || (c >= 0x06F0 && c <= 0x06F9))
@@ -137,6 +145,7 @@ namespace
 		return Direction::Neutral;
 	}
 
+	// The opening bracket or angle quote for a closing one and the other way round; any other character unchanged
 	char32_t Mirror(char32_t c)
 	{
 		switch (c)
@@ -238,6 +247,7 @@ namespace
 		return drawn;
 	}
 
+	// The code points of UTF-8 text
 	std::u32string Decode(std::string_view text)
 	{
 		std::u32string decoded;
@@ -252,6 +262,7 @@ namespace
 		return decoded;
 	}
 
+	// The code points as UTF-8 text
 	std::string Encode(const std::u32string& text)
 	{
 		std::string encoded;
@@ -263,12 +274,15 @@ namespace
 	}
 } // namespace
 
+// Whether the language chosen is Arabic or Hebrew
 bool DefinitiveText::RightToLeft()
 {
 	auto language = translations::GetCurrentLanguage()->Language;
 	return language == Lang::Arabic || language == Lang::Hebrew;
 }
 
+// The text in drawing order, as Visual gives it but without the cache: Arabic letters joined, then each line
+// reordered on its own; text with nothing right to left comes back as it is
 std::string DefinitiveText::Shape(std::string_view text)
 {
 	auto decoded = Decode(text);
@@ -289,6 +303,8 @@ std::string DefinitiveText::Shape(std::string_view text)
 	return Encode(visual);
 }
 
+// The text shaped for drawing, from a cache that is emptied once it holds more than 512 texts; the pointer is good
+// until the next call
 const char* DefinitiveText::Visual(const char* text)
 {
 	// Menus draw the same strings every frame; numbers that change would fill the cache, so it starts over now and then

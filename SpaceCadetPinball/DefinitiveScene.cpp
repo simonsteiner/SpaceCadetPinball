@@ -24,6 +24,9 @@ namespace
 	}
 } // namespace
 
+// Builds the scene for the frame from the options and the view: a glow for each light that shows a sprite, and the
+// balls to shade, moved by alpha between their places in previous and view and sorted furthest first. Smiley balls
+// are left out. The reference stays valid until the next call.
 const DefinitiveScene& DefinitiveScene::Build(const TableView& view, const TableView& previous, float alpha)
 {
 	// Built anew each frame, and kept so the vectors keep their memory

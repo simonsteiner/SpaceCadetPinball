@@ -72,6 +72,7 @@ namespace
 	}
 } // namespace
 
+// Opens the pause screen, pausing the game unless it already is, and drops any question it was asking
 void DefinitiveFrontEnd::ShowPause()
 {
 	if (Host.Paused && !Host.Paused() && Host.Pause)
@@ -86,6 +87,8 @@ void DefinitiveFrontEnd::SwallowPauseTap()
 	SwallowTap = true;
 }
 
+// The pause key: resumes a paused game from the pause screen and the screens opened from it, else opens the pause
+// screen
 void DefinitiveFrontEnd::TogglePause()
 {
 	auto paused = Host.Paused && Host.Paused();
@@ -99,6 +102,7 @@ void DefinitiveFrontEnd::TogglePause()
 		ShowPause();
 }
 
+// Opens the name entry for the next new high score the host reports; returns false when there is none
 bool DefinitiveFrontEnd::NextName()
 {
 	if (!Host.NextRecord || !Host.NextRecord(Entry, EntryPlace))
@@ -253,11 +257,14 @@ void DefinitiveFrontEnd::RenderPause(const TableView& view)
 	}
 }
 
+// Whether the title and the missing-data screen show the Exit row: only where the game can quit and has it in menus
 bool DefinitiveFrontEnd::QuitRow()
 {
 	return Host.Quit && Host.QuitInMenus;
 }
 
+// Opens the exit question over the current screen, where the game can quit; called while the question shows, it
+// cancels back to that screen, but not within a frame of opening
 void DefinitiveFrontEnd::ShowExit()
 {
 	if (!Host.Quit)
@@ -309,6 +316,8 @@ void DefinitiveFrontEnd::RenderExit()
 		Open(ExitFrom);
 }
 
+// The summary of a game that has ended: each player's score, those that made the high score table lit and marked,
+// and rows to play again or go to the title
 void DefinitiveFrontEnd::RenderGameOver(const TableView& view)
 {
 	auto players = std::clamp(view.PlayerCount, 1, 4);
@@ -372,6 +381,8 @@ void DefinitiveFrontEnd::RenderGameOver(const TableView& view)
 	ImGui::PopStyleVar(3);
 }
 
+// The name entry for a new high score: a keyboard types the name, a pad or a finger picks letters from a grid, and
+// Done saves it under the player's default name if empty, then asks for the next name or opens the summary
 void DefinitiveFrontEnd::RenderNameEntry()
 {
 	// The letters a pad or a finger picks from; a keyboard types the name instead

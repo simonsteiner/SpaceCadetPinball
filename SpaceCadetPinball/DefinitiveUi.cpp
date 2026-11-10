@@ -16,6 +16,8 @@ bool DefinitiveUi::FocusNext = false;
 const char* DefinitiveUi::Note = nullptr;
 ImVec2 DefinitiveUi::Footer{};
 
+// Sets the frame's scale from the window's smaller side and the UI Scale option, the text factor and the palette,
+// and notes the device whose input came last, which decides the hints
 void DefinitiveUi::NewFrame()
 {
 	// The height, or in a window taller than wide the width, so the screens keep their proportions there too
@@ -59,6 +61,7 @@ void DefinitiveUi::SetSafeArea(const Area& area)
 	Safe = area;
 }
 
+// The safe area the host set, or the whole viewport while it has set none
 const DefinitiveUi::Area& DefinitiveUi::SafeArea()
 {
 	static Area whole;
@@ -94,6 +97,7 @@ DefinitiveUi::Device DefinitiveUi::LastDevice()
 	return Last;
 }
 
+// The text with its first %s replaced by value; unchanged if it has none
 std::string DefinitiveUi::Fill(const char* text, std::string_view value)
 {
 	std::string filled{text};
@@ -102,6 +106,7 @@ std::string DefinitiveUi::Fill(const char* text, std::string_view value)
 	return filled;
 }
 
+// The score, a negative one as 0, with a comma between its thousands, padded on the left with '!' to places characters
 std::string DefinitiveUi::FormatScore(int score, size_t places)
 {
 	auto digits = std::to_string(std::max(score, 0));
@@ -129,6 +134,8 @@ ImVec2 DefinitiveUi::TextSize(ImFont* font, float size, const char* text)
 	return font->CalcTextSizeA(size * LayoutScale * TextFactor, FLT_MAX, 0, DefinitiveText::Visual(text));
 }
 
+// Draws one line of text in drawing order at size times TextScale(); in a right-to-left language with a width
+// given, it ends at the right of that width
 void DefinitiveUi::DrawText(ImDrawList* drawList, ImFont* font, float size, ImVec2 position, ImU32 color,
 							const char* text, float width)
 {
@@ -138,6 +145,8 @@ void DefinitiveUi::DrawText(ImDrawList* drawList, ImFont* font, float size, ImVe
 	drawList->AddText(font, size * LayoutScale * TextFactor, position, color, visual);
 }
 
+// Draws text wrapped at width, breaking at spaces and newlines in reading order before each line is shaped; a word
+// wider than the line gets a line of its own. Returns the height taken; without a draw list it only measures.
 float DefinitiveUi::DrawWrapped(ImDrawList* drawList, ImFont* font, float size, ImVec2 position, ImU32 color,
 								const char* text, float width)
 {
@@ -187,6 +196,9 @@ float DefinitiveUi::DrawWrapped(ImDrawList* drawList, ImFont* font, float size, 
 	return static_cast<float>(lines) * fontSize;
 }
 
+// Draws a menu row with its lamp, label, aside and any note set for it, and gives it the focus when the pointer
+// moves over it or FocusNextRow asked. Returns true when an enabled row is chosen; LastRow and LastRowFocused then
+// describe it.
 bool DefinitiveUi::MenuRow(const char* id, const char* label, bool warning, const char* aside, bool enabled,
 						   float trailing)
 {
@@ -261,6 +273,8 @@ bool DefinitiveUi::MenuRow(const char* id, const char* label, bool warning, cons
 	return chosen && enabled;
 }
 
+// Draws the tabs in a line, squeezed together where width is too narrow, and returns the tab that Q and E, the
+// shoulder buttons or a click chose, else current
 int DefinitiveUi::Tabs(ImDrawList* drawList, ImVec2 position, float width, const std::vector<const char*>& labels,
 					   int current)
 {
@@ -311,6 +325,8 @@ int DefinitiveUi::Tabs(ImDrawList* drawList, ImVec2 position, float width, const
 	return index;
 }
 
+// Draws a row for reading: a lamp, the title, the tag and the aside at its end, and the wrapped text under it. It
+// takes the focus as a menu row does, and sets FooterTop to the room kept under the text.
 void DefinitiveUi::ParagraphRow(const char* id, const char* title, const char* aside, const char* text, const char* tag,
 								float footer)
 {
@@ -390,6 +406,7 @@ void DefinitiveUi::NextRowNote(const char* note)
 	Note = note;
 }
 
+// -1 or 1 when left or right, on the keyboard or the d-pad, was pressed while the last row has the focus, else 0
 int DefinitiveUi::RowStep()
 {
 	if (!RowFocused)
@@ -401,6 +418,8 @@ int DefinitiveUi::RowStep()
 	return 0;
 }
 
+// Draws a menu row with an on/off switch at its end; true when an enabled row should flip: chosen, or left pressed
+// while on, or right while off
 bool DefinitiveUi::ToggleRow(const char* id, const char* label, bool on, bool enabled)
 {
 	auto scale = LayoutScale;
@@ -429,6 +448,8 @@ bool DefinitiveUi::ToggleRow(const char* id, const char* label, bool on, bool en
 	return enabled && (chosen || (step < 0 && on) || (step > 0 && !on));
 }
 
+// Draws a menu row with its choices side by side, the current one marked. Returns the choice made, else current:
+// left and right step without wrapping, a click on a choice picks it, and choosing the row otherwise steps on round.
 int DefinitiveUi::ChoiceRow(const char* id, const char* label, std::initializer_list<const char*> choices, int current,
 							bool enabled)
 {
@@ -479,6 +500,8 @@ int DefinitiveUi::ChoiceRow(const char* id, const char* label, std::initializer_
 	return result;
 }
 
+// Draws a menu row with a slider and its value, formatted with format, before the track. Returns the new value
+// within min and max: left and right change it by step, and a press or a drag on the track sets it to the nearest step.
 int DefinitiveUi::SliderRow(const char* id, const char* label, int value, int min, int max, int step,
 							const char* format)
 {
@@ -608,6 +631,8 @@ namespace
 	}
 } // namespace
 
+// Draws the hints in a line, each as key caps for the keyboard or button glyphs for a gamepad, followed by its
+// label; nothing when a mouse or a touch came last
 void DefinitiveUi::DrawHints(ImDrawList* drawList, ImVec2 position, std::initializer_list<Hint> hints)
 {
 	if (Last == Device::Pointer)
@@ -683,6 +708,8 @@ void DefinitiveUi::DrawHints(ImDrawList* drawList, ImVec2 position, std::initial
 	}
 }
 
+// Opens a panel at the left of the safe area, at most 640 wide at scale 1, with its title drawn, and gives it the
+// focus when takeFocus is set or no window has it; EndPanel closes it
 DefinitiveUi::Panel DefinitiveUi::BeginPanel(const char* name, const char* title, bool takeFocus)
 {
 	const auto* viewport = &SafeArea();
@@ -713,6 +740,8 @@ DefinitiveUi::Panel DefinitiveUi::BeginPanel(const char* name, const char* title
 	return panel;
 }
 
+// Opens the panel's scrolling rows from y down to above the hints; true when the panel has the focus but none of
+// its rows does
 bool DefinitiveUi::BeginPanelRows(const Panel& panel, float y)
 {
 	auto scale = LayoutScale;
@@ -731,6 +760,7 @@ void DefinitiveUi::EndPanelRows()
 	ImGui::EndChild();
 }
 
+// Whether Escape, the pad's right face button or a right click was pressed while the panel has the focus
 bool DefinitiveUi::PanelBack()
 {
 	return ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) &&

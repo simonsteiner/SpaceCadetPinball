@@ -72,11 +72,15 @@ void DefinitiveSettings::Open(Group group)
 	Slot = 0;
 }
 
+// Whether the options wait for an input, and it is for the Controls slot chosen here
 bool DefinitiveSettings::WaitsForBinding()
 {
 	return options::WaitingForInput() && options::InputWaitedFor() == Waited;
 }
 
+// Draws the panel: the title, the groups as tabs, the current group's rows or the list of languages, which scroll,
+// and the hints. Back from the list of languages returns to the Language row; else it stops waiting for an input to
+// bind and the function returns false.
 bool DefinitiveSettings::Render(const DefinitiveHost& host, bool gameRunning)
 {
 	const auto* viewport = &Ui::SafeArea();
@@ -258,6 +262,8 @@ void DefinitiveSettings::RenderEdition(const DefinitiveHost& host, bool gameRunn
 		options::Set(options::Options.Prefer3DPBGameData, !options::Options.Prefer3DPBGameData);
 }
 
+// The list of languages, with the one in use marked and, when the list has just opened, focused; choosing another
+// sets the Language option
 void DefinitiveSettings::RenderLanguages(bool opened)
 {
 	// The list opens on the language in use
@@ -346,6 +352,9 @@ void DefinitiveSettings::RenderDisplay(const DefinitiveHost& host, bool gameRunn
 		options.HideCursor ^= true;
 }
 
+// The Graphics rows: upscaled art and its size, the backdrop, the panel art, filtering, the compositor's lighting,
+// glow and shaded ball, post-processing, and the font file. The effects' rows carry the host's note while they can't
+// show.
 void DefinitiveSettings::RenderGraphics(const DefinitiveHost& host)
 {
 	auto& options = options::Options;
@@ -399,6 +408,8 @@ void DefinitiveSettings::RenderGraphics(const DefinitiveHost& host)
 		host.ChangeFont();
 }
 
+// The Audio rows: sounds and music with their volumes, stereo, channels, room reverb, wider stereo, and the sound
+// pack where the host can look for packs; the pack's row steps through None and the packs found
 void DefinitiveSettings::RenderAudio(const DefinitiveHost& host)
 {
 	auto& options = options::Options;
@@ -456,6 +467,9 @@ void DefinitiveSettings::RenderAudio(const DefinitiveHost& host)
 	}
 }
 
+// The Controls rows: each binding with its three input slots, then rumble and the reset to the defaults. Left and
+// right move between a row's slots, choosing or tapping one waits for the input to bind, and Delete or the pad's
+// left button clears it.
 void DefinitiveSettings::RenderControls()
 {
 	auto scale = Ui::Scale();
@@ -524,6 +538,7 @@ void DefinitiveSettings::RenderControls()
 	}
 }
 
+// The Accessibility rows: UI scale, text size, the high contrast HUD, the colours, and reduced motion
 void DefinitiveSettings::RenderAccessibility()
 {
 	// The UI Scale option sizes Classic's menus and these screens alike

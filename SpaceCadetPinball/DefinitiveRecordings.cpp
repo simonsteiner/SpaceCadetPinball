@@ -39,6 +39,7 @@ namespace
 	constexpr float Speeds[] = {0.25f, 0.5f, 1, 2, 4};
 	constexpr const char* SpeedNames[] = {"0.25x", "0.5x", "1x", "2x", "4x"};
 
+	// The index in Speeds of the speed nearest to speed
 	int SpeedIndex(float speed)
 	{
 		auto index = 0;
@@ -54,6 +55,7 @@ namespace
 	constexpr float SeekStep = 10000;
 } // namespace
 
+// Opens the screen on the list, read anew from the host; empty where the host has no recordings
 void DefinitiveRecordings::Open(const DefinitiveHost& host)
 {
 	List = host.Recordings ? host.Recordings() : std::vector<DefinitiveHost::Recording>{};
@@ -62,6 +64,8 @@ void DefinitiveRecordings::Open(const DefinitiveHost& host)
 	Opened = true;
 }
 
+// Draws the list with the Record Sessions toggle, or the chosen recording's actions: play, and delete after a
+// confirmation. Back leads from the actions to the list; returns false once the player goes back from the list.
 bool DefinitiveRecordings::Render(const DefinitiveHost& host)
 {
 	auto scale = Ui::Scale();
@@ -169,6 +173,8 @@ bool DefinitiveRecordings::Render(const DefinitiveHost& host)
 	return !leave;
 }
 
+// Draws the bar of the recording that plays and handles its keys, buttons and pointer: pause and resume, seeking
+// by ten seconds or on the timeline, the speed, and back to the title. Does nothing without the host's ViewerState.
 void DefinitiveRecordings::RenderViewer(const DefinitiveHost& host)
 {
 	if (!host.ViewerState)

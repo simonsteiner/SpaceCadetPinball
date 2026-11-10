@@ -55,6 +55,7 @@ namespace
 		return Theme::HighContrast() ? Theme::Chrome50 : Theme::Chrome400;
 	}
 
+	// The colour of the HUD's notes, white in high contrast
 	ImU32 NoteColor()
 	{
 		return Theme::HighContrast() ? Theme::Chrome50 : Theme::Chrome200;
@@ -342,6 +343,8 @@ namespace
 	}
 } // namespace
 
+// The mission a mission state belongs to, 2 to 18, with the later states mapped to the mission they continue; 0
+// while none runs
 int DefinitiveHud::MissionOf(int state)
 {
 	// control.cpp's MissionControl: states 2 to 18 are the missions in the order of MissionRcArray, from Target
@@ -360,6 +363,7 @@ int DefinitiveHud::MissionOf(int state)
 	return state >= 2 && state <= 18 ? state : 0;
 }
 
+// The translated name of a mission from MissionOf, 2 to 18, or null for another number
 const char* DefinitiveHud::MissionName(int mission)
 {
 	if (mission < 2 || mission > 18)
@@ -367,6 +371,7 @@ const char* DefinitiveHud::MissionName(int mission)
 	return Text(static_cast<Msg>(std::to_underlying(Msg::STRING161) + mission - 2));
 }
 
+// The translated name of a Dragon's Keep quest or of Slay Dragon by its state, or null for another state
 const char* DefinitiveHud::QuestName(int state)
 {
 	using Dragon = TableView::DragonsKeep;
@@ -375,6 +380,7 @@ const char* DefinitiveHud::QuestName(int state)
 	return Text(static_cast<Msg>(std::to_underlying(Msg::Definitive_DragonHoard) + state - Dragon::FirstQuestState));
 }
 
+// The translated name of a Skulduggery mode or multiball by its state, or null for another state
 const char* DefinitiveHud::SkulduggeryModeName(int state)
 {
 	using Pirates = TableView::Skulduggery;
@@ -383,6 +389,7 @@ const char* DefinitiveHud::SkulduggeryModeName(int state)
 	return Text(static_cast<Msg>(std::to_underlying(Msg::Definitive_AttackShip) + state - Pirates::FirstModeState));
 }
 
+// The translated name of a rank from 1 to 9, or null for another number
 const char* DefinitiveHud::RankName(int rank)
 {
 	if (rank < 1 || rank > 9)
@@ -485,6 +492,9 @@ float DefinitiveHud::DrawContents(ImDrawList* drawList, const TableView& view, I
 	return DrawMessage(drawList, view, ImVec2{left, y}, width, max.y - Padding * scale) + Padding * scale - min.y;
 }
 
+// Draws the band's contents from min down, as DrawContents does the panel's: the score and the ball side by side,
+// the others' scores in a row, the mission and the rank in two columns where the width allows, and the message box
+// across the bottom; returns the height the band needs for it
 float DefinitiveHud::DrawBand(ImDrawList* drawList, const TableView& view, ImVec2 min, ImVec2 max)
 {
 	auto scale = Ui::Scale();
@@ -584,6 +594,8 @@ float DefinitiveHud::DrawBand(ImDrawList* drawList, const TableView& view, ImVec
 	return DrawMessage(drawList, view, ImVec2{left, y}, width, max.y - Padding * scale) + Padding * scale - min.y;
 }
 
+// Draws the HUD as a band in panel, centred across it: measures the contents twice to find a scale at which they fit
+// its height and width, and restores the screens' scale afterwards
 void DefinitiveHud::RenderBand(const TableView& view, SDL_FRect board, SDL_FRect panel)
 {
 	// The screens' scale, unless the band is too low for the contents at its width; a smaller scale leaves more width
@@ -618,6 +630,8 @@ void DefinitiveHud::RenderBand(const TableView& view, SDL_FRect board, SDL_FRect
 	Ui::SetScale(screenScale);
 }
 
+// Draws the HUD each frame, in high contrast if the option asks: as a band, or as a card beside the table or under
+// it, scaled to the room there, with the table's panel art as a header where it fits. Nothing without a panel.
 void DefinitiveHud::Render(const TableView& view, SDL_FRect board, SDL_FRect panel, bool band, SDL_Texture* art)
 {
 	if (panel.w < 1 || panel.h < 1)
