@@ -79,6 +79,18 @@ jobs:
         run: cmake --build --preset "$PRESET" --parallel 4
         shell: bash
 
+      # BundledData.cpp's Windows block builds only with SCP_BUNDLED_DATA, which tools/make-test-build.sh sets with
+      # the real game data. A folder of placeholder text files, never game data, builds and links it here; the
+      # rebuild reuses the vendored SDL from the step before
+      - name: Build with placeholder bundled data
+        if: matrix.preset == 'mingw'
+        run: |
+          mkdir -p "$RUNNER_TEMP/bundled/sub"
+          echo "Placeholder for the bundled-data build check; not game data." > "$RUNNER_TEMP/bundled/placeholder.txt"
+          echo "Placeholder in a subfolder." > "$RUNNER_TEMP/bundled/sub/placeholder.txt"
+          cmake --preset mingw -DSCP_WARNINGS=ON "-DSCP_BUNDLED_DATA=$RUNNER_TEMP/bundled"
+          cmake --build --preset mingw --parallel 4
+
       - name: Check the web build holds no game data
         if: matrix.preset == 'web'
         run: tools/check-no-game-data.sh bin
