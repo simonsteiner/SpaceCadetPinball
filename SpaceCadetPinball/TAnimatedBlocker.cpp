@@ -7,6 +7,8 @@
 #include "timer.h"
 #include "TPinballTable.h"
 
+// Installs the wall of each state that has one (attribute 600), each with its own active flag, reads the sounds, the
+// frame time, the initial state and the durations, and resets the blocker
 TAnimatedBlocker::TAnimatedBlocker(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, false)
 {
 	visualStruct visual{};
@@ -36,11 +38,16 @@ TAnimatedBlocker::TAnimatedBlocker(TPinballTable* table, int groupIndex) : TColl
 	Message(MessageCode::Reset, 0.0f);
 }
 
+// The number of states, which is the number of the blocker's bitmaps, 0 without any
 int TAnimatedBlocker::StateCount() const
 {
 	return ListBitmap ? static_cast<int>(ListBitmap->size()) : 0;
 }
 
+// Handles the blocker's messages: SetState switches at once, or asks again every half second while a ball is in the way
+// of a state that blocks; AnimateTo, AnimateOn and AnimateOff step towards a state; SetOn and SetOff switch to the last
+// state or to none, with a sound; RestartTimeout restarts the timer that tells the rules; Reset, PlayerChanged and
+// SetTiltLock stop the timers and return to the initial state
 int TAnimatedBlocker::Message(MessageCode code, float value)
 {
 	using enum MessageCode;
@@ -127,6 +134,7 @@ int TAnimatedBlocker::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Switches to <state>, -1 for none: the old state's wall goes inactive, the new one's active, and the sprite follows
 void TAnimatedBlocker::SetState(int state)
 {
 	auto count = StateCount();
@@ -140,6 +148,7 @@ void TAnimatedBlocker::SetState(int state)
 	SpriteSet(State < count ? State : -1);
 }
 
+// Stops the timeout and the animation timers, but not the one of a deferred SetState
 void TAnimatedBlocker::KillTimers()
 {
 	if (TimeoutTimer)
@@ -157,6 +166,8 @@ void TAnimatedBlocker::TimeoutExpired(int, void* caller)
 	control::handler(MessageCode::ControlTimerExpired, blocker);
 }
 
+// Timer callback: moves one state towards TargetState every FrameTime, waiting while a ball is in the way, and tells
+// the rules with ControlAnimationDone once there
 void TAnimatedBlocker::AnimationStep(int, void* caller)
 {
 	auto blocker = static_cast<TAnimatedBlocker*>(caller);

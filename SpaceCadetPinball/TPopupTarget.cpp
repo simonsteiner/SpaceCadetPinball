@@ -14,6 +14,8 @@ TPopupTarget::TPopupTarget(TPinballTable* table, int groupIndex) : TCollisionCom
 	TimerTime = *loader::required_float_attribute(groupIndex, 0, 407);
 }
 
+// Handles the target's messages: disable drops it, enable raises it again after its delay (attribute 407),
+// PlayerChanged restores the next player's state and Reset raises it at once
 int TPopupTarget::Message(MessageCode code, float value)
 {
 	switch (code)
@@ -51,6 +53,8 @@ int TPopupTarget::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Bounces the ball; a hit harder than the threshold drops the target, plays its sound and tells the rules, unless
+// the table is tilted
 void TPopupTarget::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
                              TEdgeSegment* edge)
 {
@@ -74,6 +78,7 @@ void TPopupTarget::Collision(TBall* ball, vector2* nextPosition, vector2* direct
 	}
 }
 
+// Raises the target: active and visible again, with a sound when a timer rather than Reset called it
 void TPopupTarget::TimerExpired(int timerId, void* caller)
 {
 	auto target = static_cast<TPopupTarget*>(caller);

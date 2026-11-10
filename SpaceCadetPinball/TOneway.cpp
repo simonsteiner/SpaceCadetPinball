@@ -8,6 +8,8 @@
 #include "TLine.h"
 #include "TPinballTable.h"
 
+// Builds the one-way's two edges from the line in its visual, one facing each side: a solid one and Line, which
+// lets the ball through
 TOneway::TOneway(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, false)
 {
 	visualStruct visual{};
@@ -40,6 +42,8 @@ TOneway::TOneway(TPinballTable* table, int groupIndex) : TCollisionComponent(tab
 	}
 }
 
+// Lets a ball that hits Line pass, with a sound and a message to the rules unless the table is tilted; a ball that
+// hits the other edge bounces off
 void TOneway::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	if (edge == Line)

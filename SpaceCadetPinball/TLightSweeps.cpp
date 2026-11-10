@@ -9,6 +9,7 @@
 #include "TPinballTable.h"
 #include "TTableLayer.h"
 
+// Sorts the table's lights into the grid's cells by their position (attribute 501); a light without one is left out
 TLightSweeps::TLightSweeps(TPinballTable* table, const TTableLayer& tableLayer, TLightGroup& lights, int groupIndex) :
 	TPinballComponent(table, groupIndex, false), XMin(tableLayer.XMin), YMin(tableLayer.YMin),
 	ColumnsPerUnit(static_cast<float>(1.0 / ((tableLayer.XMax - tableLayer.XMin) / Columns))),
@@ -34,6 +35,8 @@ int TLightSweeps::CellRow(float y) const
 	return static_cast<int>(std::clamp(floor((y - YMin) * RowsPerUnit), 0.0f, Rows - 1.0f));
 }
 
+// Handles the sweeps' messages: TLightSweepsStart reads a sweep's settings from state <value> of the group and
+// starts it; a tilt, a player change and Reset stop the step timer
 int TLightSweeps::Message(MessageCode code, float value)
 {
 	switch (code)
@@ -84,6 +87,8 @@ int TLightSweeps::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Moves the ring one cell out or in, lights it and sets the timer for the next step; past the last ring the sweep
+// starts over or, after its last repeat, tells the rules it has ended
 void TLightSweeps::Step()
 {
 	Radius += Outward ? 1 : -1;
@@ -100,6 +105,7 @@ void TLightSweeps::Step()
 	Timer = timer::set(FrameTime, this, StepTimer);
 }
 
+// Lights the cells on a circle of <radius> cells around the given cell
 void TLightSweeps::LightRing(int column, int row, int radius)
 {
 	// The midpoint circle algorithm, eight cells at a time
@@ -127,6 +133,7 @@ void TLightSweeps::LightRing(int column, int row, int radius)
 	} while (x <= radius);
 }
 
+// Turns on every light in a cell for LightTime, as a temporary override; a cell outside the grid is ignored
 void TLightSweeps::LightCell(int column, int row)
 {
 	if (column < 0 || column >= Columns || row < 0 || row >= Rows)
@@ -136,6 +143,7 @@ void TLightSweeps::LightCell(int column, int row)
 		cell[index]->Message(MessageCode::TLightFtTmpOverrideOn, LightTime);
 }
 
+// Stops the step timer if it runs
 void TLightSweeps::KillTimer()
 {
 	if (Timer)

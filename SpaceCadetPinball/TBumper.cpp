@@ -23,6 +23,9 @@ TBumper::TBumper(TPinballTable* table, int groupIndex) : TCollisionComponent(tab
 	OriginalThreshold = Threshold;
 }
 
+// Handles the bumper's messages: TBumperSetBmpIndex, TBumperIncBmpIndex and TBumperDecBmpIndex change its level, a pair
+// of sprites each, with a sound, a flash and a message to the rules when it changes; PlayerChanged swaps in the new
+// player's level; Reset puts every player's back to 0
 int TBumper::Message(MessageCode code, float value)
 {
 	switch (code)
@@ -100,6 +103,7 @@ int TBumper::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Bounces the ball; a hit harder than the threshold flashes the bumper, rumbles and tells the rules
 void TBumper::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	if (DefaultCollision(ball, nextPosition, direction))

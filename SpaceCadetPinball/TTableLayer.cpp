@@ -13,6 +13,8 @@
 
 TEdgeManager* TTableLayer::edge_manager;
 
+// Builds the table's base from the group "table": the background sprite, the projection center, gravity, the edge
+// manager's grid over the table's bounds, the outer edges and the gravity field
 TTableLayer::TTableLayer(TPinballTable* table): TCollisionComponent(table, -1, false)
 {
 	visualStruct visual{};
@@ -102,6 +104,7 @@ TTableLayer::TTableLayer(TPinballTable* table): TCollisionComponent(table, -1, f
 	                    &Field);
 }
 
+// Frees the edge manager
 TTableLayer::~TTableLayer()
 {
 	if (edge_manager)
@@ -116,6 +119,7 @@ int TTableLayer::FieldEffect(TBall* ball, vector2* vecDst)
 	return 1;
 }
 
+// Adds <edge> and <field>, whichever are given, to every grid box the rectangle overlaps
 void TTableLayer::edges_insert_square(float y0, float x0, float y1, float x1, TEdgeSegment* edge,
                                       field_effect_type* field)
 {
@@ -155,6 +159,7 @@ void TTableLayer::edges_insert_square(float y0, float x0, float y1, float x1, TE
 	}
 }
 
+// Adds <edge> and <field>, whichever are given, to every grid box the circle touches
 void TTableLayer::edges_insert_circle(circle_type* circle, TEdgeSegment* edge, field_effect_type* field)
 {
 	ray_type ray{};

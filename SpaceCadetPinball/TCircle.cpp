@@ -29,6 +29,7 @@ void TCircle::EdgeCollision(TBall* ball, float distance)
 	CollisionComponent->Collision(ball, &nextPosition, &direction, distance, this);
 }
 
+// Adds the circle to the edge grid, and merges its bounds into <aabb> if given
 void TCircle::place_in_grid(RectF* aabb)
 {
 	if(aabb)

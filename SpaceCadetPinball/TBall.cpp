@@ -12,6 +12,9 @@
 #include "TPinballTable.h"
 #include "TTableLayer.h"
 
+// Makes a ball. With a group it's placed from the DAT, at that group's position and with its collision group; with -1
+// it starts at the origin. The radius and the frames come from the group "ball", or "ballN" for Full Tilt's resolution
+// N; the rules pick each frame's bitmap
 TBall::TBall(TPinballTable* table, int groupIndex) : TCollisionComponent(table, groupIndex, false),
                                                      TEdgeSegment(this, &ActiveFlag, 0)
 {
@@ -79,6 +82,8 @@ TBall::TBall(TPinballTable* table, int groupIndex) : TCollisionComponent(table, 
 	GroupIndex = groupIndex;
 }
 
+// Sets the ball's sprite from its position, picking the frame by depth; while CollisionFlag is set, Z first follows the
+// plane in CollisionOffset
 void TBall::Repaint()
 {
 	if (CollisionFlag)
@@ -101,6 +106,7 @@ void TBall::Repaint()
 	SpriteSetBall(index, pos2D, zDepth);
 }
 
+// Remembers an edge the ball hit, so that already_hit skips it; once all 16 slots are taken, the oldest 8 are dropped
 void TBall::not_again(TEdgeSegment* edge)
 {
 	if (EdgeCollisionCount < 16)
@@ -118,6 +124,7 @@ void TBall::not_again(TEdgeSegment* edge)
 	EdgeCollisionResetFlag = true;
 }
 
+// Whether the edge is among those not_again remembered
 bool TBall::already_hit(const TEdgeSegment& edge) const
 {
 	for (int i = 0; i < EdgeCollisionCount; i++)
@@ -129,6 +136,7 @@ bool TBall::already_hit(const TEdgeSegment& edge) const
 	return false;
 }
 
+// Handles Reset only: a ball that wasn't placed from the DAT is hidden, deactivated and put back at the origin, at rest
 int TBall::Message(MessageCode code, float value)
 {
 	// CADET.EXE's Reset leaves a ball placed from the DAT where it is

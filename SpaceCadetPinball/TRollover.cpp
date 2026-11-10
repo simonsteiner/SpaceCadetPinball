@@ -25,6 +25,8 @@ TRollover::TRollover(TPinballTable* table, int groupIndex) : TCollisionComponent
 }
 
 
+// Handles Reset, which rearms the rollover and shows its sprite; on the bonus tables also keeps the message field
+// per player
 int TRollover::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())
@@ -38,6 +40,8 @@ int TRollover::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Lets the ball pass. With RolloverFlag clear it plays the sound and tells the rules; with it set it disarms the
+// rollover for 0.1 s. Either way the flag and the sprite flip, unless the table is tilted
 void TRollover::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
                           TEdgeSegment* edge)
 {

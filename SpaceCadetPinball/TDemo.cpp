@@ -9,6 +9,8 @@
 #include "TPinballTable.h"
 #include "TBall.h"
 
+// Reads the flip timings (attribute 407, with defaults) and installs the walls 1400 to 1404, which the ball crosses to
+// make demo mode flip and plunge
 TDemo::TDemo(TPinballTable* table, int groupIndex)
 	: TCollisionComponent(table, groupIndex, false)
 {
@@ -58,6 +60,8 @@ TDemo::TDemo(TPinballTable* table, int groupIndex)
 									   1404);
 }
 
+// NewGame stops the restart timer; GameOver starts it, for a new game after 5 s, while the demo is active; Reset stops
+// the flip timers and lets go of the flippers and the plunger
 int TDemo::Message(MessageCode code, float value)
 {
 	switch (code)
@@ -95,6 +99,8 @@ int TDemo::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Demo mode's play: a ball crossing wall 1400 or 1402 presses the left or the right flipper after a random delay, 1401
+// or 1403 at once, and 1404 pulls the plunger for 2 to 3 s
 void TDemo::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	ball->not_again(edge);
@@ -144,6 +150,7 @@ void TDemo::PlungerRelease(int timerId, void* caller)
 	demo->PinballTable->Message(MessageCode::PlungerInputReleased, pb::time_next);
 }
 
+// Timer callback: releases the right flipper if the demo holds it
 void TDemo::UnFlipRight(int timerId, void* caller)
 {
 	auto demo = static_cast<TDemo*>(caller);
@@ -152,6 +159,7 @@ void TDemo::UnFlipRight(int timerId, void* caller)
 	demo->FlipRightFlag = 0;
 }
 
+// Timer callback: releases the left flipper if the demo holds it
 void TDemo::UnFlipLeft(int timerId, void* caller)
 {
 	auto demo = static_cast<TDemo*>(caller);
@@ -160,6 +168,8 @@ void TDemo::UnFlipLeft(int timerId, void* caller)
 	demo->FlipLeftFlag = 0;
 }
 
+// Timer callback: presses the right flipper unless the demo holds it already, and sets a timer with a random delay that
+// releases it
 void TDemo::FlipRight(int timerId, void* caller)
 {
 	auto demo = static_cast<TDemo*>(caller);
@@ -178,6 +188,8 @@ void TDemo::FlipRight(int timerId, void* caller)
 	}
 }
 
+// Timer callback: presses the left flipper unless the demo holds it already, and sets a timer with a random delay that
+// releases it
 void TDemo::FlipLeft(int timerId, void* caller)
 {
 	auto demo = static_cast<TDemo*>(caller);

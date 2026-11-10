@@ -38,6 +38,7 @@ int TEdgeManager::box_y(float y)
 	return clamp_box(floor((y - MinY) / AdvanceY), MaxBoxY);
 }
 
+// Turns a box coordinate into an index from 0 to <boxCount> - 1; NaN gives 0
 int TEdgeManager::clamp_box(float box, int boxCount)
 {
 	// Clamped before the cast: a damaged table's NaN or far-off coordinate (a ramp without planes has bounds of
@@ -59,6 +60,7 @@ int TEdgeManager::increment_box_y(int y)
 	return std::min(y + 1, MaxBoxY - 1);
 }
 
+// Adds the edge to the grid box at (x, y)
 void TEdgeManager::add_edge_to_box(int x, int y, TEdgeSegment* edge)
 {
 	assertm((unsigned)x < (unsigned)MaxBoxX && (unsigned)y < (unsigned)MaxBoxY, "Box coordinates out of range");
@@ -68,6 +70,7 @@ void TEdgeManager::add_edge_to_box(int x, int y, TEdgeSegment* edge)
 	list.push_back(edge);
 }
 
+// Adds the field to the grid box at (x, y)
 void TEdgeManager::add_field_to_box(int x, int y, field_effect_type* field)
 {
 	assertm((unsigned)x < (unsigned)MaxBoxX && (unsigned)y < (unsigned)MaxBoxY, "Box coordinates out of range");
@@ -77,6 +80,9 @@ void TEdgeManager::add_field_to_box(int x, int y, field_effect_type* field)
 	list.push_back(field);
 }
 
+// Tests the ray against the edges of box (x, y) that are active, match its collision mask and that the ball hasn't hit
+// already, and keeps the nearest in <distPtr> and <edgeDst>. Each edge tested is marked processed and listed in
+// EdgeArray from <edgeIndex>; returns the index after the last
 int TEdgeManager::TestGridBox(int x, int y, float* distPtr, TEdgeSegment** edgeDst, ray_type* ray, TBall* ball,
                               int edgeIndex)
 {
@@ -108,6 +114,7 @@ int TEdgeManager::TestGridBox(int x, int y, float* distPtr, TEdgeSegment** edgeD
 	return edgeIndex;
 }
 
+// Adds to <dstVec> the force of each active field in the ball's grid box whose collision group matches the ball
 void TEdgeManager::FieldEffects(TBall* ball, vector2* dstVec)
 {
 	vector2 vec{};
@@ -127,6 +134,8 @@ void TEdgeManager::FieldEffects(TBall* ball, vector2* dstVec)
 	}
 }
 
+// Returns the distance to the nearest edge the ray hits in the grid boxes along it, and stores that edge in <edge>;
+// without a hit it returns 1e9 and leaves <edge> as it is
 float TEdgeManager::FindCollisionDistance(ray_type* ray, TBall* ball, TEdgeSegment** edge)
 {
 	auto distance = 1000000000.0f;

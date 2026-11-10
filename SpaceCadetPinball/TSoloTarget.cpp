@@ -20,6 +20,8 @@ TSoloTarget::TSoloTarget(TPinballTable* table, int groupIndex) : TCollisionCompo
 	TSoloTarget::Message(MessageCode::TSoloTargetEnable, 0.0);
 }
 
+// Handles the target's messages: enable and disable set whether it is active, Reset enables it, and the sprite
+// follows; other codes change nothing
 int TSoloTarget::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())
@@ -51,6 +53,7 @@ int TSoloTarget::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Bounces the ball; a hit harder than the threshold disables the target for TimerTime and tells the rules
 void TSoloTarget::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance,
                             TEdgeSegment* edge)
 {

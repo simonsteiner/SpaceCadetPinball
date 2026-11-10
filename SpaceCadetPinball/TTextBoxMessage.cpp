@@ -2,6 +2,7 @@
 #include "TTextBoxMessage.h"
 #include "pb.h"
 
+// Copies <text> and works out when the message ends, <time> seconds from now; Text is null when <text> is
 TTextBoxMessage::TTextBoxMessage(const char* text, float time, bool lowPriority, int fontIndex, const char* words) :
 	FontIndex(fontIndex), Words(words ? words : "")
 {

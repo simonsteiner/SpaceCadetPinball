@@ -11,6 +11,8 @@
 #include "TPinballTable.h"
 #include "TTableLayer.h"
 
+// Reads the kickout's circle, pull, ball height and throw, and adds its circle edge and field. With <someFlag> false it
+// starts inactive, and Reset and SetTiltLock make it inactive again
 TKickout::TKickout(TPinballTable* table, int groupIndex, bool someFlag): TCollisionComponent(
 	table, groupIndex, false)
 {
@@ -64,6 +66,9 @@ TKickout::TKickout(TPinballTable* table, int groupIndex, bool someFlag): TCollis
 	TTableLayer::edges_insert_circle(&circle, nullptr, &Field);
 }
 
+// Handles the kickout's messages: TKickoutRestartTimer sets the time until a held ball is thrown, TimerTime1 if
+// negative; Reset throws a held ball at once; on the bonus tables TKickoutEnable and TKickoutDisable switch it, and the
+// message field is kept per player
 int TKickout::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())
@@ -108,6 +113,7 @@ int TKickout::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Deactivates the kickout and throws a ball it holds at once, without the timer that would activate it again
 void TKickout::TurnOff()
 {
 	// CADET.EXE's TKickoutDisable: off, and a ball it holds goes out at once
@@ -122,6 +128,8 @@ void TKickout::TurnOff()
 	Timer = 0;
 }
 
+// Captures the ball at the centre and tells the rules, which set the time to the throw; while the table is tilted it's
+// thrown after 0.1 s. While a ball is held, another passes through
 void TKickout::Collision(TBall* ball, vector2* nextPosition, vector2* direction, float distance, TEdgeSegment* edge)
 {
 	if (!BallCaputeredFlag)
@@ -154,6 +162,8 @@ void TKickout::Collision(TBall* ball, vector2* nextPosition, vector2* direction,
 	}
 }
 
+// For a ball inside the circle of a kickout that holds none, sets <dstVec> to a pull towards the centre and returns 1;
+// else returns 0
 int TKickout::FieldEffect(TBall* ball, vector2* dstVec)
 {
 	vector2 direction{};
@@ -170,6 +180,8 @@ int TKickout::FieldEffect(TBall* ball, vector2* dstVec)
 	return 1;
 }
 
+// Timer callback: throws the held ball in the kickout's direction, deactivates the kickout and starts the short timer
+// of ResetTimerExpired
 void TKickout::TimerExpired(int timerId, void* caller)
 {
 	auto kick = static_cast<TKickout*>(caller);
@@ -189,6 +201,7 @@ void TKickout::TimerExpired(int timerId, void* caller)
 	}
 }
 
+// Timer callback: activates the kickout again after a throw, unless it was made with someFlag false
 void TKickout::ResetTimerExpired(int timerId, void* caller)
 {
 	auto kick = static_cast<TKickout*>(caller);

@@ -9,6 +9,8 @@
 #include "TPinballTable.h"
 #include "TTableLayer.h"
 
+// Adds the component to the table and, if <loadVisuals>, loads the group's bitmaps, makes a sprite that covers them
+// all and takes the sound position from the first one's center
 TPinballComponent::TPinballComponent(TPinballTable* table, int groupIndex, bool loadVisuals)
 {
 	visualStruct visual{};
@@ -81,6 +83,7 @@ TPinballComponent::TPinballComponent(TPinballTable* table, int groupIndex, bool 
 }
 
 
+// Takes the component off the table's list and frees its bitmap list
 TPinballComponent::~TPinballComponent()
 {
 	if (PinballTable)
@@ -96,6 +99,8 @@ TPinballComponent::~TPinballComponent()
 }
 
 
+// Base handler: stores the code in the message field, which Reset clears; on the bonus tables it keeps the field
+// per player instead. Returns 0
 int TPinballComponent::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())
@@ -110,6 +115,7 @@ int TPinballComponent::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Swaps the message field for the next player's on PlayerChanged and clears it for all players on Reset
 void TPinballComponent::KeepMessageFieldPerPlayer(MessageCode code, float value)
 {
 	if (code == MessageCode::PlayerChanged)
@@ -128,6 +134,7 @@ void TPinballComponent::port_draw()
 {
 }
 
+// Returns score <index> of the component's rules entry, 0 when it has none or the index is out of range
 int TPinballComponent::get_scoring(unsigned int index) const
 {
 	return Control == nullptr || index >= Control->ScoreCount ? 0 : Control->Scores[index];
@@ -138,6 +145,8 @@ vector2 TPinballComponent::get_coordinates()
 	return {VisualPosNormX, VisualPosNormY};
 }
 
+// Shows bitmap <index> of the group as the component's sprite, or nothing when it is negative or the bitmap has no
+// depth map
 void TPinballComponent::SpriteSet(int index) const
 {
 	if (!ListBitmap)
@@ -169,6 +178,7 @@ void TPinballComponent::SpriteSet(int index) const
 	RenderSprite->set(bmp, zMap, xPos, yPos);
 }
 
+// Shows bitmap <index> centered on <pos> at <depth>, as a ball is drawn; a negative index hides the sprite
 void TPinballComponent::SpriteSetBall(int index, vector2i pos, float depth) const
 {
 	if (ListBitmap)

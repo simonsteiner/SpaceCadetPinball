@@ -10,6 +10,8 @@
 #include "timer.h"
 
 
+// Reads the box's position and size from attribute 1500 of the group for the current resolution; without them the
+// box stays empty
 TTextBox::TTextBox(TPinballTable* table, int groupIndex) : TPinballComponent(table, groupIndex, true)
 {
 	OffsetX = 0;
@@ -38,6 +40,7 @@ TTextBox::TTextBox(TPinballTable* table, int groupIndex) : TPinballComponent(tab
 	}
 }
 
+// Stops the timer and frees the queued messages
 TTextBox::~TTextBox()
 {
 	if (Timer)
@@ -55,6 +58,7 @@ TTextBox::~TTextBox()
 	}
 }
 
+// Takes no messages of its own; on the bonus tables it keeps the message field per player
 int TTextBox::Message(MessageCode code, float value)
 {
 	if (pb::BonusTable())
@@ -62,6 +66,7 @@ int TTextBox::Message(MessageCode code, float value)
 	return 0;
 }
 
+// Timer callback at the end of the current message's time: drops it, draws the next one and tells the rules
 void TTextBox::TimerExpired(int timerId, void* caller)
 {
 	auto tb = static_cast<TTextBox*>(caller);
@@ -77,6 +82,8 @@ void TTextBox::TimerExpired(int timerId, void* caller)
 	}
 }
 
+// Erases the box, stops the timer and drops the queued messages, or only the leading low-priority ones if
+// <lowPriorityOnly>; what is left, and an overlay, are drawn again
 void TTextBox::Clear(bool lowPriorityOnly)
 {
 	gdrv_bitmap8* bmp = BgBmp;
@@ -120,6 +127,7 @@ void TTextBox::EndOverlay()
 	Repaint();
 }
 
+// Paints the box again without starting a second timer for the message that shows
 void TTextBox::Repaint()
 {
 	// A running timer means the current message shows; drawing it again would set a second one
@@ -129,6 +137,8 @@ void TTextBox::Repaint()
 		Draw();
 }
 
+// Queues <text> to show for <time> seconds, or with -1 until another message replaces it, and draws it if nothing
+// shows; a repeat of the last queued message only gets a new time
 void TTextBox::Display(const char* text, float time, bool lowPriority, int fontIndex, const char* words)
 {
 	if (!text)
@@ -165,6 +175,7 @@ void TTextBox::Display(const char* text, float time, bool lowPriority, int fontI
 	}
 }
 
+// Gives the repeated last message <time> and restarts its timer if it is the one showing
 void TTextBox::RefreshRepeat(float time)
 {
 	PreviousMessage->Refresh(time);
@@ -178,6 +189,8 @@ void TTextBox::RefreshRepeat(float time)
 		Timer = timer::set(time, this, TimerExpired);
 }
 
+// Draws the overlay or the current message as ImGui text when there is no bitmap font for it; with a font the text
+// is already in the frame
 void TTextBox::DrawImGui()
 {
 	// Do nothing when using a font (the text will be rendered to VScreen in TTextBox::Draw)
@@ -231,6 +244,8 @@ void TTextBox::DrawImGui()
 	ImGui::End();
 }
 
+// Skips to the first message still worth showing (an untimed one only if it is the last, a timed one unless it is
+// over 2 s late), sets its timer and paints the box
 void TTextBox::Draw()
 {
 	bool display = false;
@@ -260,6 +275,8 @@ void TTextBox::Draw()
 	Paint(display);
 }
 
+// Paints the box's background, then the overlay or, if <display>, the current message in its bitmap font, wrapped
+// to the box and centered on Full Tilt's data
 void TTextBox::Paint(bool display)
 {
 	auto bmp = BgBmp;
@@ -318,11 +335,14 @@ void TTextBox::Paint(bool display)
 	}
 }
 
+// True when <text> in this font is the last queued message again, while a message shows
 bool TTextBox::IsRepeat(const char* text, int fontIndex) const
 {
 	return CurrentMessage && !strcmp(text, PreviousMessage->Text) && PreviousMessage->FontIndex == fontIndex;
 }
 
+// The bitmap font a message is drawn in: the second font for a picture message, else the box's own; null when the
+// game data has none
 const score_msg_font_type* TTextBox::MessageFont(const TTextBoxMessage* message) const
 {
 	// A picture message without the second font shows nothing rather than its glyphs as text
@@ -331,6 +351,8 @@ const score_msg_font_type* TTextBox::MessageFont(const TTextBoxMessage* message)
 	return Font;
 }
 
+// Finds how much of <textStart> fits in one line of the box, breaking at a space where it can and at a newline;
+// returns the line's start, where the next line starts, and its width in pixels
 TTextBox::LayoutResult TTextBox::LayoutTextLine(char* textStart, const score_msg_font_type* font) const
 {
 	auto lineWidth = 0, wordWidth = 0;
