@@ -22,7 +22,9 @@ void TEdgeSegment::port_draw()
 // The number of floats a wall of this type takes in its array, the type included
 int TEdgeSegment::wall_length(wall_type wallType)
 {
-	// A circle is its type, centre and radius, a line its type and two points, any other wall its type and its points
+	// A circle is its type, centre and radius, a line its type and two points. A polygon is its type, its points and
+	// its first point again: install_wall ends the last side at the point after the last one, and every polygon in the
+	// four tables repeats its first point there
 	switch (wallType)
 	{
 	case wall_type::Circle:
@@ -30,7 +32,7 @@ int TEdgeSegment::wall_length(wall_type wallType)
 	case wall_type::Line:
 		return 5;
 	default:
-		return 2 * std::to_underlying(wallType) + 1;
+		return 2 * std::to_underlying(wallType) + 3;
 	}
 }
 
