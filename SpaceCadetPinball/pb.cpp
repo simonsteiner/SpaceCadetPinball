@@ -325,7 +325,8 @@ std::vector<TableData> pb::FindTables(const std::vector<const char*>& dataSearch
 }
 
 // Finds the tables and sets Table, BasePath, DatFileName and the Full Tilt flags for the one to load: the table asked
-// for, else the player's choice, else the first found. DatFileName stays empty when there is no data to load.
+// for, else the player's choice, else the first found. DatFileName stays empty when there is no data to load, or none
+// for a table asked for.
 void pb::SelectDatFile(const std::vector<const char*>& dataSearchPaths)
 {
 	DatFileName.clear();
