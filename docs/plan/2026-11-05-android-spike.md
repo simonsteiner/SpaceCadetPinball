@@ -105,7 +105,19 @@ Three pull requests follow from it:
    | Title at 4x art | 29 | 51 | 18.9 | 4.2 |
 
    The GPU now stays at its lowest clock, 221 MHz, 63 to 78 % busy, and the table runs at real speed. In a game SurfaceFlinger shows 87 to 91 % of the frames 16 to 17 ms after the one before, about 5 % after 8 ms and 5 % after 24 to 25 ms; before, they jumped between 16, 25 and 33 ms. Turning vsync on (`SDL_SetRenderVSync`) changed neither the rate nor that spread, so the pacing stays as it is: the off-beat frames come from the loop sleeping by its own clock on a 120 Hz panel, and telling Android the game's rate (`ANativeWindow_setFrameRate`) would be the way to remove them, if they show. Comparing the frame still takes 4 to 5 ms of the main thread at 2x and 14 ms at 4x, which is what holds 4x at 51 fps; comparing the 1x frame instead would cut that. Also found: below 60 fps the table runs slow, at 64 % of real speed at 38 fps, because the main loop drops the time a loop pass takes beyond 16.7 ms; a fix is proposed separately, since it changes the game's timing on slow devices.
-3. **The SoundFont's memory:** not done yet.
+3. **Only the samples the music plays are decoded.** TinySoundFont decodes every Vorbis sample of an SF3 file when it loads it, and one table's music plays three to five programs and a drum kit. Three ways were open: a smaller SoundFont, which would change how the music sounds, on the web too; decoding on demand inside TinySoundFont, which means maintaining a change to vendored code; or leaving TinySoundFont alone and handing it a file in which the unused samples have no length, which it already treats as empty. The third is what `SoundFontFilter` does, in the file's bytes in memory: it follows the wanted presets through the SoundFont's tables to their samples and empties the headers of the other compressed ones. `midi.cpp` loads the table's tracks first, collects their programs and drum kits, and asks the loader for those; a table whose music needs more makes it load again, in the background, with the new presets on top of the old.
+
+   TinySoundFont's interpolation reads a little past a sample's end, into the sample that follows it in the file, so a kept sample's follower is kept too. With that, a 90 s render of 3D Pinball's theme and of each of Skulduggery's six MIDI tracks differs from the whole SoundFont's by at most 0.000001 of full scale; without it by up to 0.06, in how a few notes end. Dragon's Keep's and Full Tilt! Space Cadet's tracks are MDS and were only heard in the game.
+
+   | What | Whole SoundFont | Only the music's samples |
+   | --- | --- | --- |
+   | PC, 3D Pinball: load, memory at its peak | 916 ms, 298 MB | 181 ms, 94 MB (193 of 1037 samples) |
+   | PC, Skulduggery | the same | 199 ms, 105 MB (230 samples) |
+   | A54, Full Tilt! Space Cadet: the load, beside the running game | 7.5 to 8.5 s | 0.47 to 0.52 s (256 samples) |
+   | A54: launch to the music | 8.5 to 9.5 s (6.4 s before the first pull request) | 1.4 to 2.1 s |
+   | A54: memory (PSS), native heap | 563 MB, 376 MB | 347 MB, 190 MB |
+
+   An SF2 SoundFont, whose samples aren't compressed, loads whole as before; taking its unused samples out would mean moving sample data, which this doesn't do. The filter was run on 3000 damaged copies of the SoundFont's tables under AddressSanitizer without a fault; a file it can't read stays as it is.
 
 ## The rest of G5, as pull requests
 

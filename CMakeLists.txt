@@ -159,6 +159,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/score.h
         SpaceCadetPinball/Sound.cpp
         SpaceCadetPinball/Sound.h
+        SpaceCadetPinball/SoundFontFilter.cpp
+        SpaceCadetPinball/SoundFontFilter.h
         SpaceCadetPinball/SpaceCadetPinball.cpp
         SpaceCadetPinball/TAccelerator.cpp
         SpaceCadetPinball/TAccelerator.h
