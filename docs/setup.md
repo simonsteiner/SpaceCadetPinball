@@ -195,10 +195,18 @@ SonarCloud analyses the fork's pull requests automatically, with `.sonarcloud.pr
 
 | Rule | Files | Why |
 | --- | --- | --- |
-| `cpp:S5421`, global variables should be const | `**/control*.cpp` | A table's rules keep their state and components at namespace scope, as `control.cpp` does |
-| `cpp:S134` and `cpp:S3776`, nesting and complexity | `**/control*.cpp` | The rules follow the original EXE's branching, so they can be checked against its disassembly |
+| `cpp:S5421`, global variables should be const | `**/*` | File-scope state is the code base's pattern throughout, as a table's rules keep their state and components at namespace scope in `control.cpp` |
+| `cpp:S134` and `cpp:S3776`, nesting and complexity | `**/control*.cpp` | The rules follow the original EXE's branching, so they can be checked against its disassembly; elsewhere both stay on, so that new code is still flagged |
 | `cpp:S5025`, `new` without a smart pointer | `**/*` | Components register themselves in the table's `ComponentList`, which owns them |
 | `cpp:S5008`, `void*` parameters | `**/*` | The timer callbacks take the caller as `void*`, as the timer API requires |
+| `cpp:S5281`, format string not a literal | `**/*` | The formats are the translated strings from `translations.cpp` and the tables' own resource strings, each with the arguments the original takes |
+| `cpp:S6494`, `std::print` and `std::format` | `**/*` | GCC 13 MinGW, which the `mingw` preset and CI use, has no `<print>` |
+| `cpp:S7040`, delimited escapes (`\x{...}`) | `**/*` | Not on every compiler the game builds with |
+| `cpp:S6168`, `std::jthread` | `**/*` | Not on every compiler the game builds with |
+| `cpp:S5020` and `cpp:S2245`, `rand` | `**/*` | The replays depend on its sequence, as the original game's physics and rules do |
+| `cpp:S2479`, control characters in literals | `**/*` | The French translations' no-break spaces |
+
+Single issues that stay as they are are accepted in SonarCloud with a comment instead: the `await` inside a loop in `Platform/Web/shell.html` (`javascript:S9382`), which writes the player's files one at a time so that only one is in memory besides the file system's copy, and the translated format strings and `EntryData::Buffer` casts accepted before. The rest of the open issues are on lines upstream wrote, most of them decompiled from the original game; they stay, because fixing them would make every merge from upstream conflict, and SonarCloud's quality gate looks only at new code. Nothing is excluded by path, so new code in upstream's files is still checked.
 
 `.sonarcloud.properties` leaves the vendored code out of the analysis: ImGui (`SpaceCadetPinball/imgui*`, `imstb_*.h` and `imconfig.h`) and `third_party/`. These are upstream files that are upgraded as a set, unmodified but for the few edits `third_party/README.md` lists, and they held 6,512 of the 8,382 issues open on 2026-11-10. A new vendored folder outside `third_party/` needs adding there.
 
