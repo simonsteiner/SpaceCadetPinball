@@ -333,8 +333,8 @@ void options::set_float(LPCSTR lpValueName, float data)
 	SetSetting(lpValueName, std::to_string(data));
 }
 
-// Reads a control's three inputs from the settings into values; a slot with no input saved or an unknown type keeps
-// its value
+// Reads a control's three inputs from the settings into values; a slot with no input saved or a type above
+// GameController keeps its value
 void options::GetInput(const std::string& rowName, GameInput (&values)[3])
 {
 	for (auto i = 0u; i <= 2; i++)
@@ -917,7 +917,8 @@ std::string options::TableKeyPrefixToRead(const std::string& key)
 	return TableKeyPrefixToRead(key, pb::Table);
 }
 
-// The prefix to read the table's key with: its own, or none while it hasn't saved the key and an unprefixed one exists
+// The prefix to read the table's key with: its own, or none while it hasn't saved the key and an unprefixed one exists.
+// The bonus tables always read their own
 std::string options::TableKeyPrefixToRead(const std::string& key, Tables table)
 {
 	// Before tables had their own keys, every table saved under the unprefixed ones.
