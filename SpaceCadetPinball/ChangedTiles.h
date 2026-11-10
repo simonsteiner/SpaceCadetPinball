@@ -7,6 +7,20 @@ namespace ChangedTiles
 	// In pixels. Small enough that a blinking lamp or a flipper costs a few tiles, large enough for few uploads.
 	constexpr int Size = 64;
 
+	// Whether the picture and the copy differ in the tile of columns by rows pixels at (tileX, tileY)
+	template <typename Pixel>
+	bool Differs(const Pixel* picture, int stride, const Pixel* copy, int width, int tileX, int tileY, int columns,
+				 int rows)
+	{
+		for (int y = tileY; y < tileY + rows; y++)
+		{
+			if (std::memcmp(&picture[static_cast<size_t>(y) * stride + tileX],
+							&copy[static_cast<size_t>(y) * width + tileX], columns * sizeof(Pixel)) != 0)
+				return true;
+		}
+		return false;
+	}
+
 	// Compares the tiles that touch area, row of tiles by row of tiles, and calls changed with each run of changed
 	// tiles, as a rectangle within the picture, after which the copy holds the picture there. The picture's rows are
 	// stride pixels apart, the copy's width pixels.
@@ -25,18 +39,8 @@ namespace ChangedTiles
 			// One step past the last tile, to end a run that reaches the right edge
 			for (int tileX = left; tileX < right + Size; tileX += Size)
 			{
-				auto differs = false;
 				const auto columns = tileX < right ? std::min(Size, width - tileX) : 0;
-				for (int y = tileY; columns > 0 && y < tileY + rows; y++)
-				{
-					if (std::memcmp(&picture[static_cast<size_t>(y) * stride + tileX],
-									&copy[static_cast<size_t>(y) * width + tileX], columns * sizeof(Pixel)) != 0)
-					{
-						differs = true;
-						break;
-					}
-				}
-				if (differs)
+				if (columns > 0 && Differs(picture, stride, copy, width, tileX, tileY, columns, rows))
 				{
 					if (runStart < 0)
 						runStart = tileX;
