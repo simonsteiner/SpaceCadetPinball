@@ -20,5 +20,8 @@ pre-commit:
 
 pre-push:
   commands:
+    function-comments:
+      # Skipped where uv isn't installed; CI's lint job runs it anyway
+      run: if command -v uvx >/dev/null; then tools/check-function-comments.sh; else echo "uvx not found, function comment check skipped"; fi
     build-and-replays:
       run: tools/hooks/pre-push.sh {push_files}

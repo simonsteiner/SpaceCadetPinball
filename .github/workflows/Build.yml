@@ -106,11 +106,18 @@ jobs:
       - name: Check presentation includes
         run: tools/check-presentation-includes.sh
 
-      - name: Install clang-format, clang-tidy, python-bidi and arabic-reshaper
+      - name: Install clang-format, clang-tidy, python-bidi, arabic-reshaper and lizard
         run: |
           python3 -m venv /opt/llvm
           /opt/llvm/bin/pip install --require-hashes --no-deps --only-binary :all: -r tools/llvm-requirements.txt
           /opt/llvm/bin/pip install --require-hashes --no-deps --only-binary :all: -r tools/bidi/requirements.txt
+          /opt/llvm/bin/pip install --require-hashes --no-deps --only-binary :all: -r tools/lizard-requirements.txt
+
+      # A comment above every function with a branch or a loop, for CodeRabbit's Docstring Coverage check (AGENTS.md)
+      - name: Check function comments
+        env:
+          LIZARD_DIR: /opt/llvm/bin
+        run: tools/check-function-comments.sh
 
       # The compile database is all clang-tidy needs; without the precompiled header, each file parses on its own
       - name: Configure

@@ -1,0 +1,8 @@
+# lizard for tools/check-function-comments.sh in CI, with its dependencies, pinned with hashes for pip --require-hashes.
+# tools/check-function-comments.sh reads lizard's version from here for uvx.
+lizard==1.25.1 \
+    --hash=sha256:789e7103875cb15aac273e1701cd72d4b9d5fa521790e258fe071dbf79dbc4ee
+pathspec==1.1.1 \
+    --hash=sha256:a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189
+pygments==2.21.0 \
+    --hash=sha256:2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9
