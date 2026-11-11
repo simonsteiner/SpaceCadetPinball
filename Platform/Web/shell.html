@@ -147,11 +147,20 @@
     if (!fileList.length) return;
     setBusy(true);
     setStatus("Adding files…");
-    let message = "No game files among those.";
+    const progress = { added: 0 };
+    let message;
     try {
-      const added = await writeFiles(fileList);
-      if (added) message = `Added ${added} file${added > 1 ? "s" : ""}.`;
+      let writeError = null;
+      try {
+        await writeFiles(fileList, progress);
+      } catch (err) {
+        writeError = err;
+      }
+      // What was written before a failure is stored too, so that IndexedDB holds what the file list shows
       await sync(false);
+      const added = progress.added ? `Added ${progress.added} file${progress.added > 1 ? "s" : ""}` : "";
+      if (writeError) message = (added ? added + ", then couldn't add the rest: " : "Couldn't add the files: ") + describe(writeError);
+      else message = added ? added + "." : "No game files among those.";
     } catch (err) {
       message = "Couldn't keep the files in this browser: " + describe(err);
     } finally {
@@ -161,9 +170,9 @@
     setStatus(message);
   }
 
-  // Writes the game files among fileList into the data folder; returns how many it wrote
-  async function writeFiles(fileList) {
-    let added = 0;
+  // Writes the game files among fileList into the data folder, counting each one in progress.added as soon as it is
+  // written, so that the caller knows how many made it when a later file fails and this throws
+  async function writeFiles(fileList, progress) {
     for (const file of fileList) {
       // A folder's own name is dropped; subfolders such as Full Tilt's SOUND stay
       const parts = (file.webkitRelativePath || file.name).split("/");
@@ -176,9 +185,8 @@
       makeDirs(path);
       // One file at a time, so only one is in memory besides the file system's copy; a SoundFont can be large
       FS.writeFile(path, new Uint8Array(await file.arrayBuffer()));
-      added++;
+      progress.added++;
     }
-    return added;
   }
 
   async function forget() {
