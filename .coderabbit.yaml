@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit's settings for the fork; anything not set here keeps CodeRabbit's default.
+reviews:
+  auto_review:
+    # Pull requests into main are reviewed once, when they open (a draft when it is marked ready); pull requests
+    # stacked on another branch aren't reviewed automatically (base_branches stays empty). A push doesn't start another
+    # round: on the stack #190 to #200 each push did, mostly with findings on comments already passed. Ask for a new
+    # round, or for a stacked pull request's review after retargeting it, with "@coderabbitai review" in a comment.
+    auto_incremental_review: false

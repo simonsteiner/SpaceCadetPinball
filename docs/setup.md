@@ -191,6 +191,8 @@ CodeRabbit reviews the fork's pull requests too, and its Docstring Coverage chec
 
 The LLVM version is set once, in `tools/llvm-requirements.txt`: CI installs it from there with hashes, and the script reads it for `uvx`. To bump it, regenerate that file's hashes, then update the version in the `uvx` commands above and in `AGENTS.md`.
 
+`.coderabbit.yaml` has CodeRabbit review a pull request into `main` once, when it opens (a draft when it is marked ready), and not again on each push; ask for another round with `@coderabbitai review` in a comment. Pull requests stacked on another branch aren't reviewed automatically; after retargeting one to `main`, ask for its review the same way if none appears.
+
 SonarCloud analyses the fork's pull requests automatically, with `.sonarcloud.properties`. That file only sets what is analysed, so the rules it ignores are set in SonarCloud's project settings (Analysis Scope, "Ignore Issues on Multiple Criteria") and are listed here, because git doesn't record them:
 
 | Rule | Files | Why |
