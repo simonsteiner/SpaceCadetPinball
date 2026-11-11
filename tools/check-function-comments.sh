@@ -7,7 +7,8 @@
 # Usage: tools/check-function-comments.sh [file]...
 #   with files, checks those; without, the project's own sources (not ImGui, third_party/ or generated files)
 # Exits 1 when a function lacks its comment, 2 when a file is missing or the sources can't be listed, and with
-# lizard's status when that fails. lizard measures the complexity; uvx fetches it at the pinned version.
+# lizard's status when that fails. lizard measures the complexity; uvx fetches it at the version in
+# tools/lizard-requirements.txt (which CI installs), or set LIZARD_DIR to a folder that has it instead.
 set -euo pipefail
 
 # From the script's own path, not git, which CI's container doesn't trust before safe.directory is set
@@ -34,7 +35,16 @@ if [[ ${#files[@]} -eq 0 ]]; then
 fi
 
 # Measured before the report is made, so a failing lizard prints no count
-measured=$(uvx -q --from lizard==1.25.1 lizard --csv "${files[@]}")
+if [[ -n "${LIZARD_DIR:-}" ]]; then
+	measured=$("$LIZARD_DIR/lizard" --csv "${files[@]}")
+else
+	lizard_version=$(sed -n 's/^lizard==\([0-9.]*\).*/\1/p' tools/lizard-requirements.txt)
+	if [[ -z "$lizard_version" ]]; then
+		echo "no lizard version in tools/lizard-requirements.txt" >&2
+		exit 2
+	fi
+	measured=$(uvx -q --from "lizard==$lizard_version" lizard --csv "${files[@]}")
+fi
 
 python3 -I -c '
 import csv, re, sys

@@ -114,15 +114,27 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      # The container's user doesn't own the checkout, so git refuses it until it is trusted; the function comment
+      # check lists the sources with git ls-files, and the changed-lines check diffs against the base
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       # Space Cadet 2026's presentation code reads the table only through TableView.h
       - name: Check presentation includes
         run: tools/check-presentation-includes.sh
 
-      - name: Install clang-format, clang-tidy, python-bidi and arabic-reshaper
+      - name: Install clang-format, clang-tidy, python-bidi, arabic-reshaper and lizard
         run: |
           python3 -m venv /opt/llvm
           /opt/llvm/bin/pip install --require-hashes --no-deps --only-binary :all: -r tools/llvm-requirements.txt
           /opt/llvm/bin/pip install --require-hashes --no-deps --only-binary :all: -r tools/bidi/requirements.txt
+          /opt/llvm/bin/pip install --require-hashes --no-deps --only-binary :all: -r tools/lizard-requirements.txt
+
+      # A comment above every function with a branch or a loop, for CodeRabbit's Docstring Coverage check (AGENTS.md)
+      - name: Check function comments
+        env:
+          LIZARD_DIR: /opt/llvm/bin
+        run: tools/check-function-comments.sh
 
       # The compile database is all clang-tidy needs; without the precompiled header, each file parses on its own
       - name: Configure
@@ -141,6 +153,5 @@ jobs:
           CLANG_FORMAT_DIR: /opt/llvm/bin
           CLANG_TIDY_DIR: /opt/llvm/bin
         run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git rev-parse --verify --quiet HEAD^2 >/dev/null || { echo "HEAD is not a pull request merge commit" >&2; exit 1; }
           tools/lint-changed.sh HEAD^1 build/lint
