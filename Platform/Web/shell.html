@@ -18,7 +18,7 @@
   label.button, button { display: inline-block; margin: .25rem .5rem .25rem 0; padding: .55rem 1rem; border-radius: .4rem;
     border: 1px solid #3a3550; background: #221f2e; color: var(--fg); font: inherit; cursor: pointer; }
   button.primary { background: var(--accent); border-color: var(--accent); color: #0d0b14; font-weight: 600; }
-  button:disabled { opacity: .45; cursor: default; }
+  button:disabled, label.button.disabled { opacity: .45; cursor: default; }
   input[type=file] { display: none; }
   #files { font-family: ui-monospace, monospace; font-size: .85rem; color: var(--muted); max-height: 8rem; overflow: auto; }
   #status { min-height: 1.5em; }
@@ -119,10 +119,50 @@
     }
   }
 
+  // Text for an error from the file system or IndexedDB: Emscripten's FS.ErrnoError is an Error only in builds with
+  // assertions, so a release build's has no message, only its errno
+  function describe(err) {
+    if (err?.message) return err.message;
+    if (err?.code) return err.code;
+    if (err?.errno !== undefined) return "error " + err.errno;
+    return String(err);
+  }
+
+  // Turns off the inputs that change the stored files, both pickers and Forget, while one change is written and
+  // synced or the game is starting, so that a second selection can't interleave with it; refresh decides Play
+  // afterwards
+  function setBusy(busy) {
+    for (const id of ["pickFiles", "pickFolder"]) {
+      $(id).disabled = busy;
+      document.querySelector(`label[for=${id}]`).classList.toggle("disabled", busy);
+    }
+    $("forget").disabled = busy;
+    if (busy) $("play").disabled = true;
+  }
+
   async function addFiles(input) {
     // A copy, so that the input can be cleared: it fires "change" again only for a different selection
     const fileList = Array.from(input.files);
     input.value = "";
+    if (!fileList.length) return;
+    setBusy(true);
+    setStatus("Adding files…");
+    let message = "No game files among those.";
+    try {
+      const added = await writeFiles(fileList);
+      if (added) message = `Added ${added} file${added > 1 ? "s" : ""}.`;
+      await sync(false);
+    } catch (err) {
+      message = "Couldn't keep the files in this browser: " + describe(err);
+    } finally {
+      setBusy(false);
+      refresh();
+    }
+    setStatus(message);
+  }
+
+  // Writes the game files among fileList into the data folder; returns how many it wrote
+  async function writeFiles(fileList) {
     let added = 0;
     for (const file of fileList) {
       // A folder's own name is dropped; subfolders such as Full Tilt's SOUND stay
@@ -138,26 +178,19 @@
       FS.writeFile(path, new Uint8Array(await file.arrayBuffer()));
       added++;
     }
-    let message = "No game files among those.";
-    if (added) message = `Added ${added} file${added > 1 ? "s" : ""}.`;
-    try {
-      await sync(false);
-    } catch (err) {
-      message = "Couldn't keep the files in this browser: " + err;
-    } finally {
-      refresh();
-    }
-    setStatus(message);
+    return added;
   }
 
   async function forget() {
-    for (const name of listFiles().reverse()) FS.unlink(DataDir + "/" + name);
+    setBusy(true);
     let message = "";
     try {
+      for (const name of listFiles().reverse()) FS.unlink(DataDir + "/" + name);
       await sync(false);
     } catch (err) {
-      message = "Couldn't remove the files from this browser: " + err;
+      message = "Couldn't remove the files from this browser: " + describe(err);
     } finally {
+      setBusy(false);
       refresh();
     }
     if (message) setStatus(message);
@@ -174,7 +207,8 @@
   }
 
   async function play() {
-    $("play").disabled = true;
+    // Busy for good: the game starts once, and the files must not change while the SoundFont downloads
+    setBusy(true);
     if ($("music").checked && !SoundFonts.slice(0, 2).some(path => FS.analyzePath(path).exists)) {
       setStatus("Downloading the SoundFont…");
       try {
