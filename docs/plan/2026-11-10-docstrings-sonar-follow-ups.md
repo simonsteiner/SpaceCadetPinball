@@ -46,7 +46,7 @@ Each item keeps the replays matching. One that would change gameplay stops and a
 
 ## Outcome
 
-Decided and done on 2026-11-10; each pull request is based on `main` and independent of the others.
+Decided on 2026-11-10. SonarCloud's settings (item 1) and the reply on #197 (item 8) are done; the rest is in review as #203 to #209, each based on `main` and independent of the others.
 
 1. **Sonar: switched off what can't be followed, kept the design rules.** SonarCloud's project settings now ignore S5281, S6494, S7040, S6168, S5020, S2245 and S2479 for the whole project, and S5421 for all files instead of only `control*.cpp`. S134, S3776 and S3624 stay on outside the rules files, so new code is still flagged. The one S9382 in `shell.html` is accepted with a comment. Upstream's lines keep their issues, and nothing is excluded by path. SonarCloud showed 1,395 open issues on `main` before the change. #206 lists the rules in `docs/setup.md`.
 2. **Polygon walls: `wall_length` requires `2n + 3`** (#203). A log of every polygon wall as the four tables loaded showed all 459 repeating their first point after the last one, with three floats more than the old minimum, so no wall changes.
