@@ -128,7 +128,7 @@ namespace
 	}
 } // namespace
 
-// Hashes the view's fields in a fixed order, each list's size before its items; all but Pirates.LastBallRelease
+// Hashes all the view's fields in a fixed order, each list's size before its items
 uint64_t TableView::Hash() const
 {
 	Hasher hash;
@@ -173,6 +173,7 @@ uint64_t TableView::Hash() const
 		  static_cast<int>(Pirates.Letters), Pirates.Jackpot, Pirates.BrigBalls, Pirates.BallsInPlay, Pirates.Coins,
 		  Pirates.CoinLights, Pirates.Treasures, Pirates.TreasureLights, Pirates.MapPieces, Pirates.MapPieceLights})
 		hash.Add(value);
+	hash.Add(Pirates.LastBallRelease);
 	return hash.Value;
 }
 
